@@ -2,550 +2,1389 @@
 
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURÉA — Perfumes Premium</title>
-  <meta name="description" content="AURÉA — perfumes selecionados para quem quer deixar marca.">
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>AURÉA | Perfumes</title>
+
+<meta name="description" content="AURÉA Perfumes — fragrâncias selecionadas para quem quer deixar marca.">
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f7f5f2;
+    color:#171615;
+    overflow-x:hidden;
+}
+
+button,
+input{
+    font-family:inherit;
+}
+
+button{
+    cursor:pointer;
+}
+
+a{
+    color:inherit;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.header{
+    position:sticky;
+    top:0;
+    z-index:1000;
+    height:76px;
+    padding:0 6%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#111;
+    color:#fff;
+    border-bottom:1px solid #292929;
+}
+
+.logo{
+    font-family:Georgia,serif;
+    font-size:27px;
+    letter-spacing:7px;
+}
+
+.navigation{
+    display:flex;
+    align-items:center;
+    gap:30px;
+}
+
+.navigation a{
+    text-decoration:none;
+    color:#cfcfcf;
+    font-size:10px;
+    letter-spacing:1.8px;
+    transition:.2s;
+}
+
+.navigation a:hover{
+    color:#fff;
+}
+
+.cart-button{
+    border:1px solid #444;
+    background:#191919;
+    color:#fff;
+    border-radius:30px;
+    padding:11px 18px;
+    font-size:11px;
+    transition:.2s;
+}
+
+.cart-button:hover{
+    background:#292929;
+}
+
+/* =========================
+   HERO
+========================= */
+
+.hero{
+    min-height:650px;
+    display:flex;
+    align-items:center;
+    padding:90px 8%;
+    position:relative;
+    overflow:hidden;
+    background:
+        radial-gradient(circle at 82% 35%,rgba(150,120,95,.20),transparent 30%),
+        linear-gradient(120deg,#e8dfd9,#faf9f7 62%,#e8e0da);
+}
+
+.hero::after{
+    content:"";
+    position:absolute;
+    width:420px;
+    height:420px;
+    right:-180px;
+    bottom:-220px;
+    border:1px solid rgba(120,100,80,.15);
+    border-radius:50%;
+}
+
+.hero-content{
+    position:relative;
+    z-index:2;
+    max-width:720px;
+}
+
+.hero-kicker,
+.kicker{
+    font-size:10px;
+    letter-spacing:4px;
+    color:#866f5d;
+    font-weight:bold;
+}
+
+.hero-kicker{
+    margin-bottom:24px;
+}
+
+.hero h1{
+    font-family:Georgia,serif;
+    font-size:clamp(45px,7vw,72px);
+    line-height:1;
+    font-weight:normal;
+    letter-spacing:-2px;
+    margin-bottom:27px;
+}
+
+.hero-text{
+    max-width:580px;
+    color:#666;
+    font-size:16px;
+    line-height:1.8;
+    margin-bottom:34px;
+}
+
+.hero-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+}
+
+.primary-button,
+.secondary-button{
+    display:inline-block;
+    padding:16px 25px;
+    border-radius:4px;
+    text-decoration:none;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1.4px;
+    transition:.2s;
+}
+
+.primary-button{
+    background:#151515;
+    color:#fff;
+}
+
+.primary-button:hover{
+    background:#333;
+}
+
+.secondary-button{
+    border:1px solid #bdb8b2;
+    background:rgba(255,255,255,.45);
+}
+
+.secondary-button:hover{
+    background:#fff;
+}
+
+/* =========================
+   CATEGORIAS
+========================= */
+
+.categories{
+    max-width:1200px;
+    margin:auto;
+    padding:85px 7% 55px;
+}
+
+.kicker{
+    text-align:center;
+    margin-bottom:11px;
+}
+
+.section-heading{
+    text-align:center;
+    font-family:Georgia,serif;
+    font-size:clamp(31px,4vw,42px);
+    font-weight:normal;
+    margin-bottom:42px;
+}
+
+.category-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+}
+
+.category-card{
+    display:block;
+    padding:34px 15px;
+    text-align:center;
+    text-decoration:none;
+    background:#fff;
+    border:1px solid #e6e1dc;
+    transition:.25s;
+}
+
+.category-card:hover{
+    transform:translateY(-5px);
+    box-shadow:0 15px 35px rgba(0,0,0,.07);
+}
+
+.category-card strong{
+    display:block;
+    font-family:Georgia,serif;
+    font-size:21px;
+    font-weight:normal;
+    margin-bottom:8px;
+}
+
+.category-card span{
+    font-size:11px;
+    color:#888;
+}
+
+/* =========================
+   PRODUTOS
+========================= */
+
+.product-section{
+    max-width:1200px;
+    margin:auto;
+    padding:45px 7% 90px;
+}
+
+.products-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:24px;
+}
+
+.product-card{
+    background:#fff;
+    border:1px solid #e5e0db;
+    box-shadow:0 18px 55px rgba(0,0,0,.06);
+    overflow:hidden;
+}
+
+.product-photo{
+    height:460px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:30px;
+    background:
+        radial-gradient(circle at center,rgba(255,255,255,.8),transparent 55%),
+        #eee5df;
+}
+
+.product-photo img{
+    width:100%;
+    height:400px;
+    object-fit:contain;
+    display:block;
+}
+
+.product-details{
+    padding:34px;
+}
+
+.product-brand{
+    font-size:10px;
+    letter-spacing:3px;
+    color:#927a68;
+    font-weight:bold;
+    margin-bottom:9px;
+}
+
+.product-name{
+    font-family:Georgia,serif;
+    font-size:38px;
+    font-weight:normal;
+    margin-bottom:8px;
+}
+
+.product-type{
+    font-size:13px;
+    color:#777;
+    margin-bottom:19px;
+}
+
+.rating{
+    font-size:13px;
+    margin-bottom:19px;
+}
+
+.rating-number{
+    color:#777;
+    margin-left:6px;
+}
+
+.product-description{
+    color:#666;
+    font-size:14px;
+    line-height:1.8;
+    margin-bottom:22px;
+}
+
+.product-price{
+    font-size:29px;
+    font-weight:bold;
+}
+
+.product-pix{
+    color:#5e7c64;
+    font-size:13px;
+    margin-top:5px;
+    margin-bottom:22px;
+}
+
+.add-button{
+    width:100%;
+    padding:17px;
+    border:0;
+    border-radius:4px;
+    background:#151515;
+    color:#fff;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1.4px;
+    transition:.2s;
+}
+
+.add-button:hover{
+    background:#333;
+}
+
+.product-benefits{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:7px;
+    margin-top:15px;
+}
+
+.product-benefits div{
+    padding:13px 4px;
+    text-align:center;
+    background:#faf9f7;
+    color:#777;
+    font-size:9px;
+}
+
+/* =========================
+   NOTAS
+========================= */
+
+.notes-section{
+    max-width:1200px;
+    margin:auto;
+    padding:0 7% 90px;
+}
+
+.notes-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+}
+
+.note-card{
+    background:#fff;
+    border:1px solid #e6e1dc;
+    padding:30px;
+}
+
+.note-card h3{
+    font-family:Georgia,serif;
+    font-size:22px;
+    font-weight:normal;
+    margin-bottom:9px;
+}
+
+.note-card p{
+    color:#777;
+    font-size:13px;
+}
+
+/* =========================
+   CONFIANÇA
+========================= */
+
+.trust-section{
+    padding:65px 7%;
+    background:#171717;
+    color:#fff;
+}
+
+.trust-grid{
+    max-width:1100px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:35px;
+    text-align:center;
+}
+
+.trust-item h3{
+    font-family:Georgia,serif;
+    font-size:20px;
+    font-weight:normal;
+    margin-bottom:8px;
+}
+
+.trust-item p{
+    color:#aaa;
+    font-size:12px;
+    line-height:1.7;
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.footer{
+    background:#0d0d0d;
+    color:#777;
+    text-align:center;
+    padding:45px 7%;
+    font-size:11px;
+}
+
+.footer-logo{
+    color:#fff;
+    font-family:Georgia,serif;
+    font-size:23px;
+    letter-spacing:6px;
+    margin-bottom:12px;
+}
+
+/* =========================
+   CARRINHO
+========================= */
+
+.drawer{
+    position:fixed;
+    top:0;
+    right:-430px;
+    width:410px;
+    max-width:94%;
+    height:100%;
+    padding:30px;
+    background:#fff;
+    z-index:2000;
+    box-shadow:-15px 0 50px rgba(0,0,0,.2);
+    transition:.3s ease;
+    overflow-y:auto;
+}
+
+.drawer.open{
+    right:0;
+}
+
+.close-cart{
+    float:right;
+    border:0;
+    background:none;
+    font-size:30px;
+    color:#222;
+}
+
+.drawer-title{
+    font-family:Georgia,serif;
+    font-size:30px;
+    font-weight:normal;
+    margin-bottom:25px;
+}
+
+.empty-cart{
+    padding:30px 0;
+    color:#888;
+}
+
+.cart-product{
+    display:flex;
+    gap:15px;
+    padding:18px 0;
+    border-bottom:1px solid #eee;
+}
+
+.cart-product img{
+    width:75px;
+    height:75px;
+    object-fit:contain;
+    background:#f4ebe6;
+    border-radius:8px;
+}
+
+.cart-product-info{
+    font-size:13px;
+}
+
+.cart-product-info small{
+    color:#888;
+}
+
+.shipping{
+    border-top:1px solid #eee;
+    margin-top:25px;
+    padding-top:25px;
+}
+
+.shipping h3{
+    font-family:Georgia,serif;
+    font-size:20px;
+    font-weight:normal;
+    margin-bottom:6px;
+}
+
+.shipping-description{
+    color:#888;
+    font-size:12px;
+}
+
+.cep-area{
+    display:flex;
+    gap:7px;
+    margin-top:13px;
+}
+
+.cep-area input{
+    flex:1;
+    min-width:0;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:5px;
+    outline:none;
+}
+
+.cep-area input:focus{
+    border-color:#888;
+}
+
+.cep-area button{
+    border:0;
+    background:#151515;
+    color:#fff;
+    padding:0 14px;
+    border-radius:5px;
+    font-size:10px;
+    font-weight:bold;
+}
+
+.cep-message{
+    color:#777;
+    font-size:12px;
+    margin-top:10px;
+}
+
+.shipping-option{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    margin-top:9px;
+    padding:13px;
+    border:1px solid #ddd;
+    border-radius:7px;
+    font-size:12px;
+    cursor:pointer;
+}
+
+.shipping-option:hover{
+    background:#fafafa;
+}
+
+.shipping-option.selected{
+    border:2px solid #111;
+}
+
+.shipping-option small{
+    display:block;
+    color:#888;
+    margin-top:4px;
+}
+
+.total{
+    border-top:1px solid #eee;
+    margin-top:25px;
+    padding-top:20px;
+}
+
+.total-line{
+    display:flex;
+    justify-content:space-between;
+    gap:15px;
+    font-size:20px;
+}
+
+.checkout{
+    width:100%;
+    margin-top:15px;
+    padding:16px;
+    border:0;
+    border-radius:4px;
+    background:#151515;
+    color:#fff;
+    font-weight:bold;
+    letter-spacing:1px;
+}
+
+/* =========================
+   RESPONSIVO
+========================= */
+
+@media(max-width:800px){
+
+    .header{
+        padding:0 5%;
     }
 
-```
-html {
-  scroll-behavior: smooth;
+    .navigation{
+        display:none;
+    }
+
+    .hero{
+        min-height:570px;
+        padding:75px 7%;
+    }
+
+    .category-grid{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .products-grid{
+        grid-template-columns:1fr;
+    }
+
+    .product-photo{
+        height:400px;
+    }
+
+    .product-photo img{
+        height:340px;
+    }
+
+    .notes-grid,
+    .trust-grid{
+        grid-template-columns:1fr;
+    }
 }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: #faf9f6;
-  color: #171717;
-  line-height: 1.5;
+@media(max-width:480px){
+
+    .logo{
+        font-size:22px;
+        letter-spacing:5px;
+    }
+
+    .cart-button{
+        padding:10px 13px;
+        font-size:10px;
+    }
+
+    .hero{
+        padding:65px 7%;
+    }
+
+    .hero h1{
+        font-size:40px;
+    }
+
+    .hero-actions{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .primary-button,
+    .secondary-button{
+        text-align:center;
+    }
+
+    .category-grid{
+        grid-template-columns:1fr;
+    }
+
+    .product-photo{
+        height:350px;
+    }
+
+    .product-photo img{
+        height:300px;
+    }
+
+    .product-details{
+        padding:27px 23px;
+    }
+
+    .product-name{
+        font-size:35px;
+    }
+
+    .product-benefits{
+        grid-template-columns:1fr;
+    }
+
+    .drawer{
+        padding:25px 20px;
+    }
 }
+</style>
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button {
-  font: inherit;
-  cursor: pointer;
-}
-
-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: rgba(250, 249, 246, 0.96);
-  border-bottom: 1px solid #e5e0d7;
-  backdrop-filter: blur(10px);
-}
-
-.nav {
-  max-width: 1200px;
-  margin: auto;
-  min-height: 72px;
-  padding: 0 22px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.logo {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 28px;
-  letter-spacing: 5px;
-  font-weight: 700;
-}
-
-.menu {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.menu a:hover {
-  opacity: .55;
-}
-
-.cart {
-  border: 1px solid #171717;
-  background: #171717;
-  color: #fff;
-  padding: 11px 15px;
-  border-radius: 4px;
-}
-
-.hero {
-  max-width: 1200px;
-  margin: auto;
-  padding: 85px 22px 70px;
-  display: grid;
-  grid-template-columns: 1.05fr .95fr;
-  align-items: center;
-  gap: 55px;
-}
-
-.eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  margin-bottom: 18px;
-}
-
-h1 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(45px, 6vw, 76px);
-  line-height: 1;
-  font-weight: 500;
-  margin-bottom: 24px;
-}
-
-.hero p {
-  max-width: 570px;
-  color: #666;
-  font-size: 17px;
-  margin-bottom: 30px;
-}
-
-.btn {
-  display: inline-block;
-  background: #171717;
-  color: #fff;
-  padding: 14px 22px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.hero-card {
-  background: #eeeae2;
-  min-height: 440px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 30px;
-}
-
-.hero-card img {
-  width: 100%;
-  max-width: 390px;
-  max-height: 390px;
-  object-fit: contain;
-  mix-blend-mode: multiply;
-}
-
-section {
-  max-width: 1200px;
-  margin: auto;
-  padding: 65px 22px;
-}
-
-.section-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 38px;
-  font-weight: 500;
-  margin-bottom: 12px;
-}
-
-.section-subtitle {
-  color: #777;
-  margin-bottom: 35px;
-}
-
-.product {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 50px;
-  align-items: center;
-  border-top: 1px solid #ddd7cd;
-  border-bottom: 1px solid #ddd7cd;
-  padding: 45px 0;
-}
-
-.product-image {
-  background: #eeeae2;
-  min-height: 480px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 30px;
-}
-
-.product-image img {
-  width: 100%;
-  height: 430px;
-  object-fit: contain;
-  mix-blend-mode: multiply;
-}
-
-.brand {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  margin-bottom: 10px;
-}
-
-h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 48px;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.type {
-  color: #777;
-  margin-bottom: 15px;
-}
-
-.rating {
-  margin-bottom: 18px;
-  letter-spacing: 2px;
-}
-
-.description {
-  color: #555;
-  margin-bottom: 22px;
-}
-
-.price {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 34px;
-  margin-bottom: 4px;
-}
-
-.pix {
-  color: #555;
-  font-size: 14px;
-  margin-bottom: 24px;
-}
-
-.quantity {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid #ccc5ba;
-  margin-right: 10px;
-  vertical-align: middle;
-}
-
-.quantity button {
-  width: 38px;
-  height: 42px;
-  border: 0;
-  background: transparent;
-  font-size: 20px;
-}
-
-.quantity span {
-  min-width: 32px;
-  text-align: center;
-}
-
-.add {
-  height: 42px;
-  padding: 0 20px;
-  border: 0;
-  background: #171717;
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: .5px;
-}
-
-.trust {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-top: 22px;
-  color: #666;
-  font-size: 13px;
-}
-
-.notes {
-  margin-top: 40px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-
-.note {
-  background: #fff;
-  border: 1px solid #e5e0d7;
-  padding: 25px;
-}
-
-.note h3 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 23px;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.note p {
-  color: #666;
-  font-size: 14px;
-}
-
-.categories {
-  background: #171717;
-  color: #fff;
-  max-width: none;
-  padding: 65px 22px;
-  text-align: center;
-}
-
-.categories-inner {
-  max-width: 1200px;
-  margin: auto;
-}
-
-.categories h2 {
-  font-size: 38px;
-  margin-bottom: 30px;
-}
-
-.category-links {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.category-links a {
-  border: 1px solid #555;
-  padding: 13px 22px;
-  border-radius: 30px;
-  font-size: 13px;
-  letter-spacing: 1px;
-}
-
-footer {
-  max-width: 1200px;
-  margin: auto;
-  padding: 45px 22px;
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  color: #777;
-  font-size: 13px;
-}
-
-@media (max-width: 800px) {
-  .menu {
-    gap: 10px;
-    font-size: 11px;
-  }
-
-  .nav {
-    padding: 0 14px;
-  }
-
-  .cart {
-    padding: 9px 10px;
-  }
-
-  .hero,
-  .product {
-    grid-template-columns: 1fr;
-    gap: 30px;
-  }
-
-  .hero {
-    padding-top: 55px;
-  }
-
-  .hero-card {
-    min-height: 330px;
-  }
-
-  .product-image {
-    min-height: 350px;
-  }
-
-  .product-image img {
-    height: 310px;
-  }
-
-  h2 {
-    font-size: 40px;
-  }
-
-  .notes {
-    grid-template-columns: 1fr;
-  }
-
-  footer {
-    flex-direction: column;
-  }
-}
-```
-
-  </style>
 </head>
 
 <body>
 
-  <header>
-    <nav class="nav">
-      <a class="logo" href="#">AURÉA</a>
+<header class="header">
 
 ```
-  <div class="menu">
+<div class="logo">AURÉA</div>
+
+<nav class="navigation">
     <a href="#femininos">FEMININOS</a>
     <a href="#masculinos">MASCULINOS</a>
     <a href="#arabes">ÁRABES</a>
     <a href="#ofertas">OFERTAS</a>
-    <button class="cart" onclick="abrirCarrinho()">🛍 Carrinho (<span id="cartCount">0</span>)</button>
-  </div>
 </nav>
+
+<button class="cart-button" type="button" onclick="openCart()">
+    🛍 Carrinho (<span id="cartCount">0</span>)
+</button>
 ```
 
-  </header>
+</header>
 
-  <main>
-
-```
 <section class="hero">
-  <div>
-    <div class="eyebrow">CURADORIA PREMIUM</div>
+
+```
+<div class="hero-content">
+
+    <div class="hero-kicker">CURADORIA PREMIUM</div>
+
     <h1>Perfumes que deixam marca.</h1>
-    <p>
-      Fragrâncias selecionadas para quem não quer apenas usar um perfume —
-      quer ser lembrado.
+
+    <p class="hero-text">
+        Fragrâncias selecionadas para quem não quer apenas usar um perfume,
+        mas transformar presença em memória.
     </p>
-    <a class="btn" href="#produto">VER DESTAQUE</a>
-  </div>
 
-  <div class="hero-card">
-    <img
-      src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
-      alt="Lattafa Layaan">
-  </div>
-</section>
+    <div class="hero-actions">
 
-<section id="produto">
-  <div class="eyebrow">DESTAQUE DA SEMANA</div>
-  <div class="product">
+        <a class="primary-button" href="#produto">
+            VER DESTAQUE
+        </a>
 
-    <div class="product-image">
-      <img
-        src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
-        alt="Lattafa Layaan Eau de Parfum">
+        <a class="secondary-button" href="#categorias">
+            EXPLORAR PERFUMES
+        </a>
+
     </div>
 
-    <div>
-      <div class="brand">LATTAFA</div>
-      <h2>Layaan</h2>
-      <div class="type">Eau de Parfum Feminino • 75ml</div>
+</div>
+```
 
-      <div class="rating">★★★★★ <strong>4,9</strong></div>
+</section>
 
-      <p class="description">
-        Uma fragrância floral frutada, delicada e elegante, com pera verde
-        e mandarina na saída, flores brancas no coração e cedro e musk no fundo.
-      </p>
+<section class="categories" id="categorias">
 
-      <div class="price">R$ 399,00</div>
-      <div class="pix">ou R$ 379,05 no Pix</div>
+```
+<div class="kicker">EXPLORE A AURÉA</div>
 
-      <div>
-        <div class="quantity">
-          <button onclick="alterarQuantidade(-1)">−</button>
-          <span id="quantity">1</span>
-          <button onclick="alterarQuantidade(1)">+</button>
+<h2 class="section-heading">Encontre sua essência</h2>
+
+<div class="category-grid">
+
+    <a class="category-card" id="femininos" href="#produto">
+        <strong>Femininos</strong>
+        <span>Elegância e personalidade</span>
+    </a>
+
+    <a class="category-card" id="masculinos" href="#produto">
+        <strong>Masculinos</strong>
+        <span>Presença e sofisticação</span>
+    </a>
+
+    <a class="category-card" id="arabes" href="#produto">
+        <strong>Árabes</strong>
+        <span>Intensidade e exclusividade</span>
+    </a>
+
+    <a class="category-card" id="ofertas" href="#produto">
+        <strong>Ofertas</strong>
+        <span>Oportunidades selecionadas</span>
+    </a>
+
+</div>
+```
+
+</section>
+
+<section class="product-section" id="produto">
+
+```
+<div class="kicker">DESTAQUES</div>
+
+<h2 class="section-heading">Uma fragrância para lembrar</h2>
+
+<div class="products-grid">
+
+    <article class="product-card">
+
+        <div class="product-photo">
+
+            <img
+                src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
+                alt="Lattafa Layaan"
+            >
+
         </div>
 
-        <button class="add" onclick="adicionarCarrinho()">
-          ADICIONAR AO CARRINHO
-        </button>
-      </div>
+        <div class="product-details">
 
-      <div class="trust">
-        <span>🔒 Compra segura</span>
-        <span>📦 Envio Brasil</span>
-        <span>✓ Lacrado</span>
-      </div>
-    </div>
+            <div class="product-brand">LATTAFA</div>
 
-  </div>
+            <h2 class="product-name">Layaan</h2>
 
-  <div class="eyebrow" style="margin-top:55px;">NOTAS OLFATIVAS</div>
+            <div class="product-type">
+                Eau de Parfum Feminino • 75ml
+            </div>
 
-  <div class="notes">
-    <div class="note">
-      <h3>🍐 Saída</h3>
-      <p>Pera verde e mandarina.</p>
-    </div>
+            <div class="rating">
+                ★★★★★
+                <span class="rating-number">4,9 • Avaliações</span>
+            </div>
 
-    <div class="note">
-      <h3>🌸 Coração</h3>
-      <p>Gardênia, jasmim e muguet.</p>
-    </div>
+            <p class="product-description">
+                Uma fragrância floral frutada, delicada e elegante,
+                com pera verde e mandarina na saída, flores brancas
+                no coração e cedro e musk no fundo.
+            </p>
 
-    <div class="note">
-      <h3>🌿 Fundo</h3>
-      <p>Cedro e musk.</p>
-    </div>
-  </div>
-</section>
+            <div class="product-price">R$ 399,00</div>
 
-<section class="categories">
-  <div class="categories-inner">
-    <h2>Encontre sua fragrância</h2>
+            <div class="product-pix">
+                ou R$ 379,05 no Pix
+            </div>
 
-    <div class="category-links">
-      <a id="femininos" href="#produto">FEMININOS</a>
-      <a id="masculinos" href="#produto">MASCULINOS</a>
-      <a id="arabes" href="#produto">ÁRABES</a>
-      <a id="ofertas" href="#produto">OFERTAS</a>
-    </div>
-  </div>
-</section>
+            <button
+                class="add-button"
+                type="button"
+                onclick="addToCart(
+                    'Lattafa Layaan',
+                    399,
+                    'Eau de Parfum Feminino • 75ml',
+                    'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg'
+                )"
+            >
+                ADICIONAR AO CARRINHO
+            </button>
+
+            <div class="product-benefits">
+                <div>🔒 Compra segura</div>
+                <div>📦 Envio Brasil</div>
+                <div>✓ Lacrado</div>
+            </div>
+
+        </div>
+
+    </article>
+
+    <article class="product-card">
+
+        <div class="product-photo">
+
+            <img
+                src="https://frenchavenueparfums.com/cdn/shop/files/liquidbrun.jpg"
+                alt="French Avenue Liquid Brun"
+                onerror="this.style.display='none';this.parentElement.innerHTML='<div style=&quot;font-family:Georgia,serif;font-size:22px;color:#8a7768;text-align:center&quot;>FRENCH AVENUE<br><small style=&quot;font-family:Arial;font-size:11px;color:#888&quot;>Liquid Brun</small></div>'"
+            >
+
+        </div>
+
+        <div class="product-details">
+
+            <div class="product-brand">FRENCH AVENUE</div>
+
+            <h2 class="product-name">Liquid Brun</h2>
+
+            <div class="product-type">
+                Eau de Parfum Masculino • 100ml
+            </div>
+
+            <div class="rating">
+                ★★★★★
+                <span class="rating-number">Fragrância premium</span>
+            </div>
+
+            <p class="product-description">
+                Uma fragrância masculina marcante e sofisticada,
+                ideal para quem busca presença, elegância e personalidade.
+            </p>
+
+            <div class="product-price">R$ 329,00</div>
+
+            <div class="product-pix">
+                ou R$ 312,55 no Pix
+            </div>
+
+            <button
+                class="add-button"
+                type="button"
+                onclick="addToCart(
+                    'French Avenue Liquid Brun',
+                    329,
+                    'Eau de Parfum Masculino • 100ml',
+                    'https://frenchavenueparfums.com/cdn/shop/files/liquidbrun.jpg'
+                )"
+            >
+                ADICIONAR AO CARRINHO
+            </button>
+
+            <div class="product-benefits">
+                <div>🔒 Compra segura</div>
+                <div>📦 Envio Brasil</div>
+                <div>✓ Lacrado</div>
+            </div>
+
+        </div>
+
+    </article>
+
+</div>
 ```
 
-  </main>
+</section>
 
-  <footer>
-    <div>© 2026 AURÉA — Perfumes Premium</div>
-    <div>Fragrâncias selecionadas com cuidado.</div>
-  </footer>
+<section class="notes-section">
 
-  <script>
-    let quantidade = 1;
-    let carrinho = 0;
+```
+<div class="kicker">PERFIL OLFATIVO</div>
 
-    function alterarQuantidade(valor) {
-      quantidade += valor;
+<h2 class="section-heading">Notas olfativas</h2>
 
-      if (quantidade < 1) {
-        quantidade = 1;
-      }
+<div class="notes-grid">
 
-      document.getElementById("quantity").textContent = quantidade;
+    <div class="note-card">
+        <h3>Saída</h3>
+        <p>Pera verde e mandarina.</p>
+    </div>
+
+    <div class="note-card">
+        <h3>Coração</h3>
+        <p>Gardênia, jasmim e muguet.</p>
+    </div>
+
+    <div class="note-card">
+        <h3>Fundo</h3>
+        <p>Cedro e musk.</p>
+    </div>
+
+</div>
+```
+
+</section>
+
+<section class="trust-section">
+
+```
+<div class="trust-grid">
+
+    <div class="trust-item">
+        <h3>Compra segura</h3>
+        <p>
+            Uma experiência de compra simples,
+            transparente e segura.
+        </p>
+    </div>
+
+    <div class="trust-item">
+        <h3>Envio para o Brasil</h3>
+        <p>
+            Consulte as opções de entrega
+            diretamente no carrinho.
+        </p>
+    </div>
+
+    <div class="trust-item">
+        <h3>Curadoria AURÉA</h3>
+        <p>
+            Fragrâncias selecionadas para quem
+            valoriza personalidade.
+        </p>
+    </div>
+
+</div>
+```
+
+</section>
+
+<footer class="footer">
+
+```
+<div class="footer-logo">AURÉA</div>
+
+<div>Sua essência. Sua presença.</div>
+
+<br>
+
+<div>© 2026 AURÉA Perfumes</div>
+```
+
+</footer>
+
+<aside class="drawer" id="cartDrawer">
+
+```
+<button class="close-cart" type="button" onclick="closeCart()" aria-label="Fechar carrinho">
+    ×
+</button>
+
+<h2 class="drawer-title">Seu carrinho</h2>
+
+<div id="cartContent">
+    <div class="empty-cart">
+        Seu carrinho está vazio.
+    </div>
+</div>
+
+<div id="shippingArea" style="display:none">
+
+    <div class="shipping">
+
+        <h3>Calcule o frete</h3>
+
+        <div class="shipping-description">
+            Informe seu CEP para consultar as opções de entrega.
+        </div>
+
+        <div class="cep-area">
+
+            <input
+                id="cep"
+                type="text"
+                maxlength="9"
+                inputmode="numeric"
+                autocomplete="postal-code"
+                placeholder="29700-000"
+                aria-label="CEP"
+            >
+
+            <button type="button" onclick="calculateShipping()">
+                CALCULAR
+            </button>
+
+        </div>
+
+        <div class="cep-message" id="cepMessage"></div>
+
+        <div id="shippingOptions"></div>
+
+    </div>
+
+</div>
+
+<div class="total" id="totalArea" style="display:none">
+
+    <div class="total-line">
+        <strong>Total</strong>
+        <strong>
+            R$ <span id="totalValue">0,00</span>
+        </strong>
+    </div>
+
+    <button class="checkout" type="button" onclick="checkout()">
+        IR PARA PAGAMENTO
+    </button>
+
+</div>
+```
+
+</aside>
+
+<script>
+"use strict";
+
+let cart = [];
+let shippingPrice = 0;
+let shippingName = "";
+
+function addToCart(name, price, description, image){
+
+    const existing = cart.find(function(item){
+        return item.name === name;
+    });
+
+    if(existing){
+        existing.quantity++;
+    }else{
+        cart.push({
+            name:name,
+            price:price,
+            description:description,
+            image:image,
+            quantity:1
+        });
     }
 
-    function adicionarCarrinho() {
-      carrinho += quantidade;
-      document.getElementById("cartCount").textContent = carrinho;
+    renderCart();
+    openCart();
+}
 
-      alert("Produto adicionado ao carrinho!");
+function renderCart(){
+
+    const cartContent = document.getElementById("cartContent");
+    const cartCount = document.getElementById("cartCount");
+    const shippingArea = document.getElementById("shippingArea");
+    const totalArea = document.getElementById("totalArea");
+
+    const totalQuantity = cart.reduce(function(sum,item){
+        return sum + item.quantity;
+    },0);
+
+    cartCount.textContent = totalQuantity;
+
+    if(cart.length === 0){
+
+        cartContent.innerHTML =
+            "<div class='empty-cart'>Seu carrinho está vazio.</div>";
+
+        shippingArea.style.display = "none";
+        totalArea.style.display = "none";
+
+        return;
     }
 
-    function abrirCarrinho() {
-      if (carrinho === 0) {
+    shippingArea.style.display = "block";
+    totalArea.style.display = "block";
+
+    cartContent.innerHTML = cart.map(function(item){
+
+        const itemTotal =
+            item.price * item.quantity;
+
+        return `
+            <div class="cart-product">
+
+                <img
+                    src="${item.image}"
+                    alt="${item.name}"
+                >
+
+                <div class="cart-product-info">
+
+                    <strong>${item.name}</strong>
+
+                    <br>
+
+                    <small>${item.description}</small>
+
+                    <br><br>
+
+                    Quantidade: ${item.quantity}
+
+                    <br>
+
+                    <strong>
+                        R$ ${itemTotal.toFixed(2).replace(".",",")}
+                    </strong>
+
+                </div>
+
+            </div>
+        `;
+
+    }).join("");
+
+    updateTotal();
+}
+
+function openCart(){
+
+    document
+        .getElementById("cartDrawer")
+        .classList.add("open");
+}
+
+function closeCart(){
+
+    document
+        .getElementById("cartDrawer")
+        .classList.remove("open");
+}
+
+function updateTotal(){
+
+    const productsTotal =
+        cart.reduce(function(sum,item){
+            return sum + (item.price * item.quantity);
+        },0);
+
+    const total =
+        productsTotal + shippingPrice;
+
+    document.getElementById("totalValue")
+        .textContent =
+        total.toFixed(2).replace(".",",");
+}
+
+document
+    .getElementById("cep")
+    .addEventListener("input",function(){
+
+        let value =
+            this.value
+                .replace(/\D/g,"")
+                .slice(0,8);
+
+        if(value.length > 5){
+
+            value =
+                value.slice(0,5) +
+                "-" +
+                value.slice(5);
+        }
+
+        this.value = value;
+    });
+
+async function calculateShipping(){
+
+    const cep =
+        document
+            .getElementById("cep")
+            .value
+            .replace(/\D/g,"");
+
+    const message =
+        document.getElementById("cepMessage");
+
+    const options =
+        document.getElementById("shippingOptions");
+
+    shippingPrice = 0;
+    shippingName = "";
+
+    options.innerHTML = "";
+
+    updateTotal();
+
+    if(cep.length !== 8){
+
+        message.textContent =
+            "Digite um CEP válido com 8 números.";
+
+        return;
+    }
+
+    message.textContent =
+        "Consultando CEP...";
+
+    try{
+
+        const cepResponse =
+            await fetch(
+                "https://viacep.com.br/ws/" +
+                cep +
+                "/json/"
+            );
+
+        if(!cepResponse.ok){
+            throw new Error("Falha na consulta do CEP.");
+        }
+
+        const cepData =
+            await cepResponse.json();
+
+        if(cepData.erro){
+
+            message.textContent =
+                "CEP não encontrado.";
+
+            return;
+        }
+
+        message.textContent =
+            "📍 " +
+            cepData.localidade +
+            " - " +
+            cepData.uf;
+
+    }catch(error){
+
+        message.textContent =
+            "Não foi possível consultar o CEP.";
+
+        return;
+    }
+
+    /*
+      Nesta etapa o site está preparado para receber
+      o cálculo real do Melhor Envio pelo Cloudflare Worker.
+
+      Enquanto configuramos o Worker, não fazemos uma
+      chamada para uma função Netlify inexistente.
+    */
+
+    options.innerHTML = `
+        <div class="empty-cart">
+            O cálculo de frete será conectado ao Melhor Envio.
+            <br><br>
+            <small>CEP validado com sucesso.</small>
+        </div>
+    `;
+}
+
+function checkout(){
+
+    if(cart.length === 0){
+
         alert("Seu carrinho está vazio.");
-      } else {
-        alert("Você tem " + carrinho + " item(ns) no carrinho.");
-      }
+
+        return;
     }
-  </script>
+
+    if(shippingPrice <= 0){
+
+        alert(
+            "Calcule e selecione uma opção de frete antes de continuar."
+        );
+
+        return;
+    }
+
+    const products =
+        cart.map(function(item){
+            return item.name +
+                " x" +
+                item.quantity;
+        }).join("\n");
+
+    const productsTotal =
+        cart.reduce(function(sum,item){
+            return sum +
+                (item.price * item.quantity);
+        },0);
+
+    const total =
+        productsTotal +
+        shippingPrice;
+
+    alert(
+        "Pedido preparado!\n\n" +
+        products +
+        "\n\nFrete: " +
+        shippingName +
+        "\n\nTotal: R$ " +
+        total.toFixed(2).replace(".",",")
+    );
+}
+
+renderCart();
+</script>
 
 </body>
 </html>
