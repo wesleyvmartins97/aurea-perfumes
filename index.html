@@ -1,0 +1,1295 @@
+<!doctype html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURÉA — Perfumes</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:#f8f5f2;
+  color:#171515;
+  font-family:Arial,sans-serif
+}
+
+header{
+  height:72px;
+  background:#111;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 7%;
+  position:sticky;
+  top:0;
+  z-index:5
+}
+
+.logo{
+  font:27px Georgia;
+  letter-spacing:4px
+}
+
+.nav{
+  display:flex;
+  gap:26px;
+  font-size:12px;
+  color:#ddd
+}
+
+.cart{
+  border:1px solid #555;
+  background:#181818;
+  color:#fff;
+  border-radius:30px;
+  padding:11px 17px;
+  cursor:pointer
+}
+
+.hero{
+  padding:75px 7%;
+  background:linear-gradient(120deg,#eadcdd,#fff)
+}
+
+.hero small{
+  letter-spacing:3px
+}
+
+.hero h1{
+  font:58px Georgia;
+  margin:18px 0 12px;
+  max-width:650px
+}
+
+.hero p{
+  color:#666;
+  line-height:1.7;
+  max-width:520px
+}
+
+.btn,.buy,.checkout{
+  background:#111;
+  color:#fff;
+  border:0;
+  border-radius:10px;
+  padding:16px 24px;
+  font-weight:bold;
+  cursor:pointer
+}
+
+.btn{
+  display:inline-block;
+  text-decoration:none
+}
+
+.wrap{
+  max-width:1150px;
+  margin:auto;
+  padding:58px 7%
+}
+
+.title{
+  text-align:center;
+  font:38px Georgia;
+  margin-bottom:32px
+}
+
+.product{
+  background:#fff;
+  border-radius:25px;
+  overflow:hidden;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  box-shadow:0 20px 60px #0001
+}
+
+.photo{
+  min-height:560px;
+  background:#f6e8ea;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:30px
+}
+
+.photo img{
+  width:90%;
+  height:510px;
+  object-fit:contain
+}
+
+.info{
+  padding:52px 45px
+}
+
+.brand{
+  font-size:12px;
+  letter-spacing:2px;
+  color:#999
+}
+
+.info h2{
+  font:46px Georgia;
+  margin:10px 0
+}
+
+.sub{
+  color:#777
+}
+
+.stars{
+  margin:17px 0
+}
+
+.price{
+  font-size:35px;
+  font-weight:bold;
+  margin-top:25px
+}
+
+.pix{
+  color:#4c7d5c;
+  margin:8px 0 22px
+}
+
+.qty{
+  display:flex;
+  align-items:center;
+  gap:15px;
+  margin:18px 0
+}
+
+.qty button{
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  border:1px solid #ddd;
+  background:#fff;
+  cursor:pointer;
+  font-size:18px
+}
+
+.buy{
+  width:100%
+}
+
+.features{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:18px
+}
+
+.features div{
+  background:#fafafa;
+  padding:15px;
+  border-radius:12px;
+  text-align:center;
+  font-size:11px;
+  color:#666
+}
+
+.notes{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px
+}
+
+.note{
+  background:#fff;
+  padding:24px;
+  border-radius:18px
+}
+
+.note h3{
+  font:21px Georgia
+}
+
+.note p{
+  color:#777;
+  line-height:1.5
+}
+
+/* CARRINHO */
+
+.drawer{
+  position:fixed;
+  right:-420px;
+  top:0;
+  width:390px;
+  max-width:92%;
+  height:100%;
+  background:#fff;
+  z-index:20;
+  padding:28px;
+  box-shadow:-10px 0 40px #0003;
+  transition:.3s;
+  overflow-y:auto
+}
+
+.drawer.open{
+  right:0
+}
+
+.close{
+  float:right;
+  border:0;
+  background:none;
+  font-size:28px;
+  cursor:pointer
+}
+
+.item{
+  display:flex;
+  gap:15px;
+  border-bottom:1px solid #eee;
+  padding:24px 0
+}
+
+.item img{
+  width:78px;
+  height:78px;
+  object-fit:contain;
+  background:#f8eeee;
+  border-radius:10px
+}
+
+/* FRETE */
+
+.frete{
+  margin-top:25px;
+  border-top:1px solid #eee;
+  padding-top:20px
+}
+
+.frete h3{
+  margin:0 0 8px;
+  font:20px Georgia
+}
+
+.cepbox{
+  display:flex;
+  gap:8px;
+  margin-top:12px
+}
+
+.cepbox input{
+  width:100%;
+  padding:13px;
+  border:1px solid #d7d0c8;
+  border-radius:8px;
+  font-size:15px
+}
+
+.cepbox button{
+  background:#111;
+  color:#fff;
+  border:0;
+  border-radius:8px;
+  padding:0 14px;
+  font-weight:bold;
+  cursor:pointer
+}
+
+.cepbox button:disabled{
+  opacity:.6;
+  cursor:wait
+}
+
+.cepmsg{
+  font-size:12px;
+  color:#777;
+  margin-top:9px;
+  line-height:1.5
+}
+
+.frete-option{
+  border:1px solid #ddd6ce;
+  border-radius:10px;
+  padding:13px;
+  margin-top:9px;
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-size:13px;
+  transition:.15s
+}
+
+.frete-option:hover{
+  background:#faf8f6
+}
+
+.frete-option small{
+  display:block;
+  color:#777;
+  margin-top:4px
+}
+
+.frete-option.selected{
+  border:2px solid #111;
+  background:#fafafa
+}
+
+.resumo-frete{
+  margin-top:12px;
+  font-size:13px
+}
+
+.total{
+  margin-top:20px;
+  border-top:1px solid #eee;
+  padding-top:20px
+}
+
+.grandtotal{
+  display:flex;
+  justify-content:space-between;
+  margin-top:15px;
+  font-size:20px
+}
+
+.checkout{
+  width:100%;
+  margin-top:14px
+}
+
+.sem-frete{
+  margin-top:10px;
+  padding:12px;
+  background:#fafafa;
+  border-radius:10px;
+  color:#777;
+  font-size:12px
+}
+
+.loading{
+  opacity:.65;
+  pointer-events:none
+}
+
+/* MOBILE */
+
+@media(max-width:750px){
+
+  .nav{
+    display:none
+  }
+
+  .hero h1{
+    font-size:43px
+  }
+
+  .product{
+    grid-template-columns:1fr
+  }
+
+  .photo{
+    min-height:370px
+  }
+
+  .photo img{
+    height:340px
+  }
+
+  .info{
+    padding:35px 24px
+  }
+
+  .notes,.features{
+    grid-template-columns:1fr
+  }
+}
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+  <div class="logo">AURÉA</div>
+
+  <nav class="nav">
+    <span>FEMININOS</span>
+    <span>MASCULINOS</span>
+    <span>ÁRABES</span>
+    <span>OFERTAS</span>
+  </nav>
+
+  <button class="cart" onclick="openCart()">
+    🛍 Carrinho (<span id="count">0</span>)
+  </button>
+
+</header>
+
+<section class="hero">
+
+<small>CURADORIA PREMIUM</small>
+
+  <h1>
+    Perfumes que deixam marca.
+  </h1>
+
+  <p>
+    Fragrâncias selecionadas para quem não quer apenas usar um perfume —
+    quer ser lembrado.
+  </p>
+
+  <a class="btn" href="#produto">
+    VER DESTAQUE
+  </a>
+
+</section>
+
+<main class="wrap" id="produto">
+
+  <div class="title">
+    Destaque da semana
+  </div>
+
+  <section class="product">
+
+```
+<div class="photo">
+
+  <img
+    src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
+    alt="Lattafa Layaan"
+  >
+
+</div>
+
+
+<div class="info">
+
+  <div class="brand">
+    LATTAFA
+  </div>
+
+  <h2>
+    Layaan
+  </h2>
+
+  <div class="sub">
+    Eau de Parfum Feminino • 75ml
+  </div>
+
+  <div class="stars">
+    ★★★★★
+    <span style="color:#777">
+      4,9
+    </span>
+  </div>
+
+  <p style="color:#666;line-height:1.7">
+
+    Uma fragrância floral frutada, delicada e elegante,
+    com pera verde e mandarina na saída, flores brancas
+    no coração e cedro e musk no fundo.
+
+  </p>
+
+  <div class="price">
+    R$ 399,00
+  </div>
+
+  <div class="pix">
+    ou R$ 379,05 no Pix
+  </div>
+
+
+  <div class="qty">
+
+    <button onclick="q(-1)">
+      −
+    </button>
+
+    <span id="qty">
+      1
+    </span>
+
+    <button onclick="q(1)">
+      +
+    </button>
+
+  </div>
+
+
+  <button class="buy" onclick="add()">
+    ADICIONAR AO CARRINHO
+  </button>
+
+
+  <div class="features">
+
+    <div>
+      🔒 Compra segura
+    </div>
+
+    <div>
+      📦 Envio Brasil
+    </div>
+
+    <div>
+      ✓ Lacrado
+    </div>
+
+  </div>
+
+</div>
+```
+
+  </section>
+
+  <div class="title" style="margin-top:60px">
+    Notas olfativas
+  </div>
+
+  <section class="notes">
+
+```
+<div class="note">
+
+  <h3>
+    🍐 Saída
+  </h3>
+
+  <p>
+    Pera verde e mandarina.
+  </p>
+
+</div>
+
+
+<div class="note">
+
+  <h3>
+    🌸 Coração
+  </h3>
+
+  <p>
+    Gardênia, jasmim e muguet.
+  </p>
+
+</div>
+
+
+<div class="note">
+
+  <h3>
+    🌿 Fundo
+  </h3>
+
+  <p>
+    Cedro e musk.
+  </p>
+
+</div>
+```
+
+  </section>
+
+</main>
+
+<footer style="background:#111;color:#aaa;text-align:center;padding:38px;font-size:12px">
+
+AURÉA PERFUMES • Sua essência. Sua presença.
+
+</footer>
+
+<!-- CARRINHO -->
+
+<aside class="drawer" id="drawer">
+
+  <button class="close" onclick="closeCart()">
+    ×
+  </button>
+
+  <h2>
+    Seu carrinho
+  </h2>
+
+  <div id="cart">
+  </div>
+
+  <!-- FRETE -->
+
+  <div id="shipping" style="display:none">
+
+```
+<div class="frete">
+
+  <h3>
+    📦 Calcule o frete
+  </h3>
+
+  <div style="font-size:13px;color:#777">
+
+    Digite seu CEP para consultar as opções de entrega.
+
+  </div>
+
+
+  <div class="cepbox">
+
+    <input
+      id="cep"
+      maxlength="9"
+      inputmode="numeric"
+      autocomplete="postal-code"
+      placeholder="Ex.: 29700-000"
+    >
+
+    <button id="btnFrete" onclick="calcularFrete()">
+      CALCULAR
+    </button>
+
+  </div>
+
+
+  <div class="cepmsg" id="cepmsg">
+  </div>
+
+
+  <div id="freteOptions">
+  </div>
+
+
+  <div class="resumo-frete" id="resumoFrete">
+  </div>
+
+</div>
+```
+
+  </div>
+
+  <!-- TOTAL -->
+
+  <div class="total" id="total" style="display:none">
+
+```
+<div class="grandtotal">
+
+  <b>
+    Total
+  </b>
+
+  <strong>
+    R$
+    <span id="valor">
+      399,00
+    </span>
+  </strong>
+
+</div>
+
+
+<button class="checkout" onclick="finalizarCompra()">
+  IR PARA PAGAMENTO
+</button>
+```
+
+  </div>
+
+</aside>
+
+<script>
+
+/* =========================
+   CONFIGURAÇÕES
+========================= */
+
+const PRODUTO = {
+  nome: "Lattafa Layaan",
+  descricao: "Eau de Parfum Feminino • 75ml",
+  preco: 399.00,
+  imagem: "https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
+};
+
+
+/* =========================
+   ESTADO DO CARRINHO
+========================= */
+
+let qty = 1;
+let cart = 0;
+let freteSelecionado = 0;
+let freteSelecionadoNome = "";
+
+
+/* =========================
+   QUANTIDADE
+========================= */
+
+function q(x){
+
+  qty = Math.max(1, qty + x);
+
+  document.getElementById("qty").textContent = qty;
+
+}
+
+
+/* =========================
+   ADICIONAR AO CARRINHO
+========================= */
+
+function add(){
+
+  cart += qty;
+
+  document.getElementById("count").textContent = cart;
+
+
+  document.getElementById("cart").innerHTML = `
+
+    <div class="item">
+
+      <img
+        src="${PRODUTO.imagem}"
+        alt="${PRODUTO.nome}"
+      >
+
+      <div>
+
+        <b>
+          ${PRODUTO.nome}
+        </b>
+
+        <br>
+
+        ${PRODUTO.descricao}
+
+        <br><br>
+
+        Quantidade:
+        ${cart}
+
+        <br>
+
+        <b>
+          R$ ${(PRODUTO.preco * cart)
+            .toFixed(2)
+            .replace(".", ",")}
+        </b>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  document.getElementById("shipping").style.display = "block";
+
+  document.getElementById("total").style.display = "block";
+
+
+  /*
+    Se o cliente alterar o carrinho,
+    limpamos o frete anteriormente selecionado.
+  */
+
+  freteSelecionado = 0;
+  freteSelecionadoNome = "";
+
+  document.getElementById("freteOptions").innerHTML = "";
+
+  document.getElementById("resumoFrete").innerHTML = "";
+
+  atualizarTotal();
+
+  openCart();
+
+}
+
+
+/* =========================
+   ABRIR / FECHAR CARRINHO
+========================= */
+
+function openCart(){
+
+  document
+    .getElementById("drawer")
+    .classList.add("open");
+
+}
+
+
+function closeCart(){
+
+  document
+    .getElementById("drawer")
+    .classList.remove("open");
+
+}
+
+
+/* =========================
+   TOTAL
+========================= */
+
+function atualizarTotal(){
+
+  const total =
+    (PRODUTO.preco * cart) +
+    freteSelecionado;
+
+
+  document.getElementById("valor").textContent =
+    total
+      .toFixed(2)
+      .replace(".", ",");
+
+}
+
+
+/* =========================
+   FORMATAÇÃO DO CEP
+========================= */
+
+const cepInput =
+  document.getElementById("cep");
+
+
+cepInput.addEventListener("input", function(){
+
+  let v =
+    this.value
+      .replace(/\D/g,"")
+      .slice(0,8);
+
+
+  if(v.length > 5){
+
+    v =
+      v.slice(0,5) +
+      "-" +
+      v.slice(5);
+
+  }
+
+
+  this.value = v;
+
+});
+
+
+/* =========================
+   ENTER NO CEP
+========================= */
+
+cepInput.addEventListener("keydown", function(event){
+
+  if(event.key === "Enter"){
+
+    calcularFrete();
+
+  }
+
+});
+
+
+/* =========================
+   CALCULAR FRETE
+========================= */
+
+async function calcularFrete(){
+
+  const numero =
+    cepInput.value
+      .replace(/\D/g,"");
+
+
+  const msg =
+    document.getElementById("cepmsg");
+
+  const options =
+    document.getElementById("freteOptions");
+
+  const resumo =
+    document.getElementById("resumoFrete");
+
+  const botao =
+    document.getElementById("btnFrete");
+
+
+  options.innerHTML = "";
+
+  resumo.innerHTML = "";
+
+  freteSelecionado = 0;
+
+  freteSelecionadoNome = "";
+
+  atualizarTotal();
+
+
+  if(numero.length !== 8){
+
+    msg.innerHTML =
+      "⚠️ Digite um CEP válido com 8 números.";
+
+    return;
+
+  }
+
+
+  /*
+    Primeiro consultamos o CEP para
+    mostrar cidade/UF ao cliente.
+  */
+
+  msg.innerHTML =
+    "🔎 Consultando CEP...";
+
+  botao.disabled = true;
+
+
+  try{
+
+    const respostaCep =
+      await fetch(
+        "https://viacep.com.br/ws/" +
+        numero +
+        "/json/"
+      );
+
+
+    const dadosCep =
+      await respostaCep.json();
+
+
+    if(dadosCep.erro){
+
+      msg.innerHTML =
+        "❌ CEP não encontrado.";
+
+      botao.disabled = false;
+
+      return;
+
+    }
+
+
+    msg.innerHTML =
+      "📍 " +
+      (dadosCep.localidade || "") +
+      " - " +
+      (dadosCep.uf || "") +
+      "<br>" +
+      (dadosCep.logradouro || "");
+
+
+  }catch(e){
+
+    /*
+      Mesmo que o ViaCEP esteja indisponível,
+      ainda tentaremos consultar o Melhor Envio.
+    */
+
+    msg.innerHTML =
+      "📦 Consultando opções de entrega...";
+
+  }
+
+
+  /*
+    Agora vem a parte REAL.
+
+    O navegador NÃO acessa diretamente a API
+    autenticada do Melhor Envio.
+
+    Ele chama a função do Netlify:
+
+       /.netlify/functions/frete
+
+    Essa função será responsável por usar
+    o token do Melhor Envio com segurança.
+  */
+
+  try{
+
+    const resposta =
+      await fetch(
+        "/.netlify/functions/frete",
+        {
+          method:"POST",
+
+          headers:{
+            "Content-Type":"application/json"
+          },
+
+          body:JSON.stringify({
+
+            cep: numero,
+
+            quantidade: cart,
+
+            produto: {
+              nome: PRODUTO.nome,
+              valor: PRODUTO.preco,
+
+              peso: 0.6,
+
+              largura: 20,
+              altura: 10,
+              comprimento: 15
+            }
+
+          })
+
+        }
+      );
+
+
+    const dados =
+      await resposta.json();
+
+
+    if(!resposta.ok){
+
+      throw new Error(
+        dados.error ||
+        "Não foi possível consultar o Melhor Envio."
+      );
+
+    }
+
+
+    if(!Array.isArray(dados) || dados.length === 0){
+
+      options.innerHTML = `
+
+        <div class="sem-frete">
+
+          ❌ Nenhuma opção de entrega
+          foi encontrada para este CEP.
+
+        </div>
+
+      `;
+
+      msg.innerHTML +=
+        "<br>Não encontramos opções de frete.";
+
+      botao.disabled = false;
+
+      return;
+
+    }
+
+
+    msg.innerHTML +=
+      "<br>📦 Opções de entrega:";
+
+
+    /*
+      Exibe os fretes retornados pela API.
+    */
+
+    dados.forEach(function(f){
+
+      const div =
+        document.createElement("div");
+
+
+      div.className =
+        "frete-option";
+
+
+      const preco =
+        Number(f.price || 0);
+
+
+      const prazo =
+        f.delivery_time ??
+        f.deliveryTime ??
+        "?";
+
+
+      const empresa =
+        f.company ||
+        "Transportadora";
+
+
+      const nome =
+        f.name ||
+        "Frete";
+
+
+      div.innerHTML = `
+
+        <div>
+
+          <b>
+            ${empresa} — ${nome}
+          </b>
+
+          <small>
+            ${prazo} dias úteis
+          </small>
+
+        </div>
+
+        <b>
+          R$ ${preco
+            .toFixed(2)
+            .replace(".", ",")}
+        </b>
+
+      `;
+
+
+      div.onclick = function(){
+
+        document
+          .querySelectorAll(".frete-option")
+          .forEach(function(el){
+
+            el.classList.remove("selected");
+
+          });
+
+
+        div.classList.add("selected");
+
+
+        freteSelecionado =
+          preco;
+
+
+        freteSelecionadoNome =
+          empresa + " — " + nome;
+
+
+        resumo.innerHTML =
+          "Frete selecionado: " +
+          "<b>" +
+          empresa +
+          " — " +
+          nome +
+          " — R$ " +
+          preco.toFixed(2).replace(".", ",") +
+          "</b>";
+
+
+        atualizarTotal();
+
+      };
+
+
+      options.appendChild(div);
+
+    });
+
+
+  }catch(e){
+
+    console.error(e);
+
+
+    options.innerHTML = `
+
+      <div class="sem-frete">
+
+        ❌ Não foi possível consultar
+        o Melhor Envio.
+
+        <br><br>
+
+        <small>
+          ${e.message || "Erro desconhecido."}
+        </small>
+
+      </div>
+
+    `;
+
+  }
+
+
+  botao.disabled = false;
+
+}
+
+
+/* =========================
+   FINALIZAR COMPRA
+========================= */
+
+function finalizarCompra(){
+
+  if(cart <= 0){
+
+    alert(
+      "Seu carrinho está vazio."
+    );
+
+    return;
+
+  }
+
+
+  if(freteSelecionado <= 0){
+
+    alert(
+      "Selecione uma opção de frete antes de continuar."
+    );
+
+    return;
+
+  }
+
+
+  /*
+    Por enquanto é somente uma demonstração.
+
+    Depois podemos conectar aqui:
+    - Pix
+    - Mercado Pago
+    - cartão
+    - pedido
+    - endereço
+    - estoque
+    - geração de etiqueta
+  */
+
+  alert(
+
+    "Pedido preparado!\n\n" +
+
+    "Produto: " +
+    PRODUTO.nome +
+    "\n" +
+
+    "Quantidade: " +
+    cart +
+    "\n" +
+
+    "Frete: " +
+    freteSelecionadoNome +
+    "\n" +
+
+    "Total: R$ " +
+    (
+      PRODUTO.preco * cart +
+      freteSelecionado
+    )
+      .toFixed(2)
+      .replace(".", ",")
+
+  );
+
+}
+
+</script>
+
+</body>
+</html>
