@@ -7,7 +7,7 @@
 
 <title>AURÉA | Perfumes</title>
 
-<meta name="description" content="AURÉA Perfumes — fragrâncias selecionadas para quem quer deixar marca.">
+<meta name="description" content="AURÉA Perfumes — fragrâncias selecionadas para quem transforma presença em memória.">
 
 <style>
 *{
@@ -22,9 +22,8 @@ html{
 
 body{
     font-family:Arial,Helvetica,sans-serif;
-    background:#f7f5f2;
-    color:#171615;
-    overflow-x:hidden;
+    background:#f8f7f5;
+    color:#181716;
 }
 
 button,
@@ -40,22 +39,20 @@ a{
     color:inherit;
 }
 
-/* =========================
-   HEADER
-========================= */
+/* HEADER */
 
 .header{
-    position:sticky;
-    top:0;
-    z-index:1000;
-    height:76px;
-    padding:0 6%;
+    height:78px;
+    background:#111;
+    color:#fff;
     display:flex;
     align-items:center;
     justify-content:space-between;
-    background:#111;
-    color:#fff;
-    border-bottom:1px solid #292929;
+    padding:0 6%;
+    position:sticky;
+    top:0;
+    z-index:1000;
+    border-bottom:1px solid rgba(255,255,255,.08);
 }
 
 .logo{
@@ -66,15 +63,14 @@ a{
 
 .navigation{
     display:flex;
-    align-items:center;
-    gap:30px;
+    gap:32px;
 }
 
 .navigation a{
-    text-decoration:none;
     color:#cfcfcf;
-    font-size:10px;
-    letter-spacing:1.8px;
+    text-decoration:none;
+    font-size:11px;
+    letter-spacing:1.7px;
     transition:.2s;
 }
 
@@ -83,12 +79,12 @@ a{
 }
 
 .cart-button{
-    border:1px solid #444;
     background:#191919;
+    border:1px solid #4a4a4a;
     color:#fff;
     border-radius:30px;
     padding:11px 18px;
-    font-size:11px;
+    font-size:12px;
     transition:.2s;
 }
 
@@ -96,36 +92,19 @@ a{
     background:#292929;
 }
 
-/* =========================
-   HERO
-========================= */
+/* HERO */
 
 .hero{
     min-height:650px;
     display:flex;
     align-items:center;
     padding:90px 8%;
-    position:relative;
-    overflow:hidden;
     background:
-        radial-gradient(circle at 82% 35%,rgba(150,120,95,.20),transparent 30%),
-        linear-gradient(120deg,#e8dfd9,#faf9f7 62%,#e8e0da);
-}
-
-.hero::after{
-    content:"";
-    position:absolute;
-    width:420px;
-    height:420px;
-    right:-180px;
-    bottom:-220px;
-    border:1px solid rgba(120,100,80,.15);
-    border-radius:50%;
+        radial-gradient(circle at 82% 35%,rgba(170,140,115,.22),transparent 32%),
+        linear-gradient(120deg,#e8dfd9,#faf9f7 62%,#e9e2dc);
 }
 
 .hero-content{
-    position:relative;
-    z-index:2;
     max-width:720px;
 }
 
@@ -133,47 +112,43 @@ a{
 .kicker{
     font-size:10px;
     letter-spacing:4px;
-    color:#866f5d;
+    color:#846e5d;
     font-weight:bold;
-}
-
-.hero-kicker{
-    margin-bottom:24px;
+    margin-bottom:18px;
 }
 
 .hero h1{
     font-family:Georgia,serif;
-    font-size:clamp(45px,7vw,72px);
-    line-height:1;
+    font-size:68px;
+    line-height:1.02;
     font-weight:normal;
     letter-spacing:-2px;
-    margin-bottom:27px;
+    margin-bottom:26px;
 }
 
 .hero-text{
-    max-width:580px;
-    color:#666;
     font-size:16px;
     line-height:1.8;
-    margin-bottom:34px;
+    color:#666;
+    max-width:570px;
+    margin-bottom:35px;
 }
 
 .hero-actions{
     display:flex;
-    flex-wrap:wrap;
     gap:12px;
+    flex-wrap:wrap;
 }
 
 .primary-button,
 .secondary-button{
-    display:inline-block;
     padding:16px 25px;
     border-radius:4px;
-    text-decoration:none;
-    font-size:10px;
+    font-size:11px;
     font-weight:bold;
-    letter-spacing:1.4px;
-    transition:.2s;
+    letter-spacing:1.2px;
+    text-decoration:none;
+    display:inline-block;
 }
 
 .primary-button{
@@ -181,40 +156,30 @@ a{
     color:#fff;
 }
 
-.primary-button:hover{
-    background:#333;
-}
-
 .secondary-button{
-    border:1px solid #bdb8b2;
+    border:1px solid #bbb;
+    color:#222;
     background:rgba(255,255,255,.45);
 }
 
-.secondary-button:hover{
-    background:#fff;
-}
-
-/* =========================
-   CATEGORIAS
-========================= */
+/* CATEGORIAS */
 
 .categories{
     max-width:1200px;
     margin:auto;
-    padding:85px 7% 55px;
+    padding:85px 7% 45px;
 }
 
 .kicker{
     text-align:center;
-    margin-bottom:11px;
 }
 
 .section-heading{
     text-align:center;
     font-family:Georgia,serif;
-    font-size:clamp(31px,4vw,42px);
+    font-size:40px;
     font-weight:normal;
-    margin-bottom:42px;
+    margin-bottom:40px;
 }
 
 .category-grid{
@@ -224,18 +189,18 @@ a{
 }
 
 .category-card{
-    display:block;
-    padding:34px 15px;
+    background:#fff;
+    border:1px solid #e8e4df;
+    padding:32px 15px;
     text-align:center;
     text-decoration:none;
-    background:#fff;
-    border:1px solid #e6e1dc;
+    color:#181716;
     transition:.25s;
 }
 
 .category-card:hover{
     transform:translateY(-5px);
-    box-shadow:0 15px 35px rgba(0,0,0,.07);
+    box-shadow:0 15px 35px rgba(0,0,0,.08);
 }
 
 .category-card strong{
@@ -243,7 +208,7 @@ a{
     font-family:Georgia,serif;
     font-size:21px;
     font-weight:normal;
-    margin-bottom:8px;
+    margin-bottom:7px;
 }
 
 .category-card span{
@@ -251,9 +216,7 @@ a{
     color:#888;
 }
 
-/* =========================
-   PRODUTOS
-========================= */
+/* PRODUTOS */
 
 .product-section{
     max-width:1200px;
@@ -269,37 +232,40 @@ a{
 
 .product-card{
     background:#fff;
-    border:1px solid #e5e0db;
-    box-shadow:0 18px 55px rgba(0,0,0,.06);
+    border:1px solid #e8e4df;
+    box-shadow:0 20px 60px rgba(0,0,0,.07);
     overflow:hidden;
+    transition:.25s;
+}
+
+.product-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 25px 70px rgba(0,0,0,.11);
 }
 
 .product-photo{
-    height:460px;
+    background:#eee4de;
+    height:470px;
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:30px;
-    background:
-        radial-gradient(circle at center,rgba(255,255,255,.8),transparent 55%),
-        #eee5df;
+    padding:35px;
 }
 
 .product-photo img{
     width:100%;
     height:400px;
     object-fit:contain;
-    display:block;
 }
 
 .product-details{
-    padding:34px;
+    padding:35px;
 }
 
 .product-brand{
     font-size:10px;
     letter-spacing:3px;
-    color:#927a68;
+    color:#927b69;
     font-weight:bold;
     margin-bottom:9px;
 }
@@ -308,18 +274,18 @@ a{
     font-family:Georgia,serif;
     font-size:38px;
     font-weight:normal;
-    margin-bottom:8px;
+    margin-bottom:9px;
 }
 
 .product-type{
     font-size:13px;
     color:#777;
-    margin-bottom:19px;
+    margin-bottom:20px;
 }
 
 .rating{
     font-size:13px;
-    margin-bottom:19px;
+    margin-bottom:20px;
 }
 
 .rating-number{
@@ -328,20 +294,20 @@ a{
 }
 
 .product-description{
-    color:#666;
     font-size:14px;
+    color:#666;
     line-height:1.8;
     margin-bottom:22px;
 }
 
 .product-price{
-    font-size:29px;
+    font-size:30px;
     font-weight:bold;
 }
 
 .product-pix{
-    color:#5e7c64;
     font-size:13px;
+    color:#5e7c64;
     margin-top:5px;
     margin-bottom:22px;
 }
@@ -353,14 +319,14 @@ a{
     border-radius:4px;
     background:#151515;
     color:#fff;
-    font-size:10px;
+    font-size:11px;
     font-weight:bold;
-    letter-spacing:1.4px;
+    letter-spacing:1.3px;
     transition:.2s;
 }
 
 .add-button:hover{
-    background:#333;
+    background:#2c2c2c;
 }
 
 .product-benefits{
@@ -371,16 +337,14 @@ a{
 }
 
 .product-benefits div{
+    background:#faf9f7;
     padding:13px 4px;
     text-align:center;
-    background:#faf9f7;
-    color:#777;
     font-size:9px;
+    color:#777;
 }
 
-/* =========================
-   NOTAS
-========================= */
+/* NOTAS */
 
 .notes-section{
     max-width:1200px;
@@ -396,7 +360,7 @@ a{
 
 .note-card{
     background:#fff;
-    border:1px solid #e6e1dc;
+    border:1px solid #e8e4df;
     padding:30px;
 }
 
@@ -408,18 +372,16 @@ a{
 }
 
 .note-card p{
-    color:#777;
     font-size:13px;
+    color:#777;
 }
 
-/* =========================
-   CONFIANÇA
-========================= */
+/* CONFIANÇA */
 
 .trust-section{
-    padding:65px 7%;
     background:#171717;
     color:#fff;
+    padding:60px 7%;
 }
 
 .trust-grid{
@@ -439,14 +401,12 @@ a{
 }
 
 .trust-item p{
-    color:#aaa;
     font-size:12px;
-    line-height:1.7;
+    color:#aaa;
+    line-height:1.6;
 }
 
-/* =========================
-   FOOTER
-========================= */
+/* FOOTER */
 
 .footer{
     background:#0d0d0d;
@@ -457,16 +417,14 @@ a{
 }
 
 .footer-logo{
-    color:#fff;
     font-family:Georgia,serif;
     font-size:23px;
     letter-spacing:6px;
+    color:#fff;
     margin-bottom:12px;
 }
 
-/* =========================
-   CARRINHO
-========================= */
+/* CARRINHO */
 
 .drawer{
     position:fixed;
@@ -475,11 +433,11 @@ a{
     width:410px;
     max-width:94%;
     height:100%;
-    padding:30px;
     background:#fff;
     z-index:2000;
+    padding:30px;
     box-shadow:-15px 0 50px rgba(0,0,0,.2);
-    transition:.3s ease;
+    transition:.3s;
     overflow-y:auto;
 }
 
@@ -503,8 +461,8 @@ a{
 }
 
 .empty-cart{
-    padding:30px 0;
     color:#888;
+    padding:30px 0;
 }
 
 .cart-product{
@@ -538,14 +496,14 @@ a{
 
 .shipping h3{
     font-family:Georgia,serif;
-    font-size:20px;
     font-weight:normal;
+    font-size:20px;
     margin-bottom:6px;
 }
 
 .shipping-description{
-    color:#888;
     font-size:12px;
+    color:#888;
 }
 
 .cep-area{
@@ -556,15 +514,9 @@ a{
 
 .cep-area input{
     flex:1;
-    min-width:0;
     padding:12px;
     border:1px solid #ddd;
     border-radius:5px;
-    outline:none;
-}
-
-.cep-area input:focus{
-    border-color:#888;
 }
 
 .cep-area button{
@@ -578,19 +530,19 @@ a{
 }
 
 .cep-message{
-    color:#777;
     font-size:12px;
+    color:#777;
     margin-top:10px;
 }
 
 .shipping-option{
+    border:1px solid #ddd;
+    border-radius:7px;
+    padding:13px;
+    margin-top:9px;
     display:flex;
     justify-content:space-between;
     gap:10px;
-    margin-top:9px;
-    padding:13px;
-    border:1px solid #ddd;
-    border-radius:7px;
     font-size:12px;
     cursor:pointer;
 }
@@ -618,7 +570,6 @@ a{
 .total-line{
     display:flex;
     justify-content:space-between;
-    gap:15px;
     font-size:20px;
 }
 
@@ -634,23 +585,21 @@ a{
     letter-spacing:1px;
 }
 
-/* =========================
-   RESPONSIVO
-========================= */
+/* RESPONSIVO */
 
 @media(max-width:800px){
-
-    .header{
-        padding:0 5%;
-    }
 
     .navigation{
         display:none;
     }
 
     .hero{
-        min-height:570px;
+        min-height:540px;
         padding:75px 7%;
+    }
+
+    .hero h1{
+        font-size:46px;
     }
 
     .category-grid{
@@ -662,11 +611,19 @@ a{
     }
 
     .product-photo{
-        height:400px;
+        height:380px;
     }
 
     .product-photo img{
-        height:340px;
+        height:330px;
+    }
+
+    .product-details{
+        padding:30px 25px;
+    }
+
+    .product-name{
+        font-size:40px;
     }
 
     .notes-grid,
@@ -677,56 +634,37 @@ a{
 
 @media(max-width:480px){
 
+    .header{
+        padding:0 5%;
+    }
+
     .logo{
         font-size:22px;
         letter-spacing:5px;
     }
 
-    .cart-button{
-        padding:10px 13px;
-        font-size:10px;
-    }
-
-    .hero{
-        padding:65px 7%;
-    }
-
     .hero h1{
-        font-size:40px;
+        font-size:39px;
     }
 
-    .hero-actions{
-        flex-direction:column;
-        align-items:stretch;
-    }
-
-    .primary-button,
-    .secondary-button{
-        text-align:center;
+    .hero-text{
+        font-size:14px;
     }
 
     .category-grid{
         grid-template-columns:1fr;
     }
 
+    .product-benefits{
+        grid-template-columns:1fr;
+    }
+
     .product-photo{
-        height:350px;
+        height:340px;
     }
 
     .product-photo img{
         height:300px;
-    }
-
-    .product-details{
-        padding:27px 23px;
-    }
-
-    .product-name{
-        font-size:35px;
-    }
-
-    .product-benefits{
-        grid-template-columns:1fr;
     }
 
     .drawer{
@@ -741,382 +679,404 @@ a{
 
 <header class="header">
 
-```
 <div class="logo">AURÉA</div>
 
 <nav class="navigation">
-    <a href="#femininos">FEMININOS</a>
-    <a href="#masculinos">MASCULINOS</a>
-    <a href="#arabes">ÁRABES</a>
-    <a href="#ofertas">OFERTAS</a>
+<a href="#femininos">FEMININOS</a>
+<a href="#masculinos">MASCULINOS</a>
+<a href="#arabes">ÁRABES</a>
+<a href="#ofertas">OFERTAS</a>
 </nav>
 
-<button class="cart-button" type="button" onclick="openCart()">
-    🛍 Carrinho (<span id="cartCount">0</span>)
+<button class="cart-button" onclick="openCart()">
+🛍 Carrinho (<span id="cartCount">0</span>)
 </button>
-```
 
 </header>
 
 <section class="hero">
 
-```
 <div class="hero-content">
 
-    <div class="hero-kicker">CURADORIA PREMIUM</div>
+<div class="hero-kicker">
+CURADORIA PREMIUM
+</div>
 
-    <h1>Perfumes que deixam marca.</h1>
+<h1>
+Perfumes que deixam marca.
+</h1>
 
-    <p class="hero-text">
-        Fragrâncias selecionadas para quem não quer apenas usar um perfume,
-        mas transformar presença em memória.
-    </p>
+<p class="hero-text">
+Fragrâncias selecionadas para quem não quer apenas usar um perfume,
+mas transformar presença em memória.
+</p>
 
-    <div class="hero-actions">
+<div class="hero-actions">
 
-        <a class="primary-button" href="#produto">
-            VER DESTAQUE
-        </a>
+<a class="primary-button" href="#produto">
+VER DESTAQUE
+</a>
 
-        <a class="secondary-button" href="#categorias">
-            EXPLORAR PERFUMES
-        </a>
-
-    </div>
+<a class="secondary-button" href="#categorias">
+EXPLORAR PERFUMES
+</a>
 
 </div>
-```
+
+</div>
 
 </section>
 
 <section class="categories" id="categorias">
 
-```
-<div class="kicker">EXPLORE A AURÉA</div>
+<div class="kicker">
+EXPLORE A AURÉA
+</div>
 
-<h2 class="section-heading">Encontre sua essência</h2>
+<h2 class="section-heading">
+Encontre sua essência
+</h2>
 
 <div class="category-grid">
 
-    <a class="category-card" id="femininos" href="#produto">
-        <strong>Femininos</strong>
-        <span>Elegância e personalidade</span>
-    </a>
+<a class="category-card" id="femininos" href="#produto">
+<strong>Femininos</strong>
+<span>Elegância e personalidade</span>
+</a>
 
-    <a class="category-card" id="masculinos" href="#produto">
-        <strong>Masculinos</strong>
-        <span>Presença e sofisticação</span>
-    </a>
+<a class="category-card" id="masculinos" href="#produto">
+<strong>Masculinos</strong>
+<span>Presença e sofisticação</span>
+</a>
 
-    <a class="category-card" id="arabes" href="#produto">
-        <strong>Árabes</strong>
-        <span>Intensidade e exclusividade</span>
-    </a>
+<a class="category-card" id="arabes" href="#produto">
+<strong>Árabes</strong>
+<span>Intensidade e exclusividade</span>
+</a>
 
-    <a class="category-card" id="ofertas" href="#produto">
-        <strong>Ofertas</strong>
-        <span>Oportunidades selecionadas</span>
-    </a>
+<a class="category-card" id="ofertas" href="#produto">
+<strong>Ofertas</strong>
+<span>Oportunidades selecionadas</span>
+</a>
 
 </div>
-```
 
 </section>
 
 <section class="product-section" id="produto">
 
-```
-<div class="kicker">DESTAQUES</div>
+<div class="kicker">
+DESTAQUES
+</div>
 
-<h2 class="section-heading">Uma fragrância para lembrar</h2>
+<h2 class="section-heading">
+Uma fragrância para lembrar
+</h2>
 
 <div class="products-grid">
 
-    <article class="product-card">
+<!-- PRODUTO 1 -->
 
-        <div class="product-photo">
+<div class="product-card">
 
-            <img
-                src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
-                alt="Lattafa Layaan"
-            >
+<div class="product-photo">
 
-        </div>
-
-        <div class="product-details">
-
-            <div class="product-brand">LATTAFA</div>
-
-            <h2 class="product-name">Layaan</h2>
-
-            <div class="product-type">
-                Eau de Parfum Feminino • 75ml
-            </div>
-
-            <div class="rating">
-                ★★★★★
-                <span class="rating-number">4,9 • Avaliações</span>
-            </div>
-
-            <p class="product-description">
-                Uma fragrância floral frutada, delicada e elegante,
-                com pera verde e mandarina na saída, flores brancas
-                no coração e cedro e musk no fundo.
-            </p>
-
-            <div class="product-price">R$ 399,00</div>
-
-            <div class="product-pix">
-                ou R$ 379,05 no Pix
-            </div>
-
-            <button
-                class="add-button"
-                type="button"
-                onclick="addToCart(
-                    'Lattafa Layaan',
-                    399,
-                    'Eau de Parfum Feminino • 75ml',
-                    'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg'
-                )"
-            >
-                ADICIONAR AO CARRINHO
-            </button>
-
-            <div class="product-benefits">
-                <div>🔒 Compra segura</div>
-                <div>📦 Envio Brasil</div>
-                <div>✓ Lacrado</div>
-            </div>
-
-        </div>
-
-    </article>
-
-    <article class="product-card">
-
-        <div class="product-photo">
-
-            <img
-                src="https://frenchavenueparfums.com/cdn/shop/files/liquidbrun.jpg"
-                alt="French Avenue Liquid Brun"
-                onerror="this.style.display='none';this.parentElement.innerHTML='<div style=&quot;font-family:Georgia,serif;font-size:22px;color:#8a7768;text-align:center&quot;>FRENCH AVENUE<br><small style=&quot;font-family:Arial;font-size:11px;color:#888&quot;>Liquid Brun</small></div>'"
-            >
-
-        </div>
-
-        <div class="product-details">
-
-            <div class="product-brand">FRENCH AVENUE</div>
-
-            <h2 class="product-name">Liquid Brun</h2>
-
-            <div class="product-type">
-                Eau de Parfum Masculino • 100ml
-            </div>
-
-            <div class="rating">
-                ★★★★★
-                <span class="rating-number">Fragrância premium</span>
-            </div>
-
-            <p class="product-description">
-                Uma fragrância masculina marcante e sofisticada,
-                ideal para quem busca presença, elegância e personalidade.
-            </p>
-
-            <div class="product-price">R$ 329,00</div>
-
-            <div class="product-pix">
-                ou R$ 312,55 no Pix
-            </div>
-
-            <button
-                class="add-button"
-                type="button"
-                onclick="addToCart(
-                    'French Avenue Liquid Brun',
-                    329,
-                    'Eau de Parfum Masculino • 100ml',
-                    'https://frenchavenueparfums.com/cdn/shop/files/liquidbrun.jpg'
-                )"
-            >
-                ADICIONAR AO CARRINHO
-            </button>
-
-            <div class="product-benefits">
-                <div>🔒 Compra segura</div>
-                <div>📦 Envio Brasil</div>
-                <div>✓ Lacrado</div>
-            </div>
-
-        </div>
-
-    </article>
+<img
+src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
+alt="Lattafa Layaan">
 
 </div>
-```
+
+<div class="product-details">
+
+<div class="product-brand">
+LATTAFA
+</div>
+
+<h2 class="product-name">
+Layaan
+</h2>
+
+<div class="product-type">
+Eau de Parfum Feminino • 75ml
+</div>
+
+<div class="rating">
+★★★★★
+<span class="rating-number">
+4,9 • Avaliações
+</span>
+</div>
+
+<p class="product-description">
+Uma fragrância floral frutada, delicada e elegante,
+com pera verde e mandarina na saída, flores brancas
+no coração e cedro e musk no fundo.
+</p>
+
+<div class="product-price">
+R$ 399,00
+</div>
+
+<div class="product-pix">
+ou R$ 379,05 no Pix
+</div>
+
+<button
+class="add-button"
+onclick="addToCart(
+'Lattafa Layaan',
+399,
+'Eau de Parfum Feminino • 75ml',
+'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg'
+)">
+ADICIONAR AO CARRINHO </button>
+
+<div class="product-benefits">
+
+<div>🔒 Compra segura</div>
+<div>📦 Envio Brasil</div>
+<div>✓ Lacrado</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- PRODUTO 2 -->
+
+<div class="product-card">
+
+<div class="product-photo">
+
+<img
+src="https://frenchavenueparfums.com/cdn/shop/files/liquidbrun.jpg"
+alt="French Avenue Liquid Brun"
+onerror="this.style.display='none';this.parentElement.innerHTML='<div style=&quot;font-family:Georgia,serif;font-size:22px;color:#8a7768;text-align:center&quot;>FRENCH AVENUE<br><small style=&quot;font-family:Arial;font-size:11px;color:#888&quot;>Liquid Brun</small></div>'">
+
+</div>
+
+<div class="product-details">
+
+<div class="product-brand">
+FRENCH AVENUE
+</div>
+
+<h2 class="product-name">
+Liquid Brun
+</h2>
+
+<div class="product-type">
+Eau de Parfum Masculino • 100ml
+</div>
+
+<div class="rating">
+★★★★★
+<span class="rating-number">
+Fragrância premium
+</span>
+</div>
+
+<p class="product-description">
+Uma fragrância masculina marcante e sofisticada,
+ideal para quem busca presença, elegância e personalidade.
+</p>
+
+<div class="product-price">
+R$ 329,00
+</div>
+
+<div class="product-pix">
+ou R$ 312,55 no Pix
+</div>
+
+<button
+class="add-button"
+onclick="addToCart(
+'French Avenue Liquid Brun',
+329,
+'Eau de Parfum Masculino • 100ml',
+'https://frenchavenueparfums.com/cdn/shop/files/liquidbrun.jpg'
+)">
+ADICIONAR AO CARRINHO </button>
+
+<div class="product-benefits">
+
+<div>🔒 Compra segura</div>
+<div>📦 Envio Brasil</div>
+<div>✓ Lacrado</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
 
 </section>
 
 <section class="notes-section">
 
-```
-<div class="kicker">PERFIL OLFATIVO</div>
+<div class="kicker">
+PERFIL OLFATIVO
+</div>
 
-<h2 class="section-heading">Notas olfativas</h2>
+<h2 class="section-heading">
+Notas olfativas
+</h2>
 
 <div class="notes-grid">
 
-    <div class="note-card">
-        <h3>Saída</h3>
-        <p>Pera verde e mandarina.</p>
-    </div>
+<div class="note-card">
+<h3>Saída</h3>
+<p>Pera verde e mandarina.</p>
+</div>
 
-    <div class="note-card">
-        <h3>Coração</h3>
-        <p>Gardênia, jasmim e muguet.</p>
-    </div>
+<div class="note-card">
+<h3>Coração</h3>
+<p>Gardênia, jasmim e muguet.</p>
+</div>
 
-    <div class="note-card">
-        <h3>Fundo</h3>
-        <p>Cedro e musk.</p>
-    </div>
+<div class="note-card">
+<h3>Fundo</h3>
+<p>Cedro e musk.</p>
+</div>
 
 </div>
-```
 
 </section>
 
 <section class="trust-section">
 
-```
 <div class="trust-grid">
 
-    <div class="trust-item">
-        <h3>Compra segura</h3>
-        <p>
-            Uma experiência de compra simples,
-            transparente e segura.
-        </p>
-    </div>
+<div class="trust-item">
+<h3>Compra segura</h3>
+<p>Uma experiência de compra simples, transparente e segura.</p>
+</div>
 
-    <div class="trust-item">
-        <h3>Envio para o Brasil</h3>
-        <p>
-            Consulte as opções de entrega
-            diretamente no carrinho.
-        </p>
-    </div>
+<div class="trust-item">
+<h3>Envio para o Brasil</h3>
+<p>Consulte as opções de entrega diretamente no carrinho.</p>
+</div>
 
-    <div class="trust-item">
-        <h3>Curadoria AURÉA</h3>
-        <p>
-            Fragrâncias selecionadas para quem
-            valoriza personalidade.
-        </p>
-    </div>
+<div class="trust-item">
+<h3>Curadoria AURÉA</h3>
+<p>Fragrâncias selecionadas para quem valoriza personalidade.</p>
+</div>
 
 </div>
-```
 
 </section>
 
 <footer class="footer">
 
-```
-<div class="footer-logo">AURÉA</div>
+<div class="footer-logo">
+AURÉA
+</div>
 
-<div>Sua essência. Sua presença.</div>
+<div>
+Sua essência. Sua presença.
+</div>
 
 <br>
 
-<div>© 2026 AURÉA Perfumes</div>
-```
+<div>
+© 2026 AURÉA Perfumes
+</div>
 
 </footer>
 
+<!-- CARRINHO -->
+
 <aside class="drawer" id="cartDrawer">
 
-```
-<button class="close-cart" type="button" onclick="closeCart()" aria-label="Fechar carrinho">
-    ×
+<button class="close-cart" onclick="closeCart()" aria-label="Fechar carrinho">
+×
 </button>
 
-<h2 class="drawer-title">Seu carrinho</h2>
+<h2 class="drawer-title">
+Seu carrinho
+</h2>
 
 <div id="cartContent">
-    <div class="empty-cart">
-        Seu carrinho está vazio.
-    </div>
+
+<div class="empty-cart">
+Seu carrinho está vazio.
+</div>
+
 </div>
 
 <div id="shippingArea" style="display:none">
 
-    <div class="shipping">
+<div class="shipping">
 
-        <h3>Calcule o frete</h3>
+<h3>
+Calcule o frete
+</h3>
 
-        <div class="shipping-description">
-            Informe seu CEP para consultar as opções de entrega.
-        </div>
+<div class="shipping-description">
+Informe seu CEP para consultar as opções de entrega.
+</div>
 
-        <div class="cep-area">
+<div class="cep-area">
 
-            <input
-                id="cep"
-                type="text"
-                maxlength="9"
-                inputmode="numeric"
-                autocomplete="postal-code"
-                placeholder="29700-000"
-                aria-label="CEP"
-            >
+<input
+id="cep"
+type="text"
+maxlength="9"
+inputmode="numeric"
+placeholder="29700-000"
+autocomplete="postal-code">
 
-            <button type="button" onclick="calculateShipping()">
-                CALCULAR
-            </button>
+<button onclick="calculateShipping()">
+CALCULAR
+</button>
 
-        </div>
+</div>
 
-        <div class="cep-message" id="cepMessage"></div>
+<div class="cep-message" id="cepMessage"></div>
 
-        <div id="shippingOptions"></div>
+<div id="shippingOptions"></div>
 
-    </div>
+</div>
 
 </div>
 
 <div class="total" id="totalArea" style="display:none">
 
-    <div class="total-line">
-        <strong>Total</strong>
-        <strong>
-            R$ <span id="totalValue">0,00</span>
-        </strong>
-    </div>
+<div class="total-line">
 
-    <button class="checkout" type="button" onclick="checkout()">
-        IR PARA PAGAMENTO
-    </button>
+<strong>
+Total
+</strong>
+
+<strong>
+R$ <span id="totalValue">0,00</span>
+</strong>
 
 </div>
-```
+
+<button class="checkout" onclick="checkout()">
+IR PARA PAGAMENTO
+</button>
+
+</div>
 
 </aside>
 
 <script>
-"use strict";
 
 let cart = [];
 let shippingPrice = 0;
 let shippingName = "";
 
-function addToCart(name, price, description, image){
 
-    const existing = cart.find(function(item){
-        return item.name === name;
-    });
+function addToCart(name,price,description,image){
+
+    const existing = cart.find(item => item.name === name);
 
     if(existing){
         existing.quantity++;
@@ -1134,6 +1094,7 @@ function addToCart(name, price, description, image){
     openCart();
 }
 
+
 function renderCart(){
 
     const cartContent = document.getElementById("cartContent");
@@ -1141,9 +1102,8 @@ function renderCart(){
     const shippingArea = document.getElementById("shippingArea");
     const totalArea = document.getElementById("totalArea");
 
-    const totalQuantity = cart.reduce(function(sum,item){
-        return sum + item.quantity;
-    },0);
+    const totalQuantity =
+        cart.reduce((sum,item) => sum + item.quantity,0);
 
     cartCount.textContent = totalQuantity;
 
@@ -1161,46 +1121,41 @@ function renderCart(){
     shippingArea.style.display = "block";
     totalArea.style.display = "block";
 
-    cartContent.innerHTML = cart.map(function(item){
+    cartContent.innerHTML = cart.map(item => `
 
-        const itemTotal =
-            item.price * item.quantity;
+        <div class="cart-product">
 
-        return `
-            <div class="cart-product">
+            <img src="${item.image}" alt="${item.name}">
 
-                <img
-                    src="${item.image}"
-                    alt="${item.name}"
-                >
+            <div class="cart-product-info">
 
-                <div class="cart-product-info">
+                <strong>${item.name}</strong>
 
-                    <strong>${item.name}</strong>
+                <br>
 
-                    <br>
+                <small>${item.description}</small>
 
-                    <small>${item.description}</small>
+                <br><br>
 
-                    <br><br>
+                Quantidade: ${item.quantity}
 
-                    Quantidade: ${item.quantity}
+                <br>
 
-                    <br>
-
-                    <strong>
-                        R$ ${itemTotal.toFixed(2).replace(".",",")}
-                    </strong>
-
-                </div>
+                <strong>
+                    R$ ${(item.price * item.quantity)
+                    .toFixed(2)
+                    .replace(".",",")}
+                </strong>
 
             </div>
-        `;
 
-    }).join("");
+        </div>
+
+    `).join("");
 
     updateTotal();
 }
+
 
 function openCart(){
 
@@ -1209,6 +1164,7 @@ function openCart(){
         .classList.add("open");
 }
 
+
 function closeCart(){
 
     document
@@ -1216,12 +1172,15 @@ function closeCart(){
         .classList.remove("open");
 }
 
+
 function updateTotal(){
 
     const productsTotal =
-        cart.reduce(function(sum,item){
-            return sum + (item.price * item.quantity);
-        },0);
+        cart.reduce(
+            (sum,item) =>
+                sum + (item.price * item.quantity),
+            0
+        );
 
     const total =
         productsTotal + shippingPrice;
@@ -1231,14 +1190,15 @@ function updateTotal(){
         total.toFixed(2).replace(".",",");
 }
 
+
 document
     .getElementById("cep")
     .addEventListener("input",function(){
 
         let value =
             this.value
-                .replace(/\D/g,"")
-                .slice(0,8);
+            .replace(/\D/g,"")
+            .slice(0,8);
 
         if(value.length > 5){
 
@@ -1251,13 +1211,14 @@ document
         this.value = value;
     });
 
+
 async function calculateShipping(){
 
     const cep =
         document
-            .getElementById("cep")
-            .value
-            .replace(/\D/g,"");
+        .getElementById("cep")
+        .value
+        .replace(/\D/g,"");
 
     const message =
         document.getElementById("cepMessage");
@@ -1283,6 +1244,7 @@ async function calculateShipping(){
     message.textContent =
         "Consultando CEP...";
 
+
     try{
 
         const cepResponse =
@@ -1291,10 +1253,6 @@ async function calculateShipping(){
                 cep +
                 "/json/"
             );
-
-        if(!cepResponse.ok){
-            throw new Error("Falha na consulta do CEP.");
-        }
 
         const cepData =
             await cepResponse.json();
@@ -1317,26 +1275,153 @@ async function calculateShipping(){
 
         message.textContent =
             "Não foi possível consultar o CEP.";
-
-        return;
     }
 
-    /*
-      Nesta etapa o site está preparado para receber
-      o cálculo real do Melhor Envio pelo Cloudflare Worker.
 
-      Enquanto configuramos o Worker, não fazemos uma
-      chamada para uma função Netlify inexistente.
-    */
+    try{
 
-    options.innerHTML = `
-        <div class="empty-cart">
-            O cálculo de frete será conectado ao Melhor Envio.
-            <br><br>
-            <small>CEP validado com sucesso.</small>
-        </div>
-    `;
+        const totalQuantity =
+            cart.reduce(
+                (sum,item) =>
+                    sum + item.quantity,
+                0
+            );
+
+        const response =
+            await fetch(
+                "/.netlify/functions/calcular-frete",
+                {
+                    method:"POST",
+
+                    headers:{
+                        "Content-Type":"application/json"
+                    },
+
+                    body:JSON.stringify({
+
+                        cep:cep,
+
+                        quantidade:totalQuantity,
+
+                        produtos:cart
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if(!response.ok){
+
+            throw new Error(
+                data.error ||
+                "Não foi possível consultar o frete."
+            );
+        }
+
+        if(!Array.isArray(data) || data.length === 0){
+
+            options.innerHTML =
+                "<div class='empty-cart'>Nenhuma opção de entrega encontrada.</div>";
+
+            return;
+        }
+
+
+        data.forEach(item => {
+
+            const price =
+                Number(item.price || 0);
+
+            const company =
+                item.company ||
+                "Transportadora";
+
+            const name =
+                item.name ||
+                "Entrega";
+
+            const days =
+                item.delivery_time ??
+                item.deliveryTime ??
+                "?";
+
+
+            const option =
+                document.createElement("div");
+
+            option.className =
+                "shipping-option";
+
+
+            option.innerHTML = `
+
+                <div>
+
+                    <strong>
+                        ${company} — ${name}
+                    </strong>
+
+                    <small>
+                        Prazo estimado: ${days} dias úteis
+                    </small>
+
+                </div>
+
+                <strong>
+                    R$ ${price.toFixed(2).replace(".",",")}
+                </strong>
+
+            `;
+
+
+            option.onclick = function(){
+
+                document
+                    .querySelectorAll(".shipping-option")
+                    .forEach(element => {
+
+                        element.classList.remove("selected");
+
+                    });
+
+                option.classList.add("selected");
+
+                shippingPrice = price;
+
+                shippingName =
+                    company + " — " + name;
+
+                updateTotal();
+            };
+
+
+            options.appendChild(option);
+
+        });
+
+    }catch(error){
+
+        console.error(error);
+
+        options.innerHTML = `
+
+            <div class="empty-cart">
+
+                Não foi possível consultar o frete.
+
+                <br><br>
+
+                <small>
+                    ${error.message || "Erro desconhecido."}
+                </small>
+
+            </div>
+
+        `;
+    }
 }
+
 
 function checkout(){
 
@@ -1356,34 +1441,42 @@ function checkout(){
         return;
     }
 
+
     const products =
-        cart.map(function(item){
-            return item.name +
-                " x" +
-                item.quantity;
-        }).join("\n");
+        cart.map(item =>
+            item.name +
+            " x" +
+            item.quantity
+        ).join("\n");
+
 
     const productsTotal =
-        cart.reduce(function(sum,item){
-            return sum +
-                (item.price * item.quantity);
-        },0);
+        cart.reduce(
+            (sum,item) =>
+                sum + (item.price * item.quantity),
+            0
+        );
+
 
     const total =
-        productsTotal +
-        shippingPrice;
+        productsTotal + shippingPrice;
+
 
     alert(
+
         "Pedido preparado!\n\n" +
+
         products +
+
         "\n\nFrete: " +
         shippingName +
+
         "\n\nTotal: R$ " +
         total.toFixed(2).replace(".",",")
+
     );
 }
 
-renderCart();
 </script>
 
 </body>
