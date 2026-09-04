@@ -47,6 +47,9 @@ if (
   return consultarPagamento(orderId, env);
 }
 
+// ==================================================
+// WORKER
+// ==================================================
 return new Response(
   "AURÉA Worker funcionando.",
   {
@@ -86,8 +89,7 @@ if (!/^\d{8}$/.test(cep)) {
 if (!env.MELHOR_ENVIO_TOKEN) {
   return resposta(
     {
-      error:
-        "MELHOR_ENVIO_TOKEN não configurado."
+      error: "MELHOR_ENVIO_TOKEN não configurado."
     },
     500
   );
@@ -96,29 +98,24 @@ if (!env.MELHOR_ENVIO_TOKEN) {
 if (!env.AUREA_ORIGIN_CEP) {
   return resposta(
     {
-      error:
-        "AUREA_ORIGIN_CEP não configurado."
+      error: "AUREA_ORIGIN_CEP não configurado."
     },
     500
   );
 }
 
-const produto =
-  dados.produto || {};
+const produto = dados.produto || {};
 
 const quantidade = Math.max(
   1,
-  Number(
-    dados.quantidade || 1
-  )
+  Number(dados.quantidade || 1)
 );
 
 const consulta = {
   from: {
-    postal_code:
-      String(
-        env.AUREA_ORIGIN_CEP
-      ).replace(/\D/g, "")
+    postal_code: String(
+      env.AUREA_ORIGIN_CEP
+    ).replace(/\D/g, "")
   },
 
   to: {
@@ -127,67 +124,57 @@ const consulta = {
 
   products: [
     {
-      id:
-        String(
-          produto.nome ||
-          "Perfume AURÉA"
-        ),
+      id: String(
+        produto.nome || "Perfume AURÉA"
+      ),
 
-      width:
-        Number(
-          produto.largura || 20
-        ),
+      width: Number(
+        produto.largura || 20
+      ),
 
-      height:
-        Number(
-          produto.altura || 10
-        ),
+      height: Number(
+        produto.altura || 10
+      ),
 
-      length:
-        Number(
-          produto.comprimento || 15
-        ),
+      length: Number(
+        produto.comprimento || 15
+      ),
 
-      weight:
-        Number(
-          produto.peso || 0.6
-        ),
+      weight: Number(
+        produto.peso || 0.6
+      ),
 
-      insurance_value:
-        Number(
-          produto.valor || 0
-        ),
+      insurance_value: Number(
+        produto.valor || 0
+      ),
 
-      quantity:
-        quantidade
+      quantity: quantidade
     }
   ]
 };
 
-const respostaMelhorEnvio =
-  await fetch(
-    "https://melhorenvio.com.br/api/v2/me/shipment/calculate",
-    {
-      method: "POST",
+const respostaMelhorEnvio = await fetch(
+  "https://melhorenvio.com.br/api/v2/me/shipment/calculate",
+  {
+    method: "POST",
 
-      headers: {
-        "Authorization":
-          `Bearer ${env.MELHOR_ENVIO_TOKEN}`,
+    headers: {
+      "Authorization":
+        "Bearer " + env.MELHOR_ENVIO_TOKEN,
 
-        "Accept":
-          "application/json",
+      "Accept":
+        "application/json",
 
-        "Content-Type":
-          "application/json",
+      "Content-Type":
+        "application/json",
 
-        "User-Agent":
-          "AUREA Perfumes"
-      },
+      "User-Agent":
+        "AUREA Perfumes"
+    },
 
-      body:
-        JSON.stringify(consulta)
-    }
-  );
+    body: JSON.stringify(consulta)
+  }
+);
 
 const textoResultado =
   await respostaMelhorEnvio.text();
@@ -195,8 +182,7 @@ const textoResultado =
 let resultado;
 
 try {
-  resultado =
-    JSON.parse(textoResultado);
+  resultado = JSON.parse(textoResultado);
 } catch {
   resultado = {
     raw: textoResultado
@@ -305,7 +291,7 @@ if (!env.MERCADOPAGO_ACCESS_TOKEN) {
 }
 
 // --------------------------------------------------
-// DADOS
+// DADOS RECEBIDOS
 // --------------------------------------------------
 
 const dados =
@@ -507,8 +493,18 @@ const cep =
   ).replace(/\D/g, "");
 
 // --------------------------------------------------
-// PRODUTOS
+// REFERÊNCIA
 // --------------------------------------------------
+
+const referencia =
+  "AUREA-" +
+  Date.now() +
+  "-" +
+  crypto.randomUUID().slice(0, 8);
+
+// ==================================================
+// PRODUTOS
+// ==================================================
 
 const produtosMercadoPago =
   itens.map(
@@ -557,17 +553,8 @@ const produtosMercadoPago =
     }
   );
 
-// --------------------------------------------------
-// REFERÊNCIA
-// --------------------------------------------------
-
-const referencia =
-  `AUREA-${Date.now()}-${crypto
-    .randomUUID()
-    .slice(0, 8)}`;
-
 // ==================================================
-// PEDIDO REAL
+// PEDIDO REAL MERCADO PAGO
 // ==================================================
 
 const pedido = {
@@ -697,9 +684,9 @@ console.log(
   })
 );
 
-// --------------------------------------------------
-// MERCADO PAGO
-// --------------------------------------------------
+// ==================================================
+// CHAMADA MERCADO PAGO
+// ==================================================
 
 const respostaMercadoPago =
   await fetch(
@@ -710,7 +697,8 @@ const respostaMercadoPago =
 
       headers: {
         "Authorization":
-          `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
+          "Bearer " +
+          env.MERCADOPAGO_ACCESS_TOKEN,
 
         "Content-Type":
           "application/json",
@@ -728,7 +716,7 @@ const respostaMercadoPago =
   );
 
 // --------------------------------------------------
-// RESPOSTA
+// LÊ RESPOSTA
 // --------------------------------------------------
 
 const textoResultado =
@@ -919,14 +907,16 @@ false,
 
 const respostaMercadoPago =
   await fetch(
-    `https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`,
+    "https://api.mercadopago.com/v1/orders/" +
+    encodeURIComponent(orderId),
     {
       method:
         "GET",
 
       headers: {
         "Authorization":
-          `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
+          "Bearer " +
+          env.MERCADOPAGO_ACCESS_TOKEN,
 
         "Accept":
           "application/json"
