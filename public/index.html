@@ -842,6 +842,35 @@ a{
     display:block;
 }
 
+/* PIX RESULT STYLES */
+.pix-result{
+    display:none;
+    background:#fff;
+    border:1px solid #e4e0db;
+    border-radius:7px;
+    padding:24px;
+    text-align:center;
+}
+.pix-result.show{
+    display:block;
+}
+.pix-qr{
+    width:180px;
+    height:180px;
+    margin:15px auto;
+    display:block;
+}
+.pix-copy-input{
+    width:100%;
+    padding:10px;
+    border:1px solid #ddd;
+    font-size:11px;
+    background:#fafafa;
+    margin-top:10px;
+    border-radius:4px;
+    text-align:center;
+}
+
 @media(max-width:800px){
     .navigation{display:none;}
     .products-grid{grid-template-columns:1fr;}
@@ -1073,57 +1102,71 @@ a{
             <div class="checkout-main">
                 <div class="checkout-error" id="checkoutError"></div>
 
-                <div class="checkout-section">
-                    <div class="checkout-section-title">1. Dados do Comprador</div>
-                    <div class="checkout-section-description">Preencha suas informações de contato.</div>
-                    <div class="checkout-grid">
-                        <div class="checkout-field full">
-                            <label>Nome Completo</label>
-                            <input type="text" id="custName" placeholder="Seu nome completo">
-                        </div>
-                        <div class="checkout-field">
-                            <label>E-mail</label>
-                            <input type="email" id="custEmail" placeholder="seu@email.com">
-                        </div>
-                        <div class="checkout-field">
-                            <label>CPF</label>
-                            <input type="text" id="custCPF" maxlength="14" placeholder="000.000.000-00">
-                        </div>
-                        <div class="checkout-field full">
-                            <label>Telefone / WhatsApp</label>
-                            <input type="tel" id="custPhone" placeholder="(00) 00000-0000">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="checkout-section">
-                    <div class="checkout-section-title">2. Endereço de Entrega</div>
-                    <div class="checkout-section-description">Digite seu CEP para buscar o endereço automaticamente.</div>
-                    <div class="checkout-grid">
-                        <div class="checkout-field">
-                            <label>CEP</label>
-                            <input type="text" id="checkoutCep" maxlength="9" placeholder="00000-000" onblur="searchCep(this.value)">
-                        </div>
-                        <div class="checkout-field">
-                            <label>Número</label>
-                            <input type="text" id="custNum" placeholder="Ex: 123">
-                        </div>
-                        <div class="checkout-field full">
-                            <label>Endereço / Rua</label>
-                            <input type="text" id="custStreet" placeholder="Rua, Avenida...">
-                        </div>
-                        <div class="checkout-field">
-                            <label>Bairro</label>
-                            <input type="text" id="custNeighborhood" placeholder="Bairro">
-                        </div>
-                        <div class="checkout-field">
-                            <label>Cidade / Estado</label>
-                            <input type="text" id="custCityState" placeholder="Cidade - UF">
+                <!-- FORMULÁRIO DE DADOS E ENDEREÇO -->
+                <div id="checkoutFormContent">
+                    <div class="checkout-section">
+                        <div class="checkout-section-title">1. Dados do Comprador</div>
+                        <div class="checkout-section-description">Preencha suas informações de contato separadamente.</div>
+                        <div class="checkout-grid">
+                            <div class="checkout-field full">
+                                <label>Nome Completo</label>
+                                <input type="text" id="custName" placeholder="Seu nome completo">
+                            </div>
+                            <div class="checkout-field full">
+                                <label>E-mail</label>
+                                <input type="email" id="custEmail" placeholder="seu@email.com">
+                            </div>
+                            <div class="checkout-field">
+                                <label>CPF</label>
+                                <input type="text" id="custCPF" maxlength="14" placeholder="000.000.000-00">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Telefone / WhatsApp</label>
+                                <input type="tel" id="custPhone" placeholder="(00) 00000-0000">
+                            </div>
                         </div>
                     </div>
+
+                    <div class="checkout-section" style="margin-top: 18px;">
+                        <div class="checkout-section-title">2. Endereço de Entrega</div>
+                        <div class="checkout-section-description">Digite seu CEP para buscar o endereço automaticamente.</div>
+                        <div class="checkout-grid">
+                            <div class="checkout-field">
+                                <label>CEP</label>
+                                <input type="text" id="checkoutCep" maxlength="9" placeholder="00000-000" onblur="searchCep(this.value)">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Número</label>
+                                <input type="text" id="custNum" placeholder="Ex: 123">
+                            </div>
+                            <div class="checkout-field full">
+                                <label>Endereço / Rua</label>
+                                <input type="text" id="custStreet" placeholder="Rua, Avenida...">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Bairro</label>
+                                <input type="text" id="custNeighborhood" placeholder="Bairro">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Cidade / Estado</label>
+                                <input type="text" id="custCityState" placeholder="Cidade - UF">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="checkout-final-button" onclick="finalizeOrder()">CONCLUIR PEDIDO (GERAR PIX)</button>
                 </div>
 
-                <button class="checkout-final-button" onclick="finalizeOrder()">CONCLUIR PEDIDO</button>
+                <!-- TELA DE PIX COM QR CODE -->
+                <div class="pix-result" id="pixResult">
+                    <div class="checkout-section-title" style="color:#2e7d32;">Pedido Gerado com Sucesso!</div>
+                    <p style="font-size:13px; color:#666; margin-top:8px;">Escaneie o QR Code abaixo com o aplicativo do seu banco para pagar via PIX:</p>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=00020126580014br.gov.bcb.pix0136aurea-perfumes-pagamento-pix2504000053039865802BR5925AUREA PERFUMES LTDA6009SAO PAULO62070503***63041D34" alt="QR Code PIX" class="pix-qr">
+                    <p style="font-size:12px; font-weight:bold; margin-top:10px;">Ou copie a chave PIX Copia e Cola:</p>
+                    <input type="text" class="pix-copy-input" readonly value="00020126580014br.gov.bcb.pix0136aurea-perfumes-pagamento-pix2504000053039865802BR5925AUREA PERFUMES LTDA6009SAO PAULO62070503***63041D34">
+                    <p style="font-size:11px; color:#888; margin-top:12px;">O pedido será confirmado automaticamente após a identificação do pagamento.</p>
+                </div>
+
             </div>
 
             <div class="checkout-summary">
@@ -1252,6 +1295,11 @@ function openCheckout() {
     if(cart.length === 0) return;
     closeCart();
     
+    // Reseta visualização para mostrar o form e ocultar o pix antigo ao abrir
+    document.getElementById('checkoutFormContent').style.display = 'block';
+    document.getElementById('pixResult').classList.remove('show');
+    document.getElementById('checkoutError').classList.remove('show');
+    
     let summaryHtml = '';
     let total = 0;
     cart.forEach(item => {
@@ -1271,19 +1319,25 @@ function closeCheckout() {
 function finalizeOrder() {
     let name = document.getElementById('custName').value;
     let email = document.getElementById('custEmail').value;
+    let cpf = document.getElementById('custCPF').value;
+    let phone = document.getElementById('custPhone').value;
     let cep = document.getElementById('checkoutCep').value;
     
-    if(!name || !email || !cep) {
+    if(!name || !email || !cpf || !phone || !cep) {
         let err = document.getElementById('checkoutError');
-        err.innerText = 'Por favor, preencha seu Nome, E-mail e o CEP de entrega.';
+        err.innerText = 'Por favor, preencha todos os campos obrigatórios (Nome, E-mail, CPF, Telefone e CEP).';
         err.classList.add('show');
         return;
     }
     
-    alert('Pedido realizado com sucesso! Obrigado por comprar na AURÉA.');
+    // Esconde o formulário e exibe o QR Code do PIX
+    document.getElementById('checkoutFormContent').style.display = 'none';
+    document.getElementById('pixResult').classList.add('show');
+    document.getElementById('checkoutError').classList.remove('show');
+    
+    // Limpa o carrinho após gerar o pedido
     cart = [];
     updateCartUI();
-    closeCheckout();
 }
 </script>
 
