@@ -46,7 +46,7 @@ a{
     color:#fff;
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-style:space-between;
     padding:0 6%;
     position:sticky;
     top:0;
@@ -793,7 +793,7 @@ a{
 }
 
 .checkout-field.full{
-    grid-column:1/-1;
+    grid-column:1 / -1;
 }
 
 .checkout-field label{
@@ -824,7 +824,7 @@ a{
 }
 
 .checkout-address-status{
-    grid-column:1/-1;
+    grid-column:1 / -1;
     font-size:11px;
     color:#777;
     min-height:14px;
@@ -997,21 +997,6 @@ a{
 
 .checkout-error.show{
     display:block;
-}
-
-.checkout-delivery-box{
-    background:#faf9f7;
-    border:1px solid #e8e4df;
-    border-radius:6px;
-    padding:13px;
-    margin-top:15px;
-    font-size:11px;
-    color:#666;
-    line-height:1.6;
-}
-
-.checkout-delivery-box strong{
-    color:#222;
 }
 
 /* ==============================
@@ -1525,7 +1510,7 @@ a{
             <h3>Calcule o frete</h3>
             <div class="shipping-description">Informe seu CEP para consultar as opções de entrega.</div>
             <div class="cep-area">
-                <input id="cep" type="text" maxlength="9" inputmode="numeric" placeholder="29700-000" autocomplete="postal-code">
+                <input id="cep" type="text" maxlength="9" inputmode="numeric" placeholder="29700-000" autocomplete="postal-code" oninput="formatCEP(this)">
                 <button onclick="calculateShipping()">CALCULAR</button>
             </div>
             <div class="cep-message" id="cepMessage"></div>
@@ -1573,15 +1558,15 @@ a{
                         </div>
                         <div class="checkout-field">
                             <label>CPF</label>
-                            <input type="text" id="custCPF" placeholder="000.000.000-00">
+                            <input type="text" id="custCPF" maxlength="14" placeholder="000.000.000-00" oninput="formatCPF(this)">
                         </div>
                         <div class="checkout-field">
                             <label>Telefone / WhatsApp</label>
-                            <input type="tel" id="custPhone" placeholder="(00) 00000-0000">
+                            <input type="tel" id="custPhone" maxlength="15" placeholder="(00) 00000-0000" oninput="formatPhone(this)">
                         </div>
                         <div class="checkout-field">
                             <label>CEP</label>
-                            <input type="text" id="custCEP" placeholder="00000-000" onblur="fetchAddressByCEP()">
+                            <input type="text" id="custCEP" maxlength="9" placeholder="00000-000" oninput="formatCEP(this)" onblur="fetchAddressByCEP()">
                         </div>
                         <div class="checkout-address-status" id="addressStatus"></div>
                         <div class="checkout-field full">
@@ -1697,6 +1682,38 @@ a{
 let cart = [];
 let selectedShippingCost = 0;
 let selectedPaymentMethod = 'pix';
+
+/* MÁSCARAS E FORMATADORES EM TEMPO REAL */
+function formatCPF(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    input.value = value;
+}
+
+function formatPhone(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+    if (value.length > 10) {
+        value = value.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+    } else if (value.length > 5) {
+        value = value.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+    } else if (value.length > 2) {
+        value = value.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+    } else {
+        value = value.replace(/^(\d*)$/, '($1');
+    }
+    input.value = value;
+}
+
+function formatCEP(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    value = value.replace(/^(\d{5})(\d)/, '$1-$2');
+    input.value = value;
+}
 
 function updateCartCount() {
     const count = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -1924,7 +1941,6 @@ function processCheckout() {
     btn.disabled = true;
     btn.innerText = 'PROCESSANDO...';
 
-    // Integração direta com Mercado Pago Oficial
     fetch('/api/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1948,7 +1964,6 @@ function processCheckout() {
         if (data.qr_code || data.qr_code_base64) {
             showPixScreen(data.qr_code, data.qr_code_base64, data.ticket_url);
         } else {
-            // Fallback direto Mercado Pago BRCode
             generateMercadoPagoFallbackPix(total);
         }
     })
@@ -1967,7 +1982,6 @@ function generateMercadoPagoFallbackPix(amount) {
     const pixResult = document.getElementById('pixResult');
     pixResult.classList.add('show');
 
-    // Chave e payload formatados padrão Mercado Pago
     const valStr = amount.toFixed(2);
     const pixCode = `00020126580014BR.GOV.BCB.PIX0136wesleyvmartins97@gmail.com520400005303986540${valStr.length < 10 ? '0' + valStr.length : valStr.length}${valStr}5802BR5918MERCADOPAGO VENDEDOR6009SAO PAULO62070503***6304`;
 
