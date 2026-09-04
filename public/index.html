@@ -240,7 +240,7 @@ a{
 
 .products-grid{
     display:grid;
-    grid-template-columns:repeat(2,1fr);
+    grid-template-columns:repeat(3,1fr);
     gap:24px;
 }
 
@@ -259,23 +259,23 @@ a{
 
 .product-photo{
     background:#eee4de;
-    height:470px;
+    height:320px;
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:35px;
+    padding:25px;
     overflow:hidden;
 }
 
 .product-photo img{
     width:100%;
-    height:400px;
+    height:270px;
     object-fit:contain;
     display:block;
 }
 
 .product-details{
-    padding:35px;
+    padding:25px;
 }
 
 .product-brand{
@@ -288,20 +288,20 @@ a{
 
 .product-name{
     font-family:Georgia,serif;
-    font-size:38px;
+    font-size:28px;
     font-weight:normal;
     margin-bottom:9px;
 }
 
 .product-type{
-    font-size:13px;
+    font-size:12px;
     color:#777;
-    margin-bottom:20px;
+    margin-bottom:15px;
 }
 
 .rating{
-    font-size:13px;
-    margin-bottom:20px;
+    font-size:12px;
+    margin-bottom:15px;
 }
 
 .rating-number{
@@ -310,34 +310,34 @@ a{
 }
 
 .product-description{
-    font-size:14px;
+    font-size:13px;
     color:#666;
-    line-height:1.8;
-    margin-bottom:22px;
+    line-height:1.7;
+    margin-bottom:18px;
 }
 
 .product-price{
-    font-size:30px;
+    font-size:26px;
     font-weight:bold;
 }
 
 .product-pix{
-    font-size:13px;
+    font-size:12px;
     color:#5e7c64;
-    margin-top:5px;
-    margin-bottom:18px;
+    margin-top:4px;
+    margin-bottom:15px;
 }
 
 .product-buy-row{
     display:flex;
     gap:10px;
-    margin-bottom:12px;
+    margin-bottom:10px;
 }
 
 .add-button,
 .buy-button{
     flex:1;
-    padding:17px 10px;
+    padding:14px 10px;
     border-radius:4px;
     font-size:10px;
     font-weight:bold;
@@ -370,20 +370,20 @@ a{
 .product-benefits{
     display:grid;
     grid-template-columns:repeat(3,1fr);
-    gap:7px;
+    gap:6px;
     margin-top:15px;
 }
 
 .product-benefits div{
     background:#faf9f7;
-    padding:13px 4px;
+    padding:10px 4px;
     text-align:center;
     font-size:9px;
     color:#777;
 }
 
 /* ==============================
-   NOTAS
+   NOTAS E CONFIANÇA
 ============================== */
 
 .notes-section{
@@ -416,10 +416,6 @@ a{
     color:#777;
 }
 
-/* ==============================
-   CONFIANÇA
-============================== */
-
 .trust-section{
     background:#171717;
     color:#fff;
@@ -448,10 +444,6 @@ a{
     line-height:1.6;
 }
 
-/* ==============================
-   FOOTER
-============================== */
-
 .footer{
     background:#0d0d0d;
     color:#777;
@@ -469,7 +461,7 @@ a{
 }
 
 /* ==============================
-   CARRINHO
+   CARRINHO (DRAWER)
 ============================== */
 
 .drawer{
@@ -578,10 +570,7 @@ a{
     color:#c00000;
 }
 
-/* ==============================
-   FRETE
-============================== */
-
+/* FRETE */
 .shipping{
     border-top:1px solid #eee;
     margin-top:25px;
@@ -612,10 +601,6 @@ a{
     border:1px solid #ddd;
     border-radius:5px;
     outline:none;
-}
-
-.cep-area input:focus{
-    border-color:#999;
 }
 
 .cep-area button{
@@ -660,10 +645,7 @@ a{
     margin-top:4px;
 }
 
-/* ==============================
-   TOTAL
-============================== */
-
+/* TOTAL */
 .total{
     border-top:1px solid #eee;
     margin-top:25px;
@@ -689,7 +671,7 @@ a{
 }
 
 /* ==============================
-   CHECKOUT PROFISSIONAL
+   CHECKOUT OVERLAY
 ============================== */
 
 .checkout-overlay{
@@ -818,19 +800,6 @@ a{
     border-color:#777;
 }
 
-.checkout-field input.invalid{
-    border-color:#a44;
-    background:#fff8f8;
-}
-
-.checkout-address-status{
-    grid-column:1 / -1;
-    font-size:11px;
-    color:#777;
-    min-height:14px;
-    margin-top:-5px;
-}
-
 .checkout-payment-options{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -895,48 +864,12 @@ a{
     margin-bottom:20px;
 }
 
-.checkout-summary-product{
-    display:flex;
-    gap:12px;
-    padding-bottom:17px;
-    margin-bottom:17px;
-    border-bottom:1px solid #eee;
-}
-
-.checkout-summary-product img{
-    width:70px;
-    height:70px;
-    object-fit:contain;
-    background:#f4ebe6;
-    border-radius:6px;
-}
-
-.checkout-summary-product-info{
-    flex:1;
-    font-size:12px;
-}
-
-.checkout-summary-product-info strong{
-    font-size:13px;
-}
-
-.checkout-summary-product-info small{
-    display:block;
-    color:#888;
-    margin-top:5px;
-    line-height:1.4;
-}
-
 .summary-line{
     display:flex;
     justify-content:space-between;
     gap:15px;
     font-size:12px;
     margin-top:12px;
-}
-
-.summary-line span:last-child{
-    text-align:right;
 }
 
 .summary-total{
@@ -947,10 +880,6 @@ a{
     justify-content:space-between;
     gap:15px;
     font-size:19px;
-}
-
-.summary-total strong:last-child{
-    font-size:22px;
 }
 
 .checkout-final-button{
@@ -970,19 +899,6 @@ a{
     background:#292929;
 }
 
-.checkout-final-button:disabled{
-    opacity:.6;
-    cursor:not-allowed;
-}
-
-.checkout-security{
-    text-align:center;
-    color:#888;
-    font-size:10px;
-    line-height:1.6;
-    margin-top:12px;
-}
-
 .checkout-error{
     display:none;
     background:#fff2f2;
@@ -999,10 +915,7 @@ a{
     display:block;
 }
 
-/* ==============================
-   PIX
-============================== */
-
+/* PIX RESULT */
 .pix-result{
     display:none;
     background:#fff;
@@ -1011,290 +924,28 @@ a{
     padding:24px;
     text-align:center;
 }
-
 .pix-result.show{
     display:block;
 }
-
-.pix-result h3{
-    font-family:Georgia,serif;
-    font-size:25px;
-    font-weight:normal;
-    margin-bottom:8px;
-}
-
-.pix-status{
-    font-size:12px;
-    color:#777;
-    margin-bottom:20px;
-}
-
 .pix-qr{
-    width:240px;
-    height:240px;
-    max-width:100%;
-    object-fit:contain;
+    width:200px;
+    height:200px;
+    margin:15px auto;
     display:block;
-    margin:0 auto 20px;
-    border:1px solid #eee;
-    padding:10px;
-    background:#fff;
 }
-
-.pix-copy-label{
-    display:block;
-    text-align:left;
-    font-size:10px;
-    font-weight:bold;
-    letter-spacing:1px;
-    text-transform:uppercase;
-    color:#555;
-    margin-bottom:7px;
-}
-
-.pix-copy-row{
-    display:flex;
-    gap:7px;
-}
-
 .pix-copy-input{
-    flex:1;
-    min-width:0;
-    padding:12px;
-    border:1px solid #ddd;
-    border-radius:5px;
-    background:#fafafa;
-    font-size:11px;
-}
-
-.pix-copy-button,
-.pix-open-button{
-    border:0;
-    border-radius:5px;
-    padding:0 14px;
-    background:#151515;
-    color:#fff;
-    font-size:10px;
-    font-weight:bold;
-    white-space:nowrap;
-}
-
-.pix-copy-button:hover,
-.pix-open-button:hover{
-    background:#292929;
-}
-
-.pix-open-button{
     width:100%;
+    padding:10px;
+    border:1px solid #ddd;
+    font-size:11px;
+    background:#fafafa;
     margin-top:10px;
-    padding:14px;
 }
-
-.pix-instructions{
-    text-align:left;
-    margin-top:20px;
-    background:#faf9f7;
-    border:1px solid #e8e4df;
-    border-radius:6px;
-    padding:15px;
-    font-size:11px;
-    color:#666;
-    line-height:1.7;
-}
-
-.pix-instructions strong{
-    color:#222;
-}
-
-.pix-paid{
-    display:none;
-    margin-top:15px;
-    background:#edf7ef;
-    border:1px solid #b8d8be;
-    color:#35623d;
-    border-radius:6px;
-    padding:18px;
-    font-size:13px;
-    line-height:1.7;
-}
-
-.pix-paid.show{
-    display:block;
-}
-
-.pix-paid-title{
-    font-family:Georgia,serif;
-    font-size:25px;
-    color:#35623d;
-    margin-bottom:5px;
-}
-
-.pix-order-id{
-    font-size:10px;
-    color:#999;
-    margin-top:12px;
-    word-break:break-all;
-}
-
-/* ==============================
-   CARTÃO - AVISO TEMPORÁRIO
-============================== */
-
-.card-notice{
-    display:none;
-    background:#fff8ed;
-    border:1px solid #ead3a9;
-    color:#775c2c;
-    border-radius:6px;
-    padding:14px;
-    margin-top:15px;
-    font-size:11px;
-    line-height:1.6;
-}
-
-.card-notice.show{
-    display:block;
-}
-
-/* ==============================
-   RESPONSIVO
-============================== */
 
 @media(max-width:800px){
-    .navigation{
-        display:none;
-    }
-
-    .hero{
-        min-height:540px;
-        padding:75px 7%;
-    }
-
-    .hero h1{
-        font-size:46px;
-    }
-
-    .category-grid{
-        grid-template-columns:1fr 1fr;
-    }
-
-    .products-grid{
-        grid-template-columns:1fr;
-    }
-
-    .product-photo{
-        height:380px;
-    }
-
-    .product-photo img{
-        height:330px;
-    }
-
-    .product-details{
-        padding:30px 25px;
-    }
-
-    .product-name{
-        font-size:40px;
-    }
-
-    .notes-grid,
-    .trust-grid{
-        grid-template-columns:1fr;
-    }
-
-    .product-buy-row{
-        flex-direction:column;
-    }
-
-    .checkout-body{
-        grid-template-columns:1fr;
-        padding:15px;
-    }
-
-    .checkout-summary{
-        position:static;
-    }
-}
-
-@media(max-width:480px){
-    .header{
-        padding:0 5%;
-    }
-
-    .logo{
-        font-size:22px;
-        letter-spacing:5px;
-    }
-
-    .hero h1{
-        font-size:39px;
-    }
-
-    .hero-text{
-        font-size:14px;
-    }
-
-    .category-grid{
-        grid-template-columns:1fr;
-    }
-
-    .product-benefits{
-        grid-template-columns:1fr;
-    }
-
-    .product-photo{
-        height:340px;
-    }
-
-    .product-photo img{
-        height:300px;
-    }
-
-    .drawer{
-        padding:25px 20px;
-    }
-
-    .checkout-overlay{
-        padding:0;
-    }
-
-    .checkout-container{
-        min-height:100vh;
-        border-radius:0;
-    }
-
-    .checkout-header{
-        padding:20px;
-    }
-
-    .checkout-section{
-        padding:20px;
-    }
-
-    .checkout-grid{
-        grid-template-columns:1fr;
-    }
-
-    .checkout-field.full{
-        grid-column:auto;
-    }
-
-    .checkout-address-status{
-        grid-column:auto;
-    }
-
-    .checkout-payment-options{
-        grid-template-columns:1fr;
-    }
-
-    .pix-copy-row{
-        flex-direction:column;
-    }
-
-    .pix-copy-button{
-        padding:13px;
-    }
+    .navigation{display:none;}
+    .products-grid{grid-template-columns:1fr;}
+    .checkout-body{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -1453,25 +1104,6 @@ a{
     </div>
 </section>
 
-<section class="notes-section">
-    <div class="kicker">PERFIL OLFATIVO</div>
-    <h2 class="section-heading">Notas olfativas</h2>
-    <div class="notes-grid">
-        <div class="note-card">
-            <h3>Saída</h3>
-            <p>Pera verde e mandarina.</p>
-        </div>
-        <div class="note-card">
-            <h3>Coração</h3>
-            <p>Gardênia, jasmim e muguet.</p>
-        </div>
-        <div class="note-card">
-            <h3>Fundo</h3>
-            <p>Cedro e musk.</p>
-        </div>
-    </div>
-</section>
-
 <section class="trust-section">
     <div class="trust-grid">
         <div class="trust-item">
@@ -1498,7 +1130,7 @@ a{
 
 <!-- DRAWER CARRINHO -->
 <aside class="drawer" id="cartDrawer">
-    <button class="close-cart" onclick="closeCart()" aria-label="Fechar carrinho">×</button>
+    <button class="close-cart" onclick="closeCart()">×</button>
     <h2 class="drawer-title">Seu carrinho</h2>
 
     <div id="cartContent">
@@ -1508,13 +1140,11 @@ a{
     <div id="shippingArea" style="display:none">
         <div class="shipping">
             <h3>Calcule o frete</h3>
-            <div class="shipping-description">Informe seu CEP para consultar as opções de entrega.</div>
             <div class="cep-area">
-                <input id="cep" type="text" maxlength="9" inputmode="numeric" placeholder="29700-000" autocomplete="postal-code" oninput="formatCEP(this)">
+                <input id="cep" type="text" maxlength="9" placeholder="29700-000">
                 <button onclick="calculateShipping()">CALCULAR</button>
             </div>
             <div class="cep-message" id="cepMessage"></div>
-            <div id="shippingOptions"></div>
         </div>
     </div>
 
@@ -1542,11 +1172,8 @@ a{
             <div class="checkout-main">
                 <div class="checkout-error" id="checkoutError"></div>
 
-                <!-- DADOS -->
-                <div class="checkout-section" id="checkoutFormSection">
+                <div class="checkout-section">
                     <div class="checkout-section-title">1. Dados do Comprador</div>
-                    <div class="checkout-section-description">Preencha suas informações para acompanhamento do pedido.</div>
-                    
                     <div class="checkout-grid">
                         <div class="checkout-field full">
                             <label>Nome Completo</label>
@@ -1558,20 +1185,159 @@ a{
                         </div>
                         <div class="checkout-field">
                             <label>CPF</label>
-                            <input type="text" id="custCPF" maxlength="14" placeholder="000.000.000-00" oninput="formatCPF(this)">
+                            <input type="text" id="custCPF" maxlength="14" placeholder="000.000.000-00">
                         </div>
-                        <div class="checkout-field">
+                        <div class="checkout-field full">
                             <label>Telefone / WhatsApp</label>
-                            <input type="tel" id="custPhone" maxlength="15" placeholder="(00) 00000-0000" oninput="formatPhone(this)">
+                            <input type="tel" id="custPhone" placeholder="(00) 00000-0000">
                         </div>
                     </div>
                 </div>
 
-                <!-- FIM DO CORPO DO CHECKOUT -->
+                <button class="checkout-final-button" onclick="finalizeOrder()">CONCLUIR PEDIDO</button>
+            </div>
+
+            <div class="checkout-summary">
+                <div class="checkout-summary-title">Resumo</div>
+                <div id="checkoutSummaryContent"></div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+let cart = [];
+
+function openCart() {
+    document.getElementById('cartDrawer').classList.add('open');
+}
+
+function closeCart() {
+    document.getElementById('cartDrawer').classList.remove('open');
+}
+
+function addProductWithQuantity(name, price, type, img, id) {
+    let existing = cart.find(item => item.id === id);
+    if(existing) {
+        existing.qty += 1;
+    } else {
+        cart.push({ id, name, price, type, img, qty: 1 });
+    }
+    updateCartUI();
+    openCart();
+}
+
+function buyNow(name, price, type, img, id) {
+    cart = [{ id, name, price, type, img, qty: 1 }];
+    updateCartUI();
+    openCheckout();
+}
+
+function updateCartUI() {
+    let count = cart.reduce((sum, item) => sum + item.qty, 0);
+    document.getElementById('cartCount').innerText = count;
+
+    let content = document.getElementById('cartContent');
+    let shippingArea = document.getElementById('shippingArea');
+    let totalArea = document.getElementById('totalArea');
+
+    if(cart.length === 0) {
+        content.innerHTML = '<div class="empty-cart">Seu carrinho está vazio.</div>';
+        shippingArea.style.display = 'none';
+        totalArea.style.display = 'none';
+        return;
+    }
+
+    shippingArea.style.display = 'block';
+    totalArea.style.display = 'block';
+
+    let html = '';
+    let total = 0;
+
+    cart.forEach(item => {
+        total += item.price * item.qty;
+        html += `
+            <div class="cart-product">
+                <img src="${item.img}" alt="${item.name}">
+                <div class="cart-product-info">
+                    <strong>${item.name}</strong><br>
+                    <small>${item.type}</small><br>
+                    <span>R$ ${item.price.toFixed(2).replace('.', ',')}</span>
+                    <div class="cart-quantity">
+                        <button onclick="changeQty('${item.id}', -1)">-</button>
+                        <span>${item.qty}</span>
+                        <button onclick="changeQty('${item.id}', 1)">+</button>
+                    </div>
+                    <button class="remove-item" onclick="removeItem('${item.id}')">Remover</button>
+                </div>
+            </div>
+        `;
+    });
+
+    content.innerHTML = html;
+    document.getElementById('cartTotalDisplay').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+}
+
+function changeQty(id, delta) {
+    let item = cart.find(i => i.id === id);
+    if(item) {
+        item.qty += delta;
+        if(item.qty <= 0) {
+            cart = cart.filter(i => i.id !== id);
+        }
+    }
+    updateCartUI();
+}
+
+function removeItem(id) {
+    cart = cart.filter(i => i.id !== id);
+    updateCartUI();
+}
+
+function calculateShipping() {
+    let cep = document.getElementById('cep').value;
+    if(cep.length < 8) {
+        document.getElementById('cepMessage').innerText = 'Digite um CEP válido.';
+        return;
+    }
+    document.getElementById('cepMessage').innerText = 'Frete padrão calculado: Grátis';
+}
+
+function openCheckout() {
+    if(cart.length === 0) return;
+    closeCart();
+    
+    let summaryHtml = '';
+    let total = 0;
+    cart.forEach(item => {
+        total += item.price * item.qty;
+        summaryHtml += `<div class="summary-line"><span>${item.qty}x ${item.name}</span><span>R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</span></div>`;
+    });
+    summaryHtml += `<div class="summary-total"><strong>Total:</strong><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></div>`;
+    
+    document.getElementById('checkoutSummaryContent').innerHTML = summaryHtml;
+    document.getElementById('checkoutOverlay').classList.add('open');
+}
+
+function closeCheckout() {
+    document.getElementById('checkoutOverlay').classList.remove('open');
+}
+
+function finalizeOrder() {
+    let name = document.getElementById('custName').value;
+    let email = document.getElementById('custEmail').value;
+    if(!name || !email) {
+        let err = document.getElementById('checkoutError');
+        err.innerText = 'Por favor, preencha pelo menos seu Nome e E-mail.';
+        err.classList.add('show');
+        return;
+    }
+    alert('Pedido realizado com sucesso! Obrigado por comprar na AURÉA.');
+    cart = [];
+    updateCartUI();
+    closeCheckout();
+}
+</script>
 
 </body>
 </html>
