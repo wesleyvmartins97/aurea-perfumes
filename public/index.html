@@ -815,6 +815,1364 @@ a{
     padding:17px;
     border:0;
     border-radius:5px;
+    background:#009ee3; /* Azul do Mercado Pago */
+    color:#fff;
+    font-size:12px;
+    font-weight:bold;
+    letter-spacing:1.2px;
+    transition: .2s;
+}
+
+.checkout-final-button:hover{
+    background:#007eb5;
+}
+
+.checkout-error{
+    display:none;
+    background:#fff2f2;
+    border:1px solid #e2bcbc;
+    color:#8a3d3d;
+    padding:12px;
+    border-radius:5px;
+    font-size:12px;
+    line-height:1.5;
+    margin-bottom:15px;
+}
+
+.checkout-error.show{
+    display:block;
+}
+
+@media(max-width:800px){
+    .navigation{display:none;}
+    .products-grid{grid-template-columns:1fr;}
+    .checkout-body{grid-template-columns:1fr;}
+}
+</style>
+</head>
+
+<body>
+
+<header class="header">
+    <div class="logo">AURÉA</div>
+    <nav class="navigation">
+        <a href="#femininos">FEMININOS</a>
+        <a href="#masculinos">MASCULINOS</a>
+        <a href="#arabes">ÁRABES</a>
+        <a href="#ofertas">OFERTAS</a>
+    </nav>
+    <button class="cart-button" onclick="openCart()">
+        🛍 Carrinho (<span id="cartCount">0</span>)
+    </button>
+</header>
+
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-kicker">CURADORIA PREMIUM</div>
+        <h1>Perfumes que deixam marca.</h1>
+        <p class="hero-text">
+            Fragrâncias selecionadas para quem não quer apenas usar um perfume,
+            mas transformar presença em memória.
+        </p>
+        <div class="hero-actions">
+            <a class="primary-button" href="#produto">VER DESTAQUE</a>
+            <a class="secondary-button" href="#categorias">EXPLORAR PERFUMES</a>
+        </div>
+    </div>
+</section>
+
+<section class="categories" id="categorias">
+    <div class="kicker">EXPLORE A AURÉA</div>
+    <h2 class="section-heading">Encontre sua essência</h2>
+    <div class="category-grid">
+        <a class="category-card" id="femininos" href="#produto">
+            <strong>Femininos</strong>
+            <span>Elegância e personalidade</span>
+        </a>
+        <a class="category-card" id="masculinos" href="#produto">
+            <strong>Masculinos</strong>
+            <span>Presença e sofisticação</span>
+        </a>
+        <a class="category-card" id="arabes" href="#produto">
+            <strong>Árabes</strong>
+            <span>Intensidade e exclusividade</span>
+        </a>
+        <a class="category-card" id="ofertas" href="#produto">
+            <strong>Ofertas</strong>
+            <span>Oportunidades selecionadas</span>
+        </a>
+    </div>
+</section>
+
+<section class="product-section" id="produto">
+    <div class="kicker">DESTAQUES</div>
+    <h2 class="section-heading">Uma fragrância para lembrar</h2>
+    <div class="products-grid">
+
+        <!-- PRODUTO 1 -->
+        <div class="product-card">
+            <div class="product-photo">
+                <img src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg" alt="Lattafa Layaan" loading="lazy">
+            </div>
+            <div class="product-details">
+                <div class="product-brand">LATTAFA</div>
+                <h2 class="product-name">Layaan</h2>
+                <div class="product-type">Eau de Parfum Feminino • 75ml</div>
+                <div class="rating">★★★★★ <span class="rating-number">4,9 • Avaliações</span></div>
+                <p class="product-description">
+                    Uma fragrância floral frutada, delicada e elegante, com pera verde e mandarina na saída, flores brancas no coração e cedro e musk no fundo.
+                </p>
+                <div class="product-price">R$ 399,00</div>
+                <div class="product-pix">ou R$ 379,05 no Pix</div>
+                <div class="product-buy-row">
+                    <button class="add-button" onclick="addProductWithQuantity('Lattafa Layaan', 399, 'Eau de Parfum Feminino • 75ml', 'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg', 'layaan')">
+                        ADICIONAR AO CARRINHO
+                    </button>
+                </div>
+                <button class="buy-button" onclick="buyNow('Lattafa Layaan', 399, 'Eau de Parfum Feminino • 75ml', 'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg', 'layaan')">
+                    ⚡ COMPRAR AGORA
+                </button>
+                <div class="product-benefits">
+                    <div>🔒 Compra segura</div>
+                    <div>📦 Envio Brasil</div>
+                    <div>✓ Lacrado</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRODUTO 2 -->
+        <div class="product-card">
+            <div class="product-photo">
+                <img src="/perfume.webp" alt="French Avenue Liquid Brun" loading="lazy">
+            </div>
+            <div class="product-details">
+                <div class="product-brand">FRENCH AVENUE</div>
+                <h2 class="product-name">Liquid Brun</h2>
+                <div class="product-type">Eau de Parfum Masculino • 100ml</div>
+                <div class="rating">★★★★★ <span class="rating-number">Fragrância premium</span></div>
+                <p class="product-description">
+                    Uma fragrância masculina marcante e sofisticada, ideal para quem busca presença, elegância e personalidade.
+                </p>
+                <div class="product-price">R$ 329,00</div>
+                <div class="product-pix">ou R$ 312,55 no Pix</div>
+                <div class="product-buy-row">
+                    <button class="add-button" onclick="addProductWithQuantity('French Avenue Liquid Brun', 329, 'Eau de Parfum Masculino • 100ml', '/perfume.webp', 'liquidbrun')">
+                        ADICIONAR AO CARRINHO
+                    </button>
+                </div>
+                <button class="buy-button" onclick="buyNow('French Avenue Liquid Brun', 329, 'Eau de Parfum Masculino • 100ml', '/perfume.webp', 'liquidbrun')">
+                    ⚡ COMPRAR AGORA
+                </button>
+                <div class="product-benefits">
+                    <div>🔒 Compra segura</div>
+                    <div>📦 Envio Brasil</div>
+                    <div>✓ Lacrado</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRODUTO 3 — TESTE PIX -->
+        <div class="product-card">
+            <div class="product-photo">
+                <img src="/download.jpg" alt="Bala — Produto de Teste" loading="lazy">
+            </div>
+            <div class="product-details">
+                <div class="product-brand">TESTE AURÉA</div>
+                <h2 class="product-name">Bala</h2>
+                <div class="product-type">Produto de Teste • 1 unidade</div>
+                <div class="rating">★★★★★ <span class="rating-number">Teste de pagamento</span></div>
+                <p class="product-description">
+                    Produto criado exclusivamente para testar o checkout e o pagamento seguro da AURÉA.
+                </p>
+                <div class="product-price">R$ 1,00</div>
+                <div class="product-pix">PIX ou Cartão • Frete grátis</div>
+                <div class="product-buy-row">
+                    <button class="add-button" onclick="addProductWithQuantity('Bala — Produto de Teste', 1, 'Produto de Teste • 1 unidade', '/download.jpg', 'bala-teste')">
+                        ADICIONAR AO CARRINHO
+                    </button>
+                </div>
+                <button class="buy-button" onclick="buyNow('Bala — Produto de Teste', 1, 'Produto de Teste • 1 unidade', '/download.jpg', 'bala-teste')">
+                    ⚡ COMPRAR AGORA
+                </button>
+                <div class="product-benefits">
+                    <div>🔒 Checkout seguro</div>
+                    <div>💳 Mercado Pago</div>
+                    <div>✓ R$ 1,00</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<section class="trust-section">
+    <div class="trust-grid">
+        <div class="trust-item">
+            <h3>Compra segura</h3>
+            <p>Processamento de pagamento oficial via Mercado Pago.</p>
+        </div>
+        <div class="trust-item">
+            <h3>Envio para o Brasil</h3>
+            <p>Consulte as opções de entrega diretamente no carrinho.</p>
+        </div>
+        <div class="trust-item">
+            <h3>Curadoria AURÉA</h3>
+            <p>Fragrâncias selecionadas para quem valoriza personalidade.</p>
+        </div>
+    </div>
+</section>
+
+<footer class="footer">
+    <div class="footer-logo">AURÉA</div>
+    <div>Sua essência. Sua presença.</div>
+    <br>
+    <div>© 2026 AURÉA Perfumes</div>
+</footer>
+
+<!-- DRAWER CARRINHO -->
+<aside class="drawer" id="cartDrawer">
+    <button class="close-cart" onclick="closeCart()">×</button>
+    <h2 class="drawer-title">Seu carrinho</h2>
+
+    <div id="cartContent">
+        <div class="empty-cart">Seu carrinho está vazio.</div>
+    </div>
+
+    <div id="shippingArea" style="display:none">
+        <div class="shipping">
+            <h3>Calcule o frete</h3>
+            <div class="shipping-description">Informe seu CEP para calcular a entrega.</div>
+            <div class="cep-area">
+                <input id="cep" type="text" maxlength="9" placeholder="00000-000" oninput="maskCepDrawer(this)">
+                <button onclick="calculateShipping()">CALCULAR</button>
+            </div>
+            <div class="cep-message" id="cepMessage"></div>
+        </div>
+    </div>
+
+    <div class="total" id="totalArea" style="display:none">
+        <div class="total-line">
+            <strong>Total:</strong>
+            <strong id="cartTotalDisplay">R$ 0,00</strong>
+        </div>
+        <button class="checkout" onclick="openCheckout()">FINALIZAR COMPRA</button>
+    </div>
+</aside>
+
+<!-- CHECKOUT OVERLAY -->
+<div class="checkout-overlay" id="checkoutOverlay">
+    <div class="checkout-container">
+        <div class="checkout-header">
+            <div>
+                <div class="checkout-logo">AURÉA</div>
+                <div class="checkout-header-subtitle">CHECKOUT SEGURO - MERCADO PAGO</div>
+            </div>
+            <button class="close-checkout" onclick="closeCheckout()">×</button>
+        </div>
+
+        <div class="checkout-body">
+            <div class="checkout-main">
+                <div class="checkout-error" id="checkoutError"></div>
+
+                <!-- FORMULÁRIO DE DADOS E ENDEREÇO -->
+                <div id="checkoutFormContent">
+                    <div class="checkout-section">
+                        <div class="checkout-section-title">1. Dados do Comprador</div>
+                        <div class="checkout-section-description">Preencha suas informações para gerar o pagamento.</div>
+                        <div class="checkout-grid">
+                            <div class="checkout-field full">
+                                <label>Nome Completo</label>
+                                <input type="text" id="custName" placeholder="Seu nome completo">
+                            </div>
+                            <div class="checkout-field full">
+                                <label>E-mail</label>
+                                <input type="email" id="custEmail" placeholder="seu@email.com">
+                            </div>
+                            <div class="checkout-field">
+                                <label>CPF</label>
+                                <input type="text" id="custCPF" maxlength="14" placeholder="000.000.000-00" oninput="maskCpf(this)">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Telefone / WhatsApp</label>
+                                <input type="tel" id="custPhone" maxlength="15" placeholder="(00) 00000-0000" oninput="maskPhone(this)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkout-section" style="margin-top: 18px;">
+                        <div class="checkout-section-title">2. Endereço de Entrega</div>
+                        <div class="checkout-section-description">Digite seu CEP para buscar o endereço automaticamente.</div>
+                        <div class="checkout-grid">
+                            <div class="checkout-field">
+                                <label>CEP</label>
+                                <input type="text" id="checkoutCep" maxlength="9" placeholder="00000-000" oninput="maskCep(this)" onblur="searchCep(this.value)">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Número</label>
+                                <input type="text" id="custNum" placeholder="Ex: 123">
+                            </div>
+                            <div class="checkout-field full">
+                                <label>Endereço / Rua</label>
+                                <input type="text" id="custStreet" placeholder="Rua, Avenida...">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Bairro</label>
+                                <input type="text" id="custNeighborhood" placeholder="Bairro">
+                            </div>
+                            <div class="checkout-field">
+                                <label>Cidade / Estado</label>
+                                <input type="text" id="custCityState" placeholder="Cidade - UF">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="checkout-final-button" onclick="finalizeOrderMercadoPago()">PAGAR COM MERCADO PAGO (PIX / CARTÃO)</button>
+                </div>
+
+            </div>
+
+            <div class="checkout-summary">
+                <div class="checkout-summary-title">Resumo do Pedido</div>
+                <div id="checkoutSummaryContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let cart = [];
+
+// MÁSCARAS DE INPUT
+function maskCpf(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    input.value = v;
+}
+
+function maskPhone(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 10) {
+        v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+    } else if (v.length > 6) {
+        v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+    } else if (v.length > 2) {
+        v = v.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
+    } else if (v.length > 0) {
+        v = v.replace(/^(\d*)/, '($1');
+    }
+    input.value = v;
+}
+
+function maskCep(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (v.length > 8) v = v.slice(0, 8);
+    v = v.replace(/(\d{5})(\d)/, '$1-$2');
+    input.value = v;
+}
+
+function maskCepDrawer(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (v.length > 8) v = v.slice(0, 8);
+    v = v.replace(/(\d{5})(\d)/, '$1-$2');
+    input.value = v;
+}
+
+function openCart() {
+    document.getElementById('cartDrawer').classList.add('open');
+}
+
+function closeCart() {
+    document.getElementById('cartDrawer').classList.remove('open');
+}
+
+function addProductWithQuantity(name, price, type, img, id) {
+    let existing = cart.find(item => item.id === id);
+    if(existing) {
+        existing.qty += 1;
+    } else {
+        cart.push({ id, name, price, type, img, qty: 1 });
+    }
+    updateCartUI();
+    openCart();
+}
+
+function buyNow(name, price, type, img, id) {
+    cart = [{ id, name, price, type, img, qty: 1 }];
+    updateCartUI();
+    openCheckout();
+}
+
+function updateCartUI() {
+    let count = cart.reduce((sum, item) => sum + item.qty, 0);
+    document.getElementById('cartCount').innerText = count;
+
+    let content = document.getElementById('cartContent');
+    let shippingArea = document.getElementById('shippingArea');
+    let totalArea = document.getElementById('totalArea');
+
+    if(cart.length === 0) {
+        content.innerHTML = '<div class="empty-cart">Seu carrinho está vazio.</div>';
+        shippingArea.style.display = 'none';
+        totalArea.style.display = 'none';
+        return;
+    }
+
+    shippingArea.style.display = 'block';
+    totalArea.style.display = 'block';
+
+    let html = '';
+    let total = 0;
+
+    cart.forEach(item => {
+        total += item.price * item.qty;
+        html += `
+            <div class="cart-product">
+                <img src="${item.img}" alt="${item.name}">
+                <div class="cart-product-info">
+                    <strong>${item.name}</strong><br>
+                    <small>${item.type}</small><br>
+                    <span>R$ ${item.price.toFixed(2).replace('.', ',')}</span>
+                    <div class="cart-quantity">
+                        <button onclick="changeQty('${item.id}', -1)">-</button>
+                        <span>${item.qty}</span>
+                        <button onclick="changeQty('${item.id}', 1)">+</button>
+                    </div>
+                    <button class="remove-item" onclick="removeItem('${item.id}')">Remover</button>
+                </div>
+            </div>
+        `;
+    });
+
+    content.innerHTML = html;
+    document.getElementById('cartTotalDisplay').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+}
+
+function changeQty(id, delta) {
+    let item = cart.find(i => i.id === id);
+    if(item) {
+        item.qty += delta;
+        if(item.qty <= 0) {
+            cart = cart.filter(i => i.id !== id);
+        }
+    }
+    updateCartUI();
+}
+
+function removeItem(id) {
+    cart = cart.filter(i => i.id !== id);
+    updateCartUI();
+}
+
+function calculateShipping() {
+    let cep = document.getElementById('cep').value;
+    let cleanCep = cep.replace(/\D/g, '');
+    if(cleanCep.length < 8) {
+        document.getElementById('cepMessage').innerText = 'Digite um CEP válido.';
+        return;
+    }
+    document.getElementById('cepMessage').innerText = 'Frete padrão calculado: Grátis';
+}
+
+function searchCep(cep) {
+    let cleanCep = cep.replace(/\D/g, '');
+    if(cleanCep.length !== 8) return;
+    
+    fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+        .then(response => response.json())
+        .then(data => {
+            if(!data.erro) {
+                document.getElementById('custStreet').value = data.logradouro;
+                document.getElementById('custNeighborhood').value = data.bairro;
+                document.getElementById('custCityState').value = `${data.localidade} - ${data.uf}`;
+            }
+        })
+        .catch(() => {});
+}
+
+function openCheckout() {
+    if(cart.length === 0) return;
+    closeCart();
+    
+    document.getElementById('checkoutFormContent').style.display = 'block';
+    document.getElementById('checkoutError').classList.remove('show');
+    
+    let summaryHtml = '';
+    let total = 0;
+    cart.forEach(item => {
+        total += item.price * item.qty;
+        summaryHtml += `<div class="summary-line"><span>${item.qty}x ${item.name}</span><span>R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</span></div>`;
+    });
+    summaryHtml += `<div class="summary-total"><strong>Total:</strong><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></div>`;
+    
+    document.getElementById('checkoutSummaryContent').innerHTML = summaryHtml;
+    document.getElementById('checkoutOverlay').classList.add('open');
+}
+
+function closeCheckout() {
+    document.getElementById('checkoutOverlay').classList.remove('open');
+}
+
+// INTEGRAÇÃO DIRETA COM A API DO MERCADO PAGO
+async function finalizeOrderMercadoPago() {
+    let name = document.getElementById('custName').value;
+    let email = document.getElementById('custEmail').value;
+    let cpf = document.getElementById('custCPF').value;
+    let phone = document.getElementById('custPhone').value;
+    let cep = document.getElementById('checkoutCep').value;
+    
+    if(!name || !email || !cpf || !phone || !cep) {
+        let err = document.getElementById('checkoutError');
+        err.innerText = 'Por favor, preencha todos os campos obrigatórios (Nome, E-mail, CPF, Telefone e CEP).';
+        err.classList.add('show');
+        return;
+    }
+
+    // INSIRA SEU ACCESS TOKEN DO MERCADO PAGO AQUI ABAIXO:
+    const MERCADO_PAGO_TOKEN = 'APP_USR-3268618341343082-090410-14929df290d4a7af7071ae4c541177a5-555490401';
+
+    if (MERCADO_PAGO_TOKEN === 'APP_USR-3268618341343082-090410-14929df290d4a7af7071ae4c541177a5-555490401') {
+        let err = document.getElementById('checkoutError');
+        err.innerText = 'Aviso: Você precisa configurar o seu Access Token do Mercado Pago no código do site.';
+        err.classList.add('show');
+        return;
+    }
+
+    let itemsPayload = cart.map(item => ({
+        title: item.name,
+        quantity: item.qty,
+        unit_price: Number(item.price),
+        currency_id: "BRL"
+    }));
+
+    let btn = document.querySelector('.checkout-final-button');
+    btn.innerText = 'GERANDO PAGAMENTO...';
+
+    try {
+        let response = await fetch('https://api.mercadopago.com/checkout/preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${MERCADO_PAGO_TOKEN}`
+            },
+            body: JSON.stringify({
+                items: itemsPayload,
+                payer: {
+                    name: name,
+                    email: email,
+                    phone: { number: phone }
+                },
+                back_urls: {
+                    success: window.location.href,
+                    failure: window.location.href,
+                    pending: window.location.href
+                },
+                auto_return: "approved"
+            })
+        });
+
+        let data = await response.json();
+
+        if (data.init_point) {
+            // Redireciona o usuário para a página segura de pagamento do Mercado Pago (Pix/Cartão)
+            window.location.href = data.init_point;
+        } else {
+            throw new Error('Falha ao gerar link de pagamento.');
+        }
+    } catch (e) {
+        let err = document.getElementById('checkoutError');
+        err.innerText = 'Erro ao conectar com o Mercado Pago. Verifique seu Token.';
+        err.classList.add('show');
+        btn.innerText = 'PAGAR COM MERCADO PAGO (PIX / CARTÃO)';
+    }
+}
+</script>
+
+</body>
+</html>}
+
+/* ==============================
+   HEADER
+============================== */
+
+.header{
+    height:78px;
+    background:#111;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 6%;
+    position:sticky;
+    top:0;
+    z-index:1000;
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.logo{
+    font-family:Georgia,serif;
+    font-size:27px;
+    letter-spacing:7px;
+}
+
+.navigation{
+    display:flex;
+    gap:32px;
+}
+
+.navigation a{
+    color:#cfcfcf;
+    text-decoration:none;
+    font-size:11px;
+    letter-spacing:1.7px;
+    transition:.2s;
+}
+
+.navigation a:hover{
+    color:#fff;
+}
+
+.cart-button{
+    background:#191919;
+    border:1px solid #4a4a4a;
+    color:#fff;
+    border-radius:30px;
+    padding:11px 18px;
+    font-size:12px;
+    transition:.2s;
+}
+
+.cart-button:hover{
+    background:#292929;
+}
+
+/* ==============================
+   HERO
+============================== */
+
+.hero{
+    min-height:650px;
+    display:flex;
+    align-items:center;
+    padding:90px 8%;
+    background:
+        radial-gradient(
+            circle at 82% 35%,
+            rgba(170,140,115,.22),
+            transparent 32%
+        ),
+        linear-gradient(
+            120deg,
+            #e8dfd9,
+            #faf9f7 62%,
+            #e9e2dc
+        );
+}
+
+.hero-content{
+    max-width:720px;
+}
+
+.hero-kicker,
+.kicker{
+    font-size:10px;
+    letter-spacing:4px;
+    color:#846e5d;
+    font-weight:bold;
+    margin-bottom:18px;
+}
+
+.hero h1{
+    font-family:Georgia,serif;
+    font-size:68px;
+    line-height:1.02;
+    font-weight:normal;
+    letter-spacing:-2px;
+    margin-bottom:26px;
+}
+
+.hero-text{
+    font-size:16px;
+    line-height:1.8;
+    color:#666;
+    max-width:570px;
+    margin-bottom:35px;
+}
+
+.hero-actions{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.primary-button,
+.secondary-button{
+    padding:16px 25px;
+    border-radius:4px;
+    font-size:11px;
+    font-weight:bold;
+    letter-spacing:1.2px;
+    text-decoration:none;
+    display:inline-block;
+}
+
+.primary-button{
+    background:#151515;
+    color:#fff;
+}
+
+.secondary-button{
+    border:1px solid #bbb;
+    color:#222;
+    background:rgba(255,255,255,.45);
+}
+
+/* ==============================
+   CATEGORIAS
+============================== */
+
+.categories{
+    max-width:1200px;
+    margin:auto;
+    padding:85px 7% 45px;
+}
+
+.kicker{
+    text-align:center;
+}
+
+.section-heading{
+    text-align:center;
+    font-family:Georgia,serif;
+    font-size:40px;
+    font-weight:normal;
+    margin-bottom:40px;
+}
+
+.category-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+}
+
+.category-card{
+    background:#fff;
+    border:1px solid #e8e4df;
+    padding:32px 15px;
+    text-align:center;
+    text-decoration:none;
+    color:#181716;
+    transition:.25s;
+}
+
+.category-card:hover{
+    transform:translateY(-5px);
+    box-shadow:0 15px 35px rgba(0,0,0,.08);
+}
+
+.category-card strong{
+    display:block;
+    font-family:Georgia,serif;
+    font-size:21px;
+    font-weight:normal;
+    margin-bottom:7px;
+}
+
+.category-card span{
+    font-size:11px;
+    color:#888;
+}
+
+/* ==============================
+   PRODUTOS
+============================== */
+
+.product-section{
+    max-width:1200px;
+    margin:auto;
+    padding:45px 7% 90px;
+}
+
+.products-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:24px;
+}
+
+.product-card{
+    background:#fff;
+    border:1px solid #e8e4df;
+    box-shadow:0 20px 60px rgba(0,0,0,.07);
+    overflow:hidden;
+    transition:.25s;
+}
+
+.product-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 25px 70px rgba(0,0,0,.11);
+}
+
+.product-photo{
+    background:#eee4de;
+    height:320px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:25px;
+    overflow:hidden;
+}
+
+.product-photo img{
+    width:100%;
+    height:270px;
+    object-fit:contain;
+    display:block;
+}
+
+.product-details{
+    padding:25px;
+}
+
+.product-brand{
+    font-size:10px;
+    letter-spacing:3px;
+    color:#927b69;
+    font-weight:bold;
+    margin-bottom:9px;
+}
+
+.product-name{
+    font-family:Georgia,serif;
+    font-size:28px;
+    font-weight:normal;
+    margin-bottom:9px;
+}
+
+.product-type{
+    font-size:12px;
+    color:#777;
+    margin-bottom:15px;
+}
+
+.rating{
+    font-size:12px;
+    margin-bottom:15px;
+}
+
+.rating-number{
+    color:#777;
+    margin-left:6px;
+}
+
+.product-description{
+    font-size:13px;
+    color:#666;
+    line-height:1.7;
+    margin-bottom:18px;
+}
+
+.product-price{
+    font-size:26px;
+    font-weight:bold;
+}
+
+.product-pix{
+    font-size:12px;
+    color:#5e7c64;
+    margin-top:4px;
+    margin-bottom:15px;
+}
+
+.product-buy-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+}
+
+.add-button,
+.buy-button{
+    flex:1;
+    padding:14px 10px;
+    border-radius:4px;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1px;
+    transition:.2s;
+}
+
+.add-button{
+    border:0;
+    background:#151515;
+    color:#fff;
+}
+
+.add-button:hover{
+    background:#2c2c2c;
+}
+
+.buy-button{
+    border:1px solid #151515;
+    background:#fff;
+    color:#151515;
+    width:100%;
+}
+
+.buy-button:hover{
+    background:#151515;
+    color:#fff;
+}
+
+.product-benefits{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:6px;
+    margin-top:15px;
+}
+
+.product-benefits div{
+    background:#faf9f7;
+    padding:10px 4px;
+    text-align:center;
+    font-size:9px;
+    color:#777;
+}
+
+/* ==============================
+   NOTAS E CONFIANÇA
+============================== */
+
+.notes-section{
+    max-width:1200px;
+    margin:auto;
+    padding:0 7% 90px;
+}
+
+.notes-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+}
+
+.note-card{
+    background:#fff;
+    border:1px solid #e8e4df;
+    padding:30px;
+}
+
+.note-card h3{
+    font-family:Georgia,serif;
+    font-size:22px;
+    font-weight:normal;
+    margin-bottom:9px;
+}
+
+.note-card p{
+    font-size:13px;
+    color:#777;
+}
+
+.trust-section{
+    background:#171717;
+    color:#fff;
+    padding:60px 7%;
+}
+
+.trust-grid{
+    max-width:1100px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:35px;
+    text-align:center;
+}
+
+.trust-item h3{
+    font-family:Georgia,serif;
+    font-size:20px;
+    font-weight:normal;
+    margin-bottom:8px;
+}
+
+.trust-item p{
+    font-size:12px;
+    color:#aaa;
+    line-height:1.6;
+}
+
+.footer{
+    background:#0d0d0d;
+    color:#777;
+    text-align:center;
+    padding:45px 7%;
+    font-size:11px;
+}
+
+.footer-logo{
+    font-family:Georgia,serif;
+    font-size:23px;
+    letter-spacing:6px;
+    color:#fff;
+    margin-bottom:12px;
+}
+
+/* ==============================
+   CARRINHO (DRAWER)
+============================== */
+
+.drawer{
+    position:fixed;
+    top:0;
+    right:-430px;
+    width:410px;
+    max-width:94%;
+    height:100%;
+    background:#fff;
+    z-index:2000;
+    padding:30px;
+    box-shadow:-15px 0 50px rgba(0,0,0,.2);
+    transition:.3s;
+    overflow-y:auto;
+}
+
+.drawer.open{
+    right:0;
+}
+
+.close-cart{
+    float:right;
+    border:0;
+    background:none;
+    font-size:30px;
+    color:#222;
+}
+
+.drawer-title{
+    font-family:Georgia,serif;
+    font-size:30px;
+    font-weight:normal;
+    margin-bottom:25px;
+}
+
+.empty-cart{
+    color:#888;
+    padding:30px 0;
+}
+
+.cart-product{
+    display:flex;
+    gap:15px;
+    padding:18px 0;
+    border-bottom:1px solid #eee;
+}
+
+.cart-product img{
+    width:75px;
+    height:75px;
+    object-fit:contain;
+    background:#f4ebe6;
+    border-radius:8px;
+}
+
+.cart-product-info{
+    font-size:13px;
+    flex:1;
+}
+
+.cart-product-info small{
+    color:#888;
+}
+
+.cart-quantity{
+    display:flex;
+    align-items:center;
+    margin-top:10px;
+    border:1px solid #ddd;
+    width:max-content;
+    border-radius:5px;
+    overflow:hidden;
+}
+
+.cart-quantity button{
+    width:30px;
+    height:30px;
+    border:0;
+    background:#f5f5f5;
+    font-size:16px;
+}
+
+.cart-quantity button:hover{
+    background:#e8e8e8;
+}
+
+.cart-quantity span{
+    min-width:35px;
+    text-align:center;
+    font-weight:bold;
+    font-size:12px;
+}
+
+.remove-item{
+    margin-top:9px;
+    border:0;
+    background:none;
+    color:#9a4d4d;
+    font-size:11px;
+    text-decoration:underline;
+    padding:0;
+}
+
+.remove-item:hover{
+    color:#c00000;
+}
+
+/* FRETE */
+.shipping{
+    border-top:1px solid #eee;
+    margin-top:25px;
+    padding-top:25px;
+}
+
+.shipping h3{
+    font-family:Georgia,serif;
+    font-weight:normal;
+    font-size:20px;
+    margin-bottom:6px;
+}
+
+.shipping-description{
+    font-size:12px;
+    color:#888;
+}
+
+.cep-area{
+    display:flex;
+    gap:7px;
+    margin-top:13px;
+}
+
+.cep-area input{
+    flex:1;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:5px;
+    outline:none;
+}
+
+.cep-area button{
+    border:0;
+    background:#151515;
+    color:#fff;
+    padding:0 14px;
+    border-radius:5px;
+    font-size:10px;
+    font-weight:bold;
+}
+
+.cep-message{
+    font-size:12px;
+    color:#777;
+    margin-top:10px;
+}
+
+/* TOTAL */
+.total{
+    border-top:1px solid #eee;
+    margin-top:25px;
+    padding-top:20px;
+}
+
+.total-line{
+    display:flex;
+    justify-content:space-between;
+    font-size:20px;
+}
+
+.checkout{
+    width:100%;
+    margin-top:15px;
+    padding:16px;
+    border:0;
+    border-radius:4px;
+    background:#151515;
+    color:#fff;
+    font-weight:bold;
+    letter-spacing:1px;
+}
+
+/* ==============================
+   CHECKOUT OVERLAY (MODAL)
+============================== */
+
+.checkout-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.72);
+    z-index:5000;
+    display:none;
+    overflow-y:auto;
+    padding:25px 12px;
+}
+
+.checkout-overlay.open{
+    display:block;
+}
+
+.checkout-container{
+    width:100%;
+    max-width:1050px;
+    margin:0 auto;
+    background:#f8f7f5;
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 30px 100px rgba(0,0,0,.4);
+}
+
+.checkout-header{
+    background:#111;
+    color:#fff;
+    padding:24px 35px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.checkout-logo{
+    font-family:Georgia,serif;
+    font-size:25px;
+    letter-spacing:6px;
+}
+
+.checkout-header-subtitle{
+    color:#aaa;
+    font-size:10px;
+    letter-spacing:2px;
+    margin-top:5px;
+}
+
+.close-checkout{
+    border:0;
+    background:none;
+    color:#fff;
+    font-size:32px;
+    line-height:1;
+}
+
+.checkout-body{
+    display:grid;
+    grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);
+    gap:22px;
+    padding:25px;
+}
+
+.checkout-main{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+.checkout-section{
+    background:#fff;
+    border:1px solid #e4e0db;
+    border-radius:7px;
+    padding:24px;
+}
+
+.checkout-section-title{
+    font-family:Georgia,serif;
+    font-size:23px;
+    font-weight:normal;
+    margin-bottom:6px;
+}
+
+.checkout-section-description{
+    color:#888;
+    font-size:12px;
+    line-height:1.5;
+    margin-bottom:20px;
+}
+
+.checkout-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+}
+
+.checkout-field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.checkout-field.full{
+    grid-column:1 / -1;
+}
+
+.checkout-field label{
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:#555;
+}
+
+.checkout-field input{
+    width:100%;
+    padding:13px 12px;
+    border:1px solid #d8d4cf;
+    border-radius:5px;
+    outline:none;
+    background:#fff;
+    font-size:13px;
+}
+
+.checkout-field input:focus{
+    border-color:#777;
+}
+
+.checkout-summary{
+    background:#fff;
+    border:1px solid #e4e0db;
+    border-radius:7px;
+    padding:24px;
+    height:max-content;
+    position:sticky;
+    top:15px;
+}
+
+.checkout-summary-title{
+    font-family:Georgia,serif;
+    font-size:23px;
+    font-weight:normal;
+    margin-bottom:20px;
+}
+
+.summary-line{
+    display:flex;
+    justify-content:space-between;
+    gap:15px;
+    font-size:12px;
+    margin-top:12px;
+}
+
+.summary-total{
+    border-top:1px solid #ddd;
+    margin-top:20px;
+    padding-top:18px;
+    display:flex;
+    justify-content:space-between;
+    gap:15px;
+    font-size:19px;
+}
+
+.checkout-final-button{
+    width:100%;
+    margin-top:20px;
+    padding:17px;
+    border:0;
+    border-radius:5px;
     background:#151515;
     color:#fff;
     font-size:11px;
