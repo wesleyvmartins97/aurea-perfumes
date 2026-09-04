@@ -1,4 +1,5251 @@
-```javascript
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+
+>
+
+<title>AURÉA | Perfumes</title>
+
+<meta
+name="description"
+content="AURÉA Perfumes — fragrâncias selecionadas para quem transforma presença em memória."
+
+>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f8f7f5;
+    color:#181716;
+}
+
+button,
+input{
+    font-family:inherit;
+}
+
+button{
+    cursor:pointer;
+}
+
+a{
+    color:inherit;
+}
+
+/* ==============================
+   HEADER
+============================== */
+
+.header{
+    height:78px;
+    background:#111;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 6%;
+    position:sticky;
+    top:0;
+    z-index:1000;
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.logo{
+    font-family:Georgia,serif;
+    font-size:27px;
+    letter-spacing:7px;
+}
+
+.navigation{
+    display:flex;
+    gap:32px;
+}
+
+.navigation a{
+    color:#cfcfcf;
+    text-decoration:none;
+    font-size:11px;
+    letter-spacing:1.7px;
+    transition:.2s;
+}
+
+.navigation a:hover{
+    color:#fff;
+}
+
+.cart-button{
+    background:#191919;
+    border:1px solid #4a4a4a;
+    color:#fff;
+    border-radius:30px;
+    padding:11px 18px;
+    font-size:12px;
+    transition:.2s;
+}
+
+.cart-button:hover{
+    background:#292929;
+}
+
+/* ==============================
+   HERO
+============================== */
+
+.hero{
+    min-height:650px;
+    display:flex;
+    align-items:center;
+    padding:90px 8%;
+    background:
+        radial-gradient(
+            circle at 82% 35%,
+            rgba(170,140,115,.22),
+            transparent 32%
+        ),
+        linear-gradient(
+            120deg,
+            #e8dfd9,
+            #faf9f7 62%,
+            #e9e2dc
+        );
+}
+
+.hero-content{
+    max-width:720px;
+}
+
+.hero-kicker,
+.kicker{
+    font-size:10px;
+    letter-spacing:4px;
+    color:#846e5d;
+    font-weight:bold;
+    margin-bottom:18px;
+}
+
+.hero h1{
+    font-family:Georgia,serif;
+    font-size:68px;
+    line-height:1.02;
+    font-weight:normal;
+    letter-spacing:-2px;
+    margin-bottom:26px;
+}
+
+.hero-text{
+    font-size:16px;
+    line-height:1.8;
+    color:#666;
+    max-width:570px;
+    margin-bottom:35px;
+}
+
+.hero-actions{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.primary-button,
+.secondary-button{
+    padding:16px 25px;
+    border-radius:4px;
+    font-size:11px;
+    font-weight:bold;
+    letter-spacing:1.2px;
+    text-decoration:none;
+    display:inline-block;
+}
+
+.primary-button{
+    background:#151515;
+    color:#fff;
+}
+
+.secondary-button{
+    border:1px solid #bbb;
+    color:#222;
+    background:rgba(255,255,255,.45);
+}
+
+/* ==============================
+   CATEGORIAS
+============================== */
+
+.categories{
+    max-width:1200px;
+    margin:auto;
+    padding:85px 7% 45px;
+}
+
+.kicker{
+    text-align:center;
+}
+
+.section-heading{
+    text-align:center;
+    font-family:Georgia,serif;
+    font-size:40px;
+    font-weight:normal;
+    margin-bottom:40px;
+}
+
+.category-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+}
+
+.category-card{
+    background:#fff;
+    border:1px solid #e8e4df;
+    padding:32px 15px;
+    text-align:center;
+    text-decoration:none;
+    color:#181716;
+    transition:.25s;
+}
+
+.category-card:hover{
+    transform:translateY(-5px);
+    box-shadow:0 15px 35px rgba(0,0,0,.08);
+}
+
+.category-card strong{
+    display:block;
+    font-family:Georgia,serif;
+    font-size:21px;
+    font-weight:normal;
+    margin-bottom:7px;
+}
+
+.category-card span{
+    font-size:11px;
+    color:#888;
+}
+
+/* ==============================
+   PRODUTOS
+============================== */
+
+.product-section{
+    max-width:1200px;
+    margin:auto;
+    padding:45px 7% 90px;
+}
+
+.products-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:24px;
+}
+
+.product-card{
+    background:#fff;
+    border:1px solid #e8e4df;
+    box-shadow:0 20px 60px rgba(0,0,0,.07);
+    overflow:hidden;
+    transition:.25s;
+}
+
+.product-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 25px 70px rgba(0,0,0,.11);
+}
+
+.product-photo{
+    background:#eee4de;
+    height:470px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:35px;
+    overflow:hidden;
+}
+
+.product-photo img{
+    width:100%;
+    height:400px;
+    object-fit:contain;
+    display:block;
+}
+
+.product-details{
+    padding:35px;
+}
+
+.product-brand{
+    font-size:10px;
+    letter-spacing:3px;
+    color:#927b69;
+    font-weight:bold;
+    margin-bottom:9px;
+}
+
+.product-name{
+    font-family:Georgia,serif;
+    font-size:38px;
+    font-weight:normal;
+    margin-bottom:9px;
+}
+
+.product-type{
+    font-size:13px;
+    color:#777;
+    margin-bottom:20px;
+}
+
+.rating{
+    font-size:13px;
+    margin-bottom:20px;
+}
+
+.rating-number{
+    color:#777;
+    margin-left:6px;
+}
+
+.product-description{
+    font-size:14px;
+    color:#666;
+    line-height:1.8;
+    margin-bottom:22px;
+}
+
+.product-price{
+    font-size:30px;
+    font-weight:bold;
+}
+
+.product-pix{
+    font-size:13px;
+    color:#5e7c64;
+    margin-top:5px;
+    margin-bottom:18px;
+}
+
+.product-buy-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:12px;
+}
+
+.add-button,
+.buy-button{
+    flex:1;
+    padding:17px 10px;
+    border-radius:4px;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1px;
+    transition:.2s;
+}
+
+.add-button{
+    border:0;
+    background:#151515;
+    color:#fff;
+}
+
+.add-button:hover{
+    background:#2c2c2c;
+}
+
+.buy-button{
+    border:1px solid #151515;
+    background:#fff;
+    color:#151515;
+}
+
+.buy-button:hover{
+    background:#151515;
+    color:#fff;
+}
+
+.product-benefits{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:7px;
+    margin-top:15px;
+}
+
+.product-benefits div{
+    background:#faf9f7;
+    padding:13px 4px;
+    text-align:center;
+    font-size:9px;
+    color:#777;
+}
+
+/* ==============================
+   NOTAS
+============================== */
+
+.notes-section{
+    max-width:1200px;
+    margin:auto;
+    padding:0 7% 90px;
+}
+
+.notes-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+}
+
+.note-card{
+    background:#fff;
+    border:1px solid #e8e4df;
+    padding:30px;
+}
+
+.note-card h3{
+    font-family:Georgia,serif;
+    font-size:22px;
+    font-weight:normal;
+    margin-bottom:9px;
+}
+
+.note-card p{
+    font-size:13px;
+    color:#777;
+}
+
+/* ==============================
+   CONFIANÇA
+============================== */
+
+.trust-section{
+    background:#171717;
+    color:#fff;
+    padding:60px 7%;
+}
+
+.trust-grid{
+    max-width:1100px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:35px;
+    text-align:center;
+}
+
+.trust-item h3{
+    font-family:Georgia,serif;
+    font-size:20px;
+    font-weight:normal;
+    margin-bottom:8px;
+}
+
+.trust-item p{
+    font-size:12px;
+    color:#aaa;
+    line-height:1.6;
+}
+
+/* ==============================
+   FOOTER
+============================== */
+
+.footer{
+    background:#0d0d0d;
+    color:#777;
+    text-align:center;
+    padding:45px 7%;
+    font-size:11px;
+}
+
+.footer-logo{
+    font-family:Georgia,serif;
+    font-size:23px;
+    letter-spacing:6px;
+    color:#fff;
+    margin-bottom:12px;
+}
+
+/* ==============================
+   CARRINHO
+============================== */
+
+.drawer{
+    position:fixed;
+    top:0;
+    right:-430px;
+    width:410px;
+    max-width:94%;
+    height:100%;
+    background:#fff;
+    z-index:2000;
+    padding:30px;
+    box-shadow:-15px 0 50px rgba(0,0,0,.2);
+    transition:.3s;
+    overflow-y:auto;
+}
+
+.drawer.open{
+    right:0;
+}
+
+.close-cart{
+    float:right;
+    border:0;
+    background:none;
+    font-size:30px;
+    color:#222;
+}
+
+.drawer-title{
+    font-family:Georgia,serif;
+    font-size:30px;
+    font-weight:normal;
+    margin-bottom:25px;
+}
+
+.empty-cart{
+    color:#888;
+    padding:30px 0;
+}
+
+.cart-product{
+    display:flex;
+    gap:15px;
+    padding:18px 0;
+    border-bottom:1px solid #eee;
+}
+
+.cart-product img{
+    width:75px;
+    height:75px;
+    object-fit:contain;
+    background:#f4ebe6;
+    border-radius:8px;
+}
+
+.cart-product-info{
+    font-size:13px;
+    flex:1;
+}
+
+.cart-product-info small{
+    color:#888;
+}
+
+.cart-quantity{
+    display:flex;
+    align-items:center;
+    margin-top:10px;
+    border:1px solid #ddd;
+    width:max-content;
+    border-radius:5px;
+    overflow:hidden;
+}
+
+.cart-quantity button{
+    width:30px;
+    height:30px;
+    border:0;
+    background:#f5f5f5;
+    font-size:16px;
+}
+
+.cart-quantity button:hover{
+    background:#e8e8e8;
+}
+
+.cart-quantity span{
+    min-width:35px;
+    text-align:center;
+    font-weight:bold;
+    font-size:12px;
+}
+
+.remove-item{
+    margin-top:9px;
+    border:0;
+    background:none;
+    color:#9a4d4d;
+    font-size:11px;
+    text-decoration:underline;
+    padding:0;
+}
+
+.remove-item:hover{
+    color:#c00000;
+}
+
+/* ==============================
+   FRETE
+============================== */
+
+.shipping{
+    border-top:1px solid #eee;
+    margin-top:25px;
+    padding-top:25px;
+}
+
+.shipping h3{
+    font-family:Georgia,serif;
+    font-weight:normal;
+    font-size:20px;
+    margin-bottom:6px;
+}
+
+.shipping-description{
+    font-size:12px;
+    color:#888;
+}
+
+.cep-area{
+    display:flex;
+    gap:7px;
+    margin-top:13px;
+}
+
+.cep-area input{
+    flex:1;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:5px;
+    outline:none;
+}
+
+.cep-area input:focus{
+    border-color:#999;
+}
+
+.cep-area button{
+    border:0;
+    background:#151515;
+    color:#fff;
+    padding:0 14px;
+    border-radius:5px;
+    font-size:10px;
+    font-weight:bold;
+}
+
+.cep-message{
+    font-size:12px;
+    color:#777;
+    margin-top:10px;
+}
+
+.shipping-option{
+    border:1px solid #ddd;
+    border-radius:7px;
+    padding:13px;
+    margin-top:9px;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    font-size:12px;
+    cursor:pointer;
+}
+
+.shipping-option:hover{
+    background:#fafafa;
+}
+
+.shipping-option.selected{
+    border:2px solid #111;
+}
+
+.shipping-option small{
+    display:block;
+    color:#888;
+    margin-top:4px;
+}
+
+/* ==============================
+   TOTAL
+============================== */
+
+.total{
+    border-top:1px solid #eee;
+    margin-top:25px;
+    padding-top:20px;
+}
+
+.total-line{
+    display:flex;
+    justify-content:space-between;
+    font-size:20px;
+}
+
+.checkout{
+    width:100%;
+    margin-top:15px;
+    padding:16px;
+    border:0;
+    border-radius:4px;
+    background:#151515;
+    color:#fff;
+    font-weight:bold;
+    letter-spacing:1px;
+}
+
+/* ==============================
+   CHECKOUT PROFISSIONAL
+============================== */
+
+.checkout-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.72);
+    z-index:5000;
+    display:none;
+    overflow-y:auto;
+    padding:25px 12px;
+}
+
+.checkout-overlay.open{
+    display:block;
+}
+
+.checkout-container{
+    width:100%;
+    max-width:1050px;
+    margin:0 auto;
+    background:#f8f7f5;
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 30px 100px rgba(0,0,0,.4);
+}
+
+.checkout-header{
+    background:#111;
+    color:#fff;
+    padding:24px 35px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.checkout-logo{
+    font-family:Georgia,serif;
+    font-size:25px;
+    letter-spacing:6px;
+}
+
+.checkout-header-subtitle{
+    color:#aaa;
+    font-size:10px;
+    letter-spacing:2px;
+    margin-top:5px;
+}
+
+.close-checkout{
+    border:0;
+    background:none;
+    color:#fff;
+    font-size:32px;
+    line-height:1;
+}
+
+.checkout-body{
+    display:grid;
+    grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);
+    gap:22px;
+    padding:25px;
+}
+
+.checkout-main{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+.checkout-section{
+    background:#fff;
+    border:1px solid #e4e0db;
+    border-radius:7px;
+    padding:24px;
+}
+
+.checkout-section-title{
+    font-family:Georgia,serif;
+    font-size:23px;
+    font-weight:normal;
+    margin-bottom:6px;
+}
+
+.checkout-section-description{
+    color:#888;
+    font-size:12px;
+    line-height:1.5;
+    margin-bottom:20px;
+}
+
+.checkout-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+}
+
+.checkout-field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.checkout-field.full{
+    grid-column:1/-1;
+}
+
+.checkout-field label{
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:#555;
+}
+
+.checkout-field input{
+    width:100%;
+    padding:13px 12px;
+    border:1px solid #d8d4cf;
+    border-radius:5px;
+    outline:none;
+    background:#fff;
+    font-size:13px;
+}
+
+.checkout-field input:focus{
+    border-color:#777;
+}
+
+.checkout-field input.invalid{
+    border-color:#a44;
+    background:#fff8f8;
+}
+
+.checkout-address-status{
+    grid-column:1/-1;
+    font-size:11px;
+    color:#777;
+    min-height:14px;
+    margin-top:-5px;
+}
+
+.checkout-payment-options{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+
+.payment-option{
+    position:relative;
+    border:1px solid #ddd;
+    border-radius:7px;
+    padding:18px;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.payment-option:hover{
+    border-color:#999;
+}
+
+.payment-option.selected{
+    border:2px solid #111;
+    background:#faf9f7;
+}
+
+.payment-option input{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+}
+
+.payment-icon{
+    font-size:22px;
+    margin-bottom:8px;
+}
+
+.payment-title{
+    font-weight:bold;
+    font-size:13px;
+}
+
+.payment-description{
+    color:#888;
+    font-size:11px;
+    line-height:1.5;
+    margin-top:5px;
+}
+
+.checkout-summary{
+    background:#fff;
+    border:1px solid #e4e0db;
+    border-radius:7px;
+    padding:24px;
+    height:max-content;
+    position:sticky;
+    top:15px;
+}
+
+.checkout-summary-title{
+    font-family:Georgia,serif;
+    font-size:23px;
+    font-weight:normal;
+    margin-bottom:20px;
+}
+
+.checkout-summary-product{
+    display:flex;
+    gap:12px;
+    padding-bottom:17px;
+    margin-bottom:17px;
+    border-bottom:1px solid #eee;
+}
+
+.checkout-summary-product img{
+    width:70px;
+    height:70px;
+    object-fit:contain;
+    background:#f4ebe6;
+    border-radius:6px;
+}
+
+.checkout-summary-product-info{
+    flex:1;
+    font-size:12px;
+}
+
+.checkout-summary-product-info strong{
+    font-size:13px;
+}
+
+.checkout-summary-product-info small{
+    display:block;
+    color:#888;
+    margin-top:5px;
+    line-height:1.4;
+}
+
+.summary-line{
+    display:flex;
+    justify-content:space-between;
+    gap:15px;
+    font-size:12px;
+    margin-top:12px;
+}
+
+.summary-line span:last-child{
+    text-align:right;
+}
+
+.summary-total{
+    border-top:1px solid #ddd;
+    margin-top:20px;
+    padding-top:18px;
+    display:flex;
+    justify-content:space-between;
+    gap:15px;
+    font-size:19px;
+}
+
+.summary-total strong:last-child{
+    font-size:22px;
+}
+
+.checkout-final-button{
+    width:100%;
+    margin-top:20px;
+    padding:17px;
+    border:0;
+    border-radius:5px;
+    background:#151515;
+    color:#fff;
+    font-size:11px;
+    font-weight:bold;
+    letter-spacing:1.2px;
+}
+
+.checkout-final-button:hover{
+    background:#292929;
+}
+
+.checkout-final-button:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}
+
+.checkout-security{
+    text-align:center;
+    color:#888;
+    font-size:10px;
+    line-height:1.6;
+    margin-top:12px;
+}
+
+.checkout-error{
+    display:none;
+    background:#fff2f2;
+    border:1px solid #e2bcbc;
+    color:#8a3d3d;
+    padding:12px;
+    border-radius:5px;
+    font-size:12px;
+    line-height:1.5;
+    margin-bottom:15px;
+}
+
+.checkout-error.show{
+    display:block;
+}
+
+.checkout-delivery-box{
+    background:#faf9f7;
+    border:1px solid #e8e4df;
+    border-radius:6px;
+    padding:13px;
+    margin-top:15px;
+    font-size:11px;
+    color:#666;
+    line-height:1.6;
+}
+
+.checkout-delivery-box strong{
+    color:#222;
+}
+
+/* ==============================
+   PIX
+============================== */
+
+.pix-result{
+    display:none;
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:7px;
+    padding:24px;
+    text-align:center;
+}
+
+.pix-result.show{
+    display:block;
+}
+
+.pix-result h3{
+    font-family:Georgia,serif;
+    font-size:25px;
+    font-weight:normal;
+    margin-bottom:8px;
+}
+
+.pix-status{
+    font-size:12px;
+    color:#777;
+    margin-bottom:20px;
+}
+
+.pix-qr{
+    width:240px;
+    height:240px;
+    max-width:100%;
+    object-fit:contain;
+    display:block;
+    margin:0 auto 20px;
+    border:1px solid #eee;
+    padding:10px;
+    background:#fff;
+}
+
+.pix-copy-label{
+    display:block;
+    text-align:left;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:#555;
+    margin-bottom:7px;
+}
+
+.pix-copy-row{
+    display:flex;
+    gap:7px;
+}
+
+.pix-copy-input{
+    flex:1;
+    min-width:0;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:5px;
+    background:#fafafa;
+    font-size:11px;
+}
+
+.pix-copy-button,
+.pix-open-button{
+    border:0;
+    border-radius:5px;
+    padding:0 14px;
+    background:#151515;
+    color:#fff;
+    font-size:10px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+
+.pix-copy-button:hover,
+.pix-open-button:hover{
+    background:#292929;
+}
+
+.pix-open-button{
+    width:100%;
+    margin-top:10px;
+    padding:14px;
+}
+
+.pix-instructions{
+    text-align:left;
+    margin-top:20px;
+    background:#faf9f7;
+    border:1px solid #e8e4df;
+    border-radius:6px;
+    padding:15px;
+    font-size:11px;
+    color:#666;
+    line-height:1.7;
+}
+
+.pix-instructions strong{
+    color:#222;
+}
+
+.pix-paid{
+    display:none;
+    margin-top:15px;
+    background:#edf7ef;
+    border:1px solid #b8d8be;
+    color:#35623d;
+    border-radius:6px;
+    padding:18px;
+    font-size:13px;
+    line-height:1.7;
+}
+
+.pix-paid.show{
+    display:block;
+}
+
+.pix-paid-title{
+    font-family:Georgia,serif;
+    font-size:25px;
+    color:#35623d;
+    margin-bottom:5px;
+}
+
+.pix-order-id{
+    font-size:10px;
+    color:#999;
+    margin-top:12px;
+    word-break:break-all;
+}
+
+/* ==============================
+   CARTÃO - AVISO TEMPORÁRIO
+============================== */
+
+.card-notice{
+    display:none;
+    background:#fff8ed;
+    border:1px solid #ead3a9;
+    color:#775c2c;
+    border-radius:6px;
+    padding:14px;
+    margin-top:15px;
+    font-size:11px;
+    line-height:1.6;
+}
+
+.card-notice.show{
+    display:block;
+}
+
+/* ==============================
+   RESPONSIVO
+============================== */
+
+@media(max-width:800px){
+
+    .navigation{
+        display:none;
+    }
+
+    .hero{
+        min-height:540px;
+        padding:75px 7%;
+    }
+
+    .hero h1{
+        font-size:46px;
+    }
+
+    .category-grid{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .products-grid{
+        grid-template-columns:1fr;
+    }
+
+    .product-photo{
+        height:380px;
+    }
+
+    .product-photo img{
+        height:330px;
+    }
+
+    .product-details{
+        padding:30px 25px;
+    }
+
+    .product-name{
+        font-size:40px;
+    }
+
+    .notes-grid,
+    .trust-grid{
+        grid-template-columns:1fr;
+    }
+
+    .product-buy-row{
+        flex-direction:column;
+    }
+
+    .checkout-body{
+        grid-template-columns:1fr;
+        padding:15px;
+    }
+
+    .checkout-summary{
+        position:static;
+    }
+
+}
+
+@media(max-width:480px){
+
+    .header{
+        padding:0 5%;
+    }
+
+    .logo{
+        font-size:22px;
+        letter-spacing:5px;
+    }
+
+    .hero h1{
+        font-size:39px;
+    }
+
+    .hero-text{
+        font-size:14px;
+    }
+
+    .category-grid{
+        grid-template-columns:1fr;
+    }
+
+    .product-benefits{
+        grid-template-columns:1fr;
+    }
+
+    .product-photo{
+        height:340px;
+    }
+
+    .product-photo img{
+        height:300px;
+    }
+
+    .drawer{
+        padding:25px 20px;
+    }
+
+    .checkout-overlay{
+        padding:0;
+    }
+
+    .checkout-container{
+        min-height:100vh;
+        border-radius:0;
+    }
+
+    .checkout-header{
+        padding:20px;
+    }
+
+    .checkout-section{
+        padding:20px;
+    }
+
+    .checkout-grid{
+        grid-template-columns:1fr;
+    }
+
+    .checkout-field.full{
+        grid-column:auto;
+    }
+
+    .checkout-address-status{
+        grid-column:auto;
+    }
+
+    .checkout-payment-options{
+        grid-template-columns:1fr;
+    }
+
+    .pix-copy-row{
+        flex-direction:column;
+    }
+
+    .pix-copy-button{
+        padding:13px;
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header class="header">
+
+```
+<div class="logo">
+    AURÉA
+</div>
+
+<nav class="navigation">
+
+    <a href="#femininos">FEMININOS</a>
+    <a href="#masculinos">MASCULINOS</a>
+    <a href="#arabes">ÁRABES</a>
+    <a href="#ofertas">OFERTAS</a>
+
+</nav>
+
+<button
+    class="cart-button"
+    onclick="openCart()">
+
+    🛍 Carrinho
+    (<span id="cartCount">0</span>)
+
+</button>
+```
+
+</header>
+
+<section class="hero">
+
+```
+<div class="hero-content">
+
+    <div class="hero-kicker">
+        CURADORIA PREMIUM
+    </div>
+
+    <h1>
+        Perfumes que deixam marca.
+    </h1>
+
+    <p class="hero-text">
+        Fragrâncias selecionadas para quem não quer apenas usar um perfume,
+        mas transformar presença em memória.
+    </p>
+
+    <div class="hero-actions">
+
+        <a
+            class="primary-button"
+            href="#produto">
+            VER DESTAQUE
+        </a>
+
+        <a
+            class="secondary-button"
+            href="#categorias">
+            EXPLORAR PERFUMES
+        </a>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<section
+    class="categories"
+    id="categorias">
+
+```
+<div class="kicker">
+    EXPLORE A AURÉA
+</div>
+
+<h2 class="section-heading">
+    Encontre sua essência
+</h2>
+
+<div class="category-grid">
+
+    <a
+        class="category-card"
+        id="femininos"
+        href="#produto">
+
+        <strong>Femininos</strong>
+        <span>Elegância e personalidade</span>
+
+    </a>
+
+    <a
+        class="category-card"
+        id="masculinos"
+        href="#produto">
+
+        <strong>Masculinos</strong>
+        <span>Presença e sofisticação</span>
+
+    </a>
+
+    <a
+        class="category-card"
+        id="arabes"
+        href="#produto">
+
+        <strong>Árabes</strong>
+        <span>Intensidade e exclusividade</span>
+
+    </a>
+
+    <a
+        class="category-card"
+        id="ofertas"
+        href="#produto">
+
+        <strong>Ofertas</strong>
+        <span>Oportunidades selecionadas</span>
+
+    </a>
+
+</div>
+```
+
+</section>
+
+<section
+    class="product-section"
+    id="produto">
+
+```
+<div class="kicker">
+    DESTAQUES
+</div>
+
+<h2 class="section-heading">
+    Uma fragrância para lembrar
+</h2>
+
+<div class="products-grid">
+
+    <!-- PRODUTO 1 -->
+
+    <div class="product-card">
+
+        <div class="product-photo">
+
+            <img
+                src="https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg"
+                alt="Lattafa Layaan"
+                loading="lazy">
+
+        </div>
+
+        <div class="product-details">
+
+            <div class="product-brand">
+                LATTAFA
+            </div>
+
+            <h2 class="product-name">
+                Layaan
+            </h2>
+
+            <div class="product-type">
+                Eau de Parfum Feminino • 75ml
+            </div>
+
+            <div class="rating">
+
+                ★★★★★
+
+                <span class="rating-number">
+                    4,9 • Avaliações
+                </span>
+
+            </div>
+
+            <p class="product-description">
+                Uma fragrância floral frutada, delicada e elegante,
+                com pera verde e mandarina na saída, flores brancas
+                no coração e cedro e musk no fundo.
+            </p>
+
+            <div class="product-price">
+                R$ 399,00
+            </div>
+
+            <div class="product-pix">
+                ou R$ 379,05 no Pix
+            </div>
+
+            <div class="product-buy-row">
+
+                <button
+                    class="add-button"
+                    onclick="addProductWithQuantity(
+                    'Lattafa Layaan',
+                    399,
+                    'Eau de Parfum Feminino • 75ml',
+                    'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg',
+                    'layaan'
+                    )">
+
+                    ADICIONAR AO CARRINHO
+
+                </button>
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyNow(
+                'Lattafa Layaan',
+                399,
+                'Eau de Parfum Feminino • 75ml',
+                'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg',
+                'layaan'
+                )">
+
+                ⚡ COMPRAR AGORA
+
+            </button>
+
+            <div class="product-benefits">
+
+                <div>🔒 Compra segura</div>
+                <div>📦 Envio Brasil</div>
+                <div>✓ Lacrado</div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- PRODUTO 2 -->
+
+    <div class="product-card">
+
+        <div class="product-photo">
+
+            <img
+                src="/perfume.webp"
+                alt="French Avenue Liquid Brun"
+                loading="lazy">
+
+        </div>
+
+        <div class="product-details">
+
+            <div class="product-brand">
+                FRENCH AVENUE
+            </div>
+
+            <h2 class="product-name">
+                Liquid Brun
+            </h2>
+
+            <div class="product-type">
+                Eau de Parfum Masculino • 100ml
+            </div>
+
+            <div class="rating">
+
+                ★★★★★
+
+                <span class="rating-number">
+                    Fragrância premium
+                </span>
+
+            </div>
+
+            <p class="product-description">
+                Uma fragrância masculina marcante e sofisticada,
+                ideal para quem busca presença, elegância e personalidade.
+            </p>
+
+            <div class="product-price">
+                R$ 329,00
+            </div>
+
+            <div class="product-pix">
+                ou R$ 312,55 no Pix
+            </div>
+
+            <div class="product-buy-row">
+
+                <button
+                    class="add-button"
+                    onclick="addProductWithQuantity(
+                    'French Avenue Liquid Brun',
+                    329,
+                    'Eau de Parfum Masculino • 100ml',
+                    '/perfume.webp',
+                    'liquidbrun'
+                    )">
+
+                    ADICIONAR AO CARRINHO
+
+                </button>
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyNow(
+                'French Avenue Liquid Brun',
+                329,
+                'Eau de Parfum Masculino • 100ml',
+                '/perfume.webp',
+                'liquidbrun'
+                )">
+
+                ⚡ COMPRAR AGORA
+
+            </button>
+
+            <div class="product-benefits">
+
+                <div>🔒 Compra segura</div>
+                <div>📦 Envio Brasil</div>
+                <div>✓ Lacrado</div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- PRODUTO 3 — TESTE PIX -->
+
+    <div class="product-card">
+
+        <div class="product-photo">
+
+            <img
+                src="/download.jpg"
+                alt="Bala — Produto de Teste"
+                loading="lazy">
+
+        </div>
+
+        <div class="product-details">
+
+            <div class="product-brand">
+                TESTE AURÉA
+            </div>
+
+            <h2 class="product-name">
+                Bala
+            </h2>
+
+            <div class="product-type">
+                Produto de Teste • 1 unidade
+            </div>
+
+            <div class="rating">
+
+                ★★★★★
+
+                <span class="rating-number">
+                    Teste de pagamento
+                </span>
+
+            </div>
+
+            <p class="product-description">
+                Produto criado exclusivamente para testar o checkout
+                e o pagamento PIX real da AURÉA.
+            </p>
+
+            <div class="product-price">
+                R$ 1,00
+            </div>
+
+            <div class="product-pix">
+                PIX: R$ 1,00 • Frete grátis
+            </div>
+
+            <div class="product-buy-row">
+
+                <button
+                    class="add-button"
+                    onclick="addProductWithQuantity(
+                    'Bala — Produto de Teste',
+                    1,
+                    'Produto de Teste • 1 unidade',
+                    '/download.jpg',
+                    'bala-teste'
+                    )">
+
+                    ADICIONAR AO CARRINHO
+
+                </button>
+
+            </div>
+
+            <button
+                class="buy-button"
+                onclick="buyNow(
+                'Bala — Produto de Teste',
+                1,
+                'Produto de Teste • 1 unidade',
+                '/download.jpg',
+                'bala-teste'
+                )">
+
+                ⚡ COMPRAR AGORA
+
+            </button>
+
+            <div class="product-benefits">
+
+                <div>🔒 Checkout seguro</div>
+                <div>💳 PIX real</div>
+                <div>✓ R$ 1,00</div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<section class="notes-section">
+
+```
+<div class="kicker">
+    PERFIL OLFATIVO
+</div>
+
+<h2 class="section-heading">
+    Notas olfativas
+</h2>
+
+<div class="notes-grid">
+
+    <div class="note-card">
+
+        <h3>Saída</h3>
+
+        <p>
+            Pera verde e mandarina.
+        </p>
+
+    </div>
+
+    <div class="note-card">
+
+        <h3>Coração</h3>
+
+        <p>
+            Gardênia, jasmim e muguet.
+        </p>
+
+    </div>
+
+    <div class="note-card">
+
+        <h3>Fundo</h3>
+
+        <p>
+            Cedro e musk.
+        </p>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<section class="trust-section">
+
+```
+<div class="trust-grid">
+
+    <div class="trust-item">
+
+        <h3>Compra segura</h3>
+
+        <p>
+            Uma experiência de compra simples,
+            transparente e segura.
+        </p>
+
+    </div>
+
+    <div class="trust-item">
+
+        <h3>Envio para o Brasil</h3>
+
+        <p>
+            Consulte as opções de entrega
+            diretamente no carrinho.
+        </p>
+
+    </div>
+
+    <div class="trust-item">
+
+        <h3>Curadoria AURÉA</h3>
+
+        <p>
+            Fragrâncias selecionadas para quem
+            valoriza personalidade.
+        </p>
+
+    </div>
+
+</div>
+```
+
+</section>
+
+<footer class="footer">
+
+```
+<div class="footer-logo">
+    AURÉA
+</div>
+
+<div>
+    Sua essência. Sua presença.
+</div>
+
+<br>
+
+<div>
+    © 2026 AURÉA Perfumes
+</div>
+```
+
+</footer>
+
+<aside
+    class="drawer"
+    id="cartDrawer">
+
+```
+<button
+    class="close-cart"
+    onclick="closeCart()"
+    aria-label="Fechar carrinho">
+
+    ×
+
+</button>
+
+<h2 class="drawer-title">
+    Seu carrinho
+</h2>
+
+<div id="cartContent">
+
+    <div class="empty-cart">
+        Seu carrinho está vazio.
+    </div>
+
+</div>
+
+<div
+    id="shippingArea"
+    style="display:none">
+
+    <div class="shipping">
+
+        <h3>
+            Calcule o frete
+        </h3>
+
+        <div class="shipping-description">
+            Informe seu CEP para consultar as opções de entrega.
+        </div>
+
+        <div class="cep-area">
+
+            <input
+                id="cep"
+                type="text"
+                maxlength="9"
+                inputmode="numeric"
+                placeholder="29700-000"
+                autocomplete="postal-code">
+
+            <button
+                onclick="calculateShipping()">
+
+                CALCULAR
+
+            </button>
+
+        </div>
+
+        <div
+            class="cep-message"
+            id="cepMessage">
+        </div>
+
+        <div id="shippingOptions"></div>
+
+    </div>
+
+</div>
+
+<div
+    class="total"
+    id="totalArea"
+    style="display:none">
+
+    <div class="total-line">
+
+        <strong>
+            Total
+        </strong>
+
+        <strong>
+            R$
+            <span id="totalValue">
+                0,00
+            </span>
+        </strong>
+
+    </div>
+
+    <button
+        class="checkout"
+        onclick="checkout()">
+
+        IR PARA PAGAMENTO
+
+    </button>
+
+</div>
+```
+
+</aside>
+
+<div
+    class="checkout-overlay"
+    id="checkoutOverlay">
+
+```
+<div class="checkout-container">
+
+    <div class="checkout-header">
+
+        <div>
+
+            <div class="checkout-logo">
+                AURÉA
+            </div>
+
+            <div class="checkout-header-subtitle">
+                FINALIZAR PEDIDO
+            </div>
+
+        </div>
+
+        <button
+            class="close-checkout"
+            onclick="closeCheckout()"
+            aria-label="Fechar checkout">
+
+            ×
+
+        </button>
+
+    </div>
+
+    <div class="checkout-body">
+
+        <div class="checkout-main">
+
+            <section class="checkout-section">
+
+                <h2 class="checkout-section-title">
+                    Seus dados
+                </h2>
+
+                <p class="checkout-section-description">
+                    Informe seus dados para identificarmos seu pedido
+                    e entrarmos em contato sobre a entrega.
+                </p>
+
+                <div
+                    class="checkout-error"
+                    id="checkoutError">
+                </div>
+
+                <div class="checkout-grid">
+
+                    <div class="checkout-field full">
+
+                        <label for="checkoutName">
+                            Nome completo
+                        </label>
+
+                        <input
+                            id="checkoutName"
+                            type="text"
+                            placeholder="Digite seu nome completo"
+                            autocomplete="name">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutEmail">
+                            E-mail
+                        </label>
+
+                        <input
+                            id="checkoutEmail"
+                            type="email"
+                            placeholder="seuemail@email.com"
+                            autocomplete="email">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutPhone">
+                            WhatsApp
+                        </label>
+
+                        <input
+                            id="checkoutPhone"
+                            type="tel"
+                            maxlength="15"
+                            inputmode="tel"
+                            placeholder="(27) 99999-9999"
+                            autocomplete="tel">
+
+                    </div>
+
+                    <div class="checkout-field full">
+
+                        <label for="checkoutCpf">
+                            CPF
+                        </label>
+
+                        <input
+                            id="checkoutCpf"
+                            type="text"
+                            maxlength="14"
+                            inputmode="numeric"
+                            placeholder="000.000.000-00"
+                            autocomplete="off">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section
+                class="checkout-section"
+                id="checkoutAddressSection">
+
+                <h2 class="checkout-section-title">
+                    Endereço de entrega
+                </h2>
+
+                <p class="checkout-section-description">
+                    Preencha o endereço onde deseja receber seu pedido.
+                    O CEP pode preencher automaticamente os dados da região.
+                </p>
+
+                <div class="checkout-grid">
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutCep">
+                            CEP
+                        </label>
+
+                        <input
+                            id="checkoutCep"
+                            type="text"
+                            maxlength="9"
+                            inputmode="numeric"
+                            placeholder="29700-000"
+                            autocomplete="postal-code">
+
+                    </div>
+
+                    <div
+                        class="checkout-address-status"
+                        id="checkoutAddressStatus">
+                    </div>
+
+                    <div class="checkout-field full">
+
+                        <label for="checkoutStreet">
+                            Rua / Avenida
+                        </label>
+
+                        <input
+                            id="checkoutStreet"
+                            type="text"
+                            placeholder="Rua / Avenida"
+                            autocomplete="street-address">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutNumber">
+                            Número
+                        </label>
+
+                        <input
+                            id="checkoutNumber"
+                            type="text"
+                            placeholder="Número">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutComplement">
+                            Complemento
+                        </label>
+
+                        <input
+                            id="checkoutComplement"
+                            type="text"
+                            placeholder="Apartamento, casa, bloco...">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutNeighborhood">
+                            Bairro
+                        </label>
+
+                        <input
+                            id="checkoutNeighborhood"
+                            type="text"
+                            placeholder="Bairro"
+                            autocomplete="address-level3">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutCity">
+                            Cidade
+                        </label>
+
+                        <input
+                            id="checkoutCity"
+                            type="text"
+                            placeholder="Cidade"
+                            autocomplete="address-level2">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutState">
+                            Estado
+                        </label>
+
+                        <input
+                            id="checkoutState"
+                            type="text"
+                            maxlength="2"
+                            placeholder="UF"
+                            autocomplete="address-level1">
+
+                    </div>
+
+                    <div class="checkout-field">
+
+                        <label for="checkoutReference">
+                            Referência
+                        </label>
+
+                        <input
+                            id="checkoutReference"
+                            type="text"
+                            placeholder="Ponto de referência">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="checkout-section">
+
+                <h2 class="checkout-section-title">
+                    Forma de pagamento
+                </h2>
+
+                <p class="checkout-section-description">
+                    Escolha como deseja realizar o pagamento.
+                </p>
+
+                <div class="checkout-payment-options">
+
+                    <label
+                        class="payment-option selected"
+                        onclick="selectPayment('pix',this)">
+
+                        <input
+                            type="radio"
+                            name="payment"
+                            value="pix"
+                            checked>
+
+                        <div class="payment-icon">
+                            ◈
+                        </div>
+
+                        <div class="payment-title">
+                            PIX
+                        </div>
+
+                        <div class="payment-description">
+                            Pagamento instantâneo.
+                            O QR Code e o código PIX serão gerados
+                            automaticamente.
+                        </div>
+
+                    </label>
+
+                    <label
+                        class="payment-option"
+                        onclick="selectPayment('card',this)">
+
+                        <input
+                            type="radio"
+                            name="payment"
+                            value="card">
+
+                        <div class="payment-icon">
+                            💳
+                        </div>
+
+                        <div class="payment-title">
+                            Cartão de crédito
+                        </div>
+
+                        <div class="payment-description">
+                            Pagamento com cartão de crédito
+                            através de ambiente seguro.
+                        </div>
+
+                    </label>
+
+                </div>
+
+                <div
+                    class="card-notice"
+                    id="cardNotice">
+
+                    💳 O pagamento por cartão será liberado na próxima
+                    etapa da integração do Mercado Pago.
+
+                    <br><br>
+
+                    Nesta etapa estamos ativando primeiro o PIX real
+                    para garantir que todo o fluxo funcione corretamente.
+
+                </div>
+
+                <div
+                    class="pix-result"
+                    id="pixResult">
+
+                    <h3 id="pixGeneratedTitle">
+                        PIX gerado
+                    </h3>
+
+                    <div
+                        class="pix-status"
+                        id="pixStatus">
+
+                        Aguardando pagamento...
+
+                    </div>
+
+                    <img
+                        id="pixQrCode"
+                        class="pix-qr"
+                        alt="QR Code PIX"
+                        style="display:none">
+
+                    <label
+                        class="pix-copy-label"
+                        id="pixCopyLabel">
+
+                        PIX Copia e Cola
+
+                    </label>
+
+                    <div
+                        class="pix-copy-row"
+                        id="pixCopyRow">
+
+                        <input
+                            id="pixCopyInput"
+                            class="pix-copy-input"
+                            type="text"
+                            readonly
+                            placeholder="Código PIX">
+
+                        <button
+                            type="button"
+                            class="pix-copy-button"
+                            onclick="copyPix()">
+
+                            COPIAR
+
+                        </button>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="pix-open-button"
+                        id="pixOpenButton"
+                        onclick="openPixTicket()"
+                        style="display:none">
+
+                        ABRIR PAGAMENTO
+
+                    </button>
+
+                    <div
+                        class="pix-instructions"
+                        id="pixInstructions">
+
+                        <strong>
+                            Como pagar:
+                        </strong>
+
+                        <br>
+
+                        1. Abra o aplicativo do seu banco.
+
+                        <br>
+
+                        2. Escolha a opção PIX.
+
+                        <br>
+
+                        3. Escaneie o QR Code ou cole o código PIX.
+
+                        <br>
+
+                        4. Confirme o pagamento.
+
+                        <br>
+
+                        5. Aguarde a confirmação automática da AURÉA.
+
+                    </div>
+
+                    <div
+                        class="pix-paid"
+                        id="pixPaid">
+
+                        <div class="pix-paid-title">
+                            Pagamento confirmado!
+                        </div>
+
+                        <strong>
+                            ✓ Pagamento aprovado pelo Mercado Pago.
+                        </strong>
+
+                        <br>
+
+                        Seu pedido foi recebido com sucesso pela AURÉA.
+
+                    </div>
+
+                    <div
+                        class="pix-order-id"
+                        id="pixOrderId">
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+        <aside class="checkout-summary">
+
+            <h2 class="checkout-summary-title">
+                Seu pedido
+            </h2>
+
+            <div id="checkoutProducts"></div>
+
+            <div class="summary-line">
+
+                <span>
+                    Subtotal
+                </span>
+
+                <strong>
+                    R$
+                    <span id="checkoutSubtotal">
+                        0,00
+                    </span>
+                </strong>
+
+            </div>
+
+            <div class="summary-line">
+
+                <span>
+                    Entrega
+                </span>
+
+                <strong>
+                    R$
+                    <span id="checkoutShipping">
+                        0,00
+                    </span>
+                </strong>
+
+            </div>
+
+            <div
+                class="checkout-delivery-box"
+                id="checkoutDeliveryBox">
+
+                <strong>
+                    🚚 Entrega
+                </strong>
+
+                <br>
+
+                Nenhuma modalidade selecionada.
+
+            </div>
+
+            <div class="summary-total">
+
+                <strong>
+                    Total
+                </strong>
+
+                <strong>
+                    R$
+                    <span id="checkoutTotal">
+                        0,00
+                    </span>
+                </strong>
+
+            </div>
+
+            <button
+                class="checkout-final-button"
+                id="finishCheckoutButton"
+                onclick="finishCheckout()">
+
+                CONTINUAR PARA PAGAMENTO
+
+            </button>
+
+            <div class="checkout-security">
+
+                🔒 Seus dados são utilizados exclusivamente
+                para processar seu pedido e entrega.
+
+                <br><br>
+
+                Pagamento processado pelo Mercado Pago.
+
+                <br><br>
+
+                AURÉA Perfumes
+
+            </div>
+
+        </aside>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<script>
+
+/* =====================================================
+   ESTADO DO CARRINHO
+===================================================== */
+
+let cart = [];
+
+let shippingPrice = 0;
+
+let shippingName = "";
+
+let shippingDays = "";
+
+let selectedPayment = "pix";
+
+let currentPixOrderId = null;
+
+let currentPixTicketUrl = "";
+
+let pixPollingTimer = null;
+
+
+/* =====================================================
+   STORAGE
+===================================================== */
+
+const CART_STORAGE_KEY =
+    "aurea_cart_v1";
+
+const CEP_STORAGE_KEY =
+    "aurea_cep_v1";
+
+
+/* =====================================================
+   FORMATAÇÃO
+===================================================== */
+
+function formatMoney(value){
+
+    return Number(value || 0)
+        .toFixed(2)
+        .replace(".",",");
+
+}
+
+
+/* =====================================================
+   PRODUTO DE TESTE
+===================================================== */
+
+function isTestProduct(item){
+
+    return item &&
+        item.id === "bala-teste";
+
+}
+
+
+function isTestProductCart(){
+
+    return cart.length > 0 &&
+        cart.every(
+            item =>
+                isTestProduct(item)
+        );
+
+}
+
+
+/* =====================================================
+   SALVAR CARRINHO
+===================================================== */
+
+function saveCart(){
+
+    try{
+
+        localStorage.setItem(
+            CART_STORAGE_KEY,
+            JSON.stringify(cart)
+        );
+
+    }catch(error){
+
+        console.warn(
+            "Não foi possível salvar o carrinho.",
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   CARREGAR CARRINHO
+===================================================== */
+
+function loadCart(){
+
+    try{
+
+        const saved =
+            localStorage.getItem(
+                CART_STORAGE_KEY
+            );
+
+        if(saved){
+
+            const data =
+                JSON.parse(saved);
+
+            if(Array.isArray(data)){
+
+                cart = data;
+
+            }
+
+        }
+
+    }catch(error){
+
+        console.warn(
+            "Não foi possível carregar o carrinho.",
+            error
+        );
+
+        cart = [];
+
+    }
+
+}
+
+
+/* =====================================================
+   SALVAR CEP
+===================================================== */
+
+function saveCep(value){
+
+    const cep =
+        String(value || "")
+            .replace(/\D/g,"")
+            .slice(0,8);
+
+    if(cep.length === 8){
+
+        try{
+
+            localStorage.setItem(
+                CEP_STORAGE_KEY,
+                cep
+            );
+
+        }catch(error){
+
+            console.warn(
+                "Não foi possível salvar o CEP.",
+                error
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   CARREGAR CEP
+===================================================== */
+
+function loadSavedCep(){
+
+    try{
+
+        const savedCep =
+            localStorage.getItem(
+                CEP_STORAGE_KEY
+            );
+
+        if(
+            savedCep &&
+            /^\d{8}$/.test(savedCep)
+        ){
+
+            return savedCep;
+
+        }
+
+    }catch(error){
+
+        console.warn(
+            "Não foi possível carregar o CEP.",
+            error
+        );
+
+    }
+
+    return "";
+
+}
+
+
+/* =====================================================
+   MÁSCARA CEP
+===================================================== */
+
+function formatCep(value){
+
+    let cep =
+        String(value || "")
+            .replace(/\D/g,"")
+            .slice(0,8);
+
+    if(cep.length > 5){
+
+        cep =
+            cep.slice(0,5) +
+            "-" +
+            cep.slice(5);
+
+    }
+
+    return cep;
+
+}
+
+
+/* =====================================================
+   ADICIONAR PRODUTO
+===================================================== */
+
+function addProductWithQuantity(
+    name,
+    price,
+    description,
+    image,
+    productId
+){
+
+    const quantity = 1;
+
+    const id =
+        productId ||
+        name
+            .toLowerCase()
+            .replace(/\s+/g,"-");
+
+
+    /*
+     * A Bala de teste precisa ficar sozinha
+     * para garantir que o teste seja exatamente R$1.
+     */
+
+    if(id === "bala-teste"){
+
+        cart = [];
+
+        shippingPrice = 0;
+        shippingName = "Teste — sem frete";
+        shippingDays = "";
+
+    }else{
+
+        /*
+         * Se o usuário estava com a Bala de teste
+         * no carrinho e adiciona um perfume,
+         * remove a Bala para não misturar o teste
+         * com uma compra real.
+         */
+
+        cart = cart.filter(
+            item =>
+                item.id !== "bala-teste"
+        );
+
+    }
+
+
+    const existing =
+        cart.find(
+            item =>
+                item.name === name
+        );
+
+
+    if(existing){
+
+        existing.quantity += quantity;
+
+    }else{
+
+        cart.push({
+
+            id:id,
+
+            name:name,
+
+            price:Number(price),
+
+            description:description,
+
+            image:image,
+
+            quantity:quantity
+
+        });
+
+    }
+
+    saveCart();
+
+    renderCart();
+
+    openCart();
+
+}
+
+
+/* =====================================================
+   COMPRAR AGORA
+===================================================== */
+
+function buyNow(
+    name,
+    price,
+    description,
+    image,
+    productId
+){
+
+    const quantity = 1;
+
+    const id =
+        productId ||
+        name
+            .toLowerCase()
+            .replace(/\s+/g,"-");
+
+
+    /*
+     * Comprar a Bala abre um carrinho
+     * exclusivamente para o teste de R$1.
+     */
+
+    if(id === "bala-teste"){
+
+        cart = [];
+
+        shippingPrice = 0;
+        shippingName = "Teste — sem frete";
+        shippingDays = "";
+
+    }else{
+
+        cart = cart.filter(
+            item =>
+                item.id !== "bala-teste"
+        );
+
+    }
+
+
+    const existing =
+        cart.find(
+            item =>
+                item.name === name
+        );
+
+
+    if(existing){
+
+        existing.quantity += quantity;
+
+    }else{
+
+        cart.push({
+
+            id:id,
+
+            name:name,
+
+            price:Number(price),
+
+            description:description,
+
+            image:image,
+
+            quantity:quantity
+
+        });
+
+    }
+
+    saveCart();
+
+    renderCart();
+
+    openCart();
+
+}
+
+
+/* =====================================================
+   ADICIONAR PADRÃO
+===================================================== */
+
+function addToCart(
+    name,
+    price,
+    description,
+    image
+){
+
+    cart = cart.filter(
+        item =>
+            item.id !== "bala-teste"
+    );
+
+    const existing =
+        cart.find(
+            item =>
+                item.name === name
+        );
+
+    if(existing){
+
+        existing.quantity++;
+
+    }else{
+
+        cart.push({
+
+            id:
+                name
+                    .toLowerCase()
+                    .replace(/\s+/g,"-"),
+
+            name:name,
+
+            price:Number(price),
+
+            description:description,
+
+            image:image,
+
+            quantity:1
+
+        });
+
+    }
+
+    saveCart();
+
+    renderCart();
+
+    openCart();
+
+}
+
+
+/* =====================================================
+   RENDERIZAR CARRINHO
+===================================================== */
+
+function renderCart(){
+
+    const cartContent =
+        document.getElementById(
+            "cartContent"
+        );
+
+    const cartCount =
+        document.getElementById(
+            "cartCount"
+        );
+
+    const shippingArea =
+        document.getElementById(
+            "shippingArea"
+        );
+
+    const totalArea =
+        document.getElementById(
+            "totalArea"
+        );
+
+    const totalQuantity =
+        cart.reduce(
+            (sum,item) =>
+                sum +
+                Number(item.quantity || 0),
+            0
+        );
+
+    cartCount.textContent =
+        totalQuantity;
+
+
+    if(cart.length === 0){
+
+        cartContent.innerHTML =
+            "<div class='empty-cart'>Seu carrinho está vazio.</div>";
+
+        shippingArea.style.display =
+            "none";
+
+        totalArea.style.display =
+            "none";
+
+        shippingPrice = 0;
+
+        shippingName = "";
+
+        shippingDays = "";
+
+        saveCart();
+
+        return;
+
+    }
+
+
+    totalArea.style.display =
+        "block";
+
+
+    /*
+     * Bala de teste:
+     * não consulta Melhor Envio.
+     */
+
+    if(isTestProductCart()){
+
+        shippingPrice = 0;
+
+        shippingName =
+            "Teste — sem frete";
+
+        shippingDays = "";
+
+        shippingArea.style.display =
+            "none";
+
+    }else{
+
+        shippingArea.style.display =
+            "block";
+
+    }
+
+
+    cartContent.innerHTML =
+        cart.map(
+            (item,index) => `
+
+        <div class="cart-product">
+
+            <img
+                src="${item.image}"
+                alt="${item.name}">
+
+            <div class="cart-product-info">
+
+                <strong>
+                    ${item.name}
+                </strong>
+
+                <br>
+
+                <small>
+                    ${item.description}
+                </small>
+
+                <br>
+
+                <div class="cart-quantity">
+
+                    <button
+                        onclick="changeCartQuantity(${index},-1)">
+                        −
+                    </button>
+
+                    <span>
+                        ${item.quantity}
+                    </span>
+
+                    <button
+                        onclick="changeCartQuantity(${index},1)">
+                        +
+                    </button>
+
+                </div>
+
+                <br>
+
+                <strong>
+                    R$
+                    ${formatMoney(
+                        item.price *
+                        item.quantity
+                    )}
+                </strong>
+
+                <br>
+
+                <button
+                    class="remove-item"
+                    onclick="removeCartItem(${index})">
+
+                    Remover item
+
+                </button>
+
+            </div>
+
+        </div>
+
+        `
+        ).join("");
+
+
+    const savedCep =
+        loadSavedCep();
+
+    const cepInput =
+        document.getElementById(
+            "cep"
+        );
+
+    if(
+        savedCep &&
+        !cepInput.value
+    ){
+
+        cepInput.value =
+            formatCep(savedCep);
+
+    }
+
+
+    updateTotal();
+
+}
+
+
+/* =====================================================
+   QUANTIDADE
+===================================================== */
+
+function changeCartQuantity(
+    index,
+    change
+){
+
+    if(!cart[index]){
+        return;
+    }
+
+    /*
+     * Nunca permite transformar o carrinho
+     * de teste em carrinho misto.
+     */
+
+    cart[index].quantity += change;
+
+    if(
+        cart[index].quantity <= 0
+    ){
+
+        cart.splice(index,1);
+
+        shippingPrice = 0;
+        shippingName = "";
+        shippingDays = "";
+
+        document
+            .getElementById(
+                "shippingOptions"
+            )
+            .innerHTML = "";
+
+    }
+
+    saveCart();
+
+    renderCart();
+
+}
+
+
+/* =====================================================
+   REMOVER
+===================================================== */
+
+function removeCartItem(index){
+
+    if(!cart[index]){
+        return;
+    }
+
+    cart.splice(index,1);
+
+    shippingPrice = 0;
+    shippingName = "";
+    shippingDays = "";
+
+    document
+        .getElementById(
+            "shippingOptions"
+        )
+        .innerHTML = "";
+
+    saveCart();
+
+    renderCart();
+
+}
+
+
+/* =====================================================
+   ABRIR CARRINHO
+===================================================== */
+
+function openCart(){
+
+    document
+        .getElementById(
+            "cartDrawer"
+        )
+        .classList
+        .add("open");
+
+}
+
+
+/* =====================================================
+   FECHAR CARRINHO
+===================================================== */
+
+function closeCart(){
+
+    document
+        .getElementById(
+            "cartDrawer"
+        )
+        .classList
+        .remove("open");
+
+}
+
+
+/* =====================================================
+   ATUALIZAR TOTAL
+===================================================== */
+
+function updateTotal(){
+
+    const productsTotal =
+        cart.reduce(
+            (sum,item) =>
+                sum +
+                (
+                    Number(item.price || 0) *
+                    Number(item.quantity || 0)
+                ),
+            0
+        );
+
+    const total =
+        productsTotal +
+        Number(shippingPrice || 0);
+
+    document
+        .getElementById(
+            "totalValue"
+        )
+        .textContent =
+        formatMoney(total);
+
+}
+
+
+/* =====================================================
+   CEP DO CARRINHO
+===================================================== */
+
+document
+    .getElementById("cep")
+    .addEventListener(
+        "input",
+        function(){
+
+            this.value =
+                formatCep(
+                    this.value
+                );
+
+            saveCep(
+                this.value
+            );
+
+        }
+    );
+
+
+/* =====================================================
+   CALCULAR FRETE
+===================================================== */
+
+async function calculateShipping(){
+
+    /*
+     * A Bala não possui frete.
+     */
+
+    if(isTestProductCart()){
+
+        shippingPrice = 0;
+
+        shippingName =
+            "Teste — sem frete";
+
+        shippingDays = "";
+
+        document
+            .getElementById(
+                "shippingOptions"
+            )
+            .innerHTML =
+                "<div class='empty-cart'>✓ Produto de teste — frete grátis.</div>";
+
+        document
+            .getElementById(
+                "cepMessage"
+            )
+            .textContent =
+                "Produto de teste sem envio.";
+
+        updateTotal();
+
+        return;
+
+    }
+
+
+    const cep =
+        document
+            .getElementById("cep")
+            .value
+            .replace(/\D/g,"");
+
+    const message =
+        document
+            .getElementById("cepMessage");
+
+    const options =
+        document
+            .getElementById(
+                "shippingOptions"
+            );
+
+
+    shippingPrice = 0;
+
+    shippingName = "";
+
+    shippingDays = "";
+
+    options.innerHTML = "";
+
+    updateTotal();
+
+
+    if(cep.length !== 8){
+
+        message.textContent =
+            "Digite um CEP válido com 8 números.";
+
+        return;
+
+    }
+
+
+    saveCep(cep);
+
+
+    message.textContent =
+        "Consultando CEP...";
+
+
+    try{
+
+        const cepResponse =
+            await fetch(
+                "https://viacep.com.br/ws/" +
+                cep +
+                "/json/"
+            );
+
+        const cepData =
+            await cepResponse.json();
+
+
+        if(cepData.erro){
+
+            message.textContent =
+                "CEP não encontrado.";
+
+            return;
+
+        }
+
+
+        message.textContent =
+            "📍 " +
+            cepData.localidade +
+            " - " +
+            cepData.uf;
+
+
+    }catch(error){
+
+        message.textContent =
+            "Não foi possível consultar o CEP.";
+
+    }
+
+
+    try{
+
+        const totalQuantity =
+            cart.reduce(
+                (sum,item) =>
+                    sum +
+                    Number(item.quantity || 0),
+                0
+            );
+
+
+        const response =
+            await fetch(
+                "/api/frete",
+                {
+
+                    method:"POST",
+
+                    headers:{
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:JSON.stringify({
+
+                        cep:cep,
+
+                        quantidade:
+                            totalQuantity,
+
+                        produtos:
+                            cart
+
+                    })
+
+                }
+            );
+
+
+        const responseText =
+            await response.text();
+
+
+        let data;
+
+
+        try{
+
+            data =
+                responseText
+                    ? JSON.parse(responseText)
+                    : {};
+
+        }catch(parseError){
+
+            throw new Error(
+                "O servidor retornou uma resposta inválida."
+            );
+
+        }
+
+
+        if(!response.ok){
+
+            throw new Error(
+                data.error ||
+                "Não foi possível consultar o frete."
+            );
+
+        }
+
+
+        if(
+            !Array.isArray(data) ||
+            data.length === 0
+        ){
+
+            options.innerHTML =
+                "<div class='empty-cart'>Nenhuma opção de entrega encontrada.</div>";
+
+            return;
+
+        }
+
+
+        data.forEach(item => {
+
+            const price =
+                Number(
+                    item.price || 0
+                );
+
+            const company =
+                item.company ||
+                "Transportadora";
+
+            const name =
+                item.name ||
+                "Entrega";
+
+            const days =
+                item.delivery_time ??
+                item.deliveryTime ??
+                "?";
+
+
+            const option =
+                document.createElement(
+                    "div"
+                );
+
+
+            option.className =
+                "shipping-option";
+
+
+            option.innerHTML = `
+
+                <div>
+
+                    <strong>
+                        ${company} — ${name}
+                    </strong>
+
+                    <small>
+                        Prazo estimado:
+                        ${days}
+                        dias úteis
+                    </small>
+
+                </div>
+
+                <strong>
+                    R$
+                    ${formatMoney(price)}
+                </strong>
+
+            `;
+
+
+            option.onclick =
+                function(){
+
+                    document
+                        .querySelectorAll(
+                            ".shipping-option"
+                        )
+                        .forEach(
+                            element => {
+
+                                element
+                                    .classList
+                                    .remove(
+                                        "selected"
+                                    );
+
+                            }
+                        );
+
+
+                    option.classList.add(
+                        "selected"
+                    );
+
+
+                    shippingPrice =
+                        price;
+
+
+                    shippingName =
+                        company +
+                        " — " +
+                        name;
+
+
+                    shippingDays =
+                        days;
+
+
+                    updateTotal();
+
+                };
+
+
+            options.appendChild(
+                option
+            );
+
+        });
+
+
+    }catch(error){
+
+        console.error(error);
+
+        options.innerHTML = `
+
+            <div class="empty-cart">
+
+                Não foi possível consultar o frete.
+
+                <br><br>
+
+                <small>
+                    ${error.message ||
+                    "Erro desconhecido."}
+                </small>
+
+            </div>
+
+        `;
+
+    }
+
+}
+
+
+/* =====================================================
+   CHECKOUT
+===================================================== */
+
+function checkout(){
+
+    if(cart.length === 0){
+
+        alert(
+            "Seu carrinho está vazio."
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * A Bala não precisa de frete.
+     */
+
+    if(isTestProductCart()){
+
+        shippingPrice = 0;
+
+        shippingName =
+            "Teste — sem frete";
+
+        shippingDays = "";
+
+    }else{
+
+        if(shippingPrice <= 0){
+
+            alert(
+                "Calcule e selecione uma opção de frete antes de continuar."
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    renderCheckout();
+
+    closeCart();
+
+    document
+        .getElementById(
+            "checkoutOverlay"
+        )
+        .classList
+        .add("open");
+
+    document.body.style.overflow =
+        "hidden";
+
+
+    /*
+     * Recupera CEP salvo somente
+     * para compras normais.
+     */
+
+    if(!isTestProductCart()){
+
+        const savedCep =
+            loadSavedCep();
+
+        const checkoutCep =
+            document.getElementById(
+                "checkoutCep"
+            );
+
+        if(
+            savedCep &&
+            !checkoutCep.value
+        ){
+
+            checkoutCep.value =
+                formatCep(savedCep);
+
+            lookupCheckoutCep(
+                savedCep
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   FECHAR CHECKOUT
+===================================================== */
+
+function closeCheckout(){
+
+    document
+        .getElementById(
+            "checkoutOverlay"
+        )
+        .classList
+        .remove("open");
+
+    document.body.style.overflow =
+        "";
+
+    stopPixPolling();
+
+}
+
+
+/* =====================================================
+   RENDERIZAR CHECKOUT
+===================================================== */
+
+function renderCheckout(){
+
+    const productsContainer =
+        document.getElementById(
+            "checkoutProducts"
+        );
+
+
+    const subtotal =
+        cart.reduce(
+            (sum,item) =>
+                sum +
+                (
+                    Number(item.price || 0) *
+                    Number(item.quantity || 0)
+                ),
+            0
+        );
+
+
+    /*
+     * Garante frete zero no teste.
+     */
+
+    if(isTestProductCart()){
+
+        shippingPrice = 0;
+
+        shippingName =
+            "Teste — sem frete";
+
+        shippingDays = "";
+
+    }
+
+
+    const total =
+        subtotal +
+        Number(shippingPrice || 0);
+
+
+    productsContainer.innerHTML =
+        cart.map(
+            item => `
+
+        <div class="checkout-summary-product">
+
+            <img
+                src="${item.image}"
+                alt="${item.name}">
+
+            <div class="checkout-summary-product-info">
+
+                <strong>
+                    ${item.name}
+                </strong>
+
+                <small>
+                    ${item.description}
+                </small>
+
+                <small>
+                    Quantidade:
+                    ${item.quantity}
+                </small>
+
+                <small>
+                    R$
+                    ${formatMoney(
+                        item.price *
+                        item.quantity
+                    )}
+                </small>
+
+            </div>
+
+        </div>
+
+        `
+        ).join("");
+
+
+    document
+        .getElementById(
+            "checkoutSubtotal"
+        )
+        .textContent =
+        formatMoney(subtotal);
+
+
+    document
+        .getElementById(
+            "checkoutShipping"
+        )
+        .textContent =
+        formatMoney(shippingPrice);
+
+
+    document
+        .getElementById(
+            "checkoutTotal"
+        )
+        .textContent =
+        formatMoney(total);
+
+
+    const deliveryBox =
+        document.getElementById(
+            "checkoutDeliveryBox"
+        );
+
+
+    if(isTestProductCart()){
+
+        deliveryBox.innerHTML = `
+
+            <strong>
+                🚚 Frete grátis
+            </strong>
+
+            <br>
+
+            Produto de teste — sem envio.
+
+        `;
+
+    }else if(shippingName){
+
+        deliveryBox.innerHTML = `
+
+            <strong>
+                🚚 Entrega selecionada
+            </strong>
+
+            <br>
+
+            ${shippingName}
+
+            <br>
+
+            Prazo estimado:
+            ${shippingDays}
+            dias úteis
+
+        `;
+
+    }else{
+
+        deliveryBox.innerHTML = `
+
+            <strong>
+                🚚 Entrega
+            </strong>
+
+            <br>
+
+            Nenhuma modalidade selecionada.
+
+        `;
+
+    }
+
+
+    /*
+     * Esconde o endereço no teste.
+     */
+
+    const addressSection =
+        document.getElementById(
+            "checkoutAddressSection"
+        );
+
+    if(addressSection){
+
+        addressSection.style.display =
+            isTestProductCart()
+                ? "none"
+                : "block";
+
+    }
+
+}
+
+
+/* =====================================================
+   FORMA DE PAGAMENTO
+===================================================== */
+
+function selectPayment(
+    payment,
+    element
+){
+
+    selectedPayment =
+        payment;
+
+
+    document
+        .querySelectorAll(
+            ".payment-option"
+        )
+        .forEach(
+            option => {
+
+                option
+                    .classList
+                    .remove(
+                        "selected"
+                    );
+
+            }
+        );
+
+
+    element
+        .classList
+        .add("selected");
+
+
+    const radio =
+        element.querySelector(
+            "input"
+        );
+
+
+    if(radio){
+
+        radio.checked =
+            true;
+
+    }
+
+
+    const cardNotice =
+        document.getElementById(
+            "cardNotice"
+        );
+
+
+    if(payment === "card"){
+
+        cardNotice
+            .classList
+            .add("show");
+
+    }else{
+
+        cardNotice
+            .classList
+            .remove("show");
+
+    }
+
+}
+
+
+/* =====================================================
+   MÁSCARA CPF
+===================================================== */
+
+document
+    .getElementById(
+        "checkoutCpf"
+    )
+    .addEventListener(
+        "input",
+        function(){
+
+            let value =
+                this.value
+                    .replace(/\D/g,"")
+                    .slice(0,11);
+
+
+            if(value.length > 9){
+
+                value =
+                    value.replace(
+                        /(\d{3})(\d{3})(\d{3})(\d{1})/,
+                        "$1.$2.$3-$4"
+                    );
+
+            }else if(value.length > 6){
+
+                value =
+                    value.replace(
+                        /(\d{3})(\d{3})(\d{1,3})/,
+                        "$1.$2.$3"
+                    );
+
+            }else if(value.length > 3){
+
+                value =
+                    value.replace(
+                        /(\d{3})(\d{1,3})/,
+                        "$1.$2"
+                    );
+
+            }
+
+            this.value =
+                value;
+
+        }
+    );
+
+
+/* =====================================================
+   MÁSCARA WHATSAPP
+===================================================== */
+
+document
+    .getElementById(
+        "checkoutPhone"
+    )
+    .addEventListener(
+        "input",
+        function(){
+
+            let value =
+                this.value
+                    .replace(/\D/g,"")
+                    .slice(0,11);
+
+
+            if(value.length >= 11){
+
+                value =
+                    value.replace(
+                        /(\d{2})(\d{5})(\d{4})/,
+                        "($1) $2-$3"
+                    );
+
+            }else if(value.length >= 7){
+
+                value =
+                    value.replace(
+                        /(\d{2})(\d{4})(\d{1,4})/,
+                        "($1) $2-$3"
+                    );
+
+            }else if(value.length >= 3){
+
+                value =
+                    value.replace(
+                        /(\d{2})(\d{1,5})/,
+                        "($1) $2"
+                    );
+
+            }
+
+            this.value =
+                value;
+
+        }
+    );
+
+
+/* =====================================================
+   MÁSCARA CEP CHECKOUT
+===================================================== */
+
+document
+    .getElementById(
+        "checkoutCep"
+    )
+    .addEventListener(
+        "input",
+        function(){
+
+            let value =
+                formatCep(
+                    this.value
+                );
+
+
+            this.value =
+                value;
+
+
+            saveCep(value);
+
+
+            const numericCep =
+                value
+                    .replace(/\D/g,"");
+
+
+            if(
+                numericCep.length === 8
+            ){
+
+                lookupCheckoutCep(
+                    numericCep
+                );
+
+            }
+
+        }
+    );
+
+
+/* =====================================================
+   BUSCAR ENDEREÇO
+===================================================== */
+
+async function lookupCheckoutCep(
+    cep
+){
+
+    const status =
+        document.getElementById(
+            "checkoutAddressStatus"
+        );
+
+
+    status.textContent =
+        "Consultando endereço...";
+
+
+    try{
+
+        const response =
+            await fetch(
+                "https://viacep.com.br/ws/" +
+                cep +
+                "/json/"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if(data.erro){
+
+            status.textContent =
+                "CEP não encontrado.";
+
+            return;
+
+        }
+
+
+        document
+            .getElementById(
+                "checkoutStreet"
+            )
+            .value =
+            data.logradouro || "";
+
+
+        document
+            .getElementById(
+                "checkoutNeighborhood"
+            )
+            .value =
+            data.bairro || "";
+
+
+        document
+            .getElementById(
+                "checkoutCity"
+            )
+            .value =
+            data.localidade || "";
+
+
+        document
+            .getElementById(
+                "checkoutState"
+            )
+            .value =
+            data.uf || "";
+
+
+        status.textContent =
+            "✓ Endereço localizado automaticamente.";
+
+
+    }catch(error){
+
+        status.textContent =
+            "Não foi possível consultar o endereço.";
+
+    }
+
+}
+
+
+/* =====================================================
+   MOSTRAR ERRO
+===================================================== */
+
+function showCheckoutError(
+    message
+){
+
+    const errorBox =
+        document.getElementById(
+            "checkoutError"
+        );
+
+    errorBox.innerHTML =
+        message;
+
+    errorBox.classList.add(
+        "show"
+    );
+
+    errorBox.scrollIntoView({
+        behavior:"smooth",
+        block:"center"
+    });
+
+}
+
+
+/* =====================================================
+   LIMPAR ERRO
+===================================================== */
+
+function clearCheckoutError(){
+
+    const errorBox =
+        document.getElementById(
+            "checkoutError"
+        );
+
+    errorBox.classList.remove(
+        "show"
+    );
+
+    errorBox.innerHTML =
+        "";
+
+}
+
+
+/* =====================================================
+   FINALIZAR CHECKOUT
+===================================================== */
+
+async function finishCheckout(){
+
+    clearCheckoutError();
+
+
+    const button =
+        document.getElementById(
+            "finishCheckoutButton"
+        );
+
+
+    const name =
+        document
+            .getElementById(
+                "checkoutName"
+            )
+            .value
+            .trim();
+
+
+    const email =
+        document
+            .getElementById(
+                "checkoutEmail"
+            )
+            .value
+            .trim();
+
+
+    const phone =
+        document
+            .getElementById(
+                "checkoutPhone"
+            )
+            .value
+            .trim();
+
+
+    const cpf =
+        document
+            .getElementById(
+                "checkoutCpf"
+            )
+            .value
+            .trim();
+
+
+    const cep =
+        document
+            .getElementById(
+                "checkoutCep"
+            )
+            .value
+            .trim();
+
+
+    const street =
+        document
+            .getElementById(
+                "checkoutStreet"
+            )
+            .value
+            .trim();
+
+
+    const number =
+        document
+            .getElementById(
+                "checkoutNumber"
+            )
+            .value
+            .trim();
+
+
+    const complement =
+        document
+            .getElementById(
+                "checkoutComplement"
+            )
+            .value
+            .trim();
+
+
+    const neighborhood =
+        document
+            .getElementById(
+                "checkoutNeighborhood"
+            )
+            .value
+            .trim();
+
+
+    const city =
+        document
+            .getElementById(
+                "checkoutCity"
+            )
+            .value
+            .trim();
+
+
+    const state =
+        document
+            .getElementById(
+                "checkoutState"
+            )
+            .value
+            .trim()
+            .toUpperCase();
+
+
+    const reference =
+        document
+            .getElementById(
+                "checkoutReference"
+            )
+            .value
+            .trim();
+
+
+    const errors = [];
+
+
+    if(name.length < 3){
+
+        errors.push(
+            "Informe seu nome completo."
+        );
+
+    }
+
+
+    if(
+        !email ||
+        !email.includes("@") ||
+        !email.includes(".")
+    ){
+
+        errors.push(
+            "Informe um e-mail válido."
+        );
+
+    }
+
+
+    if(
+        phone
+            .replace(/\D/g,"")
+            .length < 10
+    ){
+
+        errors.push(
+            "Informe um WhatsApp válido."
+        );
+
+    }
+
+
+    if(
+        cpf
+            .replace(/\D/g,"")
+            .length !== 11
+    ){
+
+        errors.push(
+            "Informe um CPF válido."
+        );
+
+    }
+
+
+    /*
+     * Para a Bala de teste não exigimos endereço.
+     */
+
+    if(!isTestProductCart()){
+
+        if(
+            cep
+                .replace(/\D/g,"")
+                .length !== 8
+        ){
+
+            errors.push(
+                "Informe um CEP válido."
+            );
+
+        }
+
+
+        if(!street){
+
+            errors.push(
+                "Informe a rua ou avenida."
+            );
+
+        }
+
+
+        if(!number){
+
+            errors.push(
+                "Informe o número do endereço."
+            );
+
+        }
+
+
+        if(!neighborhood){
+
+            errors.push(
+                "Informe o bairro."
+            );
+
+        }
+
+
+        if(!city){
+
+            errors.push(
+                "Informe a cidade."
+            );
+
+        }
+
+
+        if(state.length !== 2){
+
+            errors.push(
+                "Informe o estado."
+            );
+
+        }
+
+
+        if(
+            shippingPrice <= 0 ||
+            !shippingName
+        ){
+
+            errors.push(
+                "Selecione uma modalidade de entrega."
+            );
+
+        }
+
+    }
+
+
+    if(cart.length === 0){
+
+        errors.push(
+            "Seu carrinho está vazio."
+        );
+
+    }
+
+
+    if(errors.length > 0){
+
+        showCheckoutError(
+            errors
+                .map(
+                    error =>
+                        "• " + error
+                )
+                .join("<br>")
+        );
+
+        return;
+
+    }
+
+
+    /* =================================================
+       CARTÃO
+    ================================================= */
+
+    if(selectedPayment === "card"){
+
+        showCheckoutError(
+            "💳 O pagamento por cartão ainda está sendo finalizado. Nesta etapa, utilize o PIX. O cartão será ativado na próxima etapa com o ambiente seguro do Mercado Pago."
+        );
+
+        return;
+
+    }
+
+
+    /* =================================================
+       PIX
+    ================================================= */
+
+    /*
+     * Antes de gerar um novo PIX, restaura
+     * completamente o painel de pagamento.
+     */
+
+    const pixGeneratedTitle =
+        document.getElementById(
+            "pixGeneratedTitle"
+        );
+
+    const pixStatus =
+        document.getElementById(
+            "pixStatus"
+        );
+
+    const pixQrCode =
+        document.getElementById(
+            "pixQrCode"
+        );
+
+    const pixCopyLabel =
+        document.getElementById(
+            "pixCopyLabel"
+        );
+
+    const pixCopyRow =
+        document.getElementById(
+            "pixCopyRow"
+        );
+
+    const pixOpenButton =
+        document.getElementById(
+            "pixOpenButton"
+        );
+
+    const pixInstructions =
+        document.getElementById(
+            "pixInstructions"
+        );
+
+    const pixPaid =
+        document.getElementById(
+            "pixPaid"
+        );
+
+    const pixOrderId =
+        document.getElementById(
+            "pixOrderId"
+        );
+
+    pixGeneratedTitle.style.display =
+        "block";
+
+    pixStatus.style.display =
+        "block";
+
+    pixQrCode.style.display =
+        "none";
+
+    pixCopyLabel.style.display =
+        "block";
+
+    pixCopyRow.style.display =
+        "flex";
+
+    pixOpenButton.style.display =
+        "none";
+
+    pixInstructions.style.display =
+        "block";
+
+    pixPaid.classList.remove(
+        "show"
+    );
+
+    pixOrderId.textContent =
+        "";
+
+
+    /*
+     * Garante que o produto de teste
+     * tenha exatamente R$1 e zero frete.
+     */
+
+    if(isTestProductCart()){
+
+        shippingPrice = 0;
+
+        shippingName =
+            "Teste — sem frete";
+
+        shippingDays = "";
+
+    }
+
+
+    const subtotal =
+        cart.reduce(
+            (sum,item) =>
+                sum +
+                (
+                    Number(item.price || 0) *
+                    Number(item.quantity || 0)
+                ),
+            0
+        );
+
+
+    const total =
+        Number(
+            (
+                subtotal +
+                Number(shippingPrice || 0)
+            ).toFixed(2)
+        );
+
+
+    const payload = {
+
+        paymentMethod:
+            "pix",
+
+        name:
+            name,
+
+        email:
+            email,
+
+        phone:
+            phone,
+
+        cpf:
+            cpf,
+
+        address:{
+
+            cep:
+                cep
+                    .replace(/\D/g,""),
+
+            street:
+                street,
+
+            number:
+                number,
+
+            complement:
+                complement,
+
+            neighborhood:
+                neighborhood,
+
+            city:
+                city,
+
+            state:
+                state,
+
+            reference:
+                reference
+
+        },
+
+        shipping:{
+
+            name:
+                shippingName,
+
+            price:
+                Number(
+                    Number(
+                        shippingPrice
+                    ).toFixed(2)
+                ),
+
+            days:
+                shippingDays
+
+        },
+
+        items:
+            cart.map(
+                item => ({
+
+                    id:
+                        item.id ||
+                        item.name,
+
+                    name:
+                        item.name,
+
+                    description:
+                        item.description,
+
+                    price:
+                        Number(
+                            item.price
+                        ),
+
+                    quantity:
+                        Number(
+                            item.quantity
+                        )
+
+                })
+            ),
+
+        total:
+            total
+
+    };
+
+
+    /*
+     * Segurança adicional:
+     * se for Bala, o payload precisa ser R$1.
+     */
+
+    if(isTestProductCart()){
+
+        payload.shipping.price = 0;
+
+        payload.shipping.name =
+            "Teste — sem frete";
+
+        payload.total = 1.00;
+
+        payload.items = [{
+            id:"bala-teste",
+            name:"Bala — Produto de Teste",
+            description:"Produto de Teste • 1 unidade",
+            price:1,
+            quantity:1
+        }];
+
+    }
+
+
+    button.disabled =
+        true;
+
+    button.textContent =
+        "GERANDO PIX...";
+
+
+    try{
+
+        const response =
+            await fetch(
+                "/api/pagamento",
+                {
+
+                    method:"POST",
+
+                    headers:{
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+
+                }
+            );
+
+
+        const responseText =
+            await response.text();
+
+
+        let data;
+
+
+        try{
+
+            data =
+                responseText
+                    ? JSON.parse(
+                        responseText
+                    )
+                    : {};
+
+        }catch(error){
+
+            throw new Error(
+                "O servidor retornou uma resposta inválida."
+            );
+
+        }
+
+
+        if(!response.ok){
+
+            throw new Error(
+                data.message ||
+                data.error ||
+                "Não foi possível gerar o PIX."
+            );
+
+        }
+
+
+        if(!data.ok){
+
+            throw new Error(
+                data.message ||
+                data.error ||
+                "Não foi possível gerar o PIX."
+            );
+
+        }
+
+
+        /* =============================================
+           PIX GERADO
+        ============================================= */
+
+        currentPixOrderId =
+            data.orderId ||
+            null;
+
+
+        currentPixTicketUrl =
+            data.ticketUrl ||
+            "";
+
+
+        pixPaid.classList.remove(
+            "show"
+        );
+
+
+        if(data.qrCodeBase64){
+
+            pixQrCode.src =
+                "data:image/jpeg;base64," +
+                data.qrCodeBase64;
+
+            pixQrCode.style.display =
+                "block";
+
+        }else{
+
+            pixQrCode.style.display =
+                "none";
+
+        }
+
+
+        document
+            .getElementById(
+                "pixCopyInput"
+            )
+            .value =
+            data.qrCode ||
+            "";
+
+
+        if(data.ticketUrl){
+
+            pixOpenButton.style.display =
+                "block";
+
+        }else{
+
+            pixOpenButton.style.display =
+                "none";
+
+        }
+
+
+        pixStatus.textContent =
+            "Aguardando pagamento...";
+
+        pixStatus.style.display =
+            "block";
+
+
+        pixGeneratedTitle.style.display =
+            "block";
+
+        pixCopyLabel.style.display =
+            "block";
+
+        pixCopyRow.style.display =
+            "flex";
+
+        pixInstructions.style.display =
+            "block";
+
+
+        pixOrderId.textContent =
+            data.orderId
+                ? "Pedido Mercado Pago: " +
+                  data.orderId
+                : "";
+
+
+        document
+            .getElementById(
+                "pixResult"
+            )
+            .classList
+            .add("show");
+
+
+        button.textContent =
+            "PIX GERADO — AGUARDANDO PAGAMENTO";
+
+
+        button.disabled =
+            true;
+
+
+        startPixPolling();
+
+
+        document
+            .getElementById(
+                "pixResult"
+            )
+            .scrollIntoView({
+                behavior:"smooth",
+                block:"center"
+            });
+
+
+    }catch(error){
+
+        console.error(
+            "Erro ao gerar PIX:",
+            error
+        );
+
+
+        showCheckoutError(
+            error.message ||
+            "Não foi possível gerar o PIX."
+        );
+
+
+        button.disabled =
+            false;
+
+
+        button.textContent =
+            "CONTINUAR PARA PAGAMENTO";
+
+    }
+
+}
+
+
+/* =====================================================
+   COPIAR PIX
+===================================================== */
+
+async function copyPix(){
+
+    const input =
+        document.getElementById(
+            "pixCopyInput"
+        );
+
+
+    const value =
+        input.value.trim();
+
+
+    if(!value){
+
+        showCheckoutError(
+            "O código PIX ainda não foi gerado."
+        );
+
+        return;
+
+    }
+
+
+    try{
+
+        await navigator.clipboard.writeText(
+            value
+        );
+
+
+        const button =
+            document.querySelector(
+                ".pix-copy-button"
+            );
+
+
+        const originalText =
+            button.textContent;
+
+
+        button.textContent =
+            "COPIADO ✓";
+
+
+        setTimeout(
+            () => {
+
+                button.textContent =
+                    originalText;
+
+            },
+            2000
+        );
+
+
+    }catch(error){
+
+        input.select();
+
+        document.execCommand(
+            "copy"
+        );
+
+
+        alert(
+            "Código PIX copiado."
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   ABRIR PAGAMENTO PIX
+===================================================== */
+
+function openPixTicket(){
+
+    if(
+        !currentPixTicketUrl
+    ){
+
+        return;
+
+    }
+
+
+    window.open(
+        currentPixTicketUrl,
+        "_blank",
+        "noopener,noreferrer"
+    );
+
+}
+
+
+/* =====================================================
+   INICIAR CONSULTA PIX
+===================================================== */
+
+function startPixPolling(){
+
+    stopPixPolling();
+
+
+    if(!currentPixOrderId){
+
+        return;
+
+    }
+
+
+    pixPollingTimer =
+        setInterval(
+            checkPixStatus,
+            7000
+        );
+
+
+    checkPixStatus();
+
+}
+
+
+/* =====================================================
+   PARAR CONSULTA PIX
+===================================================== */
+
+function stopPixPolling(){
+
+    if(pixPollingTimer){
+
+        clearInterval(
+            pixPollingTimer
+        );
+
+        pixPollingTimer =
+            null;
+
+    }
+
+}
+
+
+/* =====================================================
+   CONSULTAR STATUS PIX
+===================================================== */
+
 async function checkPixStatus(){
 
     if(!currentPixOrderId){
@@ -49,63 +5296,44 @@ async function checkPixStatus(){
             ).toLowerCase();
 
 
-        const pixResult =
-            document.getElementById(
-                "pixResult"
-            );
-
-
         const pixStatus =
             document.getElementById(
                 "pixStatus"
             );
 
-
-        const pixPaid =
+        const pixGeneratedTitle =
             document.getElementById(
-                "pixPaid"
+                "pixGeneratedTitle"
             );
-
 
         const pixQrCode =
             document.getElementById(
                 "pixQrCode"
             );
 
-
         const pixCopyLabel =
-            pixResult.querySelector(
-                ".pix-copy-label"
+            document.getElementById(
+                "pixCopyLabel"
             );
-
 
         const pixCopyRow =
-            pixResult.querySelector(
-                ".pix-copy-row"
+            document.getElementById(
+                "pixCopyRow"
             );
-
 
         const pixOpenButton =
             document.getElementById(
                 "pixOpenButton"
             );
 
-
         const pixInstructions =
-            pixResult.querySelector(
-                ".pix-instructions"
-            );
-
-
-        const pixOrderId =
             document.getElementById(
-                "pixOrderId"
+                "pixInstructions"
             );
 
-
-        const pixTitle =
-            pixResult.querySelector(
-                "h3"
+        const pixPaid =
+            document.getElementById(
+                "pixPaid"
             );
 
 
@@ -120,103 +5348,33 @@ async function checkPixStatus(){
         ){
 
             /*
-             * Esconde tudo que pertence ao pagamento
-             * antes da confirmação.
+             * Após o pagamento aprovado,
+             * deixa somente a confirmação limpa.
              */
 
-            if(pixQrCode){
+            pixGeneratedTitle.style.display =
+                "none";
 
-                pixQrCode.style.display =
-                    "none";
+            pixStatus.style.display =
+                "none";
 
-            }
+            pixQrCode.style.display =
+                "none";
 
+            pixCopyLabel.style.display =
+                "none";
 
-            if(pixCopyLabel){
+            pixCopyRow.style.display =
+                "none";
 
-                pixCopyLabel.style.display =
-                    "none";
+            pixOpenButton.style.display =
+                "none";
 
-            }
-
-
-            if(pixCopyRow){
-
-                pixCopyRow.style.display =
-                    "none";
-
-            }
+            pixInstructions.style.display =
+                "none";
 
 
-            if(pixOpenButton){
-
-                pixOpenButton.style.display =
-                    "none";
-
-            }
-
-
-            if(pixInstructions){
-
-                pixInstructions.style.display =
-                    "none";
-
-            }
-
-
-            /*
-             * Mostra somente a confirmação.
-             */
-
-            if(pixTitle){
-
-                pixTitle.textContent =
-                    "✓ Pagamento confirmado!";
-
-            }
-
-
-            if(pixStatus){
-
-                pixStatus.textContent =
-                    "Seu pagamento foi aprovado pelo Mercado Pago. Seu pedido foi recebido com sucesso pela AURÉA.";
-
-                pixStatus.style.color =
-                    "#35623d";
-
-                pixStatus.style.marginBottom =
-                    "10px";
-
-            }
-
-
-            if(pixPaid){
-
-                pixPaid.classList.remove(
-                    "show"
-                );
-
-                pixPaid.style.display =
-                    "none";
-
-            }
-
-
-            if(pixOrderId){
-
-                pixOrderId.textContent =
-                    currentPixOrderId
-                        ? "Pedido Mercado Pago: " +
-                          currentPixOrderId
-                        : "";
-
-                pixOrderId.style.marginTop =
-                    "15px";
-
-            }
-
-
-            pixResult.classList.add(
+            pixPaid.classList.add(
                 "show"
             );
 
@@ -239,6 +5397,9 @@ async function checkPixStatus(){
             statusDetail.includes("expired")
         ){
 
+            pixStatus.style.display =
+                "block";
+
             pixStatus.textContent =
                 "O PIX expirou ou foi cancelado.";
 
@@ -254,6 +5415,9 @@ async function checkPixStatus(){
            AGUARDANDO
         ============================================= */
 
+        pixStatus.style.display =
+            "block";
+
         pixStatus.textContent =
             "Aguardando pagamento...";
 
@@ -267,4 +5431,35 @@ async function checkPixStatus(){
     }
 
 }
-```
+
+
+/* =====================================================
+   INICIALIZAÇÃO
+===================================================== */
+
+loadCart();
+
+renderCart();
+
+
+const initialCep =
+    loadSavedCep();
+
+
+if(initialCep){
+
+    const cepInput =
+        document.getElementById(
+            "cep"
+        );
+
+    cepInput.value =
+        formatCep(initialCep);
+
+}
+
+
+</script>
+
+</body>
+</html>
