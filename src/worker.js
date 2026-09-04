@@ -2,31 +2,40 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // =========================
+    // ================================
     // MELHOR ENVIO
-    // =========================
-    if (url.pathname === "/api/frete" && request.method === "POST") {
+    // ================================
+    if (
+      url.pathname === "/api/frete" &&
+      request.method === "POST"
+    ) {
       return calcularFrete(request, env);
     }
 
-    // =========================
-    // MERCADO PAGO - CRIAR PEDIDO
-    // =========================
-    if (url.pathname === "/api/pagamento" && request.method === "POST") {
-      return criarPagamento(request, env);
+    // ================================
+    // MERCADO PAGO - PIX
+    // ================================
+    if (
+      url.pathname === "/api/pagamento" &&
+      request.method === "POST"
+    ) {
+      return criarPagamentoPix(request, env);
     }
 
-    // =========================
-    // MERCADO PAGO - CONSULTAR PEDIDO
-    // =========================
+    // ================================
+    // CONSULTAR PEDIDO MERCADO PAGO
+    // ================================
     if (
       url.pathname.startsWith("/api/pagamento/") &&
       request.method === "GET"
     ) {
-      const orderId = url.pathname.split("/").pop();
+      const orderId = url.pathname
+        .replace("/api/pagamento/", "")
+        .trim();
 
       if (!orderId) {
         return resposta({
+          ok: false,
           error: "ID do pedido não informado."
         }, 400);
       }
@@ -34,12 +43,16 @@ export default {
       return consultarPagamento(orderId, env);
     }
 
-    return new Response("AURÉA Worker funcionando.", {
-      status: 200,
-      headers: {
-        "Content-Type": "text/plain; charset=UTF-8"
+    return new Response(
+      "AURÉA Worker funcionando.",
+      {
+        status: 200,
+        headers: {
+          "Content-Type":
+            "text/plain; charset=UTF-8"
+        }
       }
-    });
+    );
   }
 };
 
@@ -51,7 +64,10 @@ export default {
 async function calcularFrete(request, env) {
   try {
     const dados = await request.json();
-    const cep = String(dados.cep || "").replace(/\D/g, "");
+
+    const cep = String(
+      dados.cep || ""
+    ).replace(/\D/g, "");
 
     if (!/^\d{8}$/.test(cep)) {
       return resposta({
@@ -61,22 +77,28 @@ async function calcularFrete(request, env) {
 
     if (!env.MELHOR_ENVIO_TOKEN) {
       return resposta({
-        error: "MELHOR_ENVIO_TOKEN não configurado."
+        error:
+          "MELHOR_ENVIO_TOKEN não configurado."
       }, 500);
     }
 
     if (!env.AUREA_ORIGIN_CEP) {
       return resposta({
-        error: "AUREA_ORIGIN_CEP não configurado."
+        error:
+          "AUREA_ORIGIN_CEP não configurado."
       }, 500);
     }
 
-    const produto = dados.produto || {};
+    const produto =
+      dados.produto || {};
 
-    const quantidade = Math.max(
-      1,
-      Number(dados.quantidade || 1)
-    );
+    const quantidade =
+      Math.max(
+        1,
+        Number(
+          dados.quantidade || 1
+        )
+      );
 
     const consulta = {
       from: {
@@ -92,7 +114,8 @@ async function calcularFrete(request, env) {
       products: [
         {
           id: String(
-            produto.nome || "Perfume AURÉA"
+            produto.nome ||
+            "Perfume AURÉA"
           ),
 
           width: Number(
@@ -120,28 +143,30 @@ async function calcularFrete(request, env) {
       ]
     };
 
-    const respostaMelhorEnvio = await fetch(
-      "https://melhorenvio.com.br/api/v2/me/shipment/calculate",
-      {
-        method: "POST",
+    const respostaMelhorEnvio =
+      await fetch(
+        "https://melhorenvio.com.br/api/v2/me/shipment/calculate",
+        {
+          method: "POST",
 
-        headers: {
-          "Authorization":
-            `Bearer ${env.MELHOR_ENVIO_TOKEN}`,
+          headers: {
+            "Authorization":
+              `Bearer ${env.MELHOR_ENVIO_TOKEN}`,
 
-          "Accept":
-            "application/json",
+            "Accept":
+              "application/json",
 
-          "Content-Type":
-            "application/json",
+            "Content-Type":
+              "application/json",
 
-          "User-Agent":
-            "AUREA Perfumes"
-        },
+            "User-Agent":
+              "AUREA Perfumes"
+          },
 
-        body: JSON.stringify(consulta)
-      }
-    );
+          body:
+            JSON.stringify(consulta)
+        }
+      );
 
     const resultado =
       await respostaMelhorEnvio.json();
@@ -168,8 +193,7 @@ async function calcularFrete(request, env) {
                 )
             )
             .map(item => ({
-              id:
-                item.id,
+              id: item.id,
 
               company:
                 item.company?.name ||
@@ -209,449 +233,453 @@ async function calcularFrete(request, env) {
 
 
 // ======================================================
-// MERCADO PAGO
+// MERCADO PAGO - CRIAR PIX
 // ======================================================
 
-async function criarPagamento(request, env) {
+async function criarPagamentoPix(
+  request,
+  env
+) {
   try {
     if (!env.MERCADOPAGO_ACCESS_TOKEN) {
       return resposta({
+        ok: false,
         error:
           "MERCADOPAGO_ACCESS_TOKEN não configurado."
       }, 500);
     }
 
-    const dados = await request.json();
+    const dados =
+      await request.json();
 
-    const total = Number(
-      dados.total || 0
-    );
+    const paymentMethod =
+      String(
+        dados.paymentMethod || ""
+      ).toLowerCase();
 
-    if (!Number.isFinite(total) || total <= 0) {
+    if (paymentMethod !== "pix") {
       return resposta({
+        ok: false,
         error:
-          "Valor total do pedido inválido."
+          "Neste momento apenas PIX está disponível."
       }, 400);
     }
-
-    const cliente = dados.cliente || {};
 
     const email =
       String(
-        cliente.email || ""
-      ).trim();
+        dados.email || ""
+      ).trim()
+      .toLowerCase();
 
-    if (!email) {
+    if (
+      !email ||
+      !email.includes("@") ||
+      !email.includes(".")
+    ) {
       return resposta({
+        ok: false,
         error:
-          "E-mail do cliente não informado."
+          "E-mail inválido."
       }, 400);
     }
 
-    const nomeCompleto =
+    const name =
       String(
-        cliente.nome || ""
+        dados.name || ""
       ).trim();
 
+    if (name.length < 3) {
+      return resposta({
+        ok: false,
+        error:
+          "Nome inválido."
+      }, 400);
+    }
+
+    const cpf =
+      String(
+        dados.cpf || ""
+      ).replace(/\D/g, "");
+
+    if (cpf.length !== 11) {
+      return resposta({
+        ok: false,
+        error:
+          "CPF inválido."
+      }, 400);
+    }
+
+    const items =
+      Array.isArray(dados.items)
+        ? dados.items
+        : [];
+
+    if (!items.length) {
+      return resposta({
+        ok: false,
+        error:
+          "Carrinho vazio."
+      }, 400);
+    }
+
+    const total =
+      Number(dados.total);
+
+    if (
+      !Number.isFinite(total) ||
+      total <= 0
+    ) {
+      return resposta({
+        ok: false,
+        error:
+          "Valor total inválido."
+      }, 400);
+    }
+
+    const shipping =
+      dados.shipping || {};
+
+    const shippingPrice =
+      Number(
+        shipping.price || 0
+      );
+
+    if (
+      !Number.isFinite(shippingPrice) ||
+      shippingPrice < 0
+    ) {
+      return resposta({
+        ok: false,
+        error:
+          "Valor do frete inválido."
+      }, 400);
+    }
+
+    // ------------------------------------------
+    // Nome
+    // ------------------------------------------
+
     const partesNome =
-      nomeCompleto
+      name
         .split(/\s+/)
         .filter(Boolean);
 
     const firstName =
-      partesNome[0] ||
+      partesNome.shift() ||
       "Cliente";
 
     const lastName =
-      partesNome.slice(1).join(" ") ||
+      partesNome.join(" ") ||
       "AUREA";
 
-    const cpf =
+    // ------------------------------------------
+    // Telefone
+    // ------------------------------------------
+
+    const phone =
       String(
-        cliente.cpf || ""
+        dados.phone || ""
       ).replace(/\D/g, "");
 
-    const telefone =
-      String(
-        cliente.telefone || ""
-      ).replace(/\D/g, "");
+    // ------------------------------------------
+    // Endereço
+    // ------------------------------------------
+
+    const address =
+      dados.address || {};
 
     const cep =
       String(
-        cliente.cep || ""
+        address.cep || ""
       ).replace(/\D/g, "");
 
-    const rua =
-      String(
-        cliente.rua || ""
-      ).trim();
+    // ------------------------------------------
+    // Produtos
+    // ------------------------------------------
 
-    const numero =
-      String(
-        cliente.numero || ""
-      ).trim();
+    const mercadoPagoItems =
+      items.map((item, index) => {
+        const quantity =
+          Math.max(
+            1,
+            Number(
+              item.quantity || 1
+            )
+          );
 
-    const bairro =
-      String(
-        cliente.bairro || ""
-      ).trim();
+        const price =
+          Number(
+            item.price || 0
+          );
 
-    const cidade =
-      String(
-        cliente.cidade || ""
-      ).trim();
+        return {
+          id:
+            String(
+              item.id ||
+              `AUREA-${index + 1}`
+            ),
 
-    const estado =
-      String(
-        cliente.estado || ""
-      ).trim();
+          title:
+            String(
+              item.name ||
+              "Perfume AURÉA"
+            ),
 
-    const complemento =
-      String(
-        cliente.complemento || ""
-      ).trim();
+          description:
+            String(
+              item.description ||
+              item.name ||
+              "Produto AURÉA Perfumes"
+            ),
 
-    const pagamento =
-      String(
-        dados.pagamento || "pix"
-      ).toLowerCase();
+          quantity,
 
-    const referencia =
+          unit_price:
+            Number(
+              price.toFixed(2)
+            )
+        };
+      });
+
+    // ------------------------------------------
+    // Referência externa
+    // ------------------------------------------
+
+    const externalReference =
       `AUREA-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
-    // --------------------------------------------------
-    // PAGAMENTO PIX
-    // --------------------------------------------------
+    // ------------------------------------------
+    // Order Mercado Pago
+    // ------------------------------------------
 
-    if (pagamento === "pix") {
-      const body = {
-        type: "online",
+    const order = {
+      type: "online",
 
-        external_reference:
-          referencia,
+      processing_mode:
+        "automatic",
 
-        total_amount:
-          total.toFixed(2),
+      external_reference:
+        externalReference,
 
-        payer: {
-          email,
+      total_amount:
+        total.toFixed(2),
 
-          first_name:
-            firstName,
+      description:
+        "Pedido AURÉA Perfumes",
 
-          last_name:
-            lastName,
+      items:
+        mercadoPagoItems,
 
-          entity_type:
-            "individual",
+      transactions: {
+        payments: [
+          {
+            amount:
+              total.toFixed(2),
 
-          ...(cpf
-            ? {
-                identification: {
-                  type: "CPF",
-                  number: cpf
-                }
-              }
-            : {}),
+            payment_method: {
+              id: "pix",
+              type: "bank_transfer"
+            },
 
-          ...(telefone
-            ? {
-                phone: {
-                  area_code:
-                    telefone.slice(0, 2),
+            // PIX válido por 24 horas
+            expiration_time:
+              "PT24H"
+          }
+        ]
+      },
 
-                  number:
-                    telefone.slice(2)
-                }
-              }
-            : {}),
+      payer: {
+        email,
 
-          ...(cep
-            ? {
-                address: {
-                  zip_code:
-                    cep,
+        first_name:
+          firstName,
 
-                  street_name:
-                    rua,
+        last_name:
+          lastName,
 
-                  street_number:
-                    numero,
+        identification: {
+          type: "CPF",
+          number: cpf
+        }
+      }
+    };
 
-                  neighborhood:
-                    bairro,
+    // ------------------------------------------
+    // Adiciona telefone
+    // ------------------------------------------
 
-                  city:
-                    cidade,
+    if (phone.length >= 10) {
+      order.payer.phone = {
+        area_code:
+          phone.slice(
+            0,
+            2
+          ),
 
-                  state:
-                    estado,
-
-                  ...(complemento
-                    ? {
-                        complement:
-                          complemento
-                      }
-                    : {})
-                }
-              }
-            : {})
-        },
-
-        transactions: {
-          payments: [
-            {
-              amount:
-                total.toFixed(2),
-
-              payment_method: {
-                id: "pix",
-                type: "bank_transfer"
-              }
-            }
-          ]
-        },
-
-        capture_mode:
-          "automatic",
-
-        processing_mode:
-          "automatic",
-
-        description:
-          "Pedido AUREA Perfumes"
-      };
-
-      return enviarOrderMercadoPago(
-        body,
-        env,
-        referencia
-      );
-    }
-
-    // --------------------------------------------------
-    // CARTÃO
-    // --------------------------------------------------
-
-    if (pagamento === "cartao") {
-      const cartao =
-        dados.cartao || {};
-
-      const token =
-        String(
-          cartao.token || ""
-        ).trim();
-
-      const paymentMethodId =
-        String(
-          cartao.payment_method_id || ""
-        ).trim();
-
-      const installments =
-        Math.max(
-          1,
-          Number(
-            cartao.installments || 1
+        number:
+          phone.slice(
+            2
           )
-        );
-
-      if (!token) {
-        return resposta({
-          error:
-            "Token do cartão não informado."
-        }, 400);
-      }
-
-      if (!paymentMethodId) {
-        return resposta({
-          error:
-            "Forma de pagamento do cartão não informada."
-        }, 400);
-      }
-
-      const body = {
-        type: "online",
-
-        external_reference:
-          referencia,
-
-        total_amount:
-          total.toFixed(2),
-
-        payer: {
-          email,
-
-          first_name:
-            firstName,
-
-          last_name:
-            lastName,
-
-          entity_type:
-            "individual",
-
-          ...(cpf
-            ? {
-                identification: {
-                  type: "CPF",
-                  number: cpf
-                }
-              }
-            : {}),
-
-          ...(telefone
-            ? {
-                phone: {
-                  area_code:
-                    telefone.slice(0, 2),
-
-                  number:
-                    telefone.slice(2)
-                }
-              }
-            : {})
-        },
-
-        transactions: {
-          payments: [
-            {
-              amount:
-                total.toFixed(2),
-
-              payment_method: {
-                id:
-                  paymentMethodId,
-
-                type:
-                  "credit_card",
-
-                token,
-
-                installments
-              }
-            }
-          ]
-        },
-
-        capture_mode:
-          "automatic",
-
-        processing_mode:
-          "automatic",
-
-        description:
-          "Pedido AUREA Perfumes"
       };
-
-      return enviarOrderMercadoPago(
-        body,
-        env,
-        referencia
-      );
     }
+
+    // ------------------------------------------
+    // Adiciona endereço
+    // ------------------------------------------
+
+    if (/^\d{8}$/.test(cep)) {
+      order.payer.address = {
+        zip_code: cep,
+
+        street_name:
+          String(
+            address.street || ""
+          ).trim(),
+
+        street_number:
+          String(
+            address.number || ""
+          ).trim()
+      };
+    }
+
+    // ------------------------------------------
+    // Chamada Mercado Pago
+    // ------------------------------------------
+
+    const mpResponse =
+      await fetch(
+        "https://api.mercadopago.com/v1/orders",
+        {
+          method: "POST",
+
+          headers: {
+            "Authorization":
+              `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
+
+            "Content-Type":
+              "application/json",
+
+            "Accept":
+              "application/json",
+
+            "X-Idempotency-Key":
+              crypto.randomUUID()
+          },
+
+          body:
+            JSON.stringify(order)
+        }
+      );
+
+    const resultado =
+      await mpResponse.json();
+
+    if (!mpResponse.ok) {
+      console.error(
+        "Mercado Pago error:",
+        JSON.stringify(resultado)
+      );
+
+      return resposta({
+        ok: false,
+
+        error:
+          "O Mercado Pago recusou o pagamento.",
+
+        message:
+          resultado?.message ||
+          resultado?.error ||
+          "Erro ao criar PIX.",
+
+        details:
+          resultado?.cause ||
+          undefined
+      }, mpResponse.status);
+    }
+
+    // ------------------------------------------
+    // Encontrar pagamento
+    // ------------------------------------------
+
+    const payment =
+      resultado?.transactions
+        ?.payments?.[0];
+
+    const paymentMethod =
+      payment?.payment_method ||
+      {};
+
+    const qrCode =
+      paymentMethod.qr_code ||
+      paymentMethod.qr_code_base64 ||
+      "";
+
+    const qrCodeBase64 =
+      paymentMethod.qr_code_base64 ||
+      "";
+
+    const ticketUrl =
+      paymentMethod.ticket_url ||
+      "";
+
+    // ------------------------------------------
+    // Resposta segura para o frontend
+    // ------------------------------------------
 
     return resposta({
-      error:
-        "Forma de pagamento inválida."
-    }, 400);
+      ok: true,
+
+      orderId:
+        resultado.id ||
+        null,
+
+      status:
+        resultado.status ||
+        payment?.status ||
+        "action_required",
+
+      statusDetail:
+        resultado.status_detail ||
+        payment?.status_detail ||
+        "waiting_transfer",
+
+      paymentId:
+        payment?.id ||
+        null,
+
+      amount:
+        total.toFixed(2),
+
+      qrCode,
+
+      qrCodeBase64,
+
+      ticketUrl,
+
+      externalReference:
+        externalReference
+    });
 
   } catch (erro) {
+    console.error(
+      "Erro criar PIX:",
+      erro
+    );
+
     return resposta({
+      ok: false,
+
       error:
         erro?.message ||
-        "Erro interno ao criar pagamento."
+        "Erro interno ao criar pagamento PIX."
     }, 500);
   }
 }
 
 
 // ======================================================
-// ENVIAR ORDER PARA MERCADO PAGO
-// ======================================================
-
-async function enviarOrderMercadoPago(
-  body,
-  env,
-  referencia
-) {
-  const idempotencyKey =
-    crypto.randomUUID();
-
-  const respostaMP =
-    await fetch(
-      "https://api.mercadopago.com/v1/orders",
-      {
-        method: "POST",
-
-        headers: {
-          "Authorization":
-            `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
-
-          "Content-Type":
-            "application/json",
-
-          "X-Idempotency-Key":
-            idempotencyKey
-        },
-
-        body:
-          JSON.stringify(body)
-      }
-    );
-
-  const resultado =
-    await respostaMP.json();
-
-  if (!respostaMP.ok) {
-    return resposta({
-      error:
-        "O Mercado Pago recusou a criação do pagamento.",
-
-      status:
-        respostaMP.status,
-
-      details:
-        resultado
-    }, respostaMP.status);
-  }
-
-  const payment =
-    resultado
-      ?.transactions
-      ?.payments?.[0];
-
-  return resposta({
-    success: true,
-
-    order_id:
-      resultado.id,
-
-    external_reference:
-      referencia,
-
-    status:
-      resultado.status,
-
-    status_detail:
-      resultado.status_detail,
-
-    payment_id:
-      payment?.id || null,
-
-    payment_status:
-      payment?.status || null,
-
-    payment_status_detail:
-      payment?.status_detail || null,
-
-    payment_method:
-      payment?.payment_method || null
-  }, 201);
-}
-
-
-// ======================================================
-// CONSULTAR ORDER
+// MERCADO PAGO - CONSULTAR ORDER
 // ======================================================
 
 async function consultarPagamento(
@@ -661,12 +689,13 @@ async function consultarPagamento(
   try {
     if (!env.MERCADOPAGO_ACCESS_TOKEN) {
       return resposta({
+        ok: false,
         error:
           "MERCADOPAGO_ACCESS_TOKEN não configurado."
       }, 500);
     }
 
-    const respostaMP =
+    const mpResponse =
       await fetch(
         `https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`,
         {
@@ -676,52 +705,62 @@ async function consultarPagamento(
             "Authorization":
               `Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,
 
-            "Content-Type":
+            "Accept":
               "application/json"
           }
         }
       );
 
     const resultado =
-      await respostaMP.json();
+      await mpResponse.json();
 
-    if (!respostaMP.ok) {
+    if (!mpResponse.ok) {
       return resposta({
+        ok: false,
+
         error:
-          "Não foi possível consultar o pedido no Mercado Pago.",
+          "Não foi possível consultar o pedido.",
 
-        status:
-          respostaMP.status,
-
-        details:
-          resultado
-      }, respostaMP.status);
+        message:
+          resultado?.message ||
+          resultado?.error ||
+          "Erro Mercado Pago."
+      }, mpResponse.status);
     }
 
-    return resposta({
-      success: true,
+    const payment =
+      resultado?.transactions
+        ?.payments?.[0];
 
-      order_id:
-        resultado.id,
+    return resposta({
+      ok: true,
+
+      orderId:
+        resultado.id ||
+        orderId,
 
       status:
-        resultado.status,
+        resultado.status ||
+        payment?.status ||
+        null,
 
-      status_detail:
-        resultado.status_detail,
+      statusDetail:
+        resultado.status_detail ||
+        payment?.status_detail ||
+        null,
 
-      total_amount:
-        resultado.total_amount,
-
-      transactions:
-        resultado.transactions || null
+      paymentId:
+        payment?.id ||
+        null
     });
 
   } catch (erro) {
     return resposta({
+      ok: false,
+
       error:
         erro?.message ||
-        "Erro interno ao consultar pagamento."
+        "Erro ao consultar pagamento."
     }, 500);
   }
 }
@@ -745,7 +784,10 @@ function resposta(
           "application/json; charset=UTF-8",
 
         "Cache-Control":
-          "no-store"
+          "no-store",
+
+        "Access-Control-Allow-Origin":
+          "*"
       }
     }
   );
