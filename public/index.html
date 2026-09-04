@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 
 <html lang="pt-BR">
@@ -312,24 +313,77 @@ a{
     font-size:13px;
     color:#5e7c64;
     margin-top:5px;
-    margin-bottom:22px;
+    margin-bottom:18px;
+}
+
+/* CONTROLE DE QUANTIDADE DO PRODUTO */
+
+.product-buy-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:12px;
+}
+
+.quantity-control{
+    display:flex;
+    align-items:center;
+    border:1px solid #ddd;
+    border-radius:4px;
+    background:#fff;
+    overflow:hidden;
+    min-width:125px;
+}
+
+.quantity-control button{
+    width:38px;
+    height:48px;
+    border:0;
+    background:#f7f7f7;
+    color:#222;
+    font-size:18px;
+}
+
+.quantity-control button:hover{
+    background:#ececec;
+}
+
+.quantity-control span{
+    width:45px;
+    text-align:center;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.add-button,
+.buy-button{
+    flex:1;
+    padding:17px 10px;
+    border-radius:4px;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1px;
+    transition:.2s;
 }
 
 .add-button{
-    width:100%;
-    padding:17px;
     border:0;
-    border-radius:4px;
     background:#151515;
     color:#fff;
-    font-size:11px;
-    font-weight:bold;
-    letter-spacing:1.3px;
-    transition:.2s;
 }
 
 .add-button:hover{
     background:#2c2c2c;
+}
+
+.buy-button{
+    border:1px solid #151515;
+    background:#fff;
+    color:#151515;
+}
+
+.buy-button:hover{
+    background:#151515;
+    color:#fff;
 }
 
 .product-benefits{
@@ -484,6 +538,51 @@ a{
     color:#888;
 }
 
+/* CONTROLES DO CARRINHO */
+
+.cart-quantity{
+    display:flex;
+    align-items:center;
+    margin-top:10px;
+    border:1px solid #ddd;
+    width:max-content;
+    border-radius:5px;
+    overflow:hidden;
+}
+
+.cart-quantity button{
+    width:30px;
+    height:30px;
+    border:0;
+    background:#f5f5f5;
+    font-size:16px;
+}
+
+.cart-quantity button:hover{
+    background:#e8e8e8;
+}
+
+.cart-quantity span{
+    min-width:35px;
+    text-align:center;
+    font-weight:bold;
+    font-size:12px;
+}
+
+.remove-item{
+    margin-top:9px;
+    border:0;
+    background:none;
+    color:#9a4d4d;
+    font-size:11px;
+    text-decoration:underline;
+    padding:0;
+}
+
+.remove-item:hover{
+    color:#c00000;
+}
+
 .shipping{
     border-top:1px solid #eee;
     margin-top:25px;
@@ -629,6 +728,15 @@ a{
     .trust-grid{
         grid-template-columns:1fr;
     }
+
+    .product-buy-row{
+        flex-direction:column;
+    }
+
+    .quantity-control{
+        width:100%;
+        justify-content:center;
+    }
 }
 
 @media(max-width:480px){
@@ -773,6 +881,8 @@ Uma fragrância para lembrar
 
 <div class="products-grid">
 
+<!-- PRODUTO 1 -->
+
 <div class="product-card">
 
 <div class="product-photo">
@@ -819,15 +929,49 @@ R$ 399,00
 ou R$ 379,05 no Pix
 </div>
 
+<div class="product-buy-row">
+
+<div class="quantity-control">
+
+<button onclick="changeProductQuantity('layaan',-1)">
+−
+</button>
+
+<span id="qty-layaan">
+1
+</span>
+
+<button onclick="changeProductQuantity('layaan',1)">
++
+</button>
+
+</div>
+
 <button
 class="add-button"
-onclick="addToCart(
+onclick="addProductWithQuantity(
 'Lattafa Layaan',
 399,
 'Eau de Parfum Feminino • 75ml',
-'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg'
+'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg',
+'layaan'
 )">
-ADICIONAR AO CARRINHO </button>
+ADICIONAR AO CARRINHO
+</button>
+
+</div>
+
+<button
+class="buy-button"
+onclick="buyNow(
+'Lattafa Layaan',
+399,
+'Eau de Parfum Feminino • 75ml',
+'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg',
+'layaan'
+)">
+⚡ COMPRAR AGORA
+</button>
 
 <div class="product-benefits">
 
@@ -840,6 +984,9 @@ ADICIONAR AO CARRINHO </button>
 </div>
 
 </div>
+
+
+<!-- PRODUTO 2 -->
 
 <div class="product-card">
 
@@ -886,15 +1033,49 @@ R$ 329,00
 ou R$ 312,55 no Pix
 </div>
 
+<div class="product-buy-row">
+
+<div class="quantity-control">
+
+<button onclick="changeProductQuantity('liquidbrun',-1)">
+−
+</button>
+
+<span id="qty-liquidbrun">
+1
+</span>
+
+<button onclick="changeProductQuantity('liquidbrun',1)">
++
+</button>
+
+</div>
+
 <button
 class="add-button"
-onclick="addToCart(
+onclick="addProductWithQuantity(
 'French Avenue Liquid Brun',
 329,
 'Eau de Parfum Masculino • 100ml',
-'/perfume.webp'
+'/perfume.webp',
+'liquidbrun'
 )">
-ADICIONAR AO CARRINHO </button>
+ADICIONAR AO CARRINHO
+</button>
+
+</div>
+
+<button
+class="buy-button"
+onclick="buyNow(
+'French Avenue Liquid Brun',
+329,
+'Eau de Parfum Masculino • 100ml',
+'/perfume.webp',
+'liquidbrun'
+)">
+⚡ COMPRAR AGORA
+</button>
 
 <div class="product-benefits">
 
@@ -997,7 +1178,8 @@ Sua essência. Sua presença.
 class="close-cart"
 onclick="closeCart()"
 aria-label="Fechar carrinho">
-× </button>
+×
+</button>
 
 <h2 class="drawer-title">
 Seu carrinho
@@ -1070,7 +1252,8 @@ R$ <span id="totalValue">0,00</span>
 <button
 class="checkout"
 onclick="checkout()">
-IR PARA PAGAMENTO </button>
+IR PARA PAGAMENTO
+</button>
 
 </div>
 
@@ -1081,6 +1264,122 @@ IR PARA PAGAMENTO </button>
 let cart = [];
 let shippingPrice = 0;
 let shippingName = "";
+
+
+/* QUANTIDADE NA PÁGINA DO PRODUTO */
+
+const productQuantities = {
+    layaan:1,
+    liquidbrun:1
+};
+
+function changeProductQuantity(productId, change){
+
+    let quantity =
+        productQuantities[productId] + change;
+
+    if(quantity < 1){
+        quantity = 1;
+    }
+
+    if(quantity > 99){
+        quantity = 99;
+    }
+
+    productQuantities[productId] = quantity;
+
+    document
+        .getElementById("qty-" + productId)
+        .textContent = quantity;
+}
+
+
+/* ADICIONAR PRODUTO COM A QUANTIDADE ESCOLHIDA */
+
+function addProductWithQuantity(
+    name,
+    price,
+    description,
+    image,
+    productId
+){
+
+    const quantity =
+        productQuantities[productId] || 1;
+
+    const existing =
+        cart.find(item => item.name === name);
+
+    if(existing){
+
+        existing.quantity += quantity;
+
+    }else{
+
+        cart.push({
+
+            name:name,
+            price:price,
+            description:description,
+            image:image,
+            quantity:quantity
+
+        });
+
+    }
+
+    renderCart();
+    openCart();
+}
+
+
+/* COMPRAR AGORA */
+
+function buyNow(
+    name,
+    price,
+    description,
+    image,
+    productId
+){
+
+    const quantity =
+        productQuantities[productId] || 1;
+
+    const existing =
+        cart.find(item => item.name === name);
+
+    if(existing){
+
+        existing.quantity += quantity;
+
+    }else{
+
+        cart.push({
+
+            name:name,
+            price:price,
+            description:description,
+            image:image,
+            quantity:quantity
+
+        });
+
+    }
+
+    renderCart();
+    openCart();
+
+    /*
+       Por enquanto o botão abre o carrinho.
+       O pagamento real será integrado
+       na próxima etapa.
+    */
+
+}
+
+
+/* ADICIONAR PADRÃO */
 
 function addToCart(
     name,
@@ -1113,6 +1412,9 @@ function addToCart(
     renderCart();
     openCart();
 }
+
+
+/* RENDERIZAR CARRINHO */
 
 function renderCart(){
 
@@ -1149,6 +1451,9 @@ function renderCart(){
         totalArea.style.display =
             "none";
 
+        shippingPrice = 0;
+        shippingName = "";
+
         return;
     }
 
@@ -1159,7 +1464,7 @@ function renderCart(){
         "block";
 
     cartContent.innerHTML =
-        cart.map(item => `
+        cart.map((item,index) => `
 
         <div class="cart-product">
 
@@ -1179,10 +1484,25 @@ function renderCart(){
                     ${item.description}
                 </small>
 
-                <br><br>
+                <br>
 
-                Quantidade:
-                ${item.quantity}
+                <div class="cart-quantity">
+
+                    <button
+                        onclick="changeCartQuantity(${index},-1)">
+                        −
+                    </button>
+
+                    <span>
+                        ${item.quantity}
+                    </span>
+
+                    <button
+                        onclick="changeCartQuantity(${index},1)">
+                        +
+                    </button>
+
+                </div>
 
                 <br>
 
@@ -1193,6 +1513,14 @@ function renderCart(){
                         .replace(".",",")}
                 </strong>
 
+                <br>
+
+                <button
+                    class="remove-item"
+                    onclick="removeCartItem(${index})">
+                    Remover item
+                </button>
+
             </div>
 
         </div>
@@ -1202,6 +1530,43 @@ function renderCart(){
     updateTotal();
 }
 
+
+/* + E - DO CARRINHO */
+
+function changeCartQuantity(index, change){
+
+    if(!cart[index]){
+        return;
+    }
+
+    cart[index].quantity += change;
+
+    if(cart[index].quantity <= 0){
+
+        cart.splice(index,1);
+
+    }
+
+    renderCart();
+}
+
+
+/* REMOVER ITEM */
+
+function removeCartItem(index){
+
+    if(!cart[index]){
+        return;
+    }
+
+    cart.splice(index,1);
+
+    renderCart();
+}
+
+
+/* ABRIR CARRINHO */
+
 function openCart(){
 
     document
@@ -1209,12 +1574,18 @@ function openCart(){
         .classList.add("open");
 }
 
+
+/* FECHAR CARRINHO */
+
 function closeCart(){
 
     document
         .getElementById("cartDrawer")
         .classList.remove("open");
 }
+
+
+/* ATUALIZAR TOTAL */
 
 function updateTotal(){
 
@@ -1237,6 +1608,9 @@ function updateTotal(){
             .toFixed(2)
             .replace(".",",");
 }
+
+
+/* MÁSCARA DO CEP */
 
 document
     .getElementById("cep")
@@ -1262,6 +1636,9 @@ document
                 value;
         }
     );
+
+
+/* CALCULAR FRETE */
 
 async function calculateShipping(){
 
@@ -1329,6 +1706,7 @@ async function calculateShipping(){
             "Não foi possível consultar o CEP.";
 
     }
+
 
     try{
 
@@ -1520,6 +1898,9 @@ async function calculateShipping(){
 
 }
 
+
+/* CHECKOUT */
+
 function checkout(){
 
     if(cart.length === 0){
@@ -1586,3 +1967,4 @@ function checkout(){
 
 </body>
 </html>
+```
