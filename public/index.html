@@ -1,12 +1,20 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>AURÉA | Perfumes</title>
 
-<meta name="description" content="AURÉA Perfumes — fragrâncias selecionadas para quem transforma presença em memória.">
+<meta
+    name="description"
+    content="AURÉA Perfumes — fragrâncias selecionadas para quem transforma presença em memória."
+>
 
 <style>
 
@@ -972,6 +980,11 @@ a{
     background:#292929;
 }
 
+.checkout-final-button:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}
+
 .checkout-security{
     text-align:center;
     color:#888;
@@ -1009,6 +1022,156 @@ a{
 
 .checkout-delivery-box strong{
     color:#222;
+}
+
+/* ==============================
+   PIX
+============================== */
+
+.pix-result{
+    display:none;
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:7px;
+    padding:24px;
+    text-align:center;
+}
+
+.pix-result.show{
+    display:block;
+}
+
+.pix-result h3{
+    font-family:Georgia,serif;
+    font-size:25px;
+    font-weight:normal;
+    margin-bottom:8px;
+}
+
+.pix-status{
+    font-size:12px;
+    color:#777;
+    margin-bottom:20px;
+}
+
+.pix-qr{
+    width:240px;
+    height:240px;
+    max-width:100%;
+    object-fit:contain;
+    display:block;
+    margin:0 auto 20px;
+    border:1px solid #eee;
+    padding:10px;
+    background:#fff;
+}
+
+.pix-copy-label{
+    display:block;
+    text-align:left;
+    font-size:10px;
+    font-weight:bold;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:#555;
+    margin-bottom:7px;
+}
+
+.pix-copy-row{
+    display:flex;
+    gap:7px;
+}
+
+.pix-copy-input{
+    flex:1;
+    min-width:0;
+    padding:12px;
+    border:1px solid #ddd;
+    border-radius:5px;
+    background:#fafafa;
+    font-size:11px;
+}
+
+.pix-copy-button,
+.pix-open-button{
+    border:0;
+    border-radius:5px;
+    padding:0 14px;
+    background:#151515;
+    color:#fff;
+    font-size:10px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+
+.pix-copy-button:hover,
+.pix-open-button:hover{
+    background:#292929;
+}
+
+.pix-open-button{
+    width:100%;
+    margin-top:10px;
+    padding:14px;
+}
+
+.pix-instructions{
+    text-align:left;
+    margin-top:20px;
+    background:#faf9f7;
+    border:1px solid #e8e4df;
+    border-radius:6px;
+    padding:15px;
+    font-size:11px;
+    color:#666;
+    line-height:1.7;
+}
+
+.pix-instructions strong{
+    color:#222;
+}
+
+.pix-paid{
+    display:none;
+    margin-top:15px;
+    background:#edf7ef;
+    border:1px solid #b8d8be;
+    color:#35623d;
+    border-radius:6px;
+    padding:14px;
+    font-size:12px;
+    line-height:1.5;
+}
+
+.pix-paid.show{
+    display:block;
+}
+
+.pix-order-id{
+    font-size:10px;
+    color:#999;
+    margin-top:12px;
+    word-break:break-all;
+}
+
+/* ==============================
+   CARTÃO - AVISO TEMPORÁRIO
+============================== */
+
+.card-notice{
+    display:none;
+    background:#fff8ed;
+    border:1px solid #ead3a9;
+    color:#775c2c;
+    border-radius:6px;
+    padding:14px;
+    margin-top:15px;
+    font-size:11px;
+    line-height:1.6;
+}
+
+.card-notice.show{
+    display:block;
 }
 
 /* ==============================
@@ -1144,6 +1307,14 @@ a{
 
     .checkout-payment-options{
         grid-template-columns:1fr;
+    }
+
+    .pix-copy-row{
+        flex-direction:column;
+    }
+
+    .pix-copy-button{
+        padding:13px;
     }
 
 }
@@ -1830,9 +2001,7 @@ a{
         <div class="checkout-body">
 
 
-            <!-- ==============================
-                 COLUNA PRINCIPAL
-            ============================== -->
+            <!-- COLUNA PRINCIPAL -->
 
             <div class="checkout-main">
 
@@ -2112,8 +2281,8 @@ a{
 
                             <div class="payment-description">
                                 Pagamento instantâneo.
-                                O código para pagamento será disponibilizado
-                                na etapa de pagamento.
+                                O QR Code e o código PIX serão gerados
+                                automaticamente.
                             </div>
 
                         </label>
@@ -2146,15 +2315,141 @@ a{
 
                     </div>
 
+
+                    <div
+                        class="card-notice"
+                        id="cardNotice">
+
+                        💳 O pagamento por cartão será liberado na próxima
+                        etapa da integração do Mercado Pago.
+                        <br><br>
+                        Nesta etapa estamos ativando primeiro o PIX real
+                        para garantir que todo o fluxo funcione corretamente.
+
+                    </div>
+
+
+                    <!-- RESULTADO PIX -->
+
+                    <div
+                        class="pix-result"
+                        id="pixResult">
+
+                        <h3>
+                            PIX gerado
+                        </h3>
+
+                        <div
+                            class="pix-status"
+                            id="pixStatus">
+
+                            Aguardando pagamento...
+
+                        </div>
+
+
+                        <img
+                            id="pixQrCode"
+                            class="pix-qr"
+                            alt="QR Code PIX"
+                            style="display:none">
+
+
+                        <label class="pix-copy-label">
+                            PIX Copia e Cola
+                        </label>
+
+
+                        <div class="pix-copy-row">
+
+                            <input
+                                id="pixCopyInput"
+                                class="pix-copy-input"
+                                type="text"
+                                readonly
+                                placeholder="Código PIX">
+
+                            <button
+                                type="button"
+                                class="pix-copy-button"
+                                onclick="copyPix()">
+
+                                COPIAR
+
+                            </button>
+
+                        </div>
+
+
+                        <button
+                            type="button"
+                            class="pix-open-button"
+                            id="pixOpenButton"
+                            onclick="openPixTicket()"
+                            style="display:none">
+
+                            ABRIR PAGAMENTO
+
+                        </button>
+
+
+                        <div class="pix-instructions">
+
+                            <strong>
+                                Como pagar:
+                            </strong>
+
+                            <br>
+
+                            1. Abra o aplicativo do seu banco.
+
+                            <br>
+
+                            2. Escolha a opção PIX.
+
+                            <br>
+
+                            3. Escaneie o QR Code ou cole o código PIX.
+
+                            <br>
+
+                            4. Confirme o pagamento.
+
+                            <br>
+
+                            5. Aguarde a confirmação automática da AURÉA.
+
+                        </div>
+
+
+                        <div
+                            class="pix-paid"
+                            id="pixPaid">
+
+                            ✓ Pagamento confirmado!
+
+                            <br>
+
+                            Seu pedido foi identificado pelo
+                            Mercado Pago.
+
+                        </div>
+
+
+                        <div
+                            class="pix-order-id"
+                            id="pixOrderId">
+                        </div>
+
+                    </div>
+
                 </section>
 
 
             </div>
 
 
-            <!-- ==============================
-                 RESUMO DO PEDIDO
-            ============================== -->
+            <!-- RESUMO -->
 
             <aside class="checkout-summary">
 
@@ -2230,6 +2525,7 @@ a{
 
                 <button
                     class="checkout-final-button"
+                    id="finishCheckoutButton"
                     onclick="finishCheckout()">
 
                     CONTINUAR PARA PAGAMENTO
@@ -2241,6 +2537,10 @@ a{
 
                     🔒 Seus dados são utilizados exclusivamente
                     para processar seu pedido e entrega.
+
+                    <br><br>
+
+                    Pagamento processado pelo Mercado Pago.
 
                     <br><br>
 
@@ -2260,9 +2560,9 @@ a{
 
 <script>
 
-/* ==============================
-   CARRINHO
-============================== */
+/* =====================================================
+   ESTADO DO CARRINHO
+===================================================== */
 
 let cart = [];
 
@@ -2274,10 +2574,200 @@ let shippingDays = "";
 
 let selectedPayment = "pix";
 
+let currentPixOrderId = null;
 
-/* ==============================
+let currentPixTicketUrl = "";
+
+let pixPollingTimer = null;
+
+
+/* =====================================================
+   STORAGE
+===================================================== */
+
+const CART_STORAGE_KEY =
+    "aurea_cart_v1";
+
+const CEP_STORAGE_KEY =
+    "aurea_cep_v1";
+
+
+/* =====================================================
+   FORMATAÇÃO
+===================================================== */
+
+function formatMoney(value){
+
+    return Number(value || 0)
+        .toFixed(2)
+        .replace(".",",");
+
+}
+
+
+/* =====================================================
+   SALVAR CARRINHO
+===================================================== */
+
+function saveCart(){
+
+    try{
+
+        localStorage.setItem(
+            CART_STORAGE_KEY,
+            JSON.stringify(cart)
+        );
+
+    }catch(error){
+
+        console.warn(
+            "Não foi possível salvar o carrinho.",
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   CARREGAR CARRINHO
+===================================================== */
+
+function loadCart(){
+
+    try{
+
+        const saved =
+            localStorage.getItem(
+                CART_STORAGE_KEY
+            );
+
+        if(saved){
+
+            const data =
+                JSON.parse(saved);
+
+            if(Array.isArray(data)){
+
+                cart = data;
+
+            }
+
+        }
+
+    }catch(error){
+
+        console.warn(
+            "Não foi possível carregar o carrinho.",
+            error
+        );
+
+        cart = [];
+
+    }
+
+}
+
+
+/* =====================================================
+   SALVAR CEP
+===================================================== */
+
+function saveCep(value){
+
+    const cep =
+        String(value || "")
+            .replace(/\D/g,"")
+            .slice(0,8);
+
+    if(cep.length === 8){
+
+        try{
+
+            localStorage.setItem(
+                CEP_STORAGE_KEY,
+                cep
+            );
+
+        }catch(error){
+
+            console.warn(
+                "Não foi possível salvar o CEP.",
+                error
+            );
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   CARREGAR CEP
+===================================================== */
+
+function loadSavedCep(){
+
+    try{
+
+        const savedCep =
+            localStorage.getItem(
+                CEP_STORAGE_KEY
+            );
+
+        if(
+            savedCep &&
+            /^\d{8}$/.test(savedCep)
+        ){
+
+            return savedCep;
+
+        }
+
+    }catch(error){
+
+        console.warn(
+            "Não foi possível carregar o CEP.",
+            error
+        );
+
+    }
+
+    return "";
+
+}
+
+
+/* =====================================================
+   MÁSCARA CEP
+===================================================== */
+
+function formatCep(value){
+
+    let cep =
+        String(value || "")
+            .replace(/\D/g,"")
+            .slice(0,8);
+
+    if(cep.length > 5){
+
+        cep =
+            cep.slice(0,5) +
+            "-" +
+            cep.slice(5);
+
+    }
+
+    return cep;
+
+}
+
+
+/* =====================================================
    ADICIONAR PRODUTO
-============================== */
+===================================================== */
 
 function addProductWithQuantity(
     name,
@@ -2290,7 +2780,10 @@ function addProductWithQuantity(
     const quantity = 1;
 
     const existing =
-        cart.find(item => item.name === name);
+        cart.find(
+            item =>
+                item.name === name
+        );
 
     if(existing){
 
@@ -2300,15 +2793,27 @@ function addProductWithQuantity(
 
         cart.push({
 
+            id:
+                productId ||
+                name
+                    .toLowerCase()
+                    .replace(/\s+/g,"-"),
+
             name:name,
-            price:price,
+
+            price:Number(price),
+
             description:description,
+
             image:image,
+
             quantity:quantity
 
         });
 
     }
+
+    saveCart();
 
     renderCart();
 
@@ -2317,9 +2822,9 @@ function addProductWithQuantity(
 }
 
 
-/* ==============================
+/* =====================================================
    COMPRAR AGORA
-============================== */
+===================================================== */
 
 function buyNow(
     name,
@@ -2332,7 +2837,10 @@ function buyNow(
     const quantity = 1;
 
     const existing =
-        cart.find(item => item.name === name);
+        cart.find(
+            item =>
+                item.name === name
+        );
 
     if(existing){
 
@@ -2342,15 +2850,27 @@ function buyNow(
 
         cart.push({
 
+            id:
+                productId ||
+                name
+                    .toLowerCase()
+                    .replace(/\s+/g,"-"),
+
             name:name,
-            price:price,
+
+            price:Number(price),
+
             description:description,
+
             image:image,
+
             quantity:quantity
 
         });
 
     }
+
+    saveCart();
 
     renderCart();
 
@@ -2359,9 +2879,9 @@ function buyNow(
 }
 
 
-/* ==============================
+/* =====================================================
    ADICIONAR PADRÃO
-============================== */
+===================================================== */
 
 function addToCart(
     name,
@@ -2371,7 +2891,10 @@ function addToCart(
 ){
 
     const existing =
-        cart.find(item => item.name === name);
+        cart.find(
+            item =>
+                item.name === name
+        );
 
     if(existing){
 
@@ -2381,15 +2904,26 @@ function addToCart(
 
         cart.push({
 
+            id:
+                name
+                    .toLowerCase()
+                    .replace(/\s+/g,"-"),
+
             name:name,
-            price:price,
+
+            price:Number(price),
+
             description:description,
+
             image:image,
+
             quantity:1
 
         });
 
     }
+
+    saveCart();
 
     renderCart();
 
@@ -2398,28 +2932,37 @@ function addToCart(
 }
 
 
-/* ==============================
+/* =====================================================
    RENDERIZAR CARRINHO
-============================== */
+===================================================== */
 
 function renderCart(){
 
     const cartContent =
-        document.getElementById("cartContent");
+        document.getElementById(
+            "cartContent"
+        );
 
     const cartCount =
-        document.getElementById("cartCount");
+        document.getElementById(
+            "cartCount"
+        );
 
     const shippingArea =
-        document.getElementById("shippingArea");
+        document.getElementById(
+            "shippingArea"
+        );
 
     const totalArea =
-        document.getElementById("totalArea");
+        document.getElementById(
+            "totalArea"
+        );
 
     const totalQuantity =
         cart.reduce(
             (sum,item) =>
-                sum + item.quantity,
+                sum +
+                Number(item.quantity || 0),
             0
         );
 
@@ -2444,6 +2987,8 @@ function renderCart(){
 
         shippingDays = "";
 
+        saveCart();
+
         return;
 
     }
@@ -2457,7 +3002,8 @@ function renderCart(){
 
 
     cartContent.innerHTML =
-        cart.map((item,index) => `
+        cart.map(
+            (item,index) => `
 
         <div class="cart-product">
 
@@ -2501,9 +3047,10 @@ function renderCart(){
 
                 <strong>
                     R$
-                    ${(item.price * item.quantity)
-                        .toFixed(2)
-                        .replace(".",",")}
+                    ${formatMoney(
+                        item.price *
+                        item.quantity
+                    )}
                 </strong>
 
                 <br>
@@ -2520,7 +3067,27 @@ function renderCart(){
 
         </div>
 
-        `).join("");
+        `
+        ).join("");
+
+
+    const savedCep =
+        loadSavedCep();
+
+    const cepInput =
+        document.getElementById(
+            "cep"
+        );
+
+    if(
+        savedCep &&
+        !cepInput.value
+    ){
+
+        cepInput.value =
+            formatCep(savedCep);
+
+    }
 
 
     updateTotal();
@@ -2528,11 +3095,14 @@ function renderCart(){
 }
 
 
-/* ==============================
-   + E - DO CARRINHO
-============================== */
+/* =====================================================
+   QUANTIDADE
+===================================================== */
 
-function changeCartQuantity(index,change){
+function changeCartQuantity(
+    index,
+    change
+){
 
     if(!cart[index]){
         return;
@@ -2540,20 +3110,34 @@ function changeCartQuantity(index,change){
 
     cart[index].quantity += change;
 
-    if(cart[index].quantity <= 0){
+    if(
+        cart[index].quantity <= 0
+    ){
 
         cart.splice(index,1);
 
+        shippingPrice = 0;
+        shippingName = "";
+        shippingDays = "";
+
+        document
+            .getElementById(
+                "shippingOptions"
+            )
+            .innerHTML = "";
+
     }
+
+    saveCart();
 
     renderCart();
 
 }
 
 
-/* ==============================
-   REMOVER ITEM
-============================== */
+/* =====================================================
+   REMOVER
+===================================================== */
 
 function removeCartItem(index){
 
@@ -2563,40 +3147,58 @@ function removeCartItem(index){
 
     cart.splice(index,1);
 
+    shippingPrice = 0;
+    shippingName = "";
+    shippingDays = "";
+
+    document
+        .getElementById(
+            "shippingOptions"
+        )
+        .innerHTML = "";
+
+    saveCart();
+
     renderCart();
 
 }
 
 
-/* ==============================
+/* =====================================================
    ABRIR CARRINHO
-============================== */
+===================================================== */
 
 function openCart(){
 
     document
-        .getElementById("cartDrawer")
-        .classList.add("open");
+        .getElementById(
+            "cartDrawer"
+        )
+        .classList
+        .add("open");
 
 }
 
 
-/* ==============================
+/* =====================================================
    FECHAR CARRINHO
-============================== */
+===================================================== */
 
 function closeCart(){
 
     document
-        .getElementById("cartDrawer")
-        .classList.remove("open");
+        .getElementById(
+            "cartDrawer"
+        )
+        .classList
+        .remove("open");
 
 }
 
 
-/* ==============================
+/* =====================================================
    ATUALIZAR TOTAL
-============================== */
+===================================================== */
 
 function updateTotal(){
 
@@ -2604,27 +3206,30 @@ function updateTotal(){
         cart.reduce(
             (sum,item) =>
                 sum +
-                (item.price * item.quantity),
+                (
+                    Number(item.price || 0) *
+                    Number(item.quantity || 0)
+                ),
             0
         );
 
     const total =
         productsTotal +
-        shippingPrice;
+        Number(shippingPrice || 0);
 
     document
-        .getElementById("totalValue")
+        .getElementById(
+            "totalValue"
+        )
         .textContent =
-        total
-            .toFixed(2)
-            .replace(".",",");
+        formatMoney(total);
 
 }
 
 
-/* ==============================
-   MÁSCARA CEP CARRINHO
-============================== */
+/* =====================================================
+   CEP DO CARRINHO
+===================================================== */
 
 document
     .getElementById("cep")
@@ -2632,30 +3237,22 @@ document
         "input",
         function(){
 
-            let value =
-                this.value
-                    .replace(/\D/g,"")
-                    .slice(0,8);
-
-            if(value.length > 5){
-
-                value =
-                    value.slice(0,5) +
-                    "-" +
-                    value.slice(5);
-
-            }
-
             this.value =
-                value;
+                formatCep(
+                    this.value
+                );
+
+            saveCep(
+                this.value
+            );
 
         }
     );
 
 
-/* ==============================
+/* =====================================================
    CALCULAR FRETE
-============================== */
+===================================================== */
 
 async function calculateShipping(){
 
@@ -2671,7 +3268,9 @@ async function calculateShipping(){
 
     const options =
         document
-            .getElementById("shippingOptions");
+            .getElementById(
+                "shippingOptions"
+            );
 
 
     shippingPrice = 0;
@@ -2693,6 +3292,9 @@ async function calculateShipping(){
         return;
 
     }
+
+
+    saveCep(cep);
 
 
     message.textContent =
@@ -2742,7 +3344,8 @@ async function calculateShipping(){
         const totalQuantity =
             cart.reduce(
                 (sum,item) =>
-                    sum + item.quantity,
+                    sum +
+                    Number(item.quantity || 0),
                 0
             );
 
@@ -2843,7 +3446,9 @@ async function calculateShipping(){
 
 
             const option =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
 
             option.className =
@@ -2868,9 +3473,7 @@ async function calculateShipping(){
 
                 <strong>
                     R$
-                    ${price
-                        .toFixed(2)
-                        .replace(".",",")}
+                    ${formatMoney(price)}
                 </strong>
 
             `;
@@ -2886,7 +3489,8 @@ async function calculateShipping(){
                         .forEach(
                             element => {
 
-                                element.classList
+                                element
+                                    .classList
                                     .remove(
                                         "selected"
                                     );
@@ -2952,9 +3556,9 @@ async function calculateShipping(){
 }
 
 
-/* ==============================
+/* =====================================================
    CHECKOUT
-============================== */
+===================================================== */
 
 function checkout(){
 
@@ -2985,34 +3589,67 @@ function checkout(){
     closeCart();
 
     document
-        .getElementById("checkoutOverlay")
-        .classList.add("open");
+        .getElementById(
+            "checkoutOverlay"
+        )
+        .classList
+        .add("open");
 
     document.body.style.overflow =
         "hidden";
 
+
+    // Recupera CEP salvo
+    const savedCep =
+        loadSavedCep();
+
+    const checkoutCep =
+        document.getElementById(
+            "checkoutCep"
+        );
+
+    if(
+        savedCep &&
+        !checkoutCep.value
+    ){
+
+        checkoutCep.value =
+            formatCep(savedCep);
+
+        lookupCheckoutCep(
+            savedCep
+        );
+
+    }
+
 }
 
 
-/* ==============================
+/* =====================================================
    FECHAR CHECKOUT
-============================== */
+===================================================== */
 
 function closeCheckout(){
 
     document
-        .getElementById("checkoutOverlay")
-        .classList.remove("open");
+        .getElementById(
+            "checkoutOverlay"
+        )
+        .classList
+        .remove("open");
 
     document.body.style.overflow =
         "";
 
+
+    stopPixPolling();
+
 }
 
 
-/* ==============================
+/* =====================================================
    RENDERIZAR CHECKOUT
-============================== */
+===================================================== */
 
 function renderCheckout(){
 
@@ -3026,18 +3663,22 @@ function renderCheckout(){
         cart.reduce(
             (sum,item) =>
                 sum +
-                (item.price * item.quantity),
+                (
+                    Number(item.price || 0) *
+                    Number(item.quantity || 0)
+                ),
             0
         );
 
 
     const total =
         subtotal +
-        shippingPrice;
+        Number(shippingPrice || 0);
 
 
     productsContainer.innerHTML =
-        cart.map(item => `
+        cart.map(
+            item => `
 
         <div class="checkout-summary-product">
 
@@ -3062,40 +3703,42 @@ function renderCheckout(){
 
                 <small>
                     R$
-                    ${(item.price * item.quantity)
-                        .toFixed(2)
-                        .replace(".",",")}
+                    ${formatMoney(
+                        item.price *
+                        item.quantity
+                    )}
                 </small>
 
             </div>
 
         </div>
 
-        `).join("");
+        `
+        ).join("");
 
 
     document
-        .getElementById("checkoutSubtotal")
+        .getElementById(
+            "checkoutSubtotal"
+        )
         .textContent =
-        subtotal
-            .toFixed(2)
-            .replace(".",",");
+        formatMoney(subtotal);
 
 
     document
-        .getElementById("checkoutShipping")
+        .getElementById(
+            "checkoutShipping"
+        )
         .textContent =
-        shippingPrice
-            .toFixed(2)
-            .replace(".",",");
+        formatMoney(shippingPrice);
 
 
     document
-        .getElementById("checkoutTotal")
+        .getElementById(
+            "checkoutTotal"
+        )
         .textContent =
-        total
-            .toFixed(2)
-            .replace(".",",");
+        formatMoney(total);
 
 
     const deliveryBox =
@@ -3143,11 +3786,14 @@ function renderCheckout(){
 }
 
 
-/* ==============================
+/* =====================================================
    FORMA DE PAGAMENTO
-============================== */
+===================================================== */
 
-function selectPayment(payment,element){
+function selectPayment(
+    payment,
+    element
+){
 
     selectedPayment =
         payment;
@@ -3157,18 +3803,22 @@ function selectPayment(payment,element){
         .querySelectorAll(
             ".payment-option"
         )
-        .forEach(option => {
+        .forEach(
+            option => {
 
-            option.classList.remove(
-                "selected"
-            );
+                option
+                    .classList
+                    .remove(
+                        "selected"
+                    );
 
-        });
+            }
+        );
 
 
-    element.classList.add(
-        "selected"
-    );
+    element
+        .classList
+        .add("selected");
 
 
     const radio =
@@ -3184,15 +3834,38 @@ function selectPayment(payment,element){
 
     }
 
+
+    const cardNotice =
+        document.getElementById(
+            "cardNotice"
+        );
+
+
+    if(payment === "card"){
+
+        cardNotice
+            .classList
+            .add("show");
+
+    }else{
+
+        cardNotice
+            .classList
+            .remove("show");
+
+    }
+
 }
 
 
-/* ==============================
+/* =====================================================
    MÁSCARA CPF
-============================== */
+===================================================== */
 
 document
-    .getElementById("checkoutCpf")
+    .getElementById(
+        "checkoutCpf"
+    )
     .addEventListener(
         "input",
         function(){
@@ -3236,12 +3909,14 @@ document
     );
 
 
-/* ==============================
+/* =====================================================
    MÁSCARA WHATSAPP
-============================== */
+===================================================== */
 
 document
-    .getElementById("checkoutPhone")
+    .getElementById(
+        "checkoutPhone"
+    )
     .addEventListener(
         "input",
         function(){
@@ -3285,40 +3960,42 @@ document
     );
 
 
-/* ==============================
+/* =====================================================
    MÁSCARA CEP CHECKOUT
-============================== */
+===================================================== */
 
 document
-    .getElementById("checkoutCep")
+    .getElementById(
+        "checkoutCep"
+    )
     .addEventListener(
         "input",
         function(){
 
             let value =
-                this.value
-                    .replace(/\D/g,"")
-                    .slice(0,8);
-
-
-            if(value.length > 5){
-
-                value =
-                    value.slice(0,5) +
-                    "-" +
-                    value.slice(5);
-
-            }
+                formatCep(
+                    this.value
+                );
 
 
             this.value =
                 value;
 
 
-            if(value.replace(/\D/g,"").length === 8){
+            saveCep(value);
+
+
+            const numericCep =
+                value
+                    .replace(/\D/g,"");
+
+
+            if(
+                numericCep.length === 8
+            ){
 
                 lookupCheckoutCep(
-                    value.replace(/\D/g,"")
+                    numericCep
                 );
 
             }
@@ -3327,11 +4004,13 @@ document
     );
 
 
-/* ==============================
-   BUSCAR ENDEREÇO DO CHECKOUT
-============================== */
+/* =====================================================
+   BUSCAR ENDEREÇO
+===================================================== */
 
-async function lookupCheckoutCep(cep){
+async function lookupCheckoutCep(
+    cep
+){
 
     const status =
         document.getElementById(
@@ -3413,21 +4092,68 @@ async function lookupCheckoutCep(cep){
 }
 
 
-/* ==============================
-   FINALIZAR CHECKOUT
-============================== */
+/* =====================================================
+   MOSTRAR ERRO
+===================================================== */
 
-function finishCheckout(){
+function showCheckoutError(
+    message
+){
 
     const errorBox =
         document.getElementById(
             "checkoutError"
         );
 
+    errorBox.innerHTML =
+        message;
+
+    errorBox.classList.add(
+        "show"
+    );
+
+    errorBox.scrollIntoView({
+        behavior:"smooth",
+        block:"center"
+    });
+
+}
+
+
+/* =====================================================
+   LIMPAR ERRO
+===================================================== */
+
+function clearCheckoutError(){
+
+    const errorBox =
+        document.getElementById(
+            "checkoutError"
+        );
 
     errorBox.classList.remove(
         "show"
     );
+
+    errorBox.innerHTML =
+        "";
+
+}
+
+
+/* =====================================================
+   FINALIZAR CHECKOUT
+===================================================== */
+
+async function finishCheckout(){
+
+    clearCheckoutError();
+
+
+    const button =
+        document.getElementById(
+            "finishCheckoutButton"
+        );
 
 
     const name =
@@ -3493,6 +4219,15 @@ function finishCheckout(){
             .trim();
 
 
+    const complement =
+        document
+            .getElementById(
+                "checkoutComplement"
+            )
+            .value
+            .trim();
+
+
     const neighborhood =
         document
             .getElementById(
@@ -3515,6 +4250,16 @@ function finishCheckout(){
         document
             .getElementById(
                 "checkoutState"
+            )
+            .value
+            .trim()
+            .toUpperCase();
+
+
+    const reference =
+        document
+            .getElementById(
+                "checkoutReference"
             )
             .value
             .trim();
@@ -3546,7 +4291,9 @@ function finishCheckout(){
 
 
     if(
-        phone.replace(/\D/g,"").length < 10
+        phone
+            .replace(/\D/g,"")
+            .length < 10
     ){
 
         errors.push(
@@ -3557,7 +4304,9 @@ function finishCheckout(){
 
 
     if(
-        cpf.replace(/\D/g,"").length !== 11
+        cpf
+            .replace(/\D/g,"")
+            .length !== 11
     ){
 
         errors.push(
@@ -3568,7 +4317,9 @@ function finishCheckout(){
 
 
     if(
-        cep.replace(/\D/g,"").length !== 8
+        cep
+            .replace(/\D/g,"")
+            .length !== 8
     ){
 
         errors.push(
@@ -3635,98 +4386,715 @@ function finishCheckout(){
     }
 
 
-    if(errors.length > 0){
+    if(cart.length === 0){
 
-        errorBox.innerHTML =
-            errors
-                .map(error =>
-                    "• " + error
-                )
-                .join("<br>");
-
-
-        errorBox.classList.add(
-            "show"
+        errors.push(
+            "Seu carrinho está vazio."
         );
 
+    }
 
-        window.scrollTo({
-            top:0,
-            behavior:"smooth"
-        });
 
+    if(errors.length > 0){
+
+        showCheckoutError(
+            errors
+                .map(
+                    error =>
+                        "• " + error
+                )
+                .join("<br>")
+        );
 
         return;
 
     }
 
 
-    /*
-       FASE 1:
-       Os dados já estão sendo validados
-       e o checkout está preparado.
+    // =================================================
+    // CARTÃO
+    // =================================================
 
-       O processamento real do pagamento
-       será integrado na FASE 3.
-    */
+    if(selectedPayment === "card"){
 
-    const paymentName =
-        selectedPayment === "pix"
-            ? "PIX"
-            : "Cartão de crédito";
+        showCheckoutError(
+            "💳 O pagamento por cartão ainda está sendo finalizado. Nesta etapa, utilize o PIX. O cartão será ativado na próxima etapa com o ambiente seguro do Mercado Pago."
+        );
+
+        return;
+
+    }
 
 
-    const products =
-        cart
-            .map(
-                item =>
-                    item.name +
-                    " x" +
-                    item.quantity
-            )
-            .join(", ");
-
+    // =================================================
+    // PIX
+    // =================================================
 
     const subtotal =
         cart.reduce(
             (sum,item) =>
                 sum +
-                (item.price * item.quantity),
+                (
+                    Number(item.price || 0) *
+                    Number(item.quantity || 0)
+                ),
             0
         );
 
 
     const total =
-        subtotal +
-        shippingPrice;
+        Number(
+            (
+                subtotal +
+                Number(shippingPrice || 0)
+            ).toFixed(2)
+        );
 
 
-    alert(
+    const payload = {
 
-        "Checkout preenchido com sucesso!\n\n" +
+        paymentMethod:
+            "pix",
 
-        "Cliente: " +
-        name +
+        name:
+            name,
 
-        "\n\nPedido: " +
-        products +
+        email:
+            email,
 
-        "\n\nEntrega: " +
-        shippingName +
+        phone:
+            phone,
 
-        "\nTotal: R$ " +
-        total
-            .toFixed(2)
-            .replace(".",",") +
+        cpf:
+            cpf,
 
-        "\n\nPagamento: " +
-        paymentName +
+        address:{
 
-        "\n\nA próxima etapa será a integração do pagamento real."
+            cep:
+                cep
+                    .replace(/\D/g,""),
 
+            street:
+                street,
+
+            number:
+                number,
+
+            complement:
+                complement,
+
+            neighborhood:
+                neighborhood,
+
+            city:
+                city,
+
+            state:
+                state,
+
+            reference:
+                reference
+
+        },
+
+        shipping:{
+
+            name:
+                shippingName,
+
+            price:
+                Number(
+                    Number(
+                        shippingPrice
+                    ).toFixed(2)
+                ),
+
+            days:
+                shippingDays
+
+        },
+
+        items:
+            cart.map(
+                item => ({
+
+                    id:
+                        item.id ||
+                        item.name,
+
+                    name:
+                        item.name,
+
+                    description:
+                        item.description,
+
+                    price:
+                        Number(
+                            item.price
+                        ),
+
+                    quantity:
+                        Number(
+                            item.quantity
+                        )
+
+                })
+            ),
+
+        total:
+            total
+
+    };
+
+
+    button.disabled =
+        true;
+
+    button.textContent =
+        "GERANDO PIX...";
+
+
+    try{
+
+        const response =
+            await fetch(
+                "/api/pagamento",
+                {
+
+                    method:"POST",
+
+                    headers:{
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+
+                }
+            );
+
+
+        const responseText =
+            await response.text();
+
+
+        let data;
+
+
+        try{
+
+            data =
+                responseText
+                    ? JSON.parse(
+                        responseText
+                    )
+                    : {};
+
+        }catch(error){
+
+            throw new Error(
+                "O servidor retornou uma resposta inválida."
+            );
+
+        }
+
+
+        if(!response.ok){
+
+            throw new Error(
+                data.message ||
+                data.error ||
+                "Não foi possível gerar o PIX."
+            );
+
+        }
+
+
+        if(!data.ok){
+
+            throw new Error(
+                data.message ||
+                data.error ||
+                "Não foi possível gerar o PIX."
+            );
+
+        }
+
+
+        // =============================================
+        // PIX GERADO
+        // =============================================
+
+        currentPixOrderId =
+            data.orderId ||
+            null;
+
+
+        currentPixTicketUrl =
+            data.ticketUrl ||
+            "";
+
+
+        const pixResult =
+            document.getElementById(
+                "pixResult"
+            );
+
+
+        const pixQrCode =
+            document.getElementById(
+                "pixQrCode"
+            );
+
+
+        const pixCopyInput =
+            document.getElementById(
+                "pixCopyInput"
+            );
+
+
+        const pixStatus =
+            document.getElementById(
+                "pixStatus"
+            );
+
+
+        const pixOpenButton =
+            document.getElementById(
+                "pixOpenButton"
+            );
+
+
+        const pixOrderId =
+            document.getElementById(
+                "pixOrderId"
+            );
+
+
+        const pixPaid =
+            document.getElementById(
+                "pixPaid"
+            );
+
+
+        pixPaid.classList.remove(
+            "show"
+        );
+
+
+        // QR Code
+        if(data.qrCodeBase64){
+
+            pixQrCode.src =
+                "data:image/jpeg;base64," +
+                data.qrCodeBase64;
+
+            pixQrCode.style.display =
+                "block";
+
+        }else{
+
+            pixQrCode.style.display =
+                "none";
+
+        }
+
+
+        // Copia e cola
+        pixCopyInput.value =
+            data.qrCode ||
+            "";
+
+
+        if(
+            data.ticketUrl
+        ){
+
+            pixOpenButton.style.display =
+                "block";
+
+        }else{
+
+            pixOpenButton.style.display =
+                "none";
+
+        }
+
+
+        pixStatus.textContent =
+            "Aguardando pagamento...";
+
+
+        pixOrderId.textContent =
+            data.orderId
+                ? "Pedido Mercado Pago: " +
+                  data.orderId
+                : "";
+
+
+        pixResult.classList.add(
+            "show"
+        );
+
+
+        button.textContent =
+            "PIX GERADO — AGUARDANDO PAGAMENTO";
+
+
+        // =============================================
+        // ESCONDE BOTÃO DE NOVA COBRANÇA
+        // =============================================
+
+        button.disabled =
+            true;
+
+
+        // =============================================
+        // INICIA CONSULTA AUTOMÁTICA
+        // =============================================
+
+        startPixPolling();
+
+        // Mostra resultado na tela
+        pixResult.scrollIntoView({
+            behavior:"smooth",
+            block:"center"
+        });
+
+
+    }catch(error){
+
+        console.error(
+            "Erro ao gerar PIX:",
+            error
+        );
+
+
+        showCheckoutError(
+            error.message ||
+            "Não foi possível gerar o PIX."
+        );
+
+
+        button.disabled =
+            false;
+
+
+        button.textContent =
+            "CONTINUAR PARA PAGAMENTO";
+
+    }
+
+}
+
+
+/* =====================================================
+   COPIAR PIX
+===================================================== */
+
+async function copyPix(){
+
+    const input =
+        document.getElementById(
+            "pixCopyInput"
+        );
+
+
+    const value =
+        input.value.trim();
+
+
+    if(!value){
+
+        showCheckoutError(
+            "O código PIX ainda não foi gerado."
+        );
+
+        return;
+
+    }
+
+
+    try{
+
+        await navigator.clipboard.writeText(
+            value
+        );
+
+
+        const button =
+            document.querySelector(
+                ".pix-copy-button"
+            );
+
+
+        const originalText =
+            button.textContent;
+
+
+        button.textContent =
+            "COPIADO ✓";
+
+
+        setTimeout(
+            () => {
+
+                button.textContent =
+                    originalText;
+
+            },
+            2000
+        );
+
+
+    }catch(error){
+
+        input.select();
+
+        document.execCommand(
+            "copy"
+        );
+
+
+        alert(
+            "Código PIX copiado."
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   ABRIR PAGAMENTO PIX
+===================================================== */
+
+function openPixTicket(){
+
+    if(
+        !currentPixTicketUrl
+    ){
+
+        return;
+
+    }
+
+
+    window.open(
+        currentPixTicketUrl,
+        "_blank",
+        "noopener,noreferrer"
     );
 
 }
+
+
+/* =====================================================
+   INICIAR CONSULTA PIX
+===================================================== */
+
+function startPixPolling(){
+
+    stopPixPolling();
+
+
+    if(!currentPixOrderId){
+
+        return;
+
+    }
+
+
+    pixPollingTimer =
+        setInterval(
+            checkPixStatus,
+            7000
+        );
+
+
+    checkPixStatus();
+
+}
+
+
+/* =====================================================
+   PARAR CONSULTA PIX
+===================================================== */
+
+function stopPixPolling(){
+
+    if(pixPollingTimer){
+
+        clearInterval(
+            pixPollingTimer
+        );
+
+        pixPollingTimer =
+            null;
+
+    }
+
+}
+
+
+/* =====================================================
+   CONSULTAR STATUS PIX
+===================================================== */
+
+async function checkPixStatus(){
+
+    if(!currentPixOrderId){
+
+        return;
+
+    }
+
+
+    try{
+
+        const response =
+            await fetch(
+                "/api/pagamento/" +
+                encodeURIComponent(
+                    currentPixOrderId
+                )
+            );
+
+
+        if(!response.ok){
+
+            return;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if(!data.ok){
+
+            return;
+
+        }
+
+
+        const status =
+            String(
+                data.status || ""
+            ).toLowerCase();
+
+
+        const statusDetail =
+            String(
+                data.statusDetail || ""
+            ).toLowerCase();
+
+
+        const pixStatus =
+            document.getElementById(
+                "pixStatus"
+            );
+
+
+        // =============================================
+        // APROVADO
+        // =============================================
+
+        if(
+            status === "processed" ||
+            status === "approved" ||
+            statusDetail === "accredited"
+        ){
+
+            pixStatus.textContent =
+                "✓ Pagamento confirmado pelo Mercado Pago!";
+
+
+            document
+                .getElementById(
+                    "pixPaid"
+                )
+                .classList
+                .add("show");
+
+
+            stopPixPolling();
+
+            return;
+
+        }
+
+
+        // =============================================
+        // CANCELADO / EXPIRADO
+        // =============================================
+
+        if(
+            status === "cancelled" ||
+            status === "canceled" ||
+            status === "expired" ||
+            statusDetail.includes("expired")
+        ){
+
+            pixStatus.textContent =
+                "O PIX expirou ou foi cancelado.";
+
+
+            stopPixPolling();
+
+            return;
+
+        }
+
+
+        // =============================================
+        // AGUARDANDO
+        // =============================================
+
+        pixStatus.textContent =
+            "Aguardando pagamento...";
+
+    }catch(error){
+
+        console.warn(
+            "Não foi possível consultar o status do PIX.",
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   INICIALIZAÇÃO
+===================================================== */
+
+loadCart();
+
+renderCart();
+
+
+const initialCep =
+    loadSavedCep();
+
+
+if(initialCep){
+
+    const cepInput =
+        document.getElementById(
+            "cep"
+        );
+
+    cepInput.value =
+        formatCep(initialCep);
+
+}
+
 
 </script>
 
