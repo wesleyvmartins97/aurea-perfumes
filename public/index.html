@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 
 <html lang="pt-BR">
@@ -316,42 +315,10 @@ a{
     margin-bottom:18px;
 }
 
-/* CONTROLE DE QUANTIDADE DO PRODUTO */
-
 .product-buy-row{
     display:flex;
     gap:10px;
     margin-bottom:12px;
-}
-
-.quantity-control{
-    display:flex;
-    align-items:center;
-    border:1px solid #ddd;
-    border-radius:4px;
-    background:#fff;
-    overflow:hidden;
-    min-width:125px;
-}
-
-.quantity-control button{
-    width:38px;
-    height:48px;
-    border:0;
-    background:#f7f7f7;
-    color:#222;
-    font-size:18px;
-}
-
-.quantity-control button:hover{
-    background:#ececec;
-}
-
-.quantity-control span{
-    width:45px;
-    text-align:center;
-    font-size:14px;
-    font-weight:bold;
 }
 
 .add-button,
@@ -537,8 +504,6 @@ a{
 .cart-product-info small{
     color:#888;
 }
-
-/* CONTROLES DO CARRINHO */
 
 .cart-quantity{
     display:flex;
@@ -731,11 +696,6 @@ a{
 
     .product-buy-row{
         flex-direction:column;
-    }
-
-    .quantity-control{
-        width:100%;
-        justify-content:center;
     }
 }
 
@@ -931,22 +891,6 @@ ou R$ 379,05 no Pix
 
 <div class="product-buy-row">
 
-<div class="quantity-control">
-
-<button onclick="changeProductQuantity('layaan',-1)">
-−
-</button>
-
-<span id="qty-layaan">
-1
-</span>
-
-<button onclick="changeProductQuantity('layaan',1)">
-+
-</button>
-
-</div>
-
 <button
 class="add-button"
 onclick="addProductWithQuantity(
@@ -956,8 +900,7 @@ onclick="addProductWithQuantity(
 'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg',
 'layaan'
 )">
-ADICIONAR AO CARRINHO
-</button>
+ADICIONAR AO CARRINHO </button>
 
 </div>
 
@@ -970,8 +913,7 @@ onclick="buyNow(
 'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg',
 'layaan'
 )">
-⚡ COMPRAR AGORA
-</button>
+⚡ COMPRAR AGORA </button>
 
 <div class="product-benefits">
 
@@ -984,7 +926,6 @@ onclick="buyNow(
 </div>
 
 </div>
-
 
 <!-- PRODUTO 2 -->
 
@@ -1035,22 +976,6 @@ ou R$ 312,55 no Pix
 
 <div class="product-buy-row">
 
-<div class="quantity-control">
-
-<button onclick="changeProductQuantity('liquidbrun',-1)">
-−
-</button>
-
-<span id="qty-liquidbrun">
-1
-</span>
-
-<button onclick="changeProductQuantity('liquidbrun',1)">
-+
-</button>
-
-</div>
-
 <button
 class="add-button"
 onclick="addProductWithQuantity(
@@ -1060,8 +985,7 @@ onclick="addProductWithQuantity(
 '/perfume.webp',
 'liquidbrun'
 )">
-ADICIONAR AO CARRINHO
-</button>
+ADICIONAR AO CARRINHO </button>
 
 </div>
 
@@ -1074,8 +998,7 @@ onclick="buyNow(
 '/perfume.webp',
 'liquidbrun'
 )">
-⚡ COMPRAR AGORA
-</button>
+⚡ COMPRAR AGORA </button>
 
 <div class="product-benefits">
 
@@ -1178,8 +1101,7 @@ Sua essência. Sua presença.
 class="close-cart"
 onclick="closeCart()"
 aria-label="Fechar carrinho">
-×
-</button>
+× </button>
 
 <h2 class="drawer-title">
 Seu carrinho
@@ -1252,8 +1174,7 @@ R$ <span id="totalValue">0,00</span>
 <button
 class="checkout"
 onclick="checkout()">
-IR PARA PAGAMENTO
-</button>
+IR PARA PAGAMENTO </button>
 
 </div>
 
@@ -1266,35 +1187,7 @@ let shippingPrice = 0;
 let shippingName = "";
 
 
-/* QUANTIDADE NA PÁGINA DO PRODUTO */
-
-const productQuantities = {
-    layaan:1,
-    liquidbrun:1
-};
-
-function changeProductQuantity(productId, change){
-
-    let quantity =
-        productQuantities[productId] + change;
-
-    if(quantity < 1){
-        quantity = 1;
-    }
-
-    if(quantity > 99){
-        quantity = 99;
-    }
-
-    productQuantities[productId] = quantity;
-
-    document
-        .getElementById("qty-" + productId)
-        .textContent = quantity;
-}
-
-
-/* ADICIONAR PRODUTO COM A QUANTIDADE ESCOLHIDA */
+/* ADICIONAR PRODUTO */
 
 function addProductWithQuantity(
     name,
@@ -1304,8 +1197,7 @@ function addProductWithQuantity(
     productId
 ){
 
-    const quantity =
-        productQuantities[productId] || 1;
+    const quantity = 1;
 
     const existing =
         cart.find(item => item.name === name);
@@ -1343,8 +1235,7 @@ function buyNow(
     productId
 ){
 
-    const quantity =
-        productQuantities[productId] || 1;
+    const quantity = 1;
 
     const existing =
         cart.find(item => item.name === name);
@@ -1967,4 +1858,3 @@ function checkout(){
 
 </body>
 </html>
-```
