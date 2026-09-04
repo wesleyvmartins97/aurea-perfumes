@@ -2,9 +2,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // ================================
+    // ==================================================
     // MELHOR ENVIO
-    // ================================
+    // ==================================================
     if (
       url.pathname === "/api/frete" &&
       request.method === "POST"
@@ -12,9 +12,9 @@ export default {
       return calcularFrete(request, env);
     }
 
-    // ================================
-    // MERCADO PAGO - PIX
-    // ================================
+    // ==================================================
+    // MERCADO PAGO - CRIAR PIX
+    // ==================================================
     if (
       url.pathname === "/api/pagamento" &&
       request.method === "POST"
@@ -22,15 +22,15 @@ export default {
       return criarPagamentoPix(request, env);
     }
 
-    // ================================
-    // CONSULTAR PEDIDO MERCADO PAGO
-    // ================================
+    // ==================================================
+    // MERCADO PAGO - CONSULTAR PEDIDO
+    // ==================================================
     if (
       url.pathname.startsWith("/api/pagamento/") &&
       request.method === "GET"
     ) {
       const orderId = url.pathname
-        .replace("/api/pagamento/", "")
+        .substring("/api/pagamento/".length)
         .trim();
 
       if (!orderId) {
@@ -43,6 +43,9 @@ export default {
       return consultarPagamento(orderId, env);
     }
 
+    // ==================================================
+    // WORKER
+    // ==================================================
     return new Response(
       "AURÉA Worker funcionando.",
       {
@@ -92,13 +95,10 @@ async function calcularFrete(request, env) {
     const produto =
       dados.produto || {};
 
-    const quantidade =
-      Math.max(
-        1,
-        Number(
-          dados.quantidade || 1
-        )
-      );
+    const quantidade = Math.max(
+      1,
+      Number(dados.quantidade || 1)
+    );
 
     const consulta = {
       from: {
@@ -241,6 +241,10 @@ async function criarPagamentoPix(
   env
 ) {
   try {
+    // -----------------------------------------------
+    // Verifica token
+    // -----------------------------------------------
+
     if (!env.MERCADOPAGO_ACCESS_TOKEN) {
       return resposta({
         ok: false,
@@ -249,21 +253,50 @@ async function criarPagamentoPix(
       }, 500);
     }
 
+    // -----------------------------------------------
+    // Lê os dados
+    // -----------------------------------------------
+
     const dados =
       await request.json();
 
-    const paymentMethod =
+    // -----------------------------------------------
+    // Método de pagamento
+    // -----------------------------------------------
+
+    const metodoSolicitado =
       String(
         dados.paymentMethod || ""
-      ).toLowerCase();
+      ).trim().toLowerCase();
 
-    if (paymentMethod !== "pix") {
+    if (metodoSolicitado !== "pix") {
       return resposta({
         ok: false,
         error:
-          "Neste momento apenas PIX está disponível."
+          "Neste momento o pagamento disponível é PIX."
       }, 400);
     }
+
+    // -----------------------------------------------
+    // Nome
+    // -----------------------------------------------
+
+    const nome =
+      String(
+        dados.name || ""
+      ).trim();
+
+    if (nome.length < 3) {
+      return resposta({
+        ok: false,
+        error:
+          "Nome inválido."
+      }, 400);
+    }
+
+    // -----------------------------------------------
+    // E-mail
+    // -----------------------------------------------
 
     const email =
       String(
@@ -283,18 +316,9 @@ async function criarPagamentoPix(
       }, 400);
     }
 
-    const name =
-      String(
-        dados.name || ""
-      ).trim();
-
-    if (name.length < 3) {
-      return resposta({
-        ok: false,
-        error:
-          "Nome inválido."
-      }, 400);
-    }
+    // -----------------------------------------------
+    // CPF
+    // -----------------------------------------------
 
     const cpf =
       String(
@@ -309,18 +333,35 @@ async function criarPagamentoPix(
       }, 400);
     }
 
-    const items =
+    // -----------------------------------------------
+    // Telefone
+    // -----------------------------------------------
+
+    const telefone =
+      String(
+        dados.phone || ""
+      ).replace(/\D/g, "");
+
+    // -----------------------------------------------
+    // Carrinho
+    // -----------------------------------------------
+
+    const itens =
       Array.isArray(dados.items)
         ? dados.items
         : [];
 
-    if (!items.length) {
+    if (itens.length === 0) {
       return resposta({
         ok: false,
         error:
           "Carrinho vazio."
       }, 400);
     }
+
+    // -----------------------------------------------
+    // Total
+    // -----------------------------------------------
 
     const total =
       Number(dados.total);
@@ -336,17 +377,21 @@ async function criarPagamentoPix(
       }, 400);
     }
 
-    const shipping =
+    // -----------------------------------------------
+    // Frete
+    // -----------------------------------------------
+
+    const frete =
       dados.shipping || {};
 
-    const shippingPrice =
+    const valorFrete =
       Number(
-        shipping.price || 0
+        frete.price || 0
       );
 
     if (
-      !Number.isFinite(shippingPrice) ||
-      shippingPrice < 0
+      !Number.isFinite(valorFrete) ||
+      valorFrete < 0
     ) {
       return resposta({
         ok: false,
@@ -355,51 +400,30 @@ async function criarPagamentoPix(
       }, 400);
     }
 
-    // ------------------------------------------
-    // Nome
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Divide o nome
+    // -----------------------------------------------
 
     const partesNome =
-      name
+      nome
         .split(/\s+/)
         .filter(Boolean);
 
-    const firstName =
+    const primeiroNome =
       partesNome.shift() ||
       "Cliente";
 
-    const lastName =
+    const sobrenome =
       partesNome.join(" ") ||
       "AUREA";
 
-    // ------------------------------------------
-    // Telefone
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Produtos para Mercado Pago
+    // -----------------------------------------------
 
-    const phone =
-      String(
-        dados.phone || ""
-      ).replace(/\D/g, "");
-
-    // ------------------------------------------
-    // Endereço
-    // ------------------------------------------
-
-    const address =
-      dados.address || {};
-
-    const cep =
-      String(
-        address.cep || ""
-      ).replace(/\D/g, "");
-
-    // ------------------------------------------
-    // Produtos
-    // ------------------------------------------
-
-    const mercadoPagoItems =
-      items.map((item, index) => {
-        const quantity =
+    const produtosMercadoPago =
+      itens.map((item, indice) => {
+        const quantidade =
           Math.max(
             1,
             Number(
@@ -407,7 +431,7 @@ async function criarPagamentoPix(
             )
           );
 
-        const price =
+        const preco =
           Number(
             item.price || 0
           );
@@ -416,13 +440,13 @@ async function criarPagamentoPix(
           id:
             String(
               item.id ||
-              `AUREA-${index + 1}`
+              `AUREA-${indice + 1}`
             ),
 
           title:
             String(
               item.name ||
-              "Perfume AURÉA"
+              "Produto AURÉA"
             ),
 
           description:
@@ -432,34 +456,47 @@ async function criarPagamentoPix(
               "Produto AURÉA Perfumes"
             ),
 
-          quantity,
+          quantity:
+            quantidade,
 
           unit_price:
             Number(
-              price.toFixed(2)
+              preco.toFixed(2)
             )
         };
       });
 
-    // ------------------------------------------
-    // Referência externa
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Endereço
+    // -----------------------------------------------
 
-    const externalReference =
+    const endereco =
+      dados.address || {};
+
+    const cep =
+      String(
+        endereco.cep || ""
+      ).replace(/\D/g, "");
+
+    // -----------------------------------------------
+    // Referência única do pedido
+    // -----------------------------------------------
+
+    const referencia =
       `AUREA-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
-    // ------------------------------------------
-    // Order Mercado Pago
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Monta pedido Mercado Pago
+    // -----------------------------------------------
 
-    const order = {
+    const pedido = {
       type: "online",
 
       processing_mode:
         "automatic",
 
       external_reference:
-        externalReference,
+        referencia,
 
       total_amount:
         total.toFixed(2),
@@ -468,7 +505,7 @@ async function criarPagamentoPix(
         "Pedido AURÉA Perfumes",
 
       items:
-        mercadoPagoItems,
+        produtosMercadoPago,
 
       transactions: {
         payments: [
@@ -481,7 +518,6 @@ async function criarPagamentoPix(
               type: "bank_transfer"
             },
 
-            // PIX válido por 24 horas
             expiration_time:
               "PT24H"
           }
@@ -489,13 +525,13 @@ async function criarPagamentoPix(
       },
 
       payer: {
-        email,
+        email: email,
 
         first_name:
-          firstName,
+          primeiroNome,
 
         last_name:
-          lastName,
+          sobrenome,
 
         identification: {
           type: "CPF",
@@ -504,50 +540,46 @@ async function criarPagamentoPix(
       }
     };
 
-    // ------------------------------------------
-    // Adiciona telefone
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Telefone
+    // -----------------------------------------------
 
-    if (phone.length >= 10) {
-      order.payer.phone = {
+    if (telefone.length >= 10) {
+      pedido.payer.phone = {
         area_code:
-          phone.slice(
-            0,
-            2
-          ),
+          telefone.substring(0, 2),
 
         number:
-          phone.slice(
-            2
-          )
+          telefone.substring(2)
       };
     }
 
-    // ------------------------------------------
-    // Adiciona endereço
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Endereço
+    // -----------------------------------------------
 
     if (/^\d{8}$/.test(cep)) {
-      order.payer.address = {
-        zip_code: cep,
+      pedido.payer.address = {
+        zip_code:
+          cep,
 
         street_name:
           String(
-            address.street || ""
+            endereco.street || ""
           ).trim(),
 
         street_number:
           String(
-            address.number || ""
+            endereco.number || ""
           ).trim()
       };
     }
 
-    // ------------------------------------------
-    // Chamada Mercado Pago
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Envia para Mercado Pago
+    // -----------------------------------------------
 
-    const mpResponse =
+    const respostaMercadoPago =
       await fetch(
         "https://api.mercadopago.com/v1/orders",
         {
@@ -568,16 +600,20 @@ async function criarPagamentoPix(
           },
 
           body:
-            JSON.stringify(order)
+            JSON.stringify(pedido)
         }
       );
 
     const resultado =
-      await mpResponse.json();
+      await respostaMercadoPago.json();
 
-    if (!mpResponse.ok) {
+    // -----------------------------------------------
+    // Erro Mercado Pago
+    // -----------------------------------------------
+
+    if (!respostaMercadoPago.ok) {
       console.error(
-        "Mercado Pago error:",
+        "Erro Mercado Pago:",
         JSON.stringify(resultado)
       );
 
@@ -590,42 +626,39 @@ async function criarPagamentoPix(
         message:
           resultado?.message ||
           resultado?.error ||
-          "Erro ao criar PIX.",
+          "Não foi possível criar o PIX.",
 
         details:
-          resultado?.cause ||
-          undefined
-      }, mpResponse.status);
+          resultado?.cause || null
+      }, respostaMercadoPago.status);
     }
 
-    // ------------------------------------------
-    // Encontrar pagamento
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Dados do pagamento
+    // -----------------------------------------------
 
-    const payment =
+    const pagamento =
       resultado?.transactions
         ?.payments?.[0];
 
-    const paymentMethod =
-      payment?.payment_method ||
-      {};
+    const dadosMetodoPagamento =
+      pagamento?.payment_method || {};
 
-    const qrCode =
-      paymentMethod.qr_code ||
-      paymentMethod.qr_code_base64 ||
+    const codigoPix =
+      dadosMetodoPagamento.qr_code ||
       "";
 
     const qrCodeBase64 =
-      paymentMethod.qr_code_base64 ||
+      dadosMetodoPagamento.qr_code_base64 ||
       "";
 
     const ticketUrl =
-      paymentMethod.ticket_url ||
+      dadosMetodoPagamento.ticket_url ||
       "";
 
-    // ------------------------------------------
-    // Resposta segura para o frontend
-    // ------------------------------------------
+    // -----------------------------------------------
+    // Retorna somente dados necessários
+    // -----------------------------------------------
 
     return resposta({
       ok: true,
@@ -634,36 +667,39 @@ async function criarPagamentoPix(
         resultado.id ||
         null,
 
+      paymentId:
+        pagamento?.id ||
+        null,
+
       status:
         resultado.status ||
-        payment?.status ||
+        pagamento?.status ||
         "action_required",
 
       statusDetail:
         resultado.status_detail ||
-        payment?.status_detail ||
+        pagamento?.status_detail ||
         "waiting_transfer",
-
-      paymentId:
-        payment?.id ||
-        null,
 
       amount:
         total.toFixed(2),
 
-      qrCode,
+      qrCode:
+        codigoPix,
 
-      qrCodeBase64,
+      qrCodeBase64:
+        qrCodeBase64,
 
-      ticketUrl,
+      ticketUrl:
+        ticketUrl,
 
       externalReference:
-        externalReference
+        referencia
     });
 
   } catch (erro) {
     console.error(
-      "Erro criar PIX:",
+      "Erro interno PIX:",
       erro
     );
 
@@ -679,7 +715,7 @@ async function criarPagamentoPix(
 
 
 // ======================================================
-// MERCADO PAGO - CONSULTAR ORDER
+// MERCADO PAGO - CONSULTAR PAGAMENTO
 // ======================================================
 
 async function consultarPagamento(
@@ -695,7 +731,7 @@ async function consultarPagamento(
       }, 500);
     }
 
-    const mpResponse =
+    const respostaMercadoPago =
       await fetch(
         `https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`,
         {
@@ -712,9 +748,9 @@ async function consultarPagamento(
       );
 
     const resultado =
-      await mpResponse.json();
+      await respostaMercadoPago.json();
 
-    if (!mpResponse.ok) {
+    if (!respostaMercadoPago.ok) {
       return resposta({
         ok: false,
 
@@ -724,11 +760,11 @@ async function consultarPagamento(
         message:
           resultado?.message ||
           resultado?.error ||
-          "Erro Mercado Pago."
-      }, mpResponse.status);
+          "Erro do Mercado Pago."
+      }, respostaMercadoPago.status);
     }
 
-    const payment =
+    const pagamento =
       resultado?.transactions
         ?.payments?.[0];
 
@@ -741,16 +777,16 @@ async function consultarPagamento(
 
       status:
         resultado.status ||
-        payment?.status ||
+        pagamento?.status ||
         null,
 
       statusDetail:
         resultado.status_detail ||
-        payment?.status_detail ||
+        pagamento?.status_detail ||
         null,
 
       paymentId:
-        payment?.id ||
+        pagamento?.id ||
         null
     });
 
