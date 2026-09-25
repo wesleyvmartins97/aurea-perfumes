@@ -75,12 +75,19 @@ async function calcularFrete(request, env) {
       );
     }
 
-    const produto = dados.produto || {};
+    const produtos = Array.isArray(dados.produtos) && dados.produtos.length
+      ? dados.produtos
+      : [dados.produto || {}];
 
-    const quantidade = Math.max(
-      1,
-      Number(dados.quantidade || 1)
-    );
+    const itens = produtos.map((produto) => ({
+      id: String(produto.id || produto.nome || "Perfume AUREA"),
+      width: Number(produto.largura || produto.width || 12),
+      height: Number(produto.altura || produto.height || 12),
+      length: Number(produto.comprimento || produto.length || 20),
+      weight: Number(produto.peso || produto.weight || 0.6),
+      insurance_value: Number(produto.valor || produto.price || 0),
+      quantity: Math.max(1, Number(produto.quantidade || produto.qty || 1))
+    }));
 
     const consulta = {
       from: {
@@ -93,35 +100,7 @@ async function calcularFrete(request, env) {
         postal_code: cep
       },
 
-      products: [
-        {
-          id: String(
-            produto.nome || "Perfume AURÉA"
-          ),
-
-          width: Number(
-            produto.largura || 20
-          ),
-
-          height: Number(
-            produto.altura || 10
-          ),
-
-          length: Number(
-            produto.comprimento || 15
-          ),
-
-          weight: Number(
-            produto.peso || 0.6
-          ),
-
-          insurance_value: Number(
-            produto.valor || 0
-          ),
-
-          quantity: quantidade
-        }
-      ]
+      products: itens
     };
 
     const respostaMelhorEnvio = await fetch(
