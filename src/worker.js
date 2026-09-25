@@ -51,7 +51,16 @@ function sessionCookie(token,maxAge=2592000){return "aurea_session="+encodeURICo
 async function authRegister(request,env){
  try{await ensureAuthSchema(env);const d=await request.json();const name=String(d.name||"").trim();const email=String(d.email||"").trim().toLowerCase();const pass=String(d.password||"");
  if(name.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(pass.length<8)return resposta({ok:false,error:"A senha precisa ter pelo menos 8 caracteres."},400);
- const exists=await env.DB.prepare("SELECT id,email_verified FROM customers WHERE email=?").bind(email).first();if(exists)return resposta({ok:false,error:"Já existe uma conta com este e-mail. Use ENTRAR."},409);
+ const exists=await env.DB.prepare("SELECT id,name,email_verified FROM customers WHERE email=?").bind(email).first();
+ if(exists){
+  if(exists.email_verified)return resposta({ok:false,error:"Já existe uma conta confirmada com este e-mail. Use ENTRAR."},409);
+  await env.DB.prepare("DELETE FROM email_verifications WHERE customer_id=?").bind(exists.id).run();
+  const token=randomToken(),th=await sha256(token),now=new Date().toISOString(),exp=new Date(Date.now()+24*3600e3).toISOString();
+  await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),exists.id,th,exp,now).run();
+  const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);
+  const mail=await sendVerification(env,email,name||exists.name,verifyUrl.toString());
+  return mail.ok?resposta({ok:true,needsVerification:true,emailSent:true,message:"Este cadastro ainda não estava confirmado. Enviamos um novo e-mail de confirmação."}):resposta({ok:false,error:"O cadastro existe, mas não foi possível enviar a confirmação. Verifique a configuração de e-mail do site."},502);
+ }
  const id=crypto.randomUUID(),now=new Date().toISOString();let hp;try{hp=await hashPassword(pass)}catch(e){console.error("PBKDF2 indisponível, usando SHA-256 com salt:",e);const salt=randomToken();hp={salt,hash:await sha256(salt+":"+pass)}}await env.DB.prepare("INSERT INTO customers(id,name,email,password_hash,password_salt,email_verified,created_at,updated_at) VALUES(?,?,?,?,?,0,?,?)").bind(id,name,email,hp.hash,hp.salt,now,now).run();
  const token=randomToken(),th=await sha256(token),exp=new Date(Date.now()+24*3600e3).toISOString();await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),id,th,exp,now).run();
  const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);const mail=await sendVerification(env,email,name,verifyUrl.toString());
@@ -59,8 +68,8 @@ async function authRegister(request,env){
  }catch(e){console.error("Registro:",e);const m=String(e&&e.message||e||"erro desconhecido");return resposta({ok:false,error:"Não foi possível criar a conta agora.",detail:m.slice(0,300)},500)}
 }
 async function sendVerification(env,email,name,url){
- if(!env.RESEND_API_KEY)return {ok:false};
- try{const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.AUREA_EMAIL_FROM||"AURÉA Perfumes <onboarding@resend.dev>",to:[email],subject:"Confirme sua conta na AURÉA Perfumes",html:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h1>AURÉA Perfumes</h1><p>Olá, '+escapeHtml(name)+'.</p><p>Confirme seu e-mail para ativar sua conta.</p><p><a style="display:inline-block;padding:13px 20px;background:#171513;color:#fff;text-decoration:none" href="'+escapeHtml(url)+'">CONFIRMAR MEU E-MAIL</a></p><p>Este link expira em 24 horas.</p></div>'})});if(!r.ok)console.error("Resend:",await r.text());return {ok:r.ok}}catch(e){console.error("Resend:",e);return {ok:false}}
+ if(!env.RESEND_API_KEY){console.error("Resend: RESEND_API_KEY ausente");return {ok:false,error:"missing_api_key"}};
+ try{const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.AUREA_EMAIL_FROM||"AURÉA Perfumes <onboarding@resend.dev>",to:[email],subject:"Confirme sua conta na AURÉA Perfumes",html:'<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h1>AURÉA Perfumes</h1><p>Olá, '+escapeHtml(name)+'.</p><p>Confirme seu e-mail para ativar sua conta.</p><p><a style="display:inline-block;padding:13px 20px;background:#171513;color:#fff;text-decoration:none" href="'+escapeHtml(url)+'">CONFIRMAR MEU E-MAIL</a></p><p>Este link expira em 24 horas.</p></div>'})});if(!r.ok){const detail=await r.text();console.error("Resend:",r.status,detail);return {ok:false,status:r.status,detail}}return {ok:true}}catch(e){console.error("Resend:",e);return {ok:false,error:String(e&&e.message||e)}}
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function authVerify(url,env){
