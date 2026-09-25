@@ -48,25 +48,14 @@ async function hashPassword(password,saltB64){
 function validEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)}
 function cookieToken(request){const c=request.headers.get("Cookie")||"";const m=c.match(/(?:^|;\s*)aurea_session=([^;]+)/);return m?decodeURIComponent(m[1]):""}
 function sessionCookie(token,maxAge=2592000){return "aurea_session="+encodeURIComponent(token)+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge}
-function emailVerificationEnabled(env){const from=String(env.AUREA_EMAIL_FROM||"").trim();return !!env.RESEND_API_KEY && !!from && !/@resend\.dev\b/i.test(from)}
 async function authRegister(request,env){
  try{await ensureAuthSchema(env);const d=await request.json();const name=String(d.name||"").trim();const email=String(d.email||"").trim().toLowerCase();const pass=String(d.password||"");
  if(name.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(pass.length<8)return resposta({ok:false,error:"A senha precisa ter pelo menos 8 caracteres."},400);
  const exists=await env.DB.prepare("SELECT id,email_verified FROM customers WHERE email=?").bind(email).first();if(exists)return resposta({ok:false,error:"Já existe uma conta com este e-mail. Use ENTRAR."},409);
  const id=crypto.randomUUID(),now=new Date().toISOString();let hp;try{hp=await hashPassword(pass)}catch(e){console.error("PBKDF2 indisponível, usando SHA-256 com salt:",e);const salt=randomToken();hp={salt,hash:await sha256(salt+":"+pass)}}await env.DB.prepare("INSERT INTO customers(id,name,email,password_hash,password_salt,email_verified,created_at,updated_at) VALUES(?,?,?,?,?,0,?,?)").bind(id,name,email,hp.hash,hp.salt,now,now).run();
  const token=randomToken(),th=await sha256(token),exp=new Date(Date.now()+24*3600e3).toISOString();await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),id,th,exp,now).run();
- const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);
- const requireVerification=emailVerificationEnabled(env);
- if(!requireVerification){
-  await env.DB.batch([
-   env.DB.prepare("UPDATE customers SET email_verified=1,updated_at=? WHERE id=?").bind(new Date().toISOString(),id),
-   env.DB.prepare("DELETE FROM email_verifications WHERE customer_id=?").bind(id)
-  ]);
-  return resposta({ok:true,needsVerification:false,emailSent:false,message:"Conta criada com sucesso. Você já pode entrar."});
- }
- const mail=await sendVerification(env,email,name,verifyUrl.toString());
- if(!mail.ok)return resposta({ok:false,error:"Não foi possível enviar o e-mail de confirmação agora. Tente novamente em instantes."},502);
- return resposta({ok:true,needsVerification:true,emailSent:true,message:"Conta criada. Enviamos um e-mail para confirmar seu cadastro."});
+ const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);const mail=await sendVerification(env,email,name,verifyUrl.toString());
+ return resposta({ok:true,needsVerification:true,emailSent:mail.ok,message:mail.ok?"Conta criada. Enviamos um e-mail para confirmar seu cadastro.":"Conta criada, mas o e-mail de confirmação ainda não pôde ser enviado. O remetente do Resend precisa ser configurado."});
  }catch(e){console.error("Registro:",e);const m=String(e&&e.message||e||"erro desconhecido");return resposta({ok:false,error:"Não foi possível criar a conta agora.",detail:m.slice(0,300)},500)}
 }
 async function sendVerification(env,email,name,url){
@@ -80,7 +69,7 @@ async function authVerify(url,env){
 }
 function htmlMsg(title,msg,ok){return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>AURÉA</title><body style="margin:0;background:#f8f5f1;font-family:Arial;color:#171513"><main style="max-width:560px;margin:12vh auto;background:#fff;padding:42px;text-align:center;border:1px solid #e7e1da"><div style="font:24px Georgia;letter-spacing:5px">AURÉA</div><h1 style="font:32px Georgia">'+escapeHtml(title)+'</h1><p>'+escapeHtml(msg)+'</p><a href="/" style="display:inline-block;margin-top:15px;background:#171513;color:white;padding:13px 20px;text-decoration:none">VOLTAR À LOJA</a></main></body>',{status:ok?200:400,headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store"}})}
 async function authLogin(request,env){
- try{await ensureAuthSchema(env);const d=await request.json();const email=String(d.email||"").trim().toLowerCase(),pass=String(d.password||"");const u=await env.DB.prepare("SELECT id,name,email,password_hash,password_salt,email_verified FROM customers WHERE email=?").bind(email).first();if(!u)return resposta({ok:false,error:"E-mail ou senha incorretos."},401);let hp;try{hp=await hashPassword(pass,u.password_salt)}catch(e){hp={hash:await sha256(u.password_salt+":"+pass)}}if(hp.hash!==u.password_hash)return resposta({ok:false,error:"E-mail ou senha incorretos."},401);if(emailVerificationEnabled(env)&&!u.email_verified)return resposta({ok:false,error:"Confirme seu e-mail antes de entrar."},403);
+ try{await ensureAuthSchema(env);const d=await request.json();const email=String(d.email||"").trim().toLowerCase(),pass=String(d.password||"");const u=await env.DB.prepare("SELECT id,name,email,password_hash,password_salt,email_verified FROM customers WHERE email=?").bind(email).first();if(!u)return resposta({ok:false,error:"E-mail ou senha incorretos."},401);let hp;try{hp=await hashPassword(pass,u.password_salt)}catch(e){hp={hash:await sha256(u.password_salt+":"+pass)}}if(hp.hash!==u.password_hash)return resposta({ok:false,error:"E-mail ou senha incorretos."},401);if(!u.email_verified)return resposta({ok:false,error:"Confirme seu e-mail antes de entrar."},403);
  const token=randomToken(),th=await sha256(token),now=new Date().toISOString(),exp=new Date(Date.now()+30*86400e3).toISOString();await env.DB.prepare("INSERT INTO customer_sessions(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),u.id,th,exp,now).run();const h=new Headers(jsonHeaders);h.set("Set-Cookie",sessionCookie(token));return new Response(JSON.stringify({ok:true,user:{name:u.name,email:u.email}}),{status:200,headers:h});
  }catch(e){console.error("Login:",e);return resposta({ok:false,error:"Não foi possível entrar agora."},500)}
 }
