@@ -23,7 +23,30 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
 .card .photo,.top-product .photo{isolation:isolate!important;background:linear-gradient(135deg,#fffdf8 0%,#fff8ed 55%,#f8eadb 100%)!important}.card .photo:before,.top-product .photo:before{content:""!important;position:absolute!important;z-index:0!important;inset:0!important;opacity:1!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='360' viewBox='0 0 600 360'%3E%3Cg opacity='.72'%3E%3Cg transform='translate(38 270)'%3E%3Cellipse rx='72' ry='19' fill='%23d8c59f' transform='rotate(-25)'/%3E%3Cellipse rx='66' ry='17' fill='%23c7b68f' transform='rotate(28)'/%3E%3Cg fill='%23f4d6d5'%3E%3Ccircle cx='-38' cy='-34' r='28'/%3E%3Ccircle cx='-10' cy='-48' r='30'/%3E%3Ccircle cx='18' cy='-34' r='28'/%3E%3Ccircle cx='-10' cy='-17' r='30'/%3E%3C/g%3E%3Ccircle cx='-10' cy='-33' r='12' fill='%23d8aa72'/%3E%3C/g%3E%3Cg transform='translate(555 80)'%3E%3Cellipse rx='65' ry='16' fill='%23d9c89e' transform='rotate(-35)'/%3E%3Cg fill='%23fff'%3E%3Ccircle cx='-28' cy='15' r='24'/%3E%3Ccircle cx='0' cy='0' r='25'/%3E%3Ccircle cx='27' cy='15' r='24'/%3E%3Ccircle cx='0' cy='30' r='25'/%3E%3C/g%3E%3Ccircle cy='15' r='9' fill='%23d9b45d'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),radial-gradient(circle at 50% 40%,rgba(255,255,255,.96),rgba(255,249,239,.55) 48%,transparent 75%)!important;background-size:cover!important;background-position:center!important}.card:nth-child(3n+2) .photo,.top-product:nth-child(3n+2) .photo{background:linear-gradient(135deg,#fffdf7,#fff4dc 58%,#f2dfb9)!important}.card:nth-child(3n) .photo,.top-product:nth-child(3n) .photo{background:linear-gradient(135deg,#fffafa,#fceeea 58%,#f0d8d2)!important}.card .photo img,.top-product .photo img{position:relative!important;z-index:1!important;width:82%!important;height:82%!important;object-fit:contain!important;padding:0!important;filter:drop-shadow(0 15px 14px rgba(62,43,25,.17))!important}.card .tag,.top-product .tag{z-index:3!important}
 
 /* Beneficios compactos: quatro itens em uma unica faixa no celular */
-@media(max-width:700px){.benefits{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;padding:10px 2%!important;align-items:start!important}.benefit{padding:2px 4px!important;min-width:0!important;border-right:1px solid rgba(255,255,255,.16)!important}.benefit:last-child{border-right:0!important}.benefit .ico{font-size:14px!important;margin-bottom:3px!important;line-height:1!important}.benefit strong{font-size:7px!important;line-height:1.15!important;letter-spacing:.15px!important;display:block!important}.benefit span{font-size:6px!important;line-height:1.15!important;margin-top:2px!important;display:block!important}}</style></head><body>
+@media(max-width:700px){.benefits{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;padding:10px 2%!important;align-items:start!important}.benefit{padding:2px 4px!important;min-width:0!important;border-right:1px solid rgba(255,255,255,.16)!important}.benefit:last-child{border-right:0!important}.benefit .ico{font-size:14px!important;margin-bottom:3px!important;line-height:1!important}.benefit strong{font-size:7px!important;line-height:1.15!important;letter-spacing:.15px!important;display:block!important}.benefit span{font-size:6px!important;line-height:1.15!important;margin-top:2px!important;display:block!important}}</style>
+<style id="aurea-mobile-banner-benefits-fix">
+/* Ajuste mobile: elimina a sobra preta do banner e compacta os 4 benefícios em uma única faixa */
+@media(max-width:700px){
+  .slider{background:#fbfaf8!important;}
+  .slides,.slide{background:#fbfaf8!important;}
+  .slide{line-height:0;}
+  .slide img{display:block!important;width:100%!important;height:auto!important;margin:0!important;}
+  .slide-dots{bottom:7px!important;}
+  .benefits{padding:10px 6px!important;}
+  .benefits-grid{
+    max-width:none!important;
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:2px!important;
+    align-items:start!important;
+  }
+  .benefit-icon{font-size:12px!important;line-height:1!important;margin-bottom:3px!important;}
+  .benefits strong{font-size:6.8px!important;line-height:1.15!important;letter-spacing:.15px!important;white-space:normal!important;}
+  .benefits span{font-size:5.8px!important;line-height:1.15!important;margin-top:2px!important;white-space:normal!important;}
+}
+</style>
+</head><body>
 <header class="header"><a class="logo" href="#top">AURÉA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">AURÉA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques AURÉA">
   <div class="slides" id="slides">
