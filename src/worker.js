@@ -18,16 +18,19 @@ export default {
     return new Response("AURÉA", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } });
   }
 };
+
 async function servirAssets(request, env) {
   const response = await env.ASSETS.fetch(request);
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("text/html") || new URL(request.url).pathname !== "/") return response;
   const html = await response.text();
-  const injected = html.replace(/<\/body>/i, '<script src="/catalog.js" defer></script><script src="/aurea-v2.js" defer></script><script src="/aurea-v2-fix.js" defer></script></body>');
+  const injected = html.replace(/<\/body>/i, '<script src="/catalog.js?v=aurea20260925"></script><script src="/aurea-v2.js?v=aurea20260925"></script></body>');
   const headers = new Headers(response.headers);
-  headers.set("Cache-Control", "no-store, max-age=0");
+  headers.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+  headers.delete("ETag");
   return new Response(injected, { status: response.status, statusText: response.statusText, headers });
 }
+
 async function calcularFrete(request, env) {
   try {
     const dados = await request.json(); const cep = String(dados.cep || "").replace(/\D/g, "");
