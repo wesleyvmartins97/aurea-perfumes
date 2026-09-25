@@ -861,7 +861,7 @@ a{
         <a href="#arabes">ÁRABES</a>
         <a href="#ofertas">OFERTAS</a>
     </nav>
-    <button class="cart-button" onclick="openCart()">
+    <button class="cart-button" onclick="openAccount()" style="margin-right:8px">👤 Conta</button><button class="cart-button" onclick="openCart()">
         🛍 Carrinho (<span id="cartCount">0</span>)
     </button>
 </header>
@@ -922,8 +922,8 @@ a{
                 <p class="product-description">
                     Uma fragrância floral frutada, delicada e elegante, com pera verde e mandarina na saída, flores brancas no coração e cedro e musk no fundo.
                 </p>
-                <div class="product-price">R$ 399,00</div>
-                <div class="product-pix">ou R$ 379,05 no Pix</div>
+                <div class="product-price">R$ 359,00</div>
+                <div class="product-pix">ou R$ 341,05 no Pix</div>
                 <div class="product-buy-row">
                     <button class="add-button" onclick="addProductWithQuantity('Lattafa Layaan', 399, 'Eau de Parfum Feminino • 75ml', 'https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg', 'layaan')">
                         ADICIONAR AO CARRINHO
@@ -953,8 +953,8 @@ a{
                 <p class="product-description">
                     Uma fragrância masculina marcante e sofisticada, ideal para quem busca presença, elegância e personalidade.
                 </p>
-                <div class="product-price">R$ 329,00</div>
-                <div class="product-pix">ou R$ 312,55 no Pix</div>
+                <div class="product-price">R$ 349,00</div>
+                <div class="product-pix">ou R$ 331,55 no Pix</div>
                 <div class="product-buy-row">
                     <button class="add-button" onclick="addProductWithQuantity('French Avenue Liquid Brun', 329, 'Eau de Parfum Masculino • 100ml', '/perfume.webp', 'liquidbrun')">
                         ADICIONAR AO CARRINHO
@@ -1380,6 +1380,10 @@ async function finalizeOrderMercadoPago() {
         btn.innerText = 'FINALIZAR PAGAMENTO';
     }
 }
+
+function openAccount(){document.getElementById('accountModal').classList.add('open');const u=JSON.parse(localStorage.getItem('aurea_user')||'null');if(u){accName.value=u.name||'';accEmail.value=u.email||'';accPass.value=u.pass||''}}
+function closeAccount(){document.getElementById('accountModal').classList.remove('open')}
+function saveAccount(){if(!accName.value||!accEmail.value||!accPass.value){alert('Preencha nome, e-mail e senha.');return}localStorage.setItem('aurea_user',JSON.stringify({name:accName.value,email:accEmail.value,pass:accPass.value}));alert('Cadastro salvo com sucesso.');closeAccount()}
 </script>
 
 </body>
