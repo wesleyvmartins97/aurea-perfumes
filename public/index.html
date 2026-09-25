@@ -1298,7 +1298,7 @@ function aMoney(n){return n.toLocaleString('pt-BR',{style:'currency',currency:'B
 function aFilterSet(f,b){aCat=f;document.querySelectorAll('.a-tools button').forEach(x=>x.classList.remove('on'));b.classList.add('on');aRender()}
 function aRender(){
  const q=(document.getElementById('aSearch').value||'').toLowerCase();
- const list=AUREA_CATALOG.filter(function(p){return(aCat==='todos'||p[3]===aCat||(aCat==='oferta'&&p[8]))&&(!q||(p[1]+' '+p[2]+' '+p[3]).toLowerCase().includes(q))});
+ const list=AUREA_CATALOG.filter(function(p){return(aCat==='todos'||p[3]===aCat||(aCat==='oferta'&&p[9]))&&(!q||(p[1]+' '+p[2]+' '+p[3]).toLowerCase().includes(q))});
  document.getElementById('aGrid').innerHTML=list.map(function(p){return '<article class="a-card"><img src="'+p[8]+'" alt="'+p[2]+' '+p[1]+'"><div class="a-info"><div class="a-brand">'+p[2]+'</div><div class="a-name">'+p[1]+'</div><div class="a-meta">'+p[4]+'</div><div class="a-price">'+aMoney(p[5])+'</div><div class="a-pix">ou '+aMoney(p[6])+' no Pix</div><button class="a-add" onclick="aAdd(\''+p[0]+'\')">ADICIONAR AO CARRINHO</button><button class="a-add" style="margin-top:6px;background:#f2efeb;color:#222" onclick="aShow(\''+p[0]+'\')">VER DETALHES</button></div></article>'}).join('')||'<div style="grid-column:1/-1;text-align:center;padding:50px;color:#777">Nenhum produto encontrado.</div>';
 }
 function aAdd(id){var p=AUREA_CATALOG.find(function(x){return x[0]===id});if(p){addProductWithQuantity(p[1],p[5],p[4],p[8],p[0])}}
