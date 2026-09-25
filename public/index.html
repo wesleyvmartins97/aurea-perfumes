@@ -1267,15 +1267,7 @@ function removeItem(id) {
     updateCartUI();
 }
 
-function calculateShipping() {
-    let cep = document.getElementById('cep').value;
-    let cleanCep = cep.replace(/\D/g, '');
-    if(cleanCep.length < 8) {
-        document.getElementById('cepMessage').innerText = 'Digite um CEP válido.';
-        return;
-    }
-    document.getElementById('cepMessage').innerText = 'Frete padrão calculado: Grátis';
-}
+async function calculateShipping(){const cep=document.getElementById('cep').value.replace(/\D/g,'');const msg=document.getElementById('cepMessage');if(cep.length!==8){msg.innerText='Digite um CEP válido.';return;}if(!cart.length){msg.innerText='Adicione um produto ao carrinho.';return;}msg.innerText='Calculando fretes...';try{const r=await fetch('/api/frete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cep:cep,produtos:cart})});const d=await r.json();if(!r.ok||!Array.isArray(d)||!d.length)throw new Error('Nenhuma opção de frete disponível.');msg.innerHTML=d.map(function(x){return '<div>'+x.name+' — R$ '+Number(x.price).toFixed(2).replace('.',',')+' ('+x.delivery_time+' dias)</div>'}).join('');}catch(e){msg.innerText=e.message||'Erro ao calcular frete.';}}
 
 function searchCep(cep) {
     let cleanCep = cep.replace(/\D/g, '');
