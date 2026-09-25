@@ -19,7 +19,7 @@ html{
 
 body{
     font-family:Arial,Helvetica,sans-serif;
-    background:#f8f7f5;
+    background:#fbfaf8;
     color:#181716;
 }
 
@@ -42,8 +42,8 @@ a{
 
 .header{
     height:78px;
-    background:#111;
-    color:#fff;
+    background:#fbfaf8;
+    color:#171513;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -127,7 +127,7 @@ a{
     margin-bottom:18px;
 }
 
-.hero h1{
+.hero h1{letter-spacing:-3px;
     font-family:Georgia,serif;
     font-size:68px;
     line-height:1.02;
@@ -1022,7 +1022,7 @@ a{
     </div>
 </section>
 
-<footer class="footer">
+<section class="notes-section"><div class="notes-grid"><div class="note-card"><h3>Produtos lacrados</h3><p>Itens enviados em suas embalagens originais.</p></div><div class="note-card"><h3>Compra segura</h3><p>Pagamento processado com segurança.</p></div><div class="note-card"><h3>Atendimento próximo</h3><p>Fale conosco pelo Instagram.</p></div></div></section><section style="background:#eee7e0;text-align:center;padding:55px 20px"><div class="kicker">SIGA-NOS</div><h2 class="section-heading" style="margin-bottom:15px">Novidades e lançamentos</h2><p style="color:#756e68;margin-bottom:20px">Acompanhe nosso perfil enquanto o Instagram oficial da AURÉA está em construção.</p><a class="primary-button" href="https://www.instagram.com/trindadeeleganceperfumaria/" target="_blank" rel="noopener">@TRINDADEELEGANCEPERFUMARIA</a></section><footer class="footer">
     <div class="footer-logo">AURÉA</div>
     <div>Sua essência. Sua presença.</div>
     <br>
@@ -1331,7 +1331,7 @@ async function finalizeOrderMercadoPago() {
         return;
     }
 
-    const MERCADO_PAGO_TOKEN = 'APP_USR-3268618341343082-090410-14929df290d4a7af7071ae4c541177a5-555490401';
+    const MERCADO_PAGO_TOKEN = null;
 
     let itemsPayload = cart.map(item => ({
         title: item.name,
