@@ -848,7 +848,7 @@ a{
     .products-grid{grid-template-columns:1fr;}
     .checkout-body{grid-template-columns:1fr;}
 }
-</style>
+<style>.a-cat{max-width:1200px;margin:auto;padding:50px 7%}.a-tools{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.a-tools input{flex:1;min-width:240px;padding:13px;border:1px solid #ddd}.a-tools button{padding:10px 14px;border:1px solid #ddd;background:#fff;font-size:10px;font-weight:bold}.a-tools button.on{background:#111;color:#fff}.a-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.a-card{background:#fff;border:1px solid #e5e0da}.a-card img{width:100%;height:260px;object-fit:contain;background:#f1eae4}.a-info{padding:16px}.a-brand{font-size:9px;letter-spacing:2px;color:#8d745d;font-weight:bold}.a-name{font:normal 21px Georgia,serif;margin:5px 0}.a-meta{font-size:10px;color:#777}.a-price{font-weight:bold;font-size:19px;margin-top:9px}.a-pix{font-size:10px;color:#58735e;margin:3px 0 10px}.a-add{width:100%;padding:11px;background:#111;color:#fff;border:0;font-size:9px;font-weight:bold}.a-detail{position:fixed;inset:0;background:#000b;z-index:7000;display:none;padding:20px;overflow:auto}.a-detail.open{display:block}.a-detail-box{max-width:900px;margin:auto;background:#fff;display:grid;grid-template-columns:1fr 1fr}.a-detail-box img{width:100%;height:450px;object-fit:contain;background:#f1eae4}.a-detail-copy{padding:35px}.a-detail-copy h2{font:normal 40px Georgia,serif}.a-close{float:right;border:0;background:none;font-size:28px}.a-detail-copy p{color:#666;line-height:1.7;margin:18px 0}.a-detail-copy button{padding:14px;width:100%;border:0;background:#111;color:#fff;font-weight:bold}@media(max-width:850px){.a-grid{grid-template-columns:repeat(2,1fr)}.a-detail-box{grid-template-columns:1fr}}@media(max-width:500px){.a-grid{grid-template-columns:1fr}}</style></style>
 </head>
 
 <body>
@@ -1022,7 +1022,7 @@ a{
     </div>
 </section>
 
-<section class="notes-section"><div class="notes-grid"><div class="note-card"><h3>Produtos lacrados</h3><p>Itens enviados em suas embalagens originais.</p></div><div class="note-card"><h3>Compra segura</h3><p>Pagamento processado com segurança.</p></div><div class="note-card"><h3>Atendimento próximo</h3><p>Fale conosco pelo Instagram.</p></div></div></section><section style="background:#eee7e0;text-align:center;padding:55px 20px"><div class="kicker">SIGA-NOS</div><h2 class="section-heading" style="margin-bottom:15px">Novidades e lançamentos</h2><p style="color:#756e68;margin-bottom:20px">Acompanhe nosso perfil enquanto o Instagram oficial da AURÉA está em construção.</p><a class="primary-button" href="https://www.instagram.com/trindadeeleganceperfumaria/" target="_blank" rel="noopener">@TRINDADEELEGANCEPERFUMARIA</a></section><footer class="footer">
+<section class="a-cat" id="catalogo"><div class="kicker">CATÁLOGO AURÉA</div><h2 class="section-heading">Encontre sua essência</h2><div class="a-tools"><input id="aSearch" placeholder="Buscar perfume, marca..." oninput="aRender()"><button class="on" onclick="aFilterSet('todos',this)">TODOS</button><button onclick="aFilterSet('feminino',this)">FEMININOS</button><button onclick="aFilterSet('masculino',this)">MASCULINOS</button><button onclick="aFilterSet('arabes',this)">ÁRABES</button><button onclick="aFilterSet('oferta',this)">OFERTAS</button></div><div class="a-grid" id="aGrid"></div></section><div class="a-detail" id="aDetail"><div class="a-detail-box" id="aDetailBox"></div></div><section class="notes-section"><div class="notes-grid"><div class="note-card"><h3>Produtos lacrados</h3><p>Itens enviados em suas embalagens originais.</p></div><div class="note-card"><h3>Compra segura</h3><p>Pagamento processado com segurança.</p></div><div class="note-card"><h3>Atendimento próximo</h3><p>Fale conosco pelo Instagram.</p></div></div></section><section style="background:#eee7e0;text-align:center;padding:55px 20px"><div class="kicker">SIGA-NOS</div><h2 class="section-heading" style="margin-bottom:15px">Novidades e lançamentos</h2><p style="color:#756e68;margin-bottom:20px">Acompanhe nosso perfil enquanto o Instagram oficial da AURÉA está em construção.</p><a class="primary-button" href="https://www.instagram.com/trindadeeleganceperfumaria/" target="_blank" rel="noopener">@TRINDADEELEGANCEPERFUMARIA</a></section><footer class="footer">
     <div class="footer-logo">AURÉA</div>
     <div>Sua essência. Sua presença.</div>
     <br>
@@ -1384,6 +1384,36 @@ async function finalizeOrderMercadoPago() {
 function openAccount(){document.getElementById('accountModal').classList.add('open');const u=JSON.parse(localStorage.getItem('aurea_user')||'null');if(u){accName.value=u.name||'';accEmail.value=u.email||'';accPass.value=u.pass||''}}
 function closeAccount(){document.getElementById('accountModal').classList.remove('open')}
 function saveAccount(){if(!accName.value||!accEmail.value||!accPass.value){alert('Preencha nome, e-mail e senha.');return}localStorage.setItem('aurea_user',JSON.stringify({name:accName.value,email:accEmail.value,pass:accPass.value}));alert('Cadastro salvo com sucesso.');closeAccount()}
+
+const AUREA_CATALOG=[
+['layaan','Layaan','Lattafa','feminino','EDP • 75ml',359,341.05,'Floral frutado elegante e delicado.','https://promakeup-opt.com.ua/image/cache/catalog/unixml/49/10830/parfyumirovannaya_voda_zhenskaya_lattafa_layaan_75_ml-600x600.jpg',1],
+['yara','Yara','Lattafa','feminino','EDP • 100ml',239,227.05,'Doce, cremoso e feminino.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',1],
+['yara-tous','Yara Tous','Lattafa','feminino','EDP • 100ml',239,227.05,'Frutado tropical e cremoso.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',0],
+['fakhar-rose','Fakhar Rose','Lattafa','feminino','EDP • 100ml',239,227.05,'Floral feminino moderno.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',0],
+['asad','Asad','Lattafa','masculino','EDP • 100ml',249,236.55,'Âmbar especiado intenso.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',1],
+['9pm','9PM','Afnan','masculino','EDP • 100ml',329,312.55,'Doce, noturno e envolvente.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',1],
+['club','Club de Nuit Intense Man','Armaf','masculino','EDT • 105ml',319,303.05,'Amadeirado cítrico versátil.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',1],
+['fakhar-black','Fakhar Black','Lattafa','masculino','EDP • 100ml',299,284.05,'Fougère amadeirado fresco.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',0],
+['khamrah','Khamrah','Lattafa','arabes','EDP • 100ml',329,312.55,'Gourmand especiado e envolvente.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',1],
+['qahwa','Khamrah Qahwa','Lattafa','arabes','EDP • 100ml',359,341.05,'Khamrah com faceta de café.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',0],
+['amethyst','Badee Al Oud Amethyst','Lattafa','arabes','EDP • 100ml',229,217.55,'Rosa, oud e âmbar.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',1],
+['liquid','Liquid Brun','French Avenue','arabes','EDP • 100ml',499,474.05,'Âmbar gourmand sofisticado.','/perfume.webp',1],
+['qaed','Qaed Al Fursan','Lattafa','arabes','EDP • 90ml',199,189.05,'Frutado amadeirado com abacaxi.','https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85',0]
+];
+let aCat='todos';
+function aMoney(n){return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function aFilterSet(f,b){aCat=f;document.querySelectorAll('.a-tools button').forEach(x=>x.classList.remove('on'));b.classList.add('on');aRender()}
+function aRender(){
+ const q=(document.getElementById('aSearch').value||'').toLowerCase();
+ const list=AUREA_CATALOG.filter(function(p){return(aCat==='todos'||p[3]===aCat||(aCat==='oferta'&&p[8]))&&(!q||(p[1]+' '+p[2]+' '+p[3]).toLowerCase().includes(q))});
+ document.getElementById('aGrid').innerHTML=list.map(function(p){return '<article class="a-card"><img src="'+p[7]+'" alt="'+p[2]+' '+p[1]+'"><div class="a-info"><div class="a-brand">'+p[2]+'</div><div class="a-name">'+p[1]+'</div><div class="a-meta">'+p[4]+'</div><div class="a-price">'+aMoney(p[5])+'</div><div class="a-pix">ou '+aMoney(p[6])+' no Pix</div><button class="a-add" onclick="aAdd(\''+p[0]+'\')">ADICIONAR AO CARRINHO</button><button class="a-add" style="margin-top:6px;background:#f2efeb;color:#222" onclick="aShow(\''+p[0]+'\')">VER DETALHES</button></div></article>'}).join('')||'<div style="grid-column:1/-1;text-align:center;padding:50px;color:#777">Nenhum produto encontrado.</div>';
+}
+function aAdd(id){var p=AUREA_CATALOG.find(function(x){return x[0]===id});if(p){addProductWithQuantity(p[1],p[5],p[4],p[7],p[0])}}
+function aShow(id){var p=AUREA_CATALOG.find(function(x){return x[0]===id});if(!p)return;document.getElementById('aDetailBox').innerHTML='<button class="a-close" onclick="aClose()">×</button><img src="'+p[7]+'" alt="'+p[1]+'"><div class="a-detail-copy"><div class="a-brand">'+p[2]+'</div><h2>'+p[1]+'</h2><div>'+p[4]+'</div><p>'+p[6]+' no Pix<br><br>'+p[6]+'</p><p>Produto lacrado, pagamento seguro e frete calculado no carrinho pelo Melhor Envio.</p><div class="a-price">'+aMoney(p[5])+'</div><button onclick="aAdd(\''+p[0]+'\');aClose()">ADICIONAR AO CARRINHO</button></div>';document.getElementById('aDetail').classList.add('open')}
+function aClose(){document.getElementById('aDetail').classList.remove('open')}
+var aSaved=JSON.parse(localStorage.getItem('aurea_cart')||'null');if(Array.isArray(aSaved))cart=aSaved;
+var aOldUpdate=updateCartUI;updateCartUI=function(){aOldUpdate();localStorage.setItem('aurea_cart',JSON.stringify(cart))};
+aRender();updateCartUI();
 </script>
 
 </body>
