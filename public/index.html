@@ -61,5 +61,54 @@ async function accountLogin(){const email=document.getElementById('loginEmail').
 async function accountLogout(){try{await fetch('/api/auth/logout',{method:'POST'});accountUser=null;renderAccount()}catch(e){accountMsg('Não foi possível sair agora.')}}
 async function initAccount(){localStorage.removeItem('aurea_account');localStorage.removeItem('aurea_logged');localStorage.removeItem('aurea_session');await loadAccount()}
 
+
+let clientData=null;
+function initClientCenter(){
+ if(document.getElementById('clientCenter'))return;
+ const st=document.createElement('style');st.textContent='#clientCenter{position:fixed;inset:0;z-index:10000;background:#f7f4f0;display:none;overflow:auto}.ccHead{height:72px;background:#fff;border-bottom:1px solid #e7e1da;display:flex;align-items:center;justify-content:space-between;padding:0 5%}.ccLogo{font:24px Georgia,serif;letter-spacing:5px}.ccClose{border:0;background:none;font-size:28px}.ccWrap{max-width:1180px;margin:34px auto;padding:0 22px;display:grid;grid-template-columns:230px 1fr;gap:26px}.ccSide,.ccMain{background:#fff;border:1px solid #e7e1da}.ccUser{padding:22px;border-bottom:1px solid #eee}.ccUser strong{font:22px Georgia,serif}.ccNav button{width:100%;text-align:left;padding:15px 18px;border:0;border-bottom:1px solid #eee;background:#fff;font-size:10px;letter-spacing:1px}.ccNav button.active{background:#171513;color:#fff}.ccMain{padding:30px}.ccTitle{font:32px Georgia,serif;margin:0 0 22px}.ccCards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.ccCard{border:1px solid #e7e1da;padding:20px}.ccCard b{font:18px Georgia,serif}.ccBtn{border:0;background:#171513;color:#fff;padding:12px 16px;font-size:10px;letter-spacing:1px}.ccEmpty{padding:30px;border:1px dashed #d8d1ca;text-align:center;color:#777;font-size:12px}.ccForm{display:grid;grid-template-columns:1fr 1fr;gap:13px}.ccForm label{display:block;font-size:9px;letter-spacing:1px;margin-bottom:5px}.ccForm input{width:100%;padding:11px;border:1px solid #d8d1ca}.ccFull{grid-column:1/-1}.ccAddress,.ccOrder{border:1px solid #e7e1da;padding:16px;margin:10px 0;font-size:12px;line-height:1.65}.ccMsg{font-size:11px;color:#666;margin-top:10px}@media(max-width:700px){.ccWrap{grid-template-columns:1fr}.ccNav{display:flex;overflow:auto}.ccNav button{min-width:max-content}.ccCards,.ccForm{grid-template-columns:1fr}.ccFull{grid-column:auto}}';document.head.appendChild(st);
+ const d=document.createElement('div');d.id='clientCenter';d.innerHTML='<header class="ccHead"><div class="ccLogo">AURÉA</div><button class="ccClose" onclick="closeClient()">×</button></header><div class="ccWrap"><aside class="ccSide"><div class="ccUser" id="ccUser"></div><nav class="ccNav"><button data-tab="home" onclick="clientTab(\'home\')">VISÃO GERAL</button><button data-tab="orders" onclick="clientTab(\'orders\')">MEUS PEDIDOS</button><button data-tab="tracking" onclick="clientTab(\'tracking\')">RASTREAMENTOS</button><button data-tab="addresses" onclick="clientTab(\'addresses\')">MEUS ENDEREÇOS</button><button data-tab="profile" onclick="clientTab(\'profile\')">MEUS DADOS</button><button onclick="accountLogout();closeClient()">SAIR DA CONTA</button></nav></aside><main class="ccMain" id="ccMain"><div class="ccEmpty">Carregando sua conta...</div></main></div>';document.body.appendChild(d);
+}
+async function fetchClientData(){
+ const r=await fetch('/api/account',{cache:'no-store',credentials:'same-origin'});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível carregar sua conta.');
+ clientData=d;
+ document.getElementById('ccUser').innerHTML='<strong>Olá, '+esc(d.user.name.split(' ')[0])+'!</strong><div style="font-size:10px;color:#777;margin-top:6px">'+esc(d.user.email)+'</div>';
+ return d;
+}
+async function openClient(){
+ initClientCenter();
+ closeAccount();
+ const el=document.getElementById('clientCenter');el.style.display='block';document.body.style.overflow='hidden';
+ document.getElementById('ccMain').innerHTML='<div class="ccEmpty">Carregando sua conta...</div>';
+ try{await fetchClientData();clientTab('home')}catch(e){document.getElementById('ccMain').innerHTML='<div class="ccEmpty">'+esc(e.message)+'<br><br><button class="ccBtn" onclick="openClient()">TENTAR NOVAMENTE</button></div>'}
+}
+function closeClient(){const el=document.getElementById('clientCenter');if(el)el.style.display='none';document.body.style.overflow=''}
+function clientTab(t){
+ if(!clientData)return;
+ document.querySelectorAll('.ccNav button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+ const m=document.getElementById('ccMain');
+ if(t==='home'){m.innerHTML='<h1 class="ccTitle">Minha conta</h1><div class="ccCards"><div class="ccCard"><b>Meus pedidos</b><p>'+clientData.orders.length+' pedido(s)</p><button class="ccBtn" onclick="clientTab(\'orders\')">VER PEDIDOS</button></div><div class="ccCard"><b>Endereços</b><p>'+clientData.addresses.length+' endereço(s) salvo(s)</p><button class="ccBtn" onclick="clientTab(\'addresses\')">GERENCIAR</button></div><div class="ccCard"><b>Meus dados</b><p>Atualize suas informações pessoais.</p><button class="ccBtn" onclick="clientTab(\'profile\')">EDITAR DADOS</button></div></div>';return}
+ if(t==='orders'||t==='tracking'){const arr=t==='tracking'?clientData.orders.filter(o=>o.tracking_code):clientData.orders;m.innerHTML='<h1 class="ccTitle">'+(t==='tracking'?'Rastreamentos':'Meus pedidos')+'</h1>'+(arr.length?arr.map(o=>'<div class="ccOrder"><b>Pedido '+esc(o.order_number)+'</b><div>'+esc(o.status)+'</div>'+(o.tracking_code?'<div>Rastreio: <b>'+esc(o.tracking_code)+'</b>'+(o.carrier?' · '+esc(o.carrier):'')+'</div>':'')+'</div>').join(''):'<div class="ccEmpty">'+(t==='tracking'?'Você ainda não possui rastreamentos.':'Você ainda não possui pedidos.')+'</div>');return}
+ if(t==='addresses'){renderClientAddresses();return}
+ if(t==='profile'){renderClientProfile()}
+}
+function renderClientAddresses(){
+ const m=document.getElementById('ccMain'),a=clientData.addresses;
+ m.innerHTML='<h1 class="ccTitle">Meus endereços</h1>'+(a.length?a.map(x=>'<div class="ccAddress"><b>'+esc(x.label)+(x.is_default?' · PRINCIPAL':'')+'</b><br>'+esc(x.recipient)+'<br>'+esc(x.street)+', '+esc(x.number)+(x.complement?' · '+esc(x.complement):'')+'<br>'+esc(x.neighborhood)+' · '+esc(x.city)+'/'+esc(x.state)+' · CEP '+esc(x.cep)+'<br><button onclick="deleteClientAddress(\''+x.id+'\')">EXCLUIR</button></div>').join(''):'<div class="ccEmpty">Nenhum endereço salvo.</div>')+'<h2 style="font:22px Georgia,serif;margin-top:26px">Adicionar endereço</h2><div class="ccForm"><div><label>NOME DO ENDEREÇO</label><input id="caLabel" placeholder="Casa"></div><div><label>DESTINATÁRIO</label><input id="caRecipient" value="'+esc(clientData.user.name)+'"></div><div><label>CEP</label><input id="caCep"></div><div><label>RUA</label><input id="caStreet"></div><div><label>NÚMERO</label><input id="caNumber"></div><div><label>COMPLEMENTO</label><input id="caComplement"></div><div><label>BAIRRO</label><input id="caNeighborhood"></div><div><label>CIDADE</label><input id="caCity"></div><div><label>UF</label><input id="caState" maxlength="2"></div><div><label><input id="caDefault" type="checkbox"> Endereço principal</label></div><div class="ccFull"><button class="ccBtn" onclick="saveClientAddress()">SALVAR ENDEREÇO</button><div class="ccMsg" id="caMsg"></div></div></div>';
+}
+async function saveClientAddress(){
+ const body={label:caLabel.value,recipient:caRecipient.value,cep:caCep.value,street:caStreet.value,number:caNumber.value,complement:caComplement.value,neighborhood:caNeighborhood.value,city:caCity.value,state:caState.value,isDefault:caDefault.checked};
+ caMsg.textContent='Salvando...';const r=await fetch('/api/account/addresses',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});const d=await r.json();caMsg.textContent=d.message||d.error;if(r.ok){await fetchClientData();renderClientAddresses()}
+}
+async function deleteClientAddress(id){if(!confirm('Excluir este endereço?'))return;await fetch('/api/account/addresses/'+encodeURIComponent(id),{method:'POST',credentials:'same-origin'});await fetchClientData();renderClientAddresses()}
+function renderClientProfile(){
+ const u=clientData.user;document.getElementById('ccMain').innerHTML='<h1 class="ccTitle">Meus dados</h1><div class="ccForm"><div class="ccFull"><label>NOME COMPLETO</label><input id="cpName" value="'+esc(u.name)+'"></div><div><label>E-MAIL</label><input value="'+esc(u.email)+'" disabled></div><div><label>TELEFONE</label><input id="cpPhone" value="'+esc(u.phone||'')+'"></div><div><label>CPF</label><input id="cpCpf" value="'+esc(u.cpf||'')+'"></div><div><label>DATA DE NASCIMENTO</label><input id="cpBirth" type="date" value="'+esc(u.birthDate||'')+'"></div><div class="ccFull"><button class="ccBtn" onclick="saveClientProfile()">SALVAR ALTERAÇÕES</button><div class="ccMsg" id="cpMsg"></div></div></div>';
+}
+async function saveClientProfile(){
+ cpMsg.textContent='Salvando...';const r=await fetch('/api/account/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:cpName.value,phone:cpPhone.value,cpf:cpCpf.value,birthDate:cpBirth.value})});const d=await r.json();cpMsg.textContent=d.message||d.error;if(r.ok){await fetchClientData();accountUser={...accountUser,name:clientData.user.name};document.querySelector('.account').textContent='OLÁ, '+clientData.user.name.split(' ')[0].toUpperCase()}
+}
+initClientCenter();
+
 render();updateCart();initSlider();initAccount();
 </script></body></html>
