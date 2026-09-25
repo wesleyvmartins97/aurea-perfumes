@@ -47,7 +47,7 @@ async function authRegister(request,env){
  const token=randomToken(),th=await sha256(token),exp=new Date(Date.now()+24*3600e3).toISOString();await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),id,th,exp,now).run();
  const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);const mail=await sendVerification(env,email,name,verifyUrl.toString());
  return resposta({ok:true,needsVerification:true,emailSent:mail.ok,message:mail.ok?"Conta criada. Enviamos um e-mail para confirmar seu cadastro.":"Conta criada, mas o e-mail de confirmação ainda não pôde ser enviado. O remetente do Resend precisa ser configurado."});
- }catch(e){console.error("Registro:",e);return resposta({ok:false,error:"Não foi possível criar a conta agora."},500)}
+ }catch(e){console.error("Registro:",e);const m=String(e&&e.message||e||"erro desconhecido");return resposta({ok:false,error:"Não foi possível criar a conta agora.",detail:m.slice(0,300)},500)}
 }
 async function sendVerification(env,email,name,url){
  if(!env.RESEND_API_KEY)return {ok:false};
