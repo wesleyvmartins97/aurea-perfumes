@@ -6,12 +6,21 @@
 @media(max-width:520px){.shop-categories{grid-template-columns:1fr}}
 </style></head><body>
 <header class="header"><a class="logo" href="#top">AURÉA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">AURÉA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
-<main id="top"><section class="slider" aria-label="Destaques AURÉA"><div class="slides" id="slides">
-<div class="slide"><img data-banner="/banners/b1.txt" alt="AURÉA Perfumes Femininos"></div>
-<div class="slide"><img data-banner="/banners/b2.txt" alt="AURÉA Perfumes Masculinos"></div>
-<div class="slide"><img data-banner="/banners/b3.txt" alt="AURÉA Decants"></div>
-<div class="slide"><img data-banner="/banners/b4.txt" alt="AURÉA Coleção Árabe"></div>
-</div><button class="slide-arrow slide-prev" onclick="moveSlide(-1)" aria-label="Slide anterior">‹</button><button class="slide-arrow slide-next" onclick="moveSlide(1)" aria-label="Próximo slide">›</button><div class="slide-dots" id="slideDots"></div></section><section class="section top-products" id="femininos-destaque"><div class="eyebrow center">DESTAQUES AURÉA</div><h2 class="title center">Perfumes femininos</h2><p class="top-products-sub">Fragrâncias selecionadas com preços competitivos para o Espírito Santo.</p><div class="top-products-grid" id="topFemininos"></div><div class="top-products-more"><a class="primary" href="#catalogo" onclick="setCat('feminino')">VER TODOS OS FEMININOS</a></div></section>
+<main id="top"><section class="slider" aria-label="Destaques AURÉA">
+  <div class="slides" id="slides">
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_10-1.png?v=20260925b" alt="Banner AURÉA 1"></a>
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_13-3.png?v=20260925b" alt="Banner AURÉA 2"></a>
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_14-4.png?v=20260925b" alt="Banner AURÉA 3"></a>
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_17-6.png?v=20260925b" alt="Banner AURÉA 4"></a>
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_20-8.png?v=20260925b" alt="Banner AURÉA 5"></a>
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_46_08.png?v=20260925b" alt="Banner AURÉA 6"></a>
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_49_00.png?v=20260925b" alt="Banner AURÉA 7"></a>
+    <a class="slide" href="#catalogo"><img src="/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_50_39.png?v=20260925b" alt="Banner AURÉA 8"></a>
+  </div>
+  <button class="slider-btn prev" type="button" aria-label="Anterior" onclick="prevSlide()">‹</button>
+  <button class="slider-btn next" type="button" aria-label="Próximo" onclick="nextSlide()">›</button>
+  <div class="dots" id="dots"></div>
+</section><section class="section top-products" id="femininos-destaque"><div class="eyebrow center">DESTAQUES AURÉA</div><h2 class="title center">Perfumes femininos</h2><p class="top-products-sub">Fragrâncias selecionadas com preços competitivos para o Espírito Santo.</p><div class="top-products-grid" id="topFemininos"></div><div class="top-products-more"><a class="primary" href="#catalogo" onclick="setCat('feminino')">VER TODOS OS FEMININOS</a></div></section>
 <section class="section" id="categorias"><div class="eyebrow center">EXPLORE</div><h2 class="title center">Encontre sua essência</h2><div class="categories shop-categories"><a class="category" href="#catalogo" onclick="setCat('feminino')"><strong>Femininos</strong><span>Delicados e marcantes</span></a><a class="category" href="#catalogo" onclick="setCat('masculino')"><strong>Masculinos</strong><span>Presença e personalidade</span></a><a class="category" href="#catalogo" onclick="setCat('decants')"><strong>Decants</strong><span>Experimente antes do frasco</span></a></div></section>
 <section class="section" id="catalogo"><div class="eyebrow center">CATÁLOGO AURÉA</div><h2 class="title center">Fragrâncias selecionadas</h2><div class="toolbar"><input id="search" type="search" placeholder="Buscar perfume ou marca..." oninput="render()"><button class="filter active" data-cat="todos" onclick="setCat('todos')">TODOS</button><button class="filter" data-cat="feminino" onclick="setCat('feminino')">FEMININOS</button><button class="filter" data-cat="masculino" onclick="setCat('masculino')">MASCULINOS</button><button class="filter" data-cat="decants" onclick="setCat('decants')">DECANTS</button></div><div class="grid" id="grid"></div></section>
 <section class="trust"><div class="trust-grid"><div><h3>Curadoria AURÉA</h3><p>Produtos escolhidos a partir do catálogo de referência e do mercado brasileiro.</p></div><div><h3>Preço competitivo</h3><p>Valores posicionados para o Espírito Santo sem abandonar a apresentação premium.</p></div><div><h3>Compra segura</h3><p>Checkout preparado para integração com pagamento e cálculo de frete.</p></div></div></section>
