@@ -22,10 +22,21 @@ export default {
       return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(), env);
     }
 
-    if (env.ASSETS) return env.ASSETS.fetch(request);
+    if (env.ASSETS) return servirAssets(request, env);
     return new Response("AURÉA", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } });
   }
 };
+
+async function servirAssets(request, env) {
+  const response = await env.ASSETS.fetch(request);
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/html") || new URL(request.url).pathname !== "/") return response;
+  const html = await response.text();
+  const injected = html.replace(/<\/body>/i, '<script src="/catalog.js" defer></script></body>');
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-store, max-age=0");
+  return new Response(injected, { status: response.status, statusText: response.statusText, headers });
+}
 
 async function calcularFrete(request, env) {
   try {
