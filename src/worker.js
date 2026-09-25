@@ -59,7 +59,7 @@ async function authRegister(request,env){
   await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),exists.id,th,exp,now).run();
   const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);
   const mail=await sendVerification(env,email,name||exists.name,verifyUrl.toString());
-  return mail.ok?resposta({ok:true,needsVerification:true,emailSent:true,message:"Este cadastro ainda não estava confirmado. Enviamos um novo e-mail de confirmação."}):resposta({ok:false,error:"O cadastro existe, mas não foi possível enviar a confirmação. Verifique a configuração de e-mail do site."},502);
+  return mail.ok?resposta({ok:true,needsVerification:true,emailSent:true,message:"Este cadastro ainda não estava confirmado. Enviamos um novo e-mail de confirmação."}):resposta({ok:false,error:"DIAGNÓSTICO DE E-MAIL: código "+String(mail.status||mail.error||"falha")},502);
  }
  const id=crypto.randomUUID(),now=new Date().toISOString();let hp;try{hp=await hashPassword(pass)}catch(e){console.error("PBKDF2 indisponível, usando SHA-256 com salt:",e);const salt=randomToken();hp={salt,hash:await sha256(salt+":"+pass)}}await env.DB.prepare("INSERT INTO customers(id,name,email,password_hash,password_salt,email_verified,created_at,updated_at) VALUES(?,?,?,?,?,0,?,?)").bind(id,name,email,hp.hash,hp.salt,now,now).run();
  const token=randomToken(),th=await sha256(token),exp=new Date(Date.now()+24*3600e3).toISOString();await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),id,th,exp,now).run();
