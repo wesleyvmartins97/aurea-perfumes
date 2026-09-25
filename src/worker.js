@@ -9,45 +9,32 @@ const jsonHeaders = {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: jsonHeaders });
-
-    if (url.pathname === "/api/health" && request.method === "GET") {
-      return resposta({ ok: true, service: "aurea-perfumes", timestamp: new Date().toISOString() });
-    }
-
+    if (url.pathname === "/api/health" && request.method === "GET") return resposta({ ok: true, service: "aurea-perfumes", timestamp: new Date().toISOString() });
     if (url.pathname === "/api/frete" && request.method === "POST") return calcularFrete(request, env);
     if (url.pathname === "/api/pagamento" && request.method === "POST") return criarPagamentoPix(request, env);
-    if (url.pathname.startsWith("/api/pagamento/") && request.method === "GET") {
-      return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(), env);
-    }
-
+    if (url.pathname.startsWith("/api/pagamento/") && request.method === "GET") return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(), env);
     if (env.ASSETS) return servirAssets(request, env);
     return new Response("AURÉA", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } });
   }
 };
-
 async function servirAssets(request, env) {
   const response = await env.ASSETS.fetch(request);
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("text/html") || new URL(request.url).pathname !== "/") return response;
   const html = await response.text();
-  const injected = html.replace(/<\/body>/i, '<script src="/catalog.js" defer></script><script src="/aurea-v2.js" defer></script></body>');
+  const injected = html.replace(/<\/body>/i, '<script src="/catalog.js" defer></script><script src="/aurea-v2.js" defer></script><script src="/aurea-v2-fix.js" defer></script></body>');
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", "no-store, max-age=0");
   return new Response(injected, { status: response.status, statusText: response.statusText, headers });
 }
-
 async function calcularFrete(request, env) {
   try {
-    const dados = await request.json();
-    const cep = String(dados.cep || "").replace(/\D/g, "");
+    const dados = await request.json(); const cep = String(dados.cep || "").replace(/\D/g, "");
     if (!/^\d{8}$/.test(cep)) return resposta({ ok: false, error: "CEP inválido." }, 400);
     if (!env.MELHOR_ENVIO_TOKEN || !env.AUREA_ORIGIN_CEP) return resposta({ ok: false, error: "Serviço de frete temporariamente indisponível." }, 503);
     const produtos = Array.isArray(dados.produtos) && dados.produtos.length ? dados.produtos : [dados.produto || {}];
-    const itens = produtos.map((p, index) => ({
-      id: String(p.id || `aurea-${index + 1}`), width: saneDim(p.largura || p.width, 12), height: saneDim(p.altura || p.height, 12), length: saneDim(p.comprimento || p.length, 20), weight: saneDim(p.peso || p.weight, 0.6), insurance_value: Math.max(0, Number(p.valor ?? p.price ?? 0)), quantity: Math.max(1, Math.floor(Number(p.quantidade ?? p.qty ?? 1)))
-    }));
+    const itens = produtos.map((p, index) => ({ id: String(p.id || `aurea-${index + 1}`), width: saneDim(p.largura || p.width, 12), height: saneDim(p.altura || p.height, 12), length: saneDim(p.comprimento || p.length, 20), weight: saneDim(p.peso || p.weight, 0.6), insurance_value: Math.max(0, Number(p.valor ?? p.price ?? 0)), quantity: Math.max(1, Math.floor(Number(p.quantidade ?? p.qty ?? 1))) }));
     const upstream = await fetch("https://melhorenvio.com.br/api/v2/me/shipment/calculate", { method: "POST", headers: { Authorization: `Bearer ${env.MELHOR_ENVIO_TOKEN}`, Accept: "application/json", "Content-Type": "application/json", "User-Agent": "AUREA Perfumes/1.0" }, body: JSON.stringify({ from: { postal_code: String(env.AUREA_ORIGIN_CEP).replace(/\D/g, "") }, to: { postal_code: cep }, products: itens }) });
     const raw = await upstream.text(); let data; try { data = JSON.parse(raw); } catch { data = null; }
     if (!upstream.ok) return resposta({ ok: false, error: "Não foi possível calcular o frete agora." }, upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502);
