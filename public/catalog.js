@@ -1,7 +1,7 @@
 // AURÉA catalog synchronization layer — based on the currently visible My Store Perfumes catalog.
 (() => {
   const PRODUCTS = [
-    {id:'angham-second-song',name:'Angham Second Song',brand:'Lattafa Perfumes',cat:'feminino',type:'EDP • 100ml',price:389,pix:365.66,oldPrice:490,offer:true,desc:'Floral frutado gourmand, feminino e sofisticado.',img:'https://lattafa.com/wp-content/uploads/2026/02/angham-second-song-100ml.jpg'},
+    {id:'angham-second-song',name:'Angham Second Song',brand:'Lattafa Perfumes',cat:'feminino',type:'EDP • 100ml',price:389,pix:365.66,oldPrice:490,offer:true,desc:'Floral frutado gourmand, feminino e sofisticado.',img:'https://pieknowita.pl/images/zc619/1000-2000/Lattafa-Angham-Second-Song-EDP-100-ml-dla-Kobiet_%5B1536%5D_1200.jpg'},
     {id:'athena',name:'Athena',brand:'Maison Alhambra',cat:'feminino',type:'EDP • 100ml',price:357,pix:335.58,oldPrice:389,offer:true,desc:'Fragrância feminina elegante da Maison Alhambra.',img:'https://acdn-us.mitiendanube.com/stores/001/167/965/products/maison-alhambra-athena-edp-100ml-43302d9d5a1e4b04d817682162375929-1024-1024.webp'},
     {id:'delilah-blanc',name:'Delilah Blanc',brand:'Maison Alhambra',cat:'feminino',type:'EDP • 100ml',price:378,pix:355.32,oldPrice:389,offer:true,desc:'Floral branco delicado e elegante.',img:'https://iloveperfume.us/cdn/shop/files/1_6667e34a-d262-42a4-b45a-af8ceacbed9c.jpg?v=1764865743'},
     {id:'delilah-pour-femme',name:'Delilah Pour Femme',brand:'Maison Alhambra',cat:'feminino',type:'EDP • 100ml',price:324,pix:304.56,oldPrice:380,offer:true,desc:'Floral feminino marcante e sofisticado.',img:'https://www.perfume-empire.com/cdn/shop/files/Untitleddesign_15_60260f5f-2205-4b99-bb9b-b89e66336d69.jpg?v=1749151036&width=1400'},
