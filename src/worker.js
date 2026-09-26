@@ -149,7 +149,7 @@ async function calcularFrete(request,env){
   return resposta({ok:true,fretes});
  }catch(e){console.error("Frete:",e);return resposta({ok:false,error:e.message==="Carrinho vazio"?"Carrinho vazio.":"Não foi possível calcular o frete."},500)}
 }
-function mpConfig(env){const production=String(env.MERCADOPAGO_MODE||"test").toLowerCase()==="production";return {testMode:!production,publicKey:production?(env.MERCADOPAGO_PUBLIC_KEY||""):(mpConfig(env).publicKey||""),accessToken:production?(env.MERCADOPAGO_ACCESS_TOKEN||""):(mpConfig(env).accessToken||"")}}
+function mpConfig(env){const production=String(env.MERCADOPAGO_MODE||"test").toLowerCase()==="production";return {testMode:!production,publicKey:production?(env.MERCADOPAGO_PUBLIC_KEY||""):(env.MERCADOPAGO_TEST_PUBLIC_KEY||""),accessToken:production?(env.MERCADOPAGO_ACCESS_TOKEN||""):(env.MERCADOPAGO_TEST_ACCESS_TOKEN||"")}}
 async function statusMercadoPago(env){
  const cfg=mpConfig(env);
  if(!mpConfig(env).accessToken)return resposta({ok:false,error:"Token do Mercado Pago ausente."},503);
