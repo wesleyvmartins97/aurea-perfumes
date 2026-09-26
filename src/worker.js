@@ -212,7 +212,7 @@ async function criarPagamentoCartao(request,env){
   const releaseReservation=async()=>{for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,new Date().toISOString(),it.id).run()};
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
   const payload={type:"online",processing_mode:"automatic",total_amount:total.toFixed(2),external_reference:referencia,payer:{email},transactions:{payments:[{amount:total.toFixed(2),payment_method:{id:paymentMethodId,type:"credit_card",token,installments}}]}};
-  if(issuerId)payload.transactions.payments[0].payment_method.issuer_id=issuerId;
+  
   const mp=await fetch("https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_TEST_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(payload)});
   const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}};
   const tx=result?.transactions?.payments?.[0]||{};
