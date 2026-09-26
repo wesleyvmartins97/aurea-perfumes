@@ -26,36 +26,20 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
 @media(max-width:700px){.benefits{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;padding:10px 2%!important;align-items:start!important}.benefit{padding:2px 4px!important;min-width:0!important;border-right:1px solid rgba(255,255,255,.16)!important}.benefit:last-child{border-right:0!important}.benefit .ico{font-size:14px!important;margin-bottom:3px!important;line-height:1!important}.benefit strong{font-size:7px!important;line-height:1.15!important;letter-spacing:.15px!important;display:block!important}.benefit span{font-size:6px!important;line-height:1.15!important;margin-top:2px!important;display:block!important}}</style>
 <style id="aurea-mobile-banner-benefits-fix">
 @media(max-width:700px){
-  .slider,.slides,.slide{background:#111!important;}
-  .slide{position:relative!important;aspect-ratio:2.45/1!important;overflow:hidden!important;line-height:0!important;}
-  .slide img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;display:block!important;margin:0!important;}
-  .slide-dots{bottom:7px!important;}
-
-  /* Benefícios: quatro colunas realmente ocupando toda a largura */
-  .benefits{padding:12px 14px!important;}
-  .benefits .benefits-grid{
-    width:100%!important;
-    max-width:100%!important;
-    margin:0!important;
-    display:flex!important;
-    flex-direction:row!important;
-    justify-content:space-between!important;
-    align-items:flex-start!important;
-    gap:0!important;
-  }
-  .benefits .benefits-grid > div{
-    display:block!important;
-    flex:0 0 23%!important;
-    width:23%!important;
-    max-width:23%!important;
-    min-width:0!important;
-    margin:0!important;
-    padding:0 3px!important;
-    text-align:center!important;
-  }
-  .benefit-icon{font-size:14px!important;line-height:1!important;margin:0 0 5px!important;}
-  .benefits strong{font-size:7.5px!important;line-height:1.2!important;letter-spacing:.15px!important;display:block!important;white-space:normal!important;}
-  .benefits span{font-size:6.3px!important;line-height:1.2!important;margin-top:3px!important;display:block!important;white-space:normal!important;}
+ .slider,.slides,.slide{background:#111!important}
+ .slide{position:relative!important;aspect-ratio:2.45/1!important;overflow:hidden!important;line-height:0!important}
+ .slide img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;display:block!important;margin:0!important}
+ .slide-dots{bottom:7px!important}
+ .benefits{padding:10px 0!important;height:88px!important;position:relative!important}
+ .benefits-grid{display:block!important;position:relative!important;width:100%!important;max-width:none!important;height:68px!important;margin:0!important}
+ .benefits-grid>div{position:absolute!important;top:0!important;width:25%!important;max-width:25%!important;padding:0 7px!important;margin:0!important;text-align:center!important;box-sizing:border-box!important}
+ .benefits-grid>div:nth-child(1){left:0!important}
+ .benefits-grid>div:nth-child(2){left:25%!important}
+ .benefits-grid>div:nth-child(3){left:50%!important}
+ .benefits-grid>div:nth-child(4){left:75%!important}
+ .benefits-grid .benefit-icon{position:static!important;width:auto!important;max-width:none!important;padding:0!important;margin:0 0 5px!important;font-size:14px!important;line-height:1!important}
+ .benefits-grid strong{display:block!important;font-size:7.5px!important;line-height:1.15!important;letter-spacing:.1px!important}
+ .benefits-grid span{display:block!important;font-size:6.2px!important;line-height:1.18!important;margin-top:3px!important}
 }
 </style>
 </head><body>
@@ -128,9 +112,8 @@ function dropLayer(name,fromHistory=false){
 }
 // Create a same-page history guard so Android/Chrome Back never leaves the shop
 // while an AUREA overlay is the active view.
-if(!history.state||!history.state.aureaBase){
+if(!history.state||(!history.state.aureaBase&&!history.state.aureaLayer)){
  history.replaceState({aureaBase:true},'',location.href);
- history.pushState({aureaGuard:true},'',location.href);
 }
 function openCart(){document.getElementById('cart').classList.add('open');pushLayer('cart')}
 function closeCart(fromHistory=false){document.getElementById('cart').classList.remove('open');dropLayer('cart',fromHistory)}
@@ -146,7 +129,6 @@ window.addEventListener('popstate',()=>{
  else if(layer==='detail')document.getElementById('detailModal').classList.remove('open');
  else if(layer==='cart')document.getElementById('cart').classList.remove('open');
  else if(layer==='account')document.getElementById('accountModal').classList.remove('open');
- if(layer&&!history.state?.aureaGuard&&!history.state?.aureaLayer)history.pushState({aureaGuard:true},'',location.href);
 });
 function updateSummary(){const s=document.getElementById('summary');if(!s)return;const sub=cartSubtotal(),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(x.price*x.qty)}</strong></div>`).join('')+(selectedShipping?`<div class="summary-row"><span>Frete · ${esc(selectedShipping.name)} (${selectedShipping.delivery_time} ${selectedShipping.delivery_time===1?'dia útil':'dias úteis'})</span><strong>${money(frete)}</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
 function cpfValid(c){c=c.replace(/\D/g,'');if(!/^\d{11}$/.test(c)||/^([0-9])\1+$/.test(c))return false;let s=0;for(let i=0;i<9;i++)s+=+c[i]*(10-i);let d=(s*10)%11;if(d===10)d=0;if(d!==+c[9])return false;s=0;for(let i=0;i<10;i++)s+=+c[i]*(11-i);d=(s*10)%11;if(d===10)d=0;return d===+c[10]};function showError(m){const e=document.getElementById('error');e.textContent=m;e.classList.add('show')};
