@@ -18,5 +18,8 @@
       "database_name": "aurea-perfumes-db",
       "database_id": "252e71d5-e5df-45a1-87f3-5a68426f963c"
     }
-  ]
+  ],
+  "vars": {
+    "MERCADOPAGO_MODE": "production"
+  }
 }
