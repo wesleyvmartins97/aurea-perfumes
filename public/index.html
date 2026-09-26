@@ -42,7 +42,46 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
  .benefits-grid span{display:block!important;font-size:6.2px!important;line-height:1.18!important;margin-top:3px!important}
 }
 </style>
-</head><body>
+<style id="aurea-final-mobile-fixes">
+@media(max-width:700px){
+  section.benefits{height:auto!important;min-height:82px!important;padding:11px 8px!important;display:block!important}
+  section.benefits > .benefits-grid{
+    position:static!important;
+    display:grid!important;
+    grid-template-columns:repeat(4,1fr)!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    gap:0!important;
+  }
+  section.benefits > .benefits-grid > div{
+    position:static!important;
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:0 5px!important;
+    transform:none!important;
+    text-align:center!important;
+  }
+  section.benefits > .benefits-grid > div > .benefit-icon{
+    position:static!important;width:auto!important;max-width:none!important;
+    margin:0 0 5px!important;padding:0!important;text-align:center!important;
+    font-size:14px!important;line-height:1!important;
+  }
+  section.benefits > .benefits-grid > div > strong{
+    display:block!important;font-size:7px!important;line-height:1.15!important;
+    text-align:center!important;white-space:normal!important;
+  }
+  section.benefits > .benefits-grid > div > span{
+    display:block!important;font-size:6px!important;line-height:1.15!important;
+    margin-top:3px!important;text-align:center!important;white-space:normal!important;
+  }
+}
+</style></head><body>
 <header class="header"><a class="logo" href="#top">AURÉA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">AURÉA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques AURÉA">
   <div class="slides" id="slides">
@@ -129,6 +168,7 @@ window.addEventListener('popstate',()=>{
  else if(layer==='detail')document.getElementById('detailModal').classList.remove('open');
  else if(layer==='cart')document.getElementById('cart').classList.remove('open');
  else if(layer==='account')document.getElementById('accountModal').classList.remove('open');
+ else if(layer==='client'){const cc=document.getElementById('clientCenter');if(cc)cc.style.display='none';document.body.style.overflow='';}
 });
 function updateSummary(){const s=document.getElementById('summary');if(!s)return;const sub=cartSubtotal(),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(x.price*x.qty)}</strong></div>`).join('')+(selectedShipping?`<div class="summary-row"><span>Frete · ${esc(selectedShipping.name)} (${selectedShipping.delivery_time} ${selectedShipping.delivery_time===1?'dia útil':'dias úteis'})</span><strong>${money(frete)}</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
 function cpfValid(c){c=c.replace(/\D/g,'');if(!/^\d{11}$/.test(c)||/^([0-9])\1+$/.test(c))return false;let s=0;for(let i=0;i<9;i++)s+=+c[i]*(10-i);let d=(s*10)%11;if(d===10)d=0;if(d!==+c[9])return false;s=0;for(let i=0;i<10;i++)s+=+c[i]*(11-i);d=(s*10)%11;if(d===10)d=0;return d===+c[10]};function showError(m){const e=document.getElementById('error');e.textContent=m;e.classList.add('show')};
@@ -178,12 +218,14 @@ async function fetchClientData(){
 }
 async function openClient(){
  initClientCenter();
- closeAccount();
+ const accountWasOpen=document.getElementById('accountModal')?.classList.contains('open');
+ if(accountWasOpen){document.getElementById('accountModal').classList.remove('open');const ai=aureaLayers.lastIndexOf('account');if(ai>=0)aureaLayers.splice(ai,1)}
  const el=document.getElementById('clientCenter');el.style.display='block';document.body.style.overflow='hidden';
+ pushLayer('client');
  document.getElementById('ccMain').innerHTML='<div class="ccEmpty">Carregando sua conta...</div>';
  try{await fetchClientData();clientTab('home')}catch(e){document.getElementById('ccMain').innerHTML='<div class="ccEmpty">'+esc(e.message)+'<br><br><button class="ccBtn" onclick="openClient()">TENTAR NOVAMENTE</button></div>'}
 }
-function closeClient(){const el=document.getElementById('clientCenter');if(el)el.style.display='none';document.body.style.overflow=''}
+function closeClient(fromHistory=false){const el=document.getElementById('clientCenter');if(el)el.style.display='none';document.body.style.overflow='';dropLayer('client',fromHistory)}
 function clientTab(t){
  if(!clientData)return;
  document.querySelectorAll('.ccNav button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
