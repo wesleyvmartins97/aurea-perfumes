@@ -108,7 +108,7 @@ async function accountAddressDelete(request,env,id){try{const u=await currentCus
 async function servirAssets(request,env){const response=await env.ASSETS.fetch(request);const contentType=response.headers.get("content-type")||"";if(!contentType.includes("text/html")||new URL(request.url).pathname!=="/")return response;const html=await response.text();const injected=html.replace(/<\/body>/i,'<script src="/catalog.js?v=aurea20260925"></script></body>');const headers=new Headers(response.headers);headers.set("Cache-Control","no-store, max-age=0, must-revalidate");headers.delete("ETag");return new Response(injected,{status:response.status,statusText:response.statusText,headers})}
 async function consultarEstoque(env){try{await ensureAuthSchema(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
 const AUREA_CATALOG={
-"angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
+"angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:0.10,weight:.6,length:20,height:12,width:16},
 "athena":{name:"Athena",brand:"Maison Alhambra",type:"EDP · 100ml",price:239.90,weight:.6,length:20,height:12,width:16},
 "delilah-blanc":{name:"Delilah Blanc",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
 "delilah":{name:"Delilah Pour Femme",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
