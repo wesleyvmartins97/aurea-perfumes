@@ -253,7 +253,7 @@ const CATALOG=[
 {id:'tharwah-gold',name:'Tharwah Gold',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:429.90,pix:408.40,img:'https://tiendalafe.com/cdn/shop/files/Disenosintitulo-2025-07-18T124522.470.png?v=1752864346',desc:'Floral oriental com baunilha e âmbar.',offer:true,banner:true},
 {id:'vulcan-feu',name:'Vulcan Feu',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:429.90,pix:408.40,img:'https://bplatz.de/cdn/shop/files/fragrance-world-vulcan-feu_1200x1200_a18800bb-2597-4288-a0d4-10a160d48a80.webp?v=1756819437&width=1200',desc:'Frutado amadeirado especiado e compartilhável.',offer:true}
 ];
-let cat='todos',cart=JSON.parse(localStorage.getItem('aurea_cart')||'[]'),selectedShipping=null;
+let cat='todos',cart=[];try{const savedCart=JSON.parse(localStorage.getItem('aurea_cart')||'[]');cart=Array.isArray(savedCart)?savedCart:[]}catch(e){localStorage.removeItem('aurea_cart');cart=[]}let selectedShipping=null;
 const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 function openBannerProduct(id){document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>{if(window.AureaDetail)window.AureaDetail(id)},650)}
 function setCat(c){cat=c;document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.cat===c));document.getElementById('catalogo').scrollIntoView({behavior:'smooth'});render()}
