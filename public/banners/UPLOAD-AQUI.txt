@@ -1,4 +1,0 @@
-Coloque nesta pasta os banners do site AUREA.
-
-Envie aqui as imagens em PNG, JPG ou WEBP.
-Depois avise no ChatGPT: subi as imagens.
