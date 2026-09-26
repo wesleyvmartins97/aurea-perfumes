@@ -9,6 +9,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/auth/me"&&request.method==="GET")return authMe(request,env);
  if(url.pathname==="/api/auth/logout"&&request.method==="POST")return authLogout(request,env);
  if(url.pathname==="/api/auth/verify"&&request.method==="GET")return authVerify(url,env);
+ if(url.pathname==="/api/auth/resend-verification"&&request.method==="POST")return authResendVerification(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
  if(url.pathname==="/api/account/profile"&&request.method==="POST")return accountProfile(request,env);
  if(url.pathname==="/api/account/addresses"&&request.method==="POST")return accountAddressSave(request,env);
@@ -86,6 +87,23 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":
 async function authVerify(url,env){
  try{await ensureAuthSchema(env);const token=url.searchParams.get("token")||"";if(!token)return htmlMsg("Link inválido","O link de confirmação está incompleto.",false);const th=await sha256(token);const row=await env.DB.prepare("SELECT id,customer_id,expires_at FROM email_verifications WHERE token_hash=?").bind(th).first();if(!row||Date.parse(row.expires_at)<Date.now())return htmlMsg("Link expirado","Este link de confirmação não é mais válido.",false);await env.DB.batch([env.DB.prepare("UPDATE customers SET email_verified=1,updated_at=? WHERE id=?").bind(new Date().toISOString(),row.customer_id),env.DB.prepare("DELETE FROM email_verifications WHERE customer_id=?").bind(row.customer_id)]);return htmlMsg("E-mail confirmado!","Sua conta AURÉA está ativa. Volte à loja e faça seu login.",true);
  }catch(e){return htmlMsg("Não foi possível confirmar","Tente novamente mais tarde.",false)}
+}
+async function authResendVerification(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const d=await request.json(),email=String(d.email||"").trim().toLowerCase();
+  if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);
+  const u=await env.DB.prepare("SELECT id,name,email,email_verified FROM customers WHERE email=?").bind(email).first();
+  if(!u)return resposta({ok:true,message:"Se houver uma conta pendente para este e-mail, enviaremos uma nova confirmação."});
+  if(u.email_verified)return resposta({ok:true,alreadyVerified:true,message:"Este e-mail já está confirmado. Você já pode entrar."});
+  await env.DB.prepare("DELETE FROM email_verifications WHERE customer_id=?").bind(u.id).run();
+  const token=randomToken(),th=await sha256(token),now=new Date().toISOString(),exp=new Date(Date.now()+24*3600e3).toISOString();
+  await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),u.id,th,exp,now).run();
+  const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);
+  const mail=await sendVerification(env,u.email,u.name,verifyUrl.toString());
+  if(!mail.ok)return resposta({ok:false,error:"Não conseguimos enviar a confirmação agora. O e-mail da AURÉA ainda precisa estar habilitado para envio aos clientes."},503);
+  return resposta({ok:true,message:"Novo e-mail de confirmação enviado. Confira também Spam e Lixo eletrônico."});
+ }catch(e){console.error("Reenvio confirmação:",e);return resposta({ok:false,error:"Não foi possível reenviar a confirmação agora."},500)}
 }
 function htmlMsg(title,msg,ok){return new Response('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>AURÉA</title><body style="margin:0;background:#f8f5f1;font-family:Arial;color:#171513"><main style="max-width:560px;margin:12vh auto;background:#fff;padding:42px;text-align:center;border:1px solid #e7e1da"><div style="font:24px Georgia;letter-spacing:5px">AURÉA</div><h1 style="font:32px Georgia">'+escapeHtml(title)+'</h1><p>'+escapeHtml(msg)+'</p><a href="/" style="display:inline-block;margin-top:15px;background:#171513;color:white;padding:13px 20px;text-decoration:none">VOLTAR À LOJA</a></main></body>',{status:ok?200:400,headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store"}})}
 async function authLogin(request,env){
@@ -166,7 +184,11 @@ async function criarPagamentoPix(request,env){
   if(String(dados.paymentMethod||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Método de pagamento não disponível."},400);
   if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
   const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
-  await ensureAuthSchema(env);await seedInventory(env);const items=canonicalItems(dados.items),testFree=items.length>0&&items.every(x=>x.id==="angham-second-song"&&x.price===0.10);
+  await ensureAuthSchema(env);const u=await currentCustomer(request,env);
+  if(!u)return resposta({ok:false,requiresLogin:true,error:"Para finalizar a compra, entre ou crie sua conta AURÉA."},401);
+  if(!u.email_verified)return resposta({ok:false,requiresVerification:true,error:"Confirme seu e-mail antes de finalizar a compra."},403);
+  if(email!==String(u.email||"").toLowerCase())return resposta({ok:false,error:"O e-mail da compra deve ser o mesmo da sua conta AURÉA."},409);
+  await seedInventory(env);const items=canonicalItems(dados.items),testFree=items.length>0&&items.every(x=>x.id==="angham-second-song"&&x.price===0.10);
   const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
   let chosen,freight;if(testFree){chosen={carrier:"AURÉA Teste",price:0,delivery_time:0};freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrierWanted);if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=String(chosen.carrier||chosen.company||"AURÉA Teste");
   const subtotal=items.reduce((s,x)=>s+x.price*x.qty,0),total=Number((subtotal+freight).toFixed(2));
@@ -179,9 +201,9 @@ async function criarPagamentoPix(request,env){
   const mp=await fetch("https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(payload)});
   const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok){await releaseReservation();const mpMessage=String(result?.message||result?.error||"Solicitação recusada.");const mpCause=Array.isArray(result?.cause)?result.cause.map(x=>[x?.code,x?.description].filter(Boolean).join(": ")).filter(Boolean):[];const mpData=String(result?.data?.message||result?.data?.error||"");const detail=[`Mercado Pago HTTP ${mp.status}: ${mpMessage}`,mpData,mpCause.length?`Detalhes: ${mpCause.join(" | ")}`:""].filter(Boolean).join(" — ");return resposta({ok:false,error:detail},502)}
   if(!result.id){await releaseReservation();return resposta({ok:false,error:"Mercado Pago não retornou o identificador da order."},502)}
-  const pay=result?.transactions?.payments?.[0]||{},pix=pay?.payment_method||{},orderId=String(result.id),paymentId=String(pay.id||result.id);let savedToAccount=false;
-  if(result.id){const now=new Date().toISOString(),pid=orderId,u=await currentCustomer(request,env);
-   if(u){await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,"Aguardando pagamento",total,now,now).run();savedToAccount=true}else await env.DB.prepare("INSERT OR IGNORE INTO guest_orders(id,email,customer_name,cpf,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,referencia,"Aguardando pagamento",total,now,now).run();
+  const pay=result?.transactions?.payments?.[0]||{},pix=pay?.payment_method||{},orderId=String(result.id),paymentId=String(pay.id||result.id);let savedToAccount=true;
+  if(result.id){const now=new Date().toISOString(),pid=orderId;
+   await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,"Aguardando pagamento",total,now,now).run();
    for(const it of items)await env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),pid,it.id,it.name,it.brand,it.type,it.img,it.qty,it.price,0,now).run();
    const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
    await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
@@ -201,7 +223,11 @@ async function criarPagamentoCartao(request,env){
   if(!token||!paymentMethodId||!Number.isInteger(installments)||installments<1||installments>12)return resposta({ok:false,error:"Dados do cartão ou parcelamento inválidos."},400);
   const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
   if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
-  await ensureAuthSchema(env);await seedInventory(env);const items=canonicalItems(dados.items),testFree=items.length>0&&items.every(x=>x.id==="angham-second-song"&&x.price===0.10);
+  await ensureAuthSchema(env);const u=await currentCustomer(request,env);
+  if(!u)return resposta({ok:false,requiresLogin:true,error:"Para finalizar a compra, entre ou crie sua conta AURÉA."},401);
+  if(!u.email_verified)return resposta({ok:false,requiresVerification:true,error:"Confirme seu e-mail antes de finalizar a compra."},403);
+  if(email!==String(u.email||"").toLowerCase())return resposta({ok:false,error:"O e-mail da compra deve ser o mesmo da sua conta AURÉA."},409);
+  await seedInventory(env);const items=canonicalItems(dados.items),testFree=items.length>0&&items.every(x=>x.id==="angham-second-song"&&x.price===0.10);
   const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
   let chosen,freight;if(testFree){chosen={carrier:"AURÉA Teste",price:0,delivery_time:0};freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrierWanted);if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=String(chosen.carrier||chosen.company||"AURÉA Teste");
   const subtotal=items.reduce((s,x)=>s+x.price*x.qty,0),total=Number((subtotal+freight).toFixed(2));
@@ -216,9 +242,8 @@ async function criarPagamentoCartao(request,env){
   const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}};
   const tx=result?.transactions?.payments?.[0]||{};
   if(!mp.ok||!result.id){await releaseReservation();const detail=result?.status_detail||tx?.status_detail||result?.error||null;return resposta({ok:false,error:result?.message?`Mercado Pago: ${result.message}`:"Não foi possível processar o cartão.",statusDetail:detail,cause:Array.isArray(result?.errors)?result.errors.slice(0,3):null},mp.status>=400&&mp.status<500?400:502)}
-  const now=new Date().toISOString(),pid=String(result.id),u=await currentCustomer(request,env),txStatus=String(tx.status||result.status||""),txDetail=String(tx.status_detail||result.status_detail||""),approved=txStatus==="processed"||txStatus==="approved"||txDetail==="accredited",statusMap={processed:"Pago",processing:"Processando",created:"Processando",failed:"Pagamento recusado",canceled:"Cancelado"},status=approved?"Pago":(statusMap[txStatus]||statusMap[result.status]||String(txStatus||result.status||"Processando"));
-  if(u)await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,status,total,now,now).run();
-  else await env.DB.prepare("INSERT OR IGNORE INTO guest_orders(id,email,customer_name,cpf,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,referencia,status,total,now,now).run();
+  const now=new Date().toISOString(),pid=String(result.id),txStatus=String(tx.status||result.status||""),txDetail=String(tx.status_detail||result.status_detail||""),approved=txStatus==="processed"||txStatus==="approved"||txDetail==="accredited",statusMap={processed:"Pago",processing:"Processando",created:"Processando",failed:"Pagamento recusado",canceled:"Cancelado"},status=approved?"Pago":(statusMap[txStatus]||statusMap[result.status]||String(txStatus||result.status||"Processando"));
+  await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,status,total,now,now).run();
   for(const it of items)await env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),pid,it.id,it.name,it.brand,it.type,it.img,it.qty,it.price,approved?1:0,now).run();
   const chargedTotal=Number(tx?.amount||total),installmentAmount=installments>0?Number((chargedTotal/installments).toFixed(2)):chargedTotal;await env.DB.prepare("INSERT OR REPLACE INTO order_payments(order_id,method,installments,installment_amount,total_paid,status,status_detail,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,"Cartão de crédito",installments,installmentAmount,chargedTotal,txStatus||String(result.status||""),txDetail||String(result.status_detail||""),now,now).run();
   const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
