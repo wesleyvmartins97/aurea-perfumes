@@ -26,24 +26,36 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
 @media(max-width:700px){.benefits{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;padding:10px 2%!important;align-items:start!important}.benefit{padding:2px 4px!important;min-width:0!important;border-right:1px solid rgba(255,255,255,.16)!important}.benefit:last-child{border-right:0!important}.benefit .ico{font-size:14px!important;margin-bottom:3px!important;line-height:1!important}.benefit strong{font-size:7px!important;line-height:1.15!important;letter-spacing:.15px!important;display:block!important}.benefit span{font-size:6px!important;line-height:1.15!important;margin-top:2px!important;display:block!important}}</style>
 <style id="aurea-mobile-banner-benefits-fix">
 @media(max-width:700px){
-  /* Banner: a imagem ocupa a área inteira do slide, sem faixa branca interna */
   .slider,.slides,.slide{background:#111!important;}
   .slide{position:relative!important;aspect-ratio:2.45/1!important;overflow:hidden!important;line-height:0!important;}
   .slide img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;display:block!important;margin:0!important;}
   .slide-dots{bottom:7px!important;}
 
-  /* 4 benefícios distribuídos de ponta a ponta em uma única linha */
-  .benefits{padding:11px 10px!important;}
-  .benefits-grid{
-    width:100%!important;max-width:none!important;margin:0!important;
-    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
-    column-gap:10px!important;row-gap:0!important;align-items:start!important;
-    justify-content:stretch!important;text-align:center!important;
+  /* Benefícios: quatro colunas realmente ocupando toda a largura */
+  .benefits{padding:12px 14px!important;}
+  .benefits .benefits-grid{
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:row!important;
+    justify-content:space-between!important;
+    align-items:flex-start!important;
+    gap:0!important;
   }
-  .benefits-grid>*{min-width:0!important;width:auto!important;margin:0!important;text-align:center!important;}
-  .benefit-icon{font-size:13px!important;line-height:1!important;margin:0 0 4px!important;}
-  .benefits strong{font-size:7.4px!important;line-height:1.15!important;letter-spacing:.1px!important;display:block!important;}
-  .benefits span{font-size:6.2px!important;line-height:1.2!important;margin-top:3px!important;display:block!important;}
+  .benefits .benefits-grid > div{
+    display:block!important;
+    flex:0 0 23%!important;
+    width:23%!important;
+    max-width:23%!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:0 3px!important;
+    text-align:center!important;
+  }
+  .benefit-icon{font-size:14px!important;line-height:1!important;margin:0 0 5px!important;}
+  .benefits strong{font-size:7.5px!important;line-height:1.2!important;letter-spacing:.15px!important;display:block!important;white-space:normal!important;}
+  .benefits span{font-size:6.3px!important;line-height:1.2!important;margin-top:3px!important;display:block!important;white-space:normal!important;}
 }
 </style>
 </head><body>
