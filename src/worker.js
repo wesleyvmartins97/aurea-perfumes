@@ -16,7 +16,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/frete"&&request.method==="POST")return calcularFrete(request,env);
  if(url.pathname==="/api/estoque"&&request.method==="GET")return consultarEstoque(env);
  if(url.pathname==="/api/pagamento/status"&&request.method==="GET")return statusMercadoPago(env);
- if(url.pathname==="/api/pagamento/config"&&request.method==="GET")return resposta({ok:true,cardEnabled:Boolean(env.MERCADOPAGO_PUBLIC_KEY),publicKey:env.MERCADOPAGO_PUBLIC_KEY||""});
+ if(url.pathname==="/api/pagamento/config"&&request.method==="GET")return resposta({ok:true,cardEnabled:Boolean(env.MERCADOPAGO_TEST_PUBLIC_KEY),publicKey:env.MERCADOPAGO_TEST_PUBLIC_KEY||""});
  if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
  if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(),env);
@@ -149,13 +149,13 @@ async function calcularFrete(request,env){
  }catch(e){console.error("Frete:",e);return resposta({ok:false,error:e.message==="Carrinho vazio"?"Carrinho vazio.":"Não foi possível calcular o frete."},500)}
 }
 async function statusMercadoPago(env){
- if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Token do Mercado Pago ausente."},503);
+ if(!env.MERCADOPAGO_TEST_ACCESS_TOKEN)return resposta({ok:false,error:"Token do Mercado Pago ausente."},503);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
- try{const r=await fetch("https://api.mercadopago.com/users/me",{headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,Accept:"application/json"},signal:controller.signal});const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{};if(!r.ok)return resposta({ok:false,provider:"mercadopago",status:r.status,error:d.message||d.error||"Credencial recusada pelo Mercado Pago."},502);return resposta({ok:true,provider:"mercadopago",status:r.status,credentials:"accepted"});}catch(e){return resposta({ok:false,provider:"mercadopago",error:e?.name==="AbortError"?"Tempo esgotado ao conectar ao Mercado Pago.":"Falha de conexão com o Mercado Pago."},504)}finally{clearTimeout(timer)}
+ try{const r=await fetch("https://api.mercadopago.com/users/me",{headers:{Authorization:`Bearer ${env.MERCADOPAGO_TEST_ACCESS_TOKEN}`,Accept:"application/json"},signal:controller.signal});const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{};if(!r.ok)return resposta({ok:false,provider:"mercadopago",status:r.status,error:d.message||d.error||"Credencial recusada pelo Mercado Pago."},502);return resposta({ok:true,provider:"mercadopago",status:r.status,credentials:"accepted"});}catch(e){return resposta({ok:false,provider:"mercadopago",error:e?.name==="AbortError"?"Tempo esgotado ao conectar ao Mercado Pago.":"Falha de conexão com o Mercado Pago."},504)}finally{clearTimeout(timer)}
 }
 async function criarPagamentoPix(request,env){
  try{
-  if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+  if(!env.MERCADOPAGO_TEST_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
   const dados=await request.json(),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
   if(String(dados.paymentMethod||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Método de pagamento não disponível."},400);
   if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
@@ -174,7 +174,7 @@ async function criarPagamentoPix(request,env){
   const releaseReservation=async()=>{for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,new Date().toISOString(),it.id).run()};
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`,expiration=new Date(Date.now()+30*60*1000).toISOString();
   const payload={transaction_amount:total,description:`Pedido AURÉA Perfumes - ${referencia}`,payment_method_id:"pix",external_reference:referencia,date_of_expiration:expiration,payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
-  const mp=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":referencia},body:JSON.stringify(payload)});
+  const mp=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_TEST_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":referencia},body:JSON.stringify(payload)});
   const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok){await releaseReservation();return resposta({ok:false,error:result?.message?`Mercado Pago: ${result.message}`:`Mercado Pago recusou a solicitação (HTTP ${mp.status}).`},502)}
   if(!result.id){await releaseReservation();return resposta({ok:false,error:"Mercado Pago não retornou o identificador do pagamento."},502)}
   const pix=result?.point_of_interaction?.transaction_data||{};let savedToAccount=false;
@@ -189,7 +189,7 @@ async function criarPagamentoPix(request,env){
 }
 async function criarPagamentoCartao(request,env){
  try{
-  if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+  if(!env.MERCADOPAGO_TEST_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
   const dados=await request.json(),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
   const token=String(dados.token||"").trim(),paymentMethodId=String(dados.payment_method_id||dados.paymentMethodId||"").trim(),issuerId=String(dados.issuer_id||dados.issuerId||"").trim(),installments=Number(dados.installments);
   if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);
@@ -213,7 +213,7 @@ async function criarPagamentoCartao(request,env){
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
   const payload={transaction_amount:total,token,description:`Pedido AURÉA Perfumes - ${referencia}`,installments,payment_method_id:paymentMethodId,external_reference:referencia,payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};
   if(issuerId)payload.issuer_id=issuerId;if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
-  const mp=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":referencia},body:JSON.stringify(payload)});
+  const mp=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_TEST_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":referencia},body:JSON.stringify(payload)});
   const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}};
   if(!mp.ok||!result.id){await releaseReservation();return resposta({ok:false,error:result?.message?`Mercado Pago: ${result.message}`:"Não foi possível processar o cartão.",statusDetail:result?.status_detail||null},mp.status>=400&&mp.status<500?400:502)}
   const now=new Date().toISOString(),pid=String(result.id),u=await currentCustomer(request,env),statusMap={approved:"Pago",pending:"Aguardando pagamento",in_process:"Processando",rejected:"Pagamento recusado"},status=statusMap[result.status]||String(result.status||"Processando");
@@ -252,8 +252,8 @@ async function criarEnvioEnvioEcom(env,orderId){
  const labelReady=await tentarGerarEtiqueta(env,orderId,sid,barcode);return {ok:true,shippingId:String(sid),barcode:barcode?String(barcode):null,labelReady};
 }
 async function consultarPagamento(orderId,env){
- if(!orderId||!/^\d+$/.test(orderId))return resposta({ok:false,error:"ID de pagamento inválido."},400);if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
- try{const mp=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(orderId)}`,{headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,Accept:"application/json"}}),raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok)return resposta({ok:false,error:"Não foi possível consultar o pagamento."},502);
+ if(!orderId||!/^\d+$/.test(orderId))return resposta({ok:false,error:"ID de pagamento inválido."},400);if(!env.MERCADOPAGO_TEST_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+ try{const mp=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(orderId)}`,{headers:{Authorization:`Bearer ${env.MERCADOPAGO_TEST_ACCESS_TOKEN}`,Accept:"application/json"}}),raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok)return resposta({ok:false,error:"Não foi possível consultar o pagamento."},502);
   const map={approved:"Pago",pending:"Aguardando pagamento",in_process:"Processando",rejected:"Pagamento recusado",cancelled:"Cancelado",expired:"Expirado",refunded:"Reembolsado"},st=map[result.status]||String(result.status||"Aguardando pagamento"),now=new Date().toISOString(),pid=String(result.id??orderId);await ensureAuthSchema(env);
   await env.DB.batch([env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(st,now,pid),env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(st,now,pid)]);
   let shipping=null;
