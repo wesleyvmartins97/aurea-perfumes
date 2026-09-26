@@ -16,6 +16,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/frete"&&request.method==="POST")return calcularFrete(request,env);
  if(url.pathname==="/api/estoque"&&request.method==="GET")return consultarEstoque(env);
  if(url.pathname==="/api/pagamento/status"&&request.method==="GET")return statusMercadoPago(env);
+ if(url.pathname==="/api/pagamento/config"&&request.method==="GET")return resposta({ok:true,cardEnabled:Boolean(env.MERCADOPAGO_PUBLIC_KEY),publicKey:env.MERCADOPAGO_PUBLIC_KEY||""});
  if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(),env);
  if(env.ASSETS)return servirAssets(request,env);
