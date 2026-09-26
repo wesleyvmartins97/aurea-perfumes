@@ -276,6 +276,17 @@ window.addEventListener('popstate',()=>{
  else if(layer==='client'){const cc=document.getElementById('clientCenter');if(cc)cc.style.display='none';document.body.style.overflow='';}
 });
 function updateSummary(){const s=document.getElementById('summary');if(!s)return;const sub=cartSubtotal(),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(x.price*x.qty)}</strong></div>`).join('')+(selectedShipping?`<div class="summary-row"><span>Frete · ${esc(selectedShipping.name)} (${selectedShipping.delivery_time} ${selectedShipping.delivery_time===1?'dia útil':'dias úteis'})</span><strong>${money(frete)}</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
+async function checkoutShipping(){
+ const e=document.getElementById('error'),cep=document.getElementById('checkoutCep').value.replace(/\D/g,'');
+ e.classList.add('show');e.innerHTML='<b>Escolha o frete para continuar</b><div id="checkoutShipInline" style="margin-top:10px">Consultando opções para o CEP '+esc(document.getElementById('checkoutCep').value)+'...</div>';
+ const out=document.getElementById('checkoutShipInline');
+ if(cep.length!==8){out.textContent='Informe um CEP válido acima.';return}
+ try{const r=await fetch('/api/frete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cep,produtos:cart})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível calcular o frete.');
+ let fs=d.fretes||[];if(cart.length===1&&cart[0].id==='angham-second-song'&&Number(cart[0].price)===1.01)fs=[{name:'Frete grátis — teste PIX',carrier:'AURÉA',price:0,delivery_time:0},...fs];window.aureaCheckoutFretes=fs;
+ out.innerHTML=fs.map((x,i)=>'<label style="display:flex;gap:9px;align-items:center;padding:10px 0;border-top:1px solid #e5caca;cursor:pointer"><input type="radio" name="checkoutShippingInline" onchange="selectCheckoutShipping('+i+')"><span><b>'+esc(x.name)+'</b><br><small>'+money(x.price)+' · '+(Number(x.delivery_time)||0)+' dias úteis</small></span></label>').join('')||'Nenhuma opção disponível.';
+ }catch(err){out.textContent=err.message}
+}
+function selectCheckoutShipping(i){const x=(window.aureaCheckoutFretes||[])[i];if(!x)return;selectedShipping={name:x.name,carrier:x.carrier||x.name,price:Number(x.price)||0,delivery_time:Number(x.delivery_time)||0};refreshTotal();updateSummary();const e=document.getElementById('error');e.classList.remove('show');e.innerHTML=''}
 function cpfValid(c){c=c.replace(/\D/g,'');if(!/^\d{11}$/.test(c)||/^([0-9])\1+$/.test(c))return false;let s=0;for(let i=0;i<9;i++)s+=+c[i]*(10-i);let d=(s*10)%11;if(d===10)d=0;if(d!==+c[9])return false;s=0;for(let i=0;i<10;i++)s+=+c[i]*(11-i);d=(s*10)%11;if(d===10)d=0;return d===+c[10]};function showError(m){const e=document.getElementById('error');e.textContent=m;e.classList.add('show')};
 let aureaPaymentPoll=null;
 function stopPaymentPoll(){if(aureaPaymentPoll){clearInterval(aureaPaymentPoll);aureaPaymentPoll=null}}
@@ -296,7 +307,7 @@ async function payPix(){
  if(!cpfValid(cpf))return showError('Informe um CPF válido.');
  if(cep.length!==8)return showError('Informe um CEP válido.');
  if(!number.value.trim())return showError('Informe o número do endereço.');
- if(!selectedShipping)return showError('Escolha uma opção de frete no carrinho antes de pagar.');
+ if(!selectedShipping){checkoutShipping();return}
  const normalTotal=cartSubtotal()+selectedShipping.price;const testMode=new URLSearchParams(location.search).get('teste')==='1';const total=testMode?1.01:normalTotal,b=document.getElementById('payButton');
  b.disabled=true;b.textContent='GERANDO PIX...';
  const failTimer=setTimeout(()=>{if(b&&b.textContent==='GERANDO PIX...'){b.disabled=false;b.textContent='GERAR PAGAMENTO PIX';showError('O pagamento não respondeu. Tente novamente.');}},22000);
