@@ -3,6 +3,9 @@
   "name": "aurea-perfumes",
   "main": "src/worker.js",
   "compatibility_date": "2026-08-28",
+  "vars": {
+    "MERCADOPAGO_MODE": "production"
+  },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
