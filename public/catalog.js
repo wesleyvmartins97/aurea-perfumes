@@ -43,3 +43,30 @@ function initOriginalSlider(){const s=document.getElementById('slides');if(!s||!
 function init(){installCSS();initOriginalSlider();const old=document.querySelector('.account');if(old){old.type='button';old.onclick=e=>{e.preventDefault();e.stopPropagation();if(typeof window.openAccount==='function')window.openAccount()}}const cartBtn=document.querySelector('.cart');if(cartBtn){cartBtn.onclick=e=>{e.preventDefault();e.stopPropagation();if(typeof window.openCart==='function')window.openCart()}}document.getElementById('search')?.addEventListener('input',render);document.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{active=b.dataset.cat;render()});document.querySelectorAll('.category').forEach(a=>a.addEventListener('click',()=>{const text=a.textContent.toLowerCase();active=text.includes('femin')?'feminino':text.includes('mascul')?'masculino':text.includes('decant')?'decants':text.includes('hidrat')?'hidratantes':'todos';setTimeout(render,50)}));render()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+/* VALENZA PREVIEW MODE */
+(()=>{
+ if(!new URLSearchParams(location.search).has('valenza'))return;
+ const css=document.createElement('style');
+ css.textContent=`
+ :root{--ink:#0A0A0A!important;--paper:#0A0A0A!important;--card:#141414!important;--line:#332b20!important;--gold:#C6A15B!important}
+ body{background:#0A0A0A!important;color:#F5F0E8!important}
+ .header{background:rgba(10,10,10,.96)!important;border-bottom:1px solid #332b20!important}
+ .header .logo,.header .nav a,.header .account{color:#F5F0E8!important}
+ .header .cart,.primary,.add,.final,.checkout,.ccBtn{background:#C6A15B!important;color:#0A0A0A!important;border-color:#C6A15B!important}
+ .hero{background:radial-gradient(circle at 78% 30%,rgba(198,161,91,.22),transparent 34%),linear-gradient(120deg,#080808,#17130e 60%,#090909)!important;color:#F5F0E8!important}
+ .hero p{color:#cfc6b8!important}.eyebrow,.brand{color:#C6A15B!important}
+ .section{color:#F5F0E8!important}.title{color:#F5F0E8!important}
+ .category,.card,.top-product,.info,.toolbar input,.filter{background:#141414!important;color:#F5F0E8!important;border-color:#332b20!important}
+ .category span,.meta,.desc,.top-products-sub{color:#aaa095!important}
+ .card .info,.top-product .info{background:#141414!important}
+ .price,.name{color:#F5F0E8!important}.pix{color:#d5b872!important}
+ .details{color:#c7b99f!important}.filter.active{background:#C6A15B!important;color:#0A0A0A!important}
+ .benefits{background:#100e0b!important;border-color:#C6A15B!important}.trust{background:#080808!important}
+ .aurea-closing{background:#100e0b!important;border-color:#332b20!important}.aurea-closing-mark{color:#C6A15B!important}
+ .footer{background:#050505!important}.aurea-showcase{background:#050505!important}
+ `;
+ document.head.appendChild(css);
+ const replace=()=>{document.querySelectorAll('.logo,.ccLogo,.aurea-closing-mark').forEach(e=>e.textContent=e.textContent.replace(/AURÉA/g,'VALENZA'));document.querySelectorAll('.aurea-slide-copy small').forEach(e=>e.textContent='VALENZA PARFUMS · ESPÍRITO SANTO');document.querySelectorAll('.aurea-wa-text strong').forEach(e=>e.textContent='Atendimento VALENZA');document.title='VALENZA PARFUMS | Fragrâncias Importadas';};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',replace);else replace();
+ setTimeout(replace,500);
+})();
