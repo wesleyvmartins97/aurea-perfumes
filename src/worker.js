@@ -223,7 +223,7 @@ async function criarPagamentoCartao(request,env){
   const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
   await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
   let shipment=null;if(result.status==="approved")try{shipment=await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Expedição cartão:",e)}
-  if(["rejected","cancelled"].includes(result.status))await releaseReservation();
+  if(["rejected","cancelled"].includes(result.status)){await releaseReservation();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();}
   return resposta({ok:true,orderId:pid,paymentId:pid,status:result.status||null,statusDetail:result.status_detail||null,amount:total.toFixed(2),externalReference:referencia,shipping:shipment?{created:!!shipment.ok,barcode:shipment.barcode||null,labelReady:!!shipment.labelReady}:null});
  }catch(e){console.error("Criar cartão:",e);return resposta({ok:false,error:"Erro interno ao processar o cartão."},500)}
 }
