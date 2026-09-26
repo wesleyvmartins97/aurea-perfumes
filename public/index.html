@@ -336,6 +336,7 @@ function checkoutBuyerData(){
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showError('Informe um e-mail válido.');return null}
  if(!cpfValid(cpf)){showError('CPF inválido. Confira os 11 números antes de continuar.');return null}
  if(!birthDate){showError('Informe sua data de nascimento.');return null}
+ const bm=birthDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!bm){showError('Informe a data de nascimento no formato DD/MM/AAAA.');return null}const bd=new Date(Number(bm[3]),Number(bm[2])-1,Number(bm[1]));if(bd.getFullYear()!==Number(bm[3])||bd.getMonth()!==Number(bm[2])-1||bd.getDate()!==Number(bm[1])||bd>new Date()){showError('Informe uma data de nascimento válida.');return null}
  if(cep.length!==8){showError('Informe um CEP válido.');return null}
  if(!document.getElementById('number')?.value.trim()){showError('Informe o número do endereço.');return null}
  if(!selectedShipping){checkoutShipping();return null}
@@ -355,7 +356,7 @@ async function initCardBrick(){
   const cfg=await fetch('/api/pagamento/config?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
   if(!cfg.ok||!cfg.cardEnabled||!cfg.publicKey)throw Error('Pagamento por cartão ainda não está disponível.');
   if(!window.MercadoPago)throw Error('Não foi possível carregar o pagamento seguro do Mercado Pago.');
-  aureaMP=aureaMP||new MercadoPago(cfg.publicKey,{locale:'pt-BR'});
+  if(!aureaMP||aureaMP.__aureaKey!==cfg.publicKey){aureaMP=new MercadoPago(cfg.publicKey,{locale:'pt-BR'});try{Object.defineProperty(aureaMP,'__aureaKey',{value:cfg.publicKey})}catch{}}
   const builder=aureaMP.bricks();
   aureaCardBrick=await builder.create('cardPayment','cardPaymentBrick_container',{
    initialization:{amount:total,payer:{email:buyer.email,identification:{type:'CPF',number:buyer.cpf}}},
@@ -389,7 +390,7 @@ async function payPix(){
  const name=document.getElementById('name').value.trim(),email=document.getElementById('email').value.trim().toLowerCase(),cpf=document.getElementById('cpf').value,birthDate=document.getElementById('birthDate').value,cep=document.getElementById('checkoutCep').value.replace(/\D/g,'');
  if(name.length<3)return showError('Informe seu nome completo.');
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return showError('Informe um e-mail válido.');
- if(!cpfValid(cpf))return showError('CPF inválido. Confira os 11 números antes de continuar.');if(!birthDate)return showError('Informe sua data de nascimento.');const bd=new Date(birthDate+'T12:00:00'),today=new Date();if(bd>today)return showError('Informe uma data de nascimento válida.');
+ if(!cpfValid(cpf))return showError('CPF inválido. Confira os 11 números antes de continuar.');if(!birthDate)return showError('Informe sua data de nascimento.');const bm=birthDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!bm)return showError('Informe a data no formato DD/MM/AAAA.');const bd=new Date(Number(bm[3]),Number(bm[2])-1,Number(bm[1])),today=new Date();if(bd.getFullYear()!==Number(bm[3])||bd.getMonth()!==Number(bm[2])-1||bd.getDate()!==Number(bm[1])||bd>today)return showError('Informe uma data de nascimento válida.');
  if(cep.length!==8)return showError('Informe um CEP válido.');
  if(!number.value.trim())return showError('Informe o número do endereço.');
  if(!selectedShipping){checkoutShipping();return}
