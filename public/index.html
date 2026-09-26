@@ -304,7 +304,7 @@ async function payPix(){
  const name=document.getElementById('name').value.trim(),email=document.getElementById('email').value.trim().toLowerCase(),cpf=document.getElementById('cpf').value,cep=document.getElementById('checkoutCep').value.replace(/\D/g,'');
  if(name.length<3)return showError('Informe seu nome completo.');
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return showError('Informe um e-mail válido.');
- if(!cpfValid(cpf))return showError('Informe um CPF válido.');
+ if(!cpfValid(cpf))return showError('CPF inválido. Confira os 11 números antes de continuar.');
  if(cep.length!==8)return showError('Informe um CEP válido.');
  if(!number.value.trim())return showError('Informe o número do endereço.');
  if(!selectedShipping){checkoutShipping();return}
