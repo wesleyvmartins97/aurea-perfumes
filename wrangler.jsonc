@@ -20,6 +20,6 @@
     }
   ],
   "vars": {
-    "MERCADOPAGO_MODE": "production"
+    "MERCADOPAGO_MODE": "test"
   }
 }
