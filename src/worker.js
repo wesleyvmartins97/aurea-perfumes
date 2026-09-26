@@ -128,7 +128,7 @@ const AUREA_CATALOG={
 "vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:459,weight:.6,length:20,height:12,width:16}
 };
 async function seedInventory(env){const now=new Date().toISOString();await env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)").run();const done=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v1'").first();if(done)return;const q=Object.keys(AUREA_CATALOG).map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,10,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v1','10',?)").bind(now));await env.DB.batch(q)}
-function canonicalItems(raw){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");return raw.map(x=>{const id=String(x.id||"");const p=AUREA_CATALOG[id];if(!p)throw new Error("Produto inválido: "+id);const qty=Math.max(1,Math.min(10,Math.floor(Number(x.qty)||1)));return {id,qty,...p,img:String(x.img||"")}})}
+function canonicalItems(raw){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");return raw.map(x=>{const id=String(x.id||""),p=AUREA_CATALOG[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);return {id,qty:n,...p,img:String(x.img||"")}})}
 async function calcularFrete(request,env){
  try{
   const dados=await request.json(),cep=String(dados.cep||"").replace(/\D/g,"");
