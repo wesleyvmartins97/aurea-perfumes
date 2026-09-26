@@ -18,6 +18,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/pagamento/status"&&request.method==="GET")return statusMercadoPago(env);
  if(url.pathname==="/api/pagamento/config"&&request.method==="GET")return resposta({ok:true,cardEnabled:Boolean(env.MERCADOPAGO_PUBLIC_KEY),publicKey:env.MERCADOPAGO_PUBLIC_KEY||""});
  if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
+ if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(),env);
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("AURÉA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
@@ -185,6 +186,46 @@ async function criarPagamentoPix(request,env){
   }
   return resposta({ok:true,orderId:result.id??null,paymentId:result.id??null,status:result.status??"pending",statusDetail:result.status_detail??null,amount:total.toFixed(2),qrCode:pix.qr_code||"",qrCodeBase64:pix.qr_code_base64||"",ticketUrl:pix.ticket_url||"",externalReference:referencia,savedToAccount});
  }catch(e){console.error("Criar PIX:",e);return resposta({ok:false,error:"Erro interno ao criar o pagamento."},500)}
+}
+async function criarPagamentoCartao(request,env){
+ try{
+  if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+  const dados=await request.json(),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
+  const token=String(dados.token||"").trim(),paymentMethodId=String(dados.payment_method_id||dados.paymentMethodId||"").trim(),issuerId=String(dados.issuer_id||dados.issuerId||"").trim(),installments=Number(dados.installments);
+  if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);
+  if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);
+  if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
+  if(!token||!paymentMethodId||!Number.isInteger(installments)||installments<1||installments>3)return resposta({ok:false,error:"Dados do cartão ou parcelamento inválidos."},400);
+  const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
+  if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
+  await ensureAuthSchema(env);await seedInventory(env);const items=canonicalItems(dados.items);
+  const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
+  const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});
+  const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);
+  const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),carrier=String(shipping.carrier||shipping.name||""),chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrier);
+  if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);
+  const freight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(freight)||freight<0)return resposta({ok:false,error:"Frete inválido."},409);
+  const subtotal=items.reduce((s,x)=>s+x.price*x.qty,0),total=Number((subtotal+freight).toFixed(2));
+  for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
+  const reserveAt=new Date().toISOString(),reserve=items.map(it=>env.DB.prepare("UPDATE inventory SET stock=stock-?,updated_at=? WHERE product_id=? AND stock>=?").bind(it.qty,reserveAt,it.id,it.qty)),rr=await env.DB.batch(reserve);
+  if(rr.some(x=>(x.meta?.changes||0)<1)){for(let i=0;i<items.length;i++)if((rr[i]?.meta?.changes||0)>0)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(items[i].qty,reserveAt,items[i].id).run();return resposta({ok:false,error:"O estoque mudou durante a compra. Tente novamente."},409)}
+  const releaseReservation=async()=>{for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,new Date().toISOString(),it.id).run()};
+  const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
+  const payload={transaction_amount:total,token,description:`Pedido AURÉA Perfumes - ${referencia}`,installments,payment_method_id:paymentMethodId,external_reference:referencia,payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};
+  if(issuerId)payload.issuer_id=issuerId;if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
+  const mp=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":referencia},body:JSON.stringify(payload)});
+  const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}};
+  if(!mp.ok||!result.id){await releaseReservation();return resposta({ok:false,error:result?.message?`Mercado Pago: ${result.message}`:"Não foi possível processar o cartão.",statusDetail:result?.status_detail||null},mp.status>=400&&mp.status<500?400:502)}
+  const now=new Date().toISOString(),pid=String(result.id),u=await currentCustomer(request,env),statusMap={approved:"Pago",pending:"Aguardando pagamento",in_process:"Processando",rejected:"Pagamento recusado"},status=statusMap[result.status]||String(result.status||"Processando");
+  if(u)await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,status,total,now,now).run();
+  else await env.DB.prepare("INSERT OR IGNORE INTO guest_orders(id,email,customer_name,cpf,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,referencia,status,total,now,now).run();
+  for(const it of items)await env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),pid,it.id,it.name,it.brand,it.type,it.img,it.qty,it.price,result.status==="approved"?1:0,now).run();
+  const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
+  await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
+  let shipment=null;if(result.status==="approved")try{shipment=await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Expedição cartão:",e)}
+  if(["rejected","cancelled"].includes(result.status))await releaseReservation();
+  return resposta({ok:true,orderId:pid,paymentId:pid,status:result.status||null,statusDetail:result.status_detail||null,amount:total.toFixed(2),externalReference:referencia,shipping:shipment?{created:!!shipment.ok,barcode:shipment.barcode||null,labelReady:!!shipment.labelReady}:null});
+ }catch(e){console.error("Criar cartão:",e);return resposta({ok:false,error:"Erro interno ao processar o cartão."},500)}
 }
 async function tentarGerarEtiqueta(env,orderId,shippingId,barcode){
  try{
