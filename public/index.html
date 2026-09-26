@@ -488,5 +488,13 @@ async function saveClientProfile(){
 }
 initClientCenter();
 
-render();enableOutsideModalClose();renderTopFemininos();updateCart();loadAureaBanners().finally(initSlider);initAccount();
+function bootAurea(){
+ try{render()}catch(e){console.error('AUREA render',e)}
+ try{enableOutsideModalClose()}catch(e){console.error('AUREA modal',e)}
+ try{renderTopFemininos()}catch(e){console.error('AUREA destaques',e)}
+ try{updateCart()}catch(e){console.error('AUREA carrinho',e)}
+ try{initSlider()}catch(e){console.error('AUREA slider',e)}
+ try{initAccount()}catch(e){console.error('AUREA conta',e)}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAurea,{once:true});else bootAurea();
 </script></body></html>
