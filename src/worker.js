@@ -117,6 +117,8 @@ const AUREA_CATALOG={
 "asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:259.90,weight:.6,length:20,height:12,width:16},
 "attar":{name:"Attar Al Wesal",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
 "decant-sabah":{name:"Decant Sabah Al Ward",brand:"Al Wataniah",type:"Decant · 5ml",price:52.00,weight:.15,length:12,height:5,width:8},
+"body-cream-yara":{name:"Body Cream Yara",brand:"Lattafa",type:"Body Cream · 310g",price:189.90,weight:.4,length:18,height:9,width:9},
+"musamam":{name:"Musamam",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:289.90,weight:.6,length:20,height:12,width:16},
 "ameerati":{name:"Ameerati",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
 "angham":{name:"Angham",brand:"Lattafa",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
 "vanilla-voyage":{name:"Vanilla Voyage",brand:"Maison Asrar",type:"EDP · 100ml",price:399.90,weight:.6,length:20,height:12,width:16},
