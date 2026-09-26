@@ -104,50 +104,84 @@ async function accountAddressSave(request,env){try{const u=await currentCustomer
 async function accountAddressDelete(request,env,id){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);await env.DB.prepare("DELETE FROM customer_addresses WHERE id=? AND customer_id=?").bind(id,u.id).run();return resposta({ok:true})}catch(e){return resposta({ok:false,error:"Não foi possível excluir o endereço."},500)}}
 async function servirAssets(request,env){const response=await env.ASSETS.fetch(request);const contentType=response.headers.get("content-type")||"";if(!contentType.includes("text/html")||new URL(request.url).pathname!=="/")return response;const html=await response.text();const injected=html.replace(/<\/body>/i,'<script src="/catalog.js?v=aurea20260925"></script></body>');const headers=new Headers(response.headers);headers.set("Cache-Control","no-store, max-age=0, must-revalidate");headers.delete("ETag");return new Response(injected,{status:response.status,statusText:response.statusText,headers})}
 async function consultarEstoque(env){try{await ensureAuthSchema(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
+const AUREA_CATALOG={
+"angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:379,weight:.6,length:20,height:12,width:16},
+"athena":{name:"Athena",brand:"Maison Alhambra",type:"EDP · 100ml",price:349,weight:.6,length:20,height:12,width:16},
+"delilah-blanc":{name:"Delilah Blanc",brand:"Maison Alhambra",type:"EDP · 100ml",price:369,weight:.6,length:20,height:12,width:16},
+"delilah":{name:"Delilah Pour Femme",brand:"Maison Alhambra",type:"EDP · 100ml",price:319,weight:.6,length:20,height:12,width:16},
+"fakhar-rose":{name:"Fakhar Rose",brand:"Lattafa",type:"EDP · 100ml",price:349,weight:.6,length:20,height:12,width:16},
+"sabah":{name:"Sabah Al Ward",brand:"Al Wataniah",type:"EDP · 100ml",price:289,weight:.6,length:20,height:12,width:16},
+"asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:329,weight:.6,length:20,height:12,width:16},
+"attar":{name:"Attar Al Wesal",brand:"Al Wataniah",type:"EDP · 100ml",price:292,weight:.6,length:20,height:12,width:16},
+"decant-sabah":{name:"Decant Sabah Al Ward",brand:"Al Wataniah",type:"Decant · 5ml",price:52,weight:.15,length:12,height:5,width:8},
+"ameerati":{name:"Ameerati",brand:"Al Wataniah",type:"EDP · 100ml",price:292,weight:.6,length:20,height:12,width:16},
+"angham":{name:"Angham",brand:"Lattafa",type:"EDP · 100ml",price:379,weight:.6,length:20,height:12,width:16},
+"vanilla-voyage":{name:"Vanilla Voyage",brand:"Maison Asrar",type:"EDP · 100ml",price:559,weight:.6,length:20,height:12,width:16},
+"atheeri":{name:"Atheeri",brand:"Lattafa",type:"EDP · 100ml",price:639.90,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-intense-man":{name:"Club de Nuit Intense Man",brand:"Armaf",type:"EDP · 100ml",price:389.90,weight:.6,length:20,height:12,width:16},
+"musamam-white-intense":{name:"Musamam White Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:369.90,weight:.6,length:20,height:12,width:16},
+"afeef":{name:"Afeef",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:689.90,weight:.6,length:20,height:12,width:16},
+"queen-of-arabia":{name:"Queen of Arabia",brand:"Lattafa",type:"EDP · 100ml",price:569.90,weight:.6,length:20,height:12,width:16},
+"yara":{name:"Yara",brand:"Lattafa",type:"EDP · 100ml",price:249.90,weight:.6,length:20,height:12,width:16},
+"fakhar-rose-banner":{name:"Fakhar Rose",brand:"Lattafa",type:"EDP · 100ml",price:339.90,weight:.6,length:20,height:12,width:16},
+"tharwah-gold":{name:"Tharwah Gold",brand:"Lattafa",type:"EDP · 100ml",price:489,weight:.6,length:20,height:12,width:16},
+"vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:459,weight:.6,length:20,height:12,width:16}
+};
+async function seedInventory(env){const now=new Date().toISOString();await env.DB.batch(Object.keys(AUREA_CATALOG).map(id=>env.DB.prepare("INSERT OR IGNORE INTO inventory(product_id,stock,updated_at) VALUES(?,?,?)").bind(id,10,now)))}
+function canonicalItems(raw){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");return raw.map(x=>{const id=String(x.id||"");const p=AUREA_CATALOG[id];if(!p)throw new Error("Produto inválido: "+id);const qty=Math.max(1,Math.min(10,Math.floor(Number(x.qty)||1)));return {id,qty,...p,img:String(x.img||"")}})}
 async function calcularFrete(request,env){
  try{
-  const dados=await request.json();
-  const cep=String(dados.cep||"").replace(/\D/g,"");
+  const dados=await request.json(),cep=String(dados.cep||"").replace(/\D/g,"");
   if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
   if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
-  const produtos=Array.isArray(dados.produtos)&&dados.produtos.length?dados.produtos:[dados.produto||{}];
-  const itens=produtos.map(p=>({
-   weight:saneDim(p.peso??p.weight,0.5),
-   length:saneDim(p.comprimento??p.length,16),
-   height:saneDim(p.altura??p.height,5),
-   width:saneDim(p.largura??p.width,12),
-   quantity:Math.max(1,Math.floor(Number(p.quantidade??p.qty??1))),
-   price:Math.max(0,Number(p.valor??p.price??0))
-  }));
-  const upstream=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{
-   method:"POST",
-   headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},
-   body:JSON.stringify({postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:itens})
-  });
+  await ensureAuthSchema(env);await seedInventory(env);
+  const items=canonicalItems(dados.produtos);
+  for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
+  const produtos=items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}));
+  const upstream=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify({postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:produtos})});
   const raw=await upstream.text();let data;try{data=JSON.parse(raw)}catch{data=null}
-  if(!upstream.ok){console.error("EnvioEcom quote:",upstream.status,raw.slice(0,500));return resposta({ok:false,error:"Não foi possível calcular o frete agora."},502)}
-  const quotes=Array.isArray(data)?data:Array.isArray(data?.quotes)?data.quotes:[];
-  const fretes=quotes.map((x,index)=>({
-   id:x.id??x.service_id??("envioecom-"+(index+1)),
-   company:String(x.carrier||x.company||"Envio Ecom"),
-   name:String(x.carrier||x.name||x.service||"Frete"),
-   carrier:String(x.carrier||x.company||""),
-   price:Number(x.price??x.freight_cost??0),
-   delivery_time:Number(x.delivery_time??x.delivery_days??0),
-   dropoff_points:x.dropoff_points||[]
-  })).filter(x=>Number.isFinite(x.price)&&x.price>=0);
-  return resposta({ok:true,provider:"envioecom",fretes});
- }catch(e){console.error("EnvioEcom:",e);return resposta({ok:false,error:"Erro interno ao calcular o frete."},500)}
+  if(!upstream.ok)return resposta({ok:false,error:"Não foi possível calcular o frete agora."},502);
+  const quotes=Array.isArray(data?.quotes)?data.quotes:(Array.isArray(data)?data:[]);
+  const fretes=quotes.map((x,index)=>({id:x.id??x.service_id??("envioecom-"+(index+1)),company:String(x.carrier||x.company||"Envio Ecom"),name:String(x.carrier||x.name||x.service||"Frete"),carrier:String(x.carrier||x.company||""),price:Number(x.price??x.freight_cost??0),delivery_time:Number(x.delivery_time??x.delivery_days??0),dropoff_points:x.dropoff_points||[]})).filter(x=>x.carrier&&Number.isFinite(x.price)&&x.price>=0);
+  return resposta({ok:true,fretes});
+ }catch(e){console.error("Frete:",e);return resposta({ok:false,error:e.message==="Carrinho vazio"?"Carrinho vazio.":"Não foi possível calcular o frete."},500)}
 }
-function saneDim(value,fallback){const n=Number(value);return Number.isFinite(n)&&n>0?n:fallback}
 async function statusMercadoPago(env){
  if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Token do Mercado Pago ausente."},503);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
  try{const r=await fetch("https://api.mercadopago.com/users/me",{headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,Accept:"application/json"},signal:controller.signal});const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{};if(!r.ok)return resposta({ok:false,provider:"mercadopago",status:r.status,error:d.message||d.error||"Credencial recusada pelo Mercado Pago."},502);return resposta({ok:true,provider:"mercadopago",status:r.status,credentials:"accepted"});}catch(e){return resposta({ok:false,provider:"mercadopago",error:e?.name==="AbortError"?"Tempo esgotado ao conectar ao Mercado Pago.":"Falha de conexão com o Mercado Pago."},504)}finally{clearTimeout(timer)}
 }
-async function criarPagamentoPix(request,env){try{if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);const dados=await request.json();const nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),total=Number(dados.total),items=Array.isArray(dados.items)?dados.items:[],shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};if(String(dados.paymentMethod||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Método de pagamento não disponível."},400);if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);if(!Number.isFinite(total)||total<=0||total>100000)return resposta({ok:false,error:"Valor do pedido inválido."},400);const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;const payload={transaction_amount:Number(total.toFixed(2)),description:`Pedido AURÉA Perfumes - ${referencia}`,payment_method_id:"pix",external_reference:referencia,payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);let mp;try{mp=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":referencia},body:JSON.stringify(payload),signal:controller.signal})}catch(e){if(e?.name==="AbortError")return resposta({ok:false,error:"O Mercado Pago demorou para responder. Tente novamente em instantes."},504);throw e}finally{clearTimeout(timer)}const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok){let detalhe="";if(result?.message)detalhe=String(result.message);else if(result?.error)detalhe=String(result.error);if(Array.isArray(result?.cause)&&result.cause.length){const c=result.cause[0];detalhe=[detalhe,c?.description||c?.message||c?.code].filter(Boolean).join(" — ");}console.error("Mercado Pago PIX:",mp.status,detalhe);return resposta({ok:false,error:detalhe?`Mercado Pago: ${detalhe}`:`Mercado Pago recusou a solicitação (HTTP ${mp.status}).`,providerStatus:mp.status},502);}const qr=result?.point_of_interaction?.transaction_data||{};let savedToAccount=false;try{await ensureAuthSchema(env);const u=await currentCustomer(request,env);if(result.id){const now=new Date().toISOString(),pid=String(result.id);if(u){await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,"Aguardando pagamento",Number(total.toFixed(2)),now,now).run();savedToAccount=true}else{await env.DB.prepare("INSERT OR IGNORE INTO guest_orders(id,email,customer_name,cpf,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,referencia,"Aguardando pagamento",Number(total.toFixed(2)),now,now).run();}
- for(const it of items){const productId=String(it.id||"").trim(),qty=Math.max(1,Math.floor(Number(it.qty)||1)),unit=Number(it.price)||0;if(!productId)continue;await env.DB.prepare("INSERT OR IGNORE INTO inventory(product_id,stock,updated_at) VALUES(?,?,?)").bind(productId,10,now).run();const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(productId).first();if(Number(inv?.stock)<qty)throw new Error("Estoque insuficiente para "+productId);await env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),pid,productId,String(it.name||productId),String(it.brand||""),String(it.type||""),String(it.img||""),qty,unit,now).run();}
- const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,String(shipping.cep||"").replace(/\D/g,""),String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,String(shipping.carrier||shipping.name||""),Number(shipping.price)||0,Number(shipping.delivery_time)||0,now,now).run();}}catch(e){console.error("Salvar pedido:",e)}return resposta({ok:true,orderId:result.id??null,paymentId:result.id??null,status:result.status??"pending",statusDetail:result.status_detail??null,amount:total.toFixed(2),qrCode:qr.qr_code||"",qrCodeBase64:qr.qr_code_base64||"",ticketUrl:qr.ticket_url||"",externalReference:referencia,savedToAccount})}catch(e){return resposta({ok:false,error:"Erro interno ao criar o pagamento."},500)}}
+async function criarPagamentoPix(request,env){
+ try{
+  if(!env.MERCADOPAGO_ACCESS_TOKEN)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+  const dados=await request.json(),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
+  if(String(dados.paymentMethod||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Método de pagamento não disponível."},400);
+  if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
+  const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
+  await ensureAuthSchema(env);await seedInventory(env);const items=canonicalItems(dados.items);
+  const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
+  const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});
+  const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);
+  const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),carrier=String(shipping.carrier||shipping.name||""),chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrier);
+  if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);
+  const freight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(freight)||freight<0)return resposta({ok:false,error:"Frete inválido."},409);
+  const subtotal=items.reduce((s,x)=>s+x.price*x.qty,0),total=Number((subtotal+freight).toFixed(2));
+  for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
+  const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`,expiration=new Date(Date.now()+30*60*1000).toISOString();
+  const payload={transaction_amount:total,description:`Pedido AURÉA Perfumes - ${referencia}`,payment_method_id:"pix",external_reference:referencia,date_of_expiration:expiration,payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
+  const mp=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MERCADOPAGO_ACCESS_TOKEN}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":referencia},body:JSON.stringify(payload)});
+  const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok)return resposta({ok:false,error:result?.message?`Mercado Pago: ${result.message}`:`Mercado Pago recusou a solicitação (HTTP ${mp.status}).`},502);
+  const pix=result?.point_of_interaction?.transaction_data||{};let savedToAccount=false;
+  if(result.id){const now=new Date().toISOString(),pid=String(result.id),u=await currentCustomer(request,env);
+   const reserve=items.map(it=>env.DB.prepare("UPDATE inventory SET stock=stock-?,updated_at=? WHERE product_id=? AND stock>=?").bind(it.qty,now,it.id,it.qty));const rr=await env.DB.batch(reserve);if(rr.some(x=>(x.meta?.changes||0)<1)){for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,now,it.id).run();return resposta({ok:false,error:"O estoque mudou durante a compra. Tente novamente."},409)}
+   if(u){await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,"Aguardando pagamento",total,now,now).run();savedToAccount=true}else await env.DB.prepare("INSERT OR IGNORE INTO guest_orders(id,email,customer_name,cpf,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,referencia,"Aguardando pagamento",total,now,now).run();
+   for(const it of items)await env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),pid,it.id,it.name,it.brand,it.type,it.img,it.qty,it.price,0,now).run();
+   const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
+   await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
+  }
+  return resposta({ok:true,orderId:result.id??null,paymentId:result.id??null,status:result.status??"pending",statusDetail:result.status_detail??null,amount:total.toFixed(2),qrCode:pix.qr_code||"",qrCodeBase64:pix.qr_code_base64||"",ticketUrl:pix.ticket_url||"",externalReference:referencia,savedToAccount});
+ }catch(e){console.error("Criar PIX:",e);return resposta({ok:false,error:"Erro interno ao criar o pagamento."},500)}
+}
 async function criarEnvioEnvioEcom(env,orderId){
  if(!env.ENVIOECOM_TOKEN)return {ok:false,error:"Token EnvioEcom ausente"};const originCep=String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\\D/g,"");if(originCep.length!==8)return {ok:false,error:"CEP de origem da postagem não configurado"};
  await ensureAuthSchema(env);
