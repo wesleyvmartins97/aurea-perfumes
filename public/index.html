@@ -96,6 +96,39 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
   section.benefits strong{color:#fffaf4!important;font-size:6.7px!important;line-height:1.05!important;font-weight:600!important;}
   section.benefits span{color:#eee5dc!important;font-size:5.5px!important;line-height:1.05!important;margin-top:2px!important;}
 }
+</style><style id="aurea-premium-product-buttons">
+/* Sistema visual premium dos botões de produto */
+.product-card .primary,
+.product-card button.primary,
+.product-card .add-cart,
+.product-card [onclick*="addToCart"]{
+  background:#211c18!important;
+  color:#fffaf4!important;
+  border-color:#211c18!important;
+}
+.product-card .secondary,
+.product-card button.secondary,
+.product-card .details,
+.product-card [onclick*="openDetail"]{
+  background:#faf7f2!important;
+  color:#3d342d!important;
+  border-color:#a58e79!important;
+}
+.product-card .buy,
+.product-card [onclick*="buyNow"]{
+  background:#927b67!important;
+  color:#fffaf4!important;
+  border-color:#725f50!important;
+}
+.product-card button,
+.product-card a.primary,
+.product-card a.secondary{
+  letter-spacing:.8px!important;
+  transition:filter .18s ease,transform .18s ease!important;
+}
+@media(hover:hover){
+ .product-card button:hover,.product-card a:hover{filter:brightness(.96)}
+}
 </style></head><body>
 <header class="header"><a class="logo" href="#top">AURÉA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">AURÉA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques AURÉA">
