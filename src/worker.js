@@ -195,7 +195,7 @@ async function criarPagamentoCartao(request,env){
   if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);
   if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);
   if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
-  if(!token||!paymentMethodId||!Number.isInteger(installments)||installments<1||installments>3)return resposta({ok:false,error:"Dados do cartão ou parcelamento inválidos."},400);
+  if(!token||!paymentMethodId||!Number.isInteger(installments)||installments<1||installments>12)return resposta({ok:false,error:"Dados do cartão ou parcelamento inválidos."},400);
   const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
   if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
   await ensureAuthSchema(env);await seedInventory(env);const items=canonicalItems(dados.items);
