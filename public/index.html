@@ -492,7 +492,13 @@ function valenzaNotice(message,opts={}){
  if(opts.confirm){const no=document.createElement('button');no.className='ccBtn';no.textContent='VOLTAR';no.style.background='#fff';no.style.color='#171513';no.style.border='1px solid #171513';no.onclick=close;ac.appendChild(no);const yes=document.createElement('button');yes.className='ccBtn';yes.textContent=opts.confirmLabel||'CONFIRMAR';yes.onclick=()=>{close();opts.onConfirm&&opts.onConfirm()};ac.appendChild(yes)}else{const ok=document.createElement('button');ok.className='ccBtn';ok.textContent='OK';ok.onclick=close;ac.appendChild(ok)}
 }
 async function doCancelPendingOrder(id){
- try{const r=await fetch('/api/account/order/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({orderId:id})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível cancelar o pedido.');await fetchClientData();clientTab('orders');valenzaNotice('Pedido cancelado com sucesso.')}catch(e){valenzaNotice(e.message)}
+ try{
+  const r=await fetch('/api/account/order/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({orderId:id})});
+  const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível cancelar o pedido.');
+  if(clientData&&Array.isArray(clientData.orders)){const ord=clientData.orders.find(x=>x.id===id);if(ord){ord.status='Cancelado';if(ord.payment){ord.payment.status='cancelled';ord.payment.status_detail='cancelled_by_customer'}}}
+  clientTab('orders');valenzaNotice('Pedido cancelado com sucesso.');
+  fetchClientData().then(()=>{if(document.getElementById('clientCenter')?.style.display==='block')clientTab('orders')}).catch(()=>{});
+ }catch(e){valenzaNotice(e.message)}
 }
 function cancelPendingOrder(id){valenzaNotice('Deseja cancelar este pedido que ainda não foi pago?',{confirm:true,confirmLabel:'CANCELAR PEDIDO',onConfirm:()=>doCancelPendingOrder(id)})}
 async function continuePendingOrder(id){
