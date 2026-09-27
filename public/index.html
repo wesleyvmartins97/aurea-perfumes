@@ -218,15 +218,24 @@ body{
 .eye-pupil{fill:#5c554f}
 .password-eye:focus-visible{outline:2px solid #9b7659;outline-offset:1px}
 </style><style id="valenza-card-alignment-fix">
-/* Mantém preço e ações alinhados entre produtos da mesma linha sem alterar conteúdo */
-#grid .card{display:flex!important;flex-direction:column!important;height:100%!important}
-#grid .card>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
-#grid .card .price{margin-top:auto!important}
-#grid .card .pix{min-height:15px!important}
-#grid .card .add{min-height:48px!important}
-#grid .card .product-actions{margin-top:0!important}
-#grid .card .product-actions .details,
-#grid .card .product-actions .buy{min-height:48px!important}
+/* VALENZA: grade uniforme no catálogo, sem alterar dados ou funções */
+#grid{align-items:stretch!important}
+#grid .card{display:grid!important;grid-template-rows:230px 1fr!important;height:100%!important}
+#grid .card>.photo{height:230px!important}
+#grid .card>.info{display:grid!important;grid-template-rows:18px 58px 20px minmax(54px,auto) 34px 30px 60px 52px!important;align-content:stretch!important;height:100%!important;box-sizing:border-box!important}
+#grid .card .brand,#grid .card .name,#grid .card .meta,#grid .card .desc,#grid .card .price,#grid .card .pix{margin-top:0!important;margin-bottom:0!important}
+#grid .card .name{display:flex!important;align-items:flex-start!important}
+#grid .card .desc{min-height:0!important;overflow:hidden!important}
+#grid .card .price{align-self:end!important}
+#grid .card .pix{align-self:center!important}
+#grid .card .add{height:60px!important;min-height:60px!important;align-self:stretch!important}
+#grid .card .product-actions{display:grid!important;grid-template-columns:1fr!important;grid-template-rows:52px 64px!important;gap:12px!important;margin-top:0!important}
+#grid .card .product-actions .details,#grid .card .product-actions .buy{height:100%!important;min-height:0!important;margin-top:0!important}
+@media (max-width:520px){
+ #catalogo .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+ #catalogo .grid>.card:last-child:nth-child(odd){grid-column:1/-1!important;width:calc((100% - 10px)/2)!important;justify-self:center!important}
+ #grid .card>.info{padding:14px 12px!important;grid-template-rows:18px 58px 20px minmax(54px,auto) 34px 30px 60px 52px!important}
+}
 </style>
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
