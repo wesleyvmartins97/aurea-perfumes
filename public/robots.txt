@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://valenzaparfums.com.br/sitemap.xml
