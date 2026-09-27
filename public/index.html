@@ -101,39 +101,6 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
   section.benefits strong{color:#fffaf4!important;font-size:6.7px!important;line-height:1.05!important;font-weight:600!important;}
   section.benefits span{color:#eee5dc!important;font-size:5.5px!important;line-height:1.05!important;margin-top:2px!important;}
 }
-</style><style id="aurea-premium-product-buttons">
-/* Sistema visual premium dos botões de produto */
-.product-card .primary,
-.product-card button.primary,
-.product-card .add-cart,
-.product-card [onclick*="addToCart"]{
-  background:#211c18!important;
-  color:#fffaf4!important;
-  border-color:#211c18!important;
-}
-.product-card .secondary,
-.product-card button.secondary,
-.product-card .details,
-.product-card [onclick*="openDetail"]{
-  background:#faf7f2!important;
-  color:#3d342d!important;
-  border-color:#a58e79!important;
-}
-.product-card .buy,
-.product-card [onclick*="buyNow"]{
-  background:#927b67!important;
-  color:#fffaf4!important;
-  border-color:#725f50!important;
-}
-.product-card button,
-.product-card a.primary,
-.product-card a.secondary{
-  letter-spacing:.8px!important;
-  transition:filter .18s ease,transform .18s ease!important;
-}
-@media(hover:hover){
- .product-card button:hover,.product-card a:hover{filter:brightness(.96)}
-}
 </style><style id="aurea-premium-boutique-theme">
 /* Refinamento visual: boutique de perfumaria premium */
 body{
@@ -217,174 +184,24 @@ body{
 .eye-line{fill:none;stroke:#5c554f;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round}
 .eye-pupil{fill:#5c554f}
 .password-eye:focus-visible{outline:2px solid #9b7659;outline-offset:1px}
-</style><style id="valenza-card-alignment-fix">
-/* VALENZA: cards fluidos, ações completas e último item ímpar centralizado */
-#grid{align-items:stretch!important}
-#grid .card{display:flex!important;flex-direction:column!important;height:100%!important;overflow:hidden!important}
-#grid .card>.photo{height:230px!important;flex:0 0 230px!important}
-#grid .card>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;height:auto!important;box-sizing:border-box!important}
-#grid .card .brand{min-height:18px!important}
-#grid .card .name{min-height:58px!important;margin-top:6px!important;margin-bottom:0!important}
-#grid .card .meta{min-height:20px!important}
-#grid .card .desc{min-height:54px!important;margin:0 0 12px!important}
-#grid .card .price{margin-top:auto!important;margin-bottom:0!important}
-#grid .card .pix{min-height:30px!important;margin:4px 0 12px!important}
-#grid .card .add{height:60px!important;min-height:60px!important;flex:0 0 60px!important}
-#grid .card .product-actions{display:flex!important;flex-direction:column!important;gap:12px!important;margin-top:0!important;overflow:visible!important}
-#grid .card .product-actions .details{height:52px!important;min-height:52px!important;margin-top:0!important;flex:0 0 52px!important}
-#grid .card .product-actions .buy{height:64px!important;min-height:64px!important;margin-top:0!important;flex:0 0 64px!important}
-@media (max-width:520px){
- #catalogo .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
- #catalogo .grid>.card:last-child:nth-child(odd){grid-column:1/-1!important;width:calc((100% - 10px)/2)!important;margin-left:auto!important;margin-right:auto!important;justify-self:center!important}
- #grid .card>.info{padding:14px 12px!important}
-}
 </style>
-<style id="valenza-mobile-compact-fix">
-/* Mobile: catálogo compacto como a vitrine e 5º destaque centralizado */
-@media (max-width:520px){
- #grid .card .name{min-height:48px!important}
- #grid .card .meta{min-height:18px!important}
- #grid .card .desc{display:none!important;min-height:0!important;margin:0!important}
- #grid .card .pix{min-height:24px!important;margin:3px 0 9px!important}
- #grid .card .add{height:48px!important;min-height:48px!important;flex-basis:48px!important}
- #grid .card .product-actions{gap:7px!important}
- #grid .card .product-actions .details{height:42px!important;min-height:42px!important;flex-basis:42px!important}
- #grid .card .product-actions .buy{height:52px!important;min-height:52px!important;flex-basis:52px!important}
- #topFemininos>.top-product:last-child:nth-child(odd){grid-column:1/-1!important;width:calc((100% - 14px)/2)!important;justify-self:center!important;margin-left:auto!important;margin-right:auto!important}
-}
-</style>
-<style id="valenza-clean-actions">
-/* VALENZA — ações mais compactas e premium, preservando as funções */
-#grid .card .add{height:46px!important;min-height:46px!important;flex-basis:46px!important;font-size:11px!important;letter-spacing:1.05px!important;border-radius:6px!important}
-#grid .card .product-actions{gap:7px!important}
-#grid .card .product-actions .details{height:40px!important;min-height:40px!important;flex-basis:40px!important;font-size:10px!important;letter-spacing:1px!important;border-radius:6px!important;background:#fff!important}
-#grid .card .product-actions .buy{height:48px!important;min-height:48px!important;flex-basis:48px!important;font-size:12px!important;letter-spacing:1.2px!important;border-radius:6px!important}
-@media(max-width:520px){
- #grid .card .add{height:44px!important;min-height:44px!important;flex-basis:44px!important;font-size:9.5px!important;letter-spacing:.8px!important;padding:0 5px!important}
- #grid .card .product-actions{gap:6px!important}
- #grid .card .product-actions .details{height:38px!important;min-height:38px!important;flex-basis:38px!important;font-size:9px!important;padding:0 5px!important}
- #grid .card .product-actions .buy{height:46px!important;min-height:46px!important;flex-basis:46px!important;font-size:11px!important}
-}
-</style>
-<style id="valenza-luxury-card-pattern">
-/* VALENZA — padrão de catálogo premium: menos ruído, uma ação principal */
-#grid .card{border-radius:8px!important;box-shadow:0 8px 24px rgba(32,25,19,.055)!important}
-#grid .card>.info{padding-top:16px!important}
-#grid .card .brand{font-size:10px!important;letter-spacing:2.4px!important}
-#grid .card .name{font-weight:400!important;line-height:1.08!important}
-#grid .card .meta{font-size:11px!important;opacity:.68!important}
-#grid .card .price{font-weight:650!important;letter-spacing:-.3px!important}
-#grid .card .pix{font-size:11px!important;opacity:.78!important}
-#grid .card .add{background:#151310!important;color:#fff!important;border:1px solid #151310!important}
-#grid .card .product-actions{display:grid!important;grid-template-columns:1fr 1.18fr!important;grid-template-rows:42px!important;gap:7px!important}
-#grid .card .product-actions .details,
-#grid .card .product-actions .buy{height:42px!important;min-height:42px!important;flex-basis:auto!important;margin:0!important;border-radius:5px!important}
-#grid .card .product-actions .details{background:transparent!important;font-size:9px!important;letter-spacing:.75px!important}
-#grid .card .product-actions .buy{font-size:10px!important;letter-spacing:1px!important}
-@media(max-width:520px){
- #grid .card>.info{padding:13px 10px 12px!important}
- #grid .card .brand{font-size:8.5px!important;letter-spacing:1.8px!important}
- #grid .card .name{min-height:44px!important}
- #grid .card .add{height:42px!important;min-height:42px!important;flex-basis:42px!important}
- #grid .card .product-actions{grid-template-columns:1fr 1.12fr!important;grid-template-rows:38px!important;gap:5px!important}
- #grid .card .product-actions .details,#grid .card .product-actions .buy{height:38px!important;min-height:38px!important;font-size:8px!important;padding:0 3px!important}
-}
-</style>
-<style id="valenza-unified-actions">
-/* VALENZA: mesma hierarquia de ações nos destaques e no catálogo */
-#grid .card .info,
-#topFemininos .top-product .info{display:flex!important;flex-direction:column!important}
-#grid .card .add,
-#topFemininos .top-product .add{
- order:20!important;height:46px!important;min-height:46px!important;
- background:#fff!important;color:#171513!important;border:1px solid #171513!important;
- border-radius:5px!important;font-size:9px!important;letter-spacing:.8px!important
-}
-#grid .card .product-actions,
-#topFemininos .top-product .product-actions{
- order:19!important;display:flex!important;flex-direction:column!important;gap:6px!important;margin:0 0 6px!important
-}
-#grid .card .product-actions .buy,
-#topFemininos .top-product .product-actions .buy{
- order:-1!important;width:100%!important;height:50px!important;min-height:50px!important;
- background:#8a735f!important;color:#fff!important;border:1px solid #171513!important;
- border-radius:5px!important;font-size:11px!important;letter-spacing:1.1px!important
-}
-#grid .card .product-actions .details,
-#topFemininos .top-product .product-actions .details{
- order:2!important;width:100%!important;height:38px!important;min-height:38px!important;
- background:#fff!important;color:#171513!important;border:1px solid #171513!important;
- border-radius:5px!important;font-size:8px!important;letter-spacing:.8px!important
-}
-@media(max-width:520px){
- #grid .card .add,#topFemininos .top-product .add{height:38px!important;min-height:38px!important;font-size:8px!important}
- #grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{height:46px!important;min-height:46px!important;font-size:10px!important}
- #grid .card .product-actions .details,#topFemininos .top-product .product-actions .details{height:36px!important;min-height:36px!important}
-}
-</style>
-<style id="valenza-actions-final">
-/* Hierarquia final: COMPRAR grande; detalhes + carrinho pequenos lado a lado */
-#grid .card .info,#topFemininos .top-product .info{display:flex!important;flex-direction:column!important}
-#grid .card .product-actions,#topFemininos .top-product .product-actions{
- order:19!important;display:grid!important;grid-template-columns:1fr!important;gap:6px!important;margin:0!important
-}
-#grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{
- order:-1!important;width:100%!important;height:50px!important;min-height:50px!important;
- background:#8a735f!important;color:#fff!important;border:1px solid #171513!important;border-radius:5px!important;
- font-size:11px!important;letter-spacing:1.1px!important
-}
-#grid .card .product-actions .details,#topFemininos .top-product .product-actions .details{
- display:block!important
-}
-#grid .card .add,#topFemininos .top-product .add{
- order:20!important;width:100%!important;height:38px!important;min-height:38px!important;
- background:#fff!important;color:#171513!important;border:1px solid #171513!important;border-radius:5px!important;
- font-size:8px!important;letter-spacing:.75px!important;margin-top:6px!important
-}
-/* segunda linha: detalhes e carrinho */
-#grid .card .info:after,#topFemininos .top-product .info:after{content:none!important}
-@media(max-width:520px){
- #grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{height:46px!important;min-height:46px!important}
-}
-</style>
-<style id="valenza-secondary-actions">
-#grid .secondary-actions,#topFemininos .secondary-actions{display:grid!important;grid-template-columns:.85fr 1.15fr!important;gap:6px!important}
-#grid .secondary-actions .details,#topFemininos .secondary-actions .details,
-#grid .secondary-actions .add,#topFemininos .secondary-actions .add{
- display:block!important;width:100%!important;height:38px!important;min-height:38px!important;margin:0!important;
- background:#fff!important;color:#171513!important;border:1px solid #171513!important;border-radius:5px!important;
- font-size:8px!important;letter-spacing:.65px!important;padding:0 4px!important
-}
-</style>
-<style id="valenza-actions-image-match">
-/* Layout final aprovado: COMPRAR preto; carrinho branco; detalhes marrom */
-#grid .card .product-actions,#topFemininos .top-product .product-actions{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;margin:0!important}
-#grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{display:block!important;order:-1!important;width:100%!important;height:50px!important;min-height:50px!important;background:#151310!important;color:#fff!important;border:1px solid #151310!important;border-radius:6px!important;font-size:11px!important;font-weight:700!important;letter-spacing:1.1px!important}
-#grid .secondary-actions,#topFemininos .secondary-actions{display:grid!important;grid-template-columns:1.15fr .85fr!important;gap:6px!important;width:100%!important}
-#grid .secondary-actions .add,#topFemininos .secondary-actions .add{display:block!important;order:1!important;width:100%!important;height:38px!important;min-height:38px!important;margin:0!important;background:#fff!important;color:#171513!important;border:1px solid #171513!important;border-radius:5px!important;font-size:8px!important;font-weight:600!important;letter-spacing:.45px!important;padding:0 3px!important}
-#grid .secondary-actions .details,#topFemininos .secondary-actions .details{display:block!important;order:2!important;width:100%!important;height:38px!important;min-height:38px!important;margin:0!important;background:#927b67!important;color:#fffaf4!important;border:1px solid #725f50!important;border-radius:5px!important;font-size:8px!important;font-weight:600!important;letter-spacing:.65px!important;padding:0 3px!important}
-@media(max-width:520px){#grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{height:46px!important;min-height:46px!important;font-size:10px!important}#grid .secondary-actions .add,#topFemininos .secondary-actions .add,#grid .secondary-actions .details,#topFemininos .secondary-actions .details{height:38px!important;min-height:38px!important;font-size:7.5px!important}}
-</style>
-<style id="valenza-actions-exact-final">
-/* Correção definitiva: dois secundários iguais e cores aprovadas */
-#grid .secondary-actions,#topFemininos .secondary-actions{
- display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important;width:100%!important;align-items:stretch!important
-}
-#grid .secondary-actions .add,#topFemininos .secondary-actions .add,
-#grid .secondary-actions .details,#topFemininos .secondary-actions .details{
- box-sizing:border-box!important;width:100%!important;height:42px!important;min-height:42px!important;max-height:42px!important;
- margin:0!important;padding:0 4px!important;border-radius:6px!important;font-size:8px!important;font-weight:600!important;
- letter-spacing:.55px!important;line-height:1.15!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important
-}
-#grid .secondary-actions .add,#topFemininos .secondary-actions .add{
- background:#fff!important;color:#171513!important;border:1px solid #171513!important
-}
-#grid .secondary-actions .details,#topFemininos .secondary-actions .details{
- background:#927b67!important;color:#fff!important;border:1px solid #725f50!important
-}
-#grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{
- background:#151310!important;color:#fff!important;border:1px solid #151310!important
-}
+
+
+
+
+
+
+
+
+<style id="valenza-product-actions-single-source">
+/* Fonte única dos botões dos cards — não duplicar regras */
+#grid .product-actions,#topFemininos .product-actions{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;width:100%!important;margin:0!important}
+#grid .product-actions>.buy,#topFemininos .product-actions>.buy{box-sizing:border-box!important;width:100%!important;height:50px!important;min-height:50px!important;margin:0!important;padding:0 8px!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#151310!important;color:#fff!important;border:1px solid #151310!important;border-radius:6px!important;font-size:11px!important;font-weight:700!important;letter-spacing:1.1px!important}
+#grid .secondary-actions,#topFemininos .secondary-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important;width:100%!important;margin:0!important}
+#grid .secondary-actions>.add,#topFemininos .secondary-actions>.add,#grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{box-sizing:border-box!important;width:100%!important;height:42px!important;min-height:42px!important;margin:0!important;padding:0 5px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;border-radius:6px!important;font-size:8px!important;font-weight:700!important;letter-spacing:.45px!important;line-height:1.15!important}
+#grid .secondary-actions>.add,#topFemininos .secondary-actions>.add{order:1!important;background:#fff!important;color:#171513!important;border:1px solid #171513!important}
+#grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{order:2!important;background:#927b67!important;color:#fff!important;border:1px solid #725f50!important}
+@media(max-width:520px){#grid .product-actions>.buy,#topFemininos .product-actions>.buy{height:46px!important;min-height:46px!important;font-size:10px!important}#grid .secondary-actions>.add,#topFemininos .secondary-actions>.add,#grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{height:40px!important;min-height:40px!important;font-size:7.5px!important}}
 </style>
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
