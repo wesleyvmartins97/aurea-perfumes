@@ -497,11 +497,20 @@ async function doCancelPendingOrder(id){
  try{const r=await fetch('/api/account/order/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({orderId:id})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível cancelar o pedido.');await fetchClientData();clientTab('orders');valenzaNotice('Pedido cancelado com sucesso.')}catch(e){valenzaNotice(e.message)}
 }
 function cancelPendingOrder(id){valenzaNotice('Deseja cancelar este pedido que ainda não foi pago?',{confirm:true,confirmLabel:'CANCELAR PEDIDO',onConfirm:()=>doCancelPendingOrder(id)})}
-function continuePendingOrder(id){
- const o=(clientData?.orders||[]).find(x=>String(x.id)===String(id));if(!o)return;
- const its=o.items||[];for(const it of its){const p=CATALOG.find(x=>x.id===it.product_id);if(!p)continue;const c=cart.find(x=>x.id===p.id);if(c)c.qty=Math.max(c.qty,Number(it.quantity)||1);else cart.push({id:p.id,name:p.name,brand:p.brand,type:p.type,price:p.price,img:p.img,qty:Number(it.quantity)||1})}
- saveCart();closeClient();openCart();
- valenzaNotice('Os itens deste pedido foram colocados no carrinho. Escolha o frete e gere um novo Pix. O pedido anterior pode ser cancelado em Meus pedidos.');
+async function continuePendingOrder(id){
+ try{
+  valenzaNotice('Consultando seu Pix...');
+  const r=await fetch('/api/account/order/pix',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({orderId:id})});
+  const d=await r.json().catch(()=>({}));
+  const notice=document.getElementById('valenzaNotice');if(notice)notice.style.display='none';
+  if(d.paid){await fetchClientData();clientTab('orders');valenzaNotice('Pagamento confirmado. Seu pedido já está pago.');return}
+  if(!r.ok||!d.ok){valenzaNotice(d.error||'Não foi possível abrir este Pix.');return}
+  closeClient();
+  document.getElementById('checkoutModal').classList.add('open');pushLayer('checkout');
+  document.querySelector('.checkout-body').innerHTML=`<div style="grid-column:1/-1;background:#fff;padding:35px;text-align:center"><div class="eyebrow">PAGAMENTO</div><h2 class="serif">Pix aguardando pagamento</h2><p style="font-size:12px;color:#666">Este é o Pix já gerado para o seu pedido. Escaneie o QR Code ou copie o código abaixo.</p>${d.qrCodeBase64?`<img src="data:image/png;base64,${d.qrCodeBase64}" alt="QR Code Pix" style="display:block;width:min(260px,80vw);height:auto;margin:18px auto;padding:10px;background:#fff;border:1px solid #ddd">`:''}<div class="pix-box" style="overflow-wrap:anywhere;word-break:break-word">${esc(d.qrCode||'')}<br>${d.qrCode?'<button type="button" class="copy" id="copyExistingPix">COPIAR CÓDIGO PIX</button>':''}</div><p style="font-size:10px;color:#888">Pedido VALENZA-${esc(shortOrderNumber(d.orderId||id))}</p><button class="final" onclick="closeCheckout()">VOLTAR À LOJA</button></div>`;
+  const b=document.getElementById('copyExistingPix');if(b)b.onclick=async()=>{try{await navigator.clipboard.writeText(d.qrCode);b.textContent='COPIADO ✓'}catch{const ta=document.createElement('textarea');ta.value=d.qrCode;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();b.textContent='COPIADO ✓'}};
+  watchPixPayment(d.orderId||id);
+ }catch(e){const notice=document.getElementById('valenzaNotice');if(notice)notice.style.display='none';valenzaNotice('Não foi possível consultar este Pix agora. Tente novamente.')}
 }
 function clientTab(t){
  if(!clientData)return;
