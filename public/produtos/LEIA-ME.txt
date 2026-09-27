@@ -1,0 +1,4 @@
+Pasta oficial das imagens dos produtos da VALENZA Parfums.
+
+Envie aqui os 20 arquivos .webp preparados para o catálogo.
+Não apague este arquivo até a migração das imagens ser concluída e auditada.
