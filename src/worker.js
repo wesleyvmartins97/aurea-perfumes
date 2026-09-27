@@ -13,6 +13,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
  if(url.pathname==="/api/account/profile"&&request.method==="POST")return accountProfile(request,env);
  if(url.pathname==="/api/account/order/cancel"&&request.method==="POST")return accountCancelOrder(request,env);
+ if(url.pathname==="/api/account/order/pix"&&request.method==="POST")return accountOrderPix(request,env);
  if(url.pathname==="/api/account/addresses"&&request.method==="POST")return accountAddressSave(request,env);
  if(url.pathname.startsWith("/api/account/addresses/")&&request.method==="POST")return accountAddressDelete(request,env,url.pathname.split("/").pop());
  if(url.pathname==="/api/frete"&&request.method==="POST")return calcularFrete(request,env);
@@ -121,6 +122,22 @@ async function authLogout(request,env){try{await ensureAuthSchema(env);const t=c
 
 async function currentCustomer(request,env){await ensureAuthSchema(env);const t=cookieToken(request);if(!t)return null;const th=await sha256(t);const u=await env.DB.prepare("SELECT c.id,c.name,c.email,c.email_verified,s.expires_at FROM customer_sessions s JOIN customers c ON c.id=s.customer_id WHERE s.token_hash=?").bind(th).first();if(!u||Date.parse(u.expires_at)<Date.now())return null;return u}
 async function accountData(request,env){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login para acessar sua conta."},401);const p=await env.DB.prepare("SELECT phone,cpf,birth_date FROM customer_profiles WHERE customer_id=?").bind(u.id).first();const a=await env.DB.prepare("SELECT id,label,recipient,cep,street,number,complement,neighborhood,city,state,is_default FROM customer_addresses WHERE customer_id=? ORDER BY is_default DESC,created_at DESC").bind(u.id).all();const o=await env.DB.prepare("SELECT id,order_number,status,total,tracking_code,tracking_url,carrier,created_at FROM orders WHERE customer_id=? UNION SELECT id,order_number,status,total,tracking_code,tracking_url,carrier,created_at FROM guest_orders WHERE lower(email)=lower(?) ORDER BY created_at DESC LIMIT 50").bind(u.id,u.email).all();const orders=o.results||[];for(const ord of orders){const its=await env.DB.prepare("SELECT product_id,name,brand,type,image,quantity,unit_price FROM order_items WHERE order_id=?").bind(ord.id).all();ord.items=its.results||[];const sh=await env.DB.prepare("SELECT carrier,shipping_id,barcode,label_ready FROM order_shipping WHERE order_id=?").bind(ord.id).first();if(sh){ord.carrier=sh.carrier||ord.carrier;ord.tracking_code=sh.barcode||ord.tracking_code;ord.shipping_id=sh.shipping_id||null;ord.label_ready=!!sh.label_ready}const pay=await env.DB.prepare("SELECT method,installments,installment_amount,total_paid,status,status_detail FROM order_payments WHERE order_id=?").bind(ord.id).first();if(pay)ord.payment=pay;}return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified,phone:p?.phone||"",cpf:p?.cpf||"",birthDate:p?.birth_date||""},addresses:a.results||[],orders})}catch(e){console.error("Conta:",e);return resposta({ok:false,error:"Não foi possível carregar sua conta."},500)}}
+async function accountOrderPix(request,env){
+ try{
+  const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);
+  const d=await request.json().catch(()=>({})),id=String(d.orderId||"").trim();if(!id)return resposta({ok:false,error:"Pedido inválido."},400);
+  const ord=await env.DB.prepare("SELECT id,status,total FROM orders WHERE id=? AND customer_id=?").bind(id,u.id).first();if(!ord)return resposta({ok:false,error:"Pedido não encontrado na sua conta."},404);
+  const payrow=await env.DB.prepare("SELECT method FROM order_payments WHERE order_id=?").bind(id).first();if(String(payrow?.method||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Este pedido não possui pagamento Pix."},409);
+  const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+  const mr=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}}),raw=await mr.text();let md;try{md=JSON.parse(raw)}catch{md={}}if(!mr.ok)return resposta({ok:false,error:"Não foi possível consultar este Pix agora."},502);
+  const tx=md?.transactions?.payments?.[0]||{},st=String(tx.status||md.status||""),detail=String(tx.status_detail||md.status_detail||""),approved=["processed","approved"].includes(st)||detail==="accredited",pix=tx?.payment_method?.qr_code||tx?.payment_method?.ticket_url?tx.payment_method:(tx?.payment_method||{});
+  if(approved){await consultarPagamento(id,env);return resposta({ok:true,paid:true,status:"approved",message:"Este pedido já está pago."})}
+  if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await consultarPagamento(id,env);return resposta({ok:false,expired:st==="expired",status:st,error:st==="expired"?"Este Pix expirou e não pode mais ser pago.":"Este Pix não está mais disponível para pagamento."},409)}
+  const qr=String(pix.qr_code||tx.qr_code||""),qr64=String(pix.qr_code_base64||tx.qr_code_base64||""),ticket=String(pix.ticket_url||tx.ticket_url||"");
+  if(!qr&&!qr64&&!ticket)return resposta({ok:false,error:"O Mercado Pago não retornou os dados deste Pix. Gere um novo pagamento."},409);
+  return resposta({ok:true,orderId:id,status:st||"pending",statusDetail:detail,amount:Number(ord.total||0).toFixed(2),qrCode:qr,qrCodeBase64:qr64,ticketUrl:ticket});
+ }catch(e){console.error("Recuperar PIX:",e);return resposta({ok:false,error:"Não foi possível recuperar este Pix agora."},500)}
+}
 async function accountCancelOrder(request,env){
  try{
   const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);
