@@ -124,7 +124,33 @@ async function authLogout(request,env){try{await ensureAuthSchema(env);const t=c
 
 
 async function currentCustomer(request,env){await ensureAuthSchema(env);const t=cookieToken(request);if(!t)return null;const th=await sha256(t);const u=await env.DB.prepare("SELECT c.id,c.name,c.email,c.email_verified,s.expires_at FROM customer_sessions s JOIN customers c ON c.id=s.customer_id WHERE s.token_hash=?").bind(th).first();if(!u||Date.parse(u.expires_at)<Date.now())return null;return u}
-async function accountData(request,env){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login para acessar sua conta."},401);const p=await env.DB.prepare("SELECT phone,cpf,birth_date FROM customer_profiles WHERE customer_id=?").bind(u.id).first();const a=await env.DB.prepare("SELECT id,label,recipient,cep,street,number,complement,neighborhood,city,state,is_default FROM customer_addresses WHERE customer_id=? ORDER BY is_default DESC,created_at DESC").bind(u.id).all();const o=await env.DB.prepare("SELECT id,order_number,status,total,tracking_code,tracking_url,carrier,created_at FROM orders WHERE customer_id=? UNION SELECT id,order_number,status,total,tracking_code,tracking_url,carrier,created_at FROM guest_orders WHERE lower(email)=lower(?) ORDER BY created_at DESC LIMIT 50").bind(u.id,u.email).all();const orders=o.results||[];for(const ord of orders){const its=await env.DB.prepare("SELECT product_id,name,brand,type,image,quantity,unit_price FROM order_items WHERE order_id=?").bind(ord.id).all();ord.items=its.results||[];const sh=await env.DB.prepare("SELECT carrier,shipping_id,barcode,label_ready FROM order_shipping WHERE order_id=?").bind(ord.id).first();if(sh){ord.carrier=sh.carrier||ord.carrier;ord.tracking_code=sh.barcode||ord.tracking_code;ord.shipping_id=sh.shipping_id||null;ord.label_ready=!!sh.label_ready}const pay=await env.DB.prepare("SELECT method,installments,installment_amount,total_paid,status,status_detail FROM order_payments WHERE order_id=?").bind(ord.id).first();if(pay)ord.payment=pay;}return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified,phone:p?.phone||"",cpf:p?.cpf||"",birthDate:p?.birth_date||""},addresses:a.results||[],orders})}catch(e){console.error("Conta:",e);return resposta({ok:false,error:"Não foi possível carregar sua conta."},500)}}
+async function accountData(request,env){try{
+ const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login para acessar sua conta."},401);
+ const [p,a,o]=await Promise.all([
+  env.DB.prepare("SELECT phone,cpf,birth_date FROM customer_profiles WHERE customer_id=?").bind(u.id).first(),
+  env.DB.prepare("SELECT id,label,recipient,cep,street,number,complement,neighborhood,city,state,is_default FROM customer_addresses WHERE customer_id=? ORDER BY is_default DESC,created_at DESC").bind(u.id).all(),
+  env.DB.prepare("SELECT id,order_number,status,total,tracking_code,tracking_url,carrier,created_at FROM orders WHERE customer_id=? UNION SELECT id,order_number,status,total,tracking_code,tracking_url,carrier,created_at FROM guest_orders WHERE lower(email)=lower(?) ORDER BY created_at DESC LIMIT 50").bind(u.id,u.email).all()
+ ]);
+ const orders=o.results||[];
+ if(orders.length){
+  const ids=orders.map(x=>x.id),marks=ids.map(()=>"?").join(",");
+  const [its,ships,pays]=await Promise.all([
+   env.DB.prepare("SELECT order_id,product_id,name,brand,type,image,quantity,unit_price FROM order_items WHERE order_id IN ("+marks+")").bind(...ids).all(),
+   env.DB.prepare("SELECT order_id,carrier,shipping_id,barcode,label_ready FROM order_shipping WHERE order_id IN ("+marks+")").bind(...ids).all(),
+   env.DB.prepare("SELECT order_id,method,installments,installment_amount,total_paid,status,status_detail FROM order_payments WHERE order_id IN ("+marks+")").bind(...ids).all()
+  ]);
+  const itemMap=new Map(),shipMap=new Map(),payMap=new Map();
+  for(const x of (its.results||[])){if(!itemMap.has(x.order_id))itemMap.set(x.order_id,[]);const {order_id,...item}=x;itemMap.get(x.order_id).push(item)}
+  for(const x of (ships.results||[]))shipMap.set(x.order_id,x);
+  for(const x of (pays.results||[]))payMap.set(x.order_id,x);
+  for(const ord of orders){
+   ord.items=itemMap.get(ord.id)||[];
+   const sh=shipMap.get(ord.id);if(sh){ord.carrier=sh.carrier||ord.carrier;ord.tracking_code=sh.barcode||ord.tracking_code;ord.shipping_id=sh.shipping_id||null;ord.label_ready=!!sh.label_ready}
+   const pay=payMap.get(ord.id);if(pay){const {order_id,...payment}=pay;ord.payment=payment}
+  }
+ }
+ return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified,phone:p?.phone||"",cpf:p?.cpf||"",birthDate:p?.birth_date||""},addresses:a.results||[],orders});
+}catch(e){console.error("Conta:",e);return resposta({ok:false,error:"Não foi possível carregar sua conta."},500)}}
 async function accountOrderPix(request,env){
  try{
   const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);
