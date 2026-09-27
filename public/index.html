@@ -217,7 +217,18 @@ body{
 .eye-line{fill:none;stroke:#5c554f;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round}
 .eye-pupil{fill:#5c554f}
 .password-eye:focus-visible{outline:2px solid #9b7659;outline-offset:1px}
-</style></head><body>
+</style><style id="valenza-card-alignment-fix">
+/* Mantém preço e ações alinhados entre produtos da mesma linha sem alterar conteúdo */
+#grid .card{display:flex!important;flex-direction:column!important;height:100%!important}
+#grid .card>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
+#grid .card .price{margin-top:auto!important}
+#grid .card .pix{min-height:15px!important}
+#grid .card .add{min-height:48px!important}
+#grid .card .product-actions{margin-top:0!important}
+#grid .card .product-actions .details,
+#grid .card .product-actions .buy{min-height:48px!important}
+</style>
+</head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
   <div class="slides" id="slides">
