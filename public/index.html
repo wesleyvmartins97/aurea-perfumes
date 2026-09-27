@@ -266,6 +266,30 @@ body{
  #grid .card .product-actions .buy{height:46px!important;min-height:46px!important;flex-basis:46px!important;font-size:11px!important}
 }
 </style>
+<style id="valenza-luxury-card-pattern">
+/* VALENZA — padrão de catálogo premium: menos ruído, uma ação principal */
+#grid .card{border-radius:8px!important;box-shadow:0 8px 24px rgba(32,25,19,.055)!important}
+#grid .card>.info{padding-top:16px!important}
+#grid .card .brand{font-size:10px!important;letter-spacing:2.4px!important}
+#grid .card .name{font-weight:400!important;line-height:1.08!important}
+#grid .card .meta{font-size:11px!important;opacity:.68!important}
+#grid .card .price{font-weight:650!important;letter-spacing:-.3px!important}
+#grid .card .pix{font-size:11px!important;opacity:.78!important}
+#grid .card .add{background:#151310!important;color:#fff!important;border:1px solid #151310!important}
+#grid .card .product-actions{display:grid!important;grid-template-columns:1fr 1.18fr!important;grid-template-rows:42px!important;gap:7px!important}
+#grid .card .product-actions .details,
+#grid .card .product-actions .buy{height:42px!important;min-height:42px!important;flex-basis:auto!important;margin:0!important;border-radius:5px!important}
+#grid .card .product-actions .details{background:transparent!important;font-size:9px!important;letter-spacing:.75px!important}
+#grid .card .product-actions .buy{font-size:10px!important;letter-spacing:1px!important}
+@media(max-width:520px){
+ #grid .card>.info{padding:13px 10px 12px!important}
+ #grid .card .brand{font-size:8.5px!important;letter-spacing:1.8px!important}
+ #grid .card .name{min-height:44px!important}
+ #grid .card .add{height:42px!important;min-height:42px!important;flex-basis:42px!important}
+ #grid .card .product-actions{grid-template-columns:1fr 1.12fr!important;grid-template-rows:38px!important;gap:5px!important}
+ #grid .card .product-actions .details,#grid .card .product-actions .buy{height:38px!important;min-height:38px!important;font-size:8px!important;padding:0 3px!important}
+}
+</style>
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
