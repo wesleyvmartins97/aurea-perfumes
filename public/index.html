@@ -447,7 +447,7 @@ async function accountResendVerification(){
   accountMsg(d.message||'E-mail de confirmação reenviado.');
  }catch(e){accountMsg(e.message)}
 }
-async function accountLogin(){const email=document.getElementById('loginEmail').value.trim().toLowerCase(),password=document.getElementById('loginPassword').value;accountMsg('Entrando...');try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível entrar.');accountUser=d.user;renderAccount();setTimeout(()=>{if(typeof openClient==='function')openClient()},250)}catch(e){accountMsg(e.message)}}
+async function accountLogin(){const email=document.getElementById('loginEmail').value.trim().toLowerCase(),password=document.getElementById('loginPassword').value;accountMsg('Entrando...');try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível entrar.');accountUser=d.user;renderAccount();closeAccount();}catch(e){accountMsg(e.message)}}
 async function accountLogout(){try{await fetch('/api/auth/logout',{method:'POST'});accountUser=null;renderAccount()}catch(e){accountMsg('Não foi possível sair agora.')}}
 async function initAccount(){localStorage.removeItem('aurea_account');localStorage.removeItem('aurea_logged');localStorage.removeItem('aurea_session');await loadAccount()}
 
