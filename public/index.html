@@ -356,6 +356,15 @@ body{
  font-size:8px!important;letter-spacing:.65px!important;padding:0 4px!important
 }
 </style>
+<style id="valenza-actions-image-match">
+/* Layout final aprovado: COMPRAR preto; carrinho branco; detalhes marrom */
+#grid .card .product-actions,#topFemininos .top-product .product-actions{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;margin:0!important}
+#grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{display:block!important;order:-1!important;width:100%!important;height:50px!important;min-height:50px!important;background:#151310!important;color:#fff!important;border:1px solid #151310!important;border-radius:6px!important;font-size:11px!important;font-weight:700!important;letter-spacing:1.1px!important}
+#grid .secondary-actions,#topFemininos .secondary-actions{display:grid!important;grid-template-columns:1.15fr .85fr!important;gap:6px!important;width:100%!important}
+#grid .secondary-actions .add,#topFemininos .secondary-actions .add{display:block!important;order:1!important;width:100%!important;height:38px!important;min-height:38px!important;margin:0!important;background:#fff!important;color:#171513!important;border:1px solid #171513!important;border-radius:5px!important;font-size:8px!important;font-weight:600!important;letter-spacing:.45px!important;padding:0 3px!important}
+#grid .secondary-actions .details,#topFemininos .secondary-actions .details{display:block!important;order:2!important;width:100%!important;height:38px!important;min-height:38px!important;margin:0!important;background:#927b67!important;color:#fffaf4!important;border:1px solid #725f50!important;border-radius:5px!important;font-size:8px!important;font-weight:600!important;letter-spacing:.65px!important;padding:0 3px!important}
+@media(max-width:520px){#grid .card .product-actions .buy,#topFemininos .top-product .product-actions .buy{height:46px!important;min-height:46px!important;font-size:10px!important}#grid .secondary-actions .add,#topFemininos .secondary-actions .add,#grid .secondary-actions .details,#topFemininos .secondary-actions .details{height:38px!important;min-height:38px!important;font-size:7.5px!important}}
+</style>
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
