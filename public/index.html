@@ -239,6 +239,20 @@ body{
  #grid .card>.info{padding:14px 12px!important}
 }
 </style>
+<style id="valenza-mobile-compact-fix">
+/* Mobile: catálogo compacto como a vitrine e 5º destaque centralizado */
+@media (max-width:520px){
+ #grid .card .name{min-height:48px!important}
+ #grid .card .meta{min-height:18px!important}
+ #grid .card .desc{display:none!important;min-height:0!important;margin:0!important}
+ #grid .card .pix{min-height:24px!important;margin:3px 0 9px!important}
+ #grid .card .add{height:48px!important;min-height:48px!important;flex-basis:48px!important}
+ #grid .card .product-actions{gap:7px!important}
+ #grid .card .product-actions .details{height:42px!important;min-height:42px!important;flex-basis:42px!important}
+ #grid .card .product-actions .buy{height:52px!important;min-height:52px!important;flex-basis:52px!important}
+ #topFemininos>.top-product:last-child:nth-child(odd){grid-column:1/-1!important;width:calc((100% - 14px)/2)!important;justify-self:center!important;margin-left:auto!important;margin-right:auto!important}
+}
+</style>
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
