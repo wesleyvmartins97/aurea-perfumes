@@ -482,15 +482,26 @@ async function openClient(){
 }
 function closeClient(fromHistory=false){const el=document.getElementById('clientCenter');if(el)el.style.display='none';document.body.style.overflow='';dropLayer('client',fromHistory)}
 function shortOrderNumber(v){const x=String(v||'').replace(/^VALENZA-/i,'').replace(/^ORDTST/i,'');return x.length>12?x.slice(-12).toUpperCase():x.toUpperCase()}
-async function cancelPendingOrder(id){
- if(!confirm('Cancelar este pedido que ainda não foi pago?'))return;
- try{const r=await fetch('/api/account/order/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({orderId:id})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível cancelar o pedido.');await fetchClientData();clientTab('orders')}catch(e){alert(e.message)}
+function valenzaNotice(message,opts={}){
+ let el=document.getElementById('valenzaNotice');
+ if(!el){el=document.createElement('div');el.id='valenzaNotice';el.innerHTML='<div class="vnBox"><div class="vnBrand">VALENZA</div><div class="vnText"></div><div class="vnActions"></div></div>';document.body.appendChild(el)}
+ Object.assign(el.style,{position:'fixed',inset:'0',zIndex:'30000',background:'rgba(23,21,19,.48)',display:'flex',alignItems:'center',justifyContent:'center',padding:'22px'});
+ const box=el.querySelector('.vnBox');Object.assign(box.style,{width:'min(92vw,430px)',background:'#fff',border:'1px solid #e7e1da',padding:'28px 24px',boxShadow:'0 18px 55px rgba(0,0,0,.18)',textAlign:'center'});
+ Object.assign(el.querySelector('.vnBrand').style,{fontFamily:'Georgia,serif',fontSize:'20px',letterSpacing:'5px',marginBottom:'20px'});
+ const tx=el.querySelector('.vnText');tx.textContent=message;Object.assign(tx.style,{fontSize:'14px',lineHeight:'1.65',color:'#403b36',overflowWrap:'break-word'});
+ const ac=el.querySelector('.vnActions');ac.innerHTML='';Object.assign(ac.style,{display:'flex',gap:'10px',justifyContent:'center',marginTop:'24px',flexWrap:'wrap'});
+ const close=()=>{el.style.display='none'};
+ if(opts.confirm){const no=document.createElement('button');no.className='ccBtn';no.textContent='VOLTAR';no.style.background='#fff';no.style.color='#171513';no.style.border='1px solid #171513';no.onclick=close;ac.appendChild(no);const yes=document.createElement('button');yes.className='ccBtn';yes.textContent=opts.confirmLabel||'CONFIRMAR';yes.onclick=()=>{close();opts.onConfirm&&opts.onConfirm()};ac.appendChild(yes)}else{const ok=document.createElement('button');ok.className='ccBtn';ok.textContent='OK';ok.onclick=close;ac.appendChild(ok)}
 }
+async function doCancelPendingOrder(id){
+ try{const r=await fetch('/api/account/order/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({orderId:id})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível cancelar o pedido.');await fetchClientData();clientTab('orders');valenzaNotice('Pedido cancelado com sucesso.')}catch(e){valenzaNotice(e.message)}
+}
+function cancelPendingOrder(id){valenzaNotice('Deseja cancelar este pedido que ainda não foi pago?',{confirm:true,confirmLabel:'CANCELAR PEDIDO',onConfirm:()=>doCancelPendingOrder(id)})}
 function continuePendingOrder(id){
  const o=(clientData?.orders||[]).find(x=>String(x.id)===String(id));if(!o)return;
  const its=o.items||[];for(const it of its){const p=CATALOG.find(x=>x.id===it.product_id);if(!p)continue;const c=cart.find(x=>x.id===p.id);if(c)c.qty=Math.max(c.qty,Number(it.quantity)||1);else cart.push({id:p.id,name:p.name,brand:p.brand,type:p.type,price:p.price,img:p.img,qty:Number(it.quantity)||1})}
  saveCart();closeClient();openCart();
- alert('Os itens desse pedido estão no carrinho. Para sua segurança, escolha o frete e gere um novo Pix. O pedido antigo pode ser cancelado em Meus pedidos.');
+ valenzaNotice('Os itens deste pedido foram colocados no carrinho. Escolha o frete e gere um novo Pix. O pedido anterior pode ser cancelado em Meus pedidos.');
 }
 function clientTab(t){
  if(!clientData)return;
