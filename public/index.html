@@ -203,6 +203,18 @@ body{
 #grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{order:2!important;background:#927b67!important;color:#fff!important;border:1px solid #725f50!important}
 @media(max-width:520px){#grid .product-actions>.buy,#topFemininos .product-actions>.buy{height:46px!important;min-height:46px!important;font-size:10px!important}#grid .secondary-actions>.add,#topFemininos .secondary-actions>.add,#grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{height:40px!important;min-height:40px!important;font-size:7.5px!important}}
 </style>
+<style id="valenza-top-last-center">
+/* Centraliza somente o último destaque feminino quando a linha fica ímpar */
+@media(max-width:620px){
+ #topFemininos>.top-product:last-child:nth-child(odd){
+  grid-column:1 / -1!important;
+  width:calc((100% - 10px)/2)!important;
+  justify-self:center!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+ }
+}
+</style>
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
