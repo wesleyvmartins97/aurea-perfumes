@@ -32,5 +32,10 @@ const CATALOG=[
 {id:'hawas-ice',name:'Hawas Ice',brand:'Rasasi',cat:'masculino',type:'EDP · 100ml',price:329.90,pix:313.41,img:'/produtos/hawas-ice.webp',desc:'',offer:true},
 {id:'yara-candy',name:'Yara Candy',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:229.90,pix:218.41,img:'/produtos/yara-candy.webp',desc:'',offer:true},
 {id:'tiramisu-coco',name:'Tiramisu Coco',brand:'Zimaya',cat:'unissex',type:'EDP · 100ml · Unissex',price:279.90,pix:265.91,img:'/produtos/tiramisu-coco.webp',desc:'',offer:true},
-{id:'fatima-pink',name:'Fatima Pink',brand:'Zimaya',cat:'feminino',type:'Extrait de Parfum · 100ml',price:269.90,pix:256.41,img:'/produtos/fatima-pink.webp',desc:'',offer:true}
+{id:'fatima-pink',name:'Fatima Pink',brand:'Zimaya',cat:'feminino',type:'Extrait de Parfum · 100ml',price:269.90,pix:256.41,img:'/produtos/fatima-pink.webp',desc:'',offer:true},
+{id:'supremacy-not-only-intense',name:'Supremacy Not Only Intense',brand:'Afnan',cat:'masculino',type:'Extrait de Parfum · 100ml',price:399.90,pix:379.91,img:'/produtos/afnan-supremacy-not-only-intense.jpeg',desc:'Fragrância masculina intensa e sofisticada.',offer:true},
+{id:'club-de-nuit-milestone',name:'Club de Nuit Milestone',brand:'Armaf',cat:'masculino',type:'EDP · 105ml',price:279.90,pix:265.91,img:'/produtos/armaf-club-de-nuit-milestone.jpeg',desc:'Fragrância masculina fresca e marcante.',offer:true},
+{id:'club-de-nuit-untold',name:'Club de Nuit Untold',brand:'Armaf',cat:'unissex',type:'EDP · 105ml · Unissex',price:329.90,pix:313.41,img:'/produtos/armaf-club-de-nuit-untold.jpeg',desc:'Fragrância compartilhável de presença marcante.',offer:true},
+{id:'badee-al-oud-amethyst',name:"Bade'e Al Oud Amethyst",brand:'Lattafa',cat:'unissex',type:'EDP · 100ml · Unissex',price:229.90,pix:218.41,img:'/produtos/lattafa-badee-al-oud-amethyst.jpeg',desc:'Fragrância oriental compartilhável.',offer:true},
+{id:'raghba-wood-intense',name:'Raghba Wood Intense',brand:'Lattafa',cat:'unissex',type:'EDP · 100ml · Unissex',price:219.90,pix:208.91,img:'/produtos/lattafa-raghba-wood-intense.jpeg',desc:'Fragrância amadeirada oriental compartilhável.',offer:true}
 ];
