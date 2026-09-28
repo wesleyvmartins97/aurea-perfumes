@@ -2,6 +2,8 @@ const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Contr
 
 export default{async fetch(request,env){
  const url=new URL(request.url);
+ // TEMPORARIAMENTE FORA DO AR — remover esta linha para reativar
+ return new Response("Site temporariamente indisponível.",{status:503,headers:{"Content-Type":"text/plain; charset=UTF-8","Cache-Control":"no-store"}});
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
