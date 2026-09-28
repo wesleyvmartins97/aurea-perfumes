@@ -176,6 +176,9 @@ body{
   #categorias .shop-categories .category strong{font-size:13px!important}
   #categorias .shop-categories .category span{font-size:6.5px!important}
 }
+
+/* Interação segura dos banners com o catálogo */
+.banner-product{cursor:pointer}.banner-zones{position:relative!important}.banner-zone{position:absolute;top:8%;height:84%;z-index:3;border:0;background:transparent;padding:0;cursor:pointer}.banner-zone:focus-visible{outline:2px solid #fff;outline-offset:-4px}
 </style><style id="valenza-password-eye">
 #loginPane .field:has(#loginPassword),#registerPane .field:has(#registerPassword){position:relative}
 #loginPassword,#registerPassword{padding-right:54px!important}
@@ -228,14 +231,14 @@ body{
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a><a href="#sobre">VALENZA</a></nav><div class="actions"><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
   <div class="slides" id="slides">
-    <div class="slide"><img src="/banners/file_000000000724820ebc0b08dbb2f06341.png?v=20260926-valenza" alt="Banner VALENZA 1" loading="eager" decoding="async" fetchpriority="high"></div>
-    <div class="slide"><img src="/banners/file_0000000014ac820e8d470a47527300b8.png?v=20260926-valenza" alt="Banner VALENZA 2" loading="lazy" decoding="async"></div>
-    <div class="slide"><img src="/banners/file_000000001714820eb5933f80dfef2161.png?v=20260926-valenza" alt="Banner VALENZA 3" loading="lazy" decoding="async"></div>
-    <div class="slide"><img src="/banners/file_000000003780820e92f2892973dd850d.png?v=20260926-valenza" alt="Banner VALENZA 4" loading="lazy" decoding="async"></div>
-    <div class="slide"><img src="/banners/file_000000008550820ebd74d70eef82b434.png?v=20260926-valenza" alt="Banner VALENZA 5" loading="lazy" decoding="async"></div>
-    <div class="slide"><img src="/banners/file_00000000b95c820eb6171811309e3681.png?v=20260926-valenza" alt="Banner VALENZA 6" loading="lazy" decoding="async"></div>
-    <div class="slide"><img src="/banners/file_00000000f864820eb8b928870cd20402.png?v=20260926-valenza" alt="Banner VALENZA 7" loading="lazy" decoding="async"></div>
-    <div class="slide"><img src="/banners/file_00000000fe88820eabdaa61890b393ad.png?v=20260926-valenza" alt="Banner VALENZA 8" loading="lazy" decoding="async"></div>
+    <div class="slide banner-product" data-product="musamam-white-intense"><img src="/banners/file_000000000724820ebc0b08dbb2f06341.png?v=20260926-valenza" alt="Musamam White Intense" loading="eager" decoding="async" fetchpriority="high"></div>
+    <div class="slide banner-product" data-product="tharwah-gold"><img src="/banners/file_0000000014ac820e8d470a47527300b8.png?v=20260926-valenza" alt="Tharwah Gold" loading="lazy" decoding="async"></div>
+    <div class="slide banner-zones"><img src="/banners/file_000000001714820eb5933f80dfef2161.png?v=20260926-valenza" alt="Seleção VALENZA" loading="lazy" decoding="async"><button class="banner-zone" data-product="asad" style="left:25%;width:17%" aria-label="Ver Asad"></button><button class="banner-zone" data-product="attar" style="left:42%;width:17%" aria-label="Ver Attar Al Wesal"></button><button class="banner-zone" data-product="club-de-nuit-intense-man" style="left:59%;width:17%" aria-label="Ver Club de Nuit Intense Man"></button></div>
+    <div class="slide banner-product" data-product="queen-of-arabia"><img src="/banners/file_000000003780820e92f2892973dd850d.png?v=20260926-valenza" alt="Queen of Arabia" loading="lazy" decoding="async"></div>
+    <div class="slide banner-zones"><img src="/banners/file_000000008550820ebd74d70eef82b434.png?v=20260926-valenza" alt="Seleção VALENZA" loading="lazy" decoding="async"><button class="banner-zone" data-product="fakhar-rose" style="left:25%;width:17%" aria-label="Ver Fakhar Rose"></button><button class="banner-zone" data-product="yara" style="left:42%;width:17%" aria-label="Ver Yara"></button><button class="banner-zone" data-product="musamam-white-intense" style="left:59%;width:17%" aria-label="Ver Musamam White Intense"></button></div>
+    <div class="slide banner-product" data-product="fakhar-rose"><img src="/banners/file_00000000b95c820eb6171811309e3681.png?v=20260926-valenza" alt="Fakhar Rose" loading="lazy" decoding="async"></div>
+    <div class="slide banner-product" data-product="atheeri"><img src="/banners/file_00000000f864820eb8b928870cd20402.png?v=20260926-valenza" alt="Atheeri" loading="lazy" decoding="async"></div>
+    <div class="slide banner-product" data-product="afeef"><img src="/banners/file_00000000fe88820eabdaa61890b393ad.png?v=20260926-valenza" alt="Afeef" loading="lazy" decoding="async"></div>
   </div>
   <button class="slide-arrow slide-prev" type="button" aria-label="Banner anterior" onclick="moveSlide(-1)">‹</button>
   <button class="slide-arrow slide-next" type="button" aria-label="Próximo banner" onclick="moveSlide(1)">›</button>
@@ -257,6 +260,8 @@ body{
 let cat='todos',cart=[];try{const savedCart=JSON.parse(localStorage.getItem('aurea_cart')||'[]');cart=Array.isArray(savedCart)?savedCart:[]}catch(e){localStorage.removeItem('aurea_cart');cart=[]}let selectedShipping=null;
 const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 function openBannerProduct(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;cat='todos';document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.cat==='todos'));const search=document.getElementById('search');if(search)search.value='';render();requestAnimationFrame(()=>{const card=document.querySelector('#grid [data-product-id="'+CSS.escape(id)+'"]');(card||document.getElementById('catalogo'))?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>detail(id),500)})}
+
+function initBannerProductLinks(){document.querySelectorAll('.banner-product[data-product]').forEach(el=>el.addEventListener('click',()=>openBannerProduct(el.dataset.product)));document.querySelectorAll('.banner-zone[data-product]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();openBannerProduct(el.dataset.product)}))}
 function setCat(c){cat=c;document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.cat===c));document.getElementById('catalogo').scrollIntoView({behavior:'smooth'});render()}
 function renderTopFemininos(){const box=document.getElementById('topFemininos');if(!box)return;const list=CATALOG.filter(p=>p.cat==='feminino').slice(0,5);box.innerHTML=list.map(p=>`<article class="top-product"><div class="photo" onclick="detail('${p.id}')" style="cursor:pointer"><img loading="lazy" src="${esc(p.img)}" alt="${esc(p.brand+' '+p.name)}" onerror="this.onerror=null;this.src='/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_14-4.png'"><span class="tag">FEMININO</span></div><div class="info"><div class="brand">${esc(p.brand)}</div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.type)}</div><div class="price">${money(p.price)}</div><div class="pix">ou ${money(p.pix)} no Pix</div><div class="product-actions"><button class="buy" onclick="buyNow('${p.id}')">COMPRAR</button><div class="secondary-actions"><button class="details" onclick="detail('${p.id}')">VER DETALHES</button><button class="add" onclick="add('${p.id}')">ADICIONAR AO CARRINHO</button></div></div></div></article>`).join('')}
 
@@ -558,6 +563,7 @@ function bootAurea(){
  try{renderTopFemininos()}catch(e){console.error('AUREA destaques',e)}
  try{updateCart()}catch(e){console.error('AUREA carrinho',e)}
  try{initSlider()}catch(e){console.error('AUREA slider',e)}
+ try{initBannerProductLinks()}catch(e){console.error('AUREA banners',e)}
  try{initAccount()}catch(e){console.error('AUREA conta',e)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAurea,{once:true});else bootAurea();
