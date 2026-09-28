@@ -258,7 +258,7 @@ body{
 <script>
 
 let cat='todos',cart=[];try{const savedCart=JSON.parse(localStorage.getItem('aurea_cart')||'[]');cart=Array.isArray(savedCart)?savedCart:[]}catch(e){localStorage.removeItem('aurea_cart');cart=[]}let selectedShipping=null,selectedPayment='pix';
-const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const pixUnitPrice=n=>{const cents=Math.round(Number(n)*100);return Math.floor((cents*95+50)/100)/100};const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const pixUnitPrice=n=>{const cents=Math.round(Number(n)*100);return Math.floor((cents*95+50)/100)/100};CATALOG.forEach(p=>p.pix=pixUnitPrice(p.price));const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 function openBannerProduct(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;cat='todos';document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.cat==='todos'));const search=document.getElementById('search');if(search)search.value='';render();requestAnimationFrame(()=>{const card=document.querySelector('#grid [data-product-id="'+CSS.escape(id)+'"]');(card||document.getElementById('catalogo'))?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>detail(id),500)})}
 
 function initBannerProductLinks(){document.querySelectorAll('.banner-product[data-product]').forEach(el=>el.addEventListener('click',()=>openBannerProduct(el.dataset.product)));document.querySelectorAll('.banner-zone[data-product]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();openBannerProduct(el.dataset.product)}))}
