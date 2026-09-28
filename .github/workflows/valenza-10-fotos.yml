@@ -1,86 +1,37 @@
-name: Valenza 10 Fotos
+name: Instalar 10 fotos Valenza
 on:
+  workflow_dispatch:
   push:
     branches:
       - tmp-valenza-10-fotos
+permissions:
+  contents: write
+  actions: read
 jobs:
-  pack:
+  install:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Baixar e padronizar fotos
-        run: |
-          python -m pip install --quiet requests pillow beautifulsoup4
-          python <<'PY'
-          import io, os, zipfile, requests
-          from PIL import Image
-          from bs4 import BeautifulSoup
-
-          os.makedirs("valenza-10-fotos", exist_ok=True)
-          H={"User-Agent":"Mozilla/5.0"}
-
-          items=[
-            ("khamrah.webp","https://beautyfamily.ma/cdn/shop/files/LATTAFA_KHAMRAH_EAU_DE_PARFUM_MIXTE_100ML_._beautyfamily.ma.jpg?v=1769097298",None),
-            ("khamrah-qahwa.webp","https://dubaiperfumesa.co.za/cdn/shop/files/Khamrah-Qahwa-Lattafa-Perfumes-100ml-south-africa-7968.jpg?v=1776619716",None),
-            ("eclaire.webp","https://static.wixstatic.com/media/2d75da_e97718741ab14bbc9e5b7b59162a8591~mv2.png/v1/fill/w_1080,h_1080,al_c,q_90,enc_avif,quality_auto/2d75da_e97718741ab14bbc9e5b7b59162a8591~mv2.png",None),
-            ("liquid-brun.webp","https://down-my.img.susercontent.com/file/my-11134207-7rasg-m3avbvxo4cey68",None),
-            ("spectre-ghost.webp",None,"https://ribaworld.de/products/spectre-ghost-by-french-avenue-fragrance-world-eau-de-parfum-80ml-unisex"),
-            ("afnan-9pm.webp",None,"https://www.perfume-empire.com/products/9-pm-by-afnan-cologne-for-men-edp-3-3-3-4-oz-new-in-box"),
-            ("hawas-ice.webp",None,"https://zaoud.it/products/rasasi-hawas-ice-for-him"),
-            ("yara-candy.webp",None,"https://zaoud.it/products/lattafa-yara-candy"),
-            ("tiramisu-coco.webp","https://cdn.spellsmell.ru/rc/3e4621d6-c316-4304-8a65-73e2e597ab67.jpg",None),
-            ("fatima-pink.webp",None,"https://zaoud.it/products/fatima-extrait-de-parfum"),
-          ]
-
-          def og_image(page):
-              r=requests.get(page,headers=H,timeout=30); r.raise_for_status()
-              s=BeautifulSoup(r.text,"html.parser")
-              preferred={
-                  "rasasi-hawas-ice-for-him":["packaging","bottle and packaging","box"],
-                  "lattafa-yara-candy":["beside its box","box"],
-                  "fatima-extrait-de-parfum":["bottle and box","box"],
-              }
-              keys=[]
-              for marker,vals in preferred.items():
-                  if marker in page: keys=vals
-              if keys:
-                  for img in s.find_all("img"):
-                      alt=(img.get("alt") or "").lower()
-                      if any(k in alt for k in keys):
-                          u=img.get("src") or (img.get("srcset") or "").split(",")[0].strip().split(" ")[0]
-                          if u:
-                              if u.startswith("//"): u="https:"+u
-                              if u.startswith("/"):
-                                  from urllib.parse import urljoin
-                                  u=urljoin(page,u)
-                              return u
-              t=s.find("meta",property="og:image") or s.find("meta",attrs={"name":"twitter:image"})
-              if not t or not t.get("content"): raise RuntimeError("Sem imagem: "+page)
-              u=t["content"]
-              if u.startswith("//"): u="https:"+u
-              return u
-
-          manifest=[]
-          for name,direct,page in items:
-              url=direct or og_image(page)
-              r=requests.get(url,headers=H,timeout=45); r.raise_for_status()
-              im=Image.open(io.BytesIO(r.content)).convert("RGB")
-              # Mantém proporção e padroniza sem recortar o produto.
-              im.thumbnail((1400,1400), Image.Resampling.LANCZOS)
-              canvas=Image.new("RGB",(1400,1400),"white")
-              canvas.paste(im,((1400-im.width)//2,(1400-im.height)//2))
-              out="valenza-10-fotos/"+name
-              canvas.save(out,"WEBP",quality=92,method=6)
-              manifest.append(f"{name}\t{url}\t{im.width}x{im.height}")
-              print(name,url,im.size)
-
-          open("valenza-10-fotos/ORIGENS.txt","w",encoding="utf-8").write("\n".join(manifest))
-          with zipfile.ZipFile("valenza-10-fotos.zip","w",zipfile.ZIP_DEFLATED) as z:
-              for f in os.listdir("valenza-10-fotos"):
-                  z.write("valenza-10-fotos/"+f,arcname=f)
-          PY
-      - uses: actions/upload-artifact@v4
         with:
-          name: valenza-10-fotos
-          path: valenza-10-fotos.zip
-          if-no-files-found: error
+          ref: main
+          fetch-depth: 0
+      - name: Baixar pacote auditado e instalar imagens
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/valenza-artifact /tmp/valenza-images
+          curl -L --fail             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10990158499/zip"             -o /tmp/valenza-artifact/outer.zip
+          unzip -o /tmp/valenza-artifact/outer.zip -d /tmp/valenza-artifact
+          unzip -o /tmp/valenza-artifact/valenza-10-fotos.zip -d /tmp/valenza-images
+          for f in khamrah.webp khamrah-qahwa.webp eclaire.webp liquid-brun.webp spectre-ghost.webp afnan-9pm.webp hawas-ice.webp yara-candy.webp tiramisu-coco.webp fatima-pink.webp; do
+            test -s "/tmp/valenza-images/$f"
+            cp "/tmp/valenza-images/$f" "public/produtos/$f"
+          done
+          test "$(find public/produtos -maxdepth 1 -type f \( -name 'khamrah.webp' -o -name 'khamrah-qahwa.webp' -o -name 'eclaire.webp' -o -name 'liquid-brun.webp' -o -name 'spectre-ghost.webp' -o -name 'afnan-9pm.webp' -o -name 'hawas-ice.webp' -o -name 'yara-candy.webp' -o -name 'tiramisu-coco.webp' -o -name 'fatima-pink.webp' \) | wc -l)" -eq 10
+          git config user.name "Valenza Bot"
+          git config user.email "actions@github.com"
+          git add public/produtos/*.webp
+          git diff --cached --quiet && exit 0
+          git commit -m "Adiciona imagens dos 10 novos perfumes"
+          git push origin HEAD:main
