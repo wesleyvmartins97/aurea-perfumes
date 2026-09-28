@@ -29,8 +29,8 @@ const CATALOG=[
 {id:'liquid-brun',name:'Liquid Brun',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:449.90,pix:427.41,img:'/produtos/liquid-brun.webp',desc:'',offer:true},
 {id:'spectre-ghost',name:'Spectre Ghost',brand:'French Avenue',cat:'masculino',type:'EDP · 80ml',price:329.90,pix:313.41,img:'/produtos/spectre-ghost.webp',desc:'',offer:true},
 {id:'afnan-9pm',name:'9 PM',brand:'Afnan',cat:'masculino',type:'EDP · 100ml',price:219.90,pix:208.91,img:'/produtos/afnan-9pm.webp',desc:'',offer:true},
-{id:'hawas-ice',name:'Hawas Ice',brand:'Rasasi',cat:'unissex',type:'EDP · 100ml · Unissex',price:349.90,pix:332.41,img:'/produtos/hawas-ice.webp',desc:'',offer:true},
+{id:'hawas-ice',name:'Hawas Ice',brand:'Rasasi',cat:'masculino',type:'EDP · 100ml',price:349.90,pix:332.41,img:'/produtos/hawas-ice.webp',desc:'',offer:true},
 {id:'yara-candy',name:'Yara Candy',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:229.90,pix:218.41,img:'/produtos/yara-candy.webp',desc:'',offer:true},
 {id:'tiramisu-coco',name:'Tiramisu Coco',brand:'Zimaya',cat:'unissex',type:'EDP · 100ml · Unissex',price:279.90,pix:265.91,img:'/produtos/tiramisu-coco.webp',desc:'',offer:true},
-{id:'fatima-pink',name:'Fatima Pink',brand:'Zimaya',cat:'feminino',type:'EDP · 100ml',price:269.90,pix:256.41,img:'/produtos/fatima-pink.webp',desc:'',offer:true}
+{id:'fatima-pink',name:'Fatima Pink',brand:'Zimaya',cat:'feminino',type:'Extrait de Parfum · 100ml',price:269.90,pix:256.41,img:'/produtos/fatima-pink.webp',desc:'',offer:true}
 ];
