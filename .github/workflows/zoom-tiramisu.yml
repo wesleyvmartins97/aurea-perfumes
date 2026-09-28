@@ -1,0 +1,51 @@
+name: Aproximar Tiramisu Coco
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  zoom:
+    if: github.event.head_commit.message == 'Prepara aproximacao final do Tiramisu Coco'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Ampliar produto sem cortar
+        run: |
+          python -m pip install --quiet pillow numpy
+          python <<'PY'
+          from PIL import Image
+          import numpy as np
+          p="public/produtos/tiramisu-coco.webp"
+          im=Image.open(p).convert("RGB")
+          a=np.array(im)
+          # A imagem atual já está limpa: encontra apenas caixa+frasco contra o branco.
+          mask=np.min(a,axis=2)<235
+          ys,xs=np.where(mask)
+          if len(xs)==0: raise SystemExit("produto nao detectado")
+          l,r=int(xs.min()),int(xs.max()+1)
+          t,b=int(ys.min()),int(ys.max()+1)
+          w,h=r-l,b-t
+          # margem pequena em torno do produto
+          px=max(18,int(w*.055)); py=max(18,int(h*.055))
+          l=max(0,l-px); r=min(im.width,r+px)
+          t=max(0,t-py); b=min(im.height,b+py)
+          crop=im.crop((l,t,r,b))
+          # IMPORTANTE: resize permite ampliar; thumbnail usado antes só reduzia.
+          maxw,maxh=1120,1120
+          scale=min(maxw/crop.width,maxh/crop.height)
+          nw=max(1,round(crop.width*scale)); nh=max(1,round(crop.height*scale))
+          crop=crop.resize((nw,nh),Image.Resampling.LANCZOS)
+          out=Image.new("RGB",(1400,1400),"white")
+          out.paste(crop,((1400-nw)//2,(1400-nh)//2))
+          out.save(p,"WEBP",quality=95,method=6)
+          print("bbox",(l,t,r,b),"antes",(w,h),"depois",(nw,nh))
+          PY
+          rm -f .github/workflows/zoom-tiramisu.yml
+          git config user.name "Valenza Bot"
+          git config user.email "actions@github.com"
+          git add public/produtos/tiramisu-coco.webp .github/workflows/zoom-tiramisu.yml
+          git commit -m "Aproxima Tiramisu Coco ao padrao do catalogo"
+          git push origin HEAD:main
