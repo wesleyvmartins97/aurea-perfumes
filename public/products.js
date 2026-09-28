@@ -3,9 +3,9 @@
    public/index.html apenas consome a constante CATALOG abaixo.
 */
 const CATALOG=[
-{id:'angham-second-song',name:'Angham Second Song',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:289.90,pix:275.41,img:'/produtos/angham-second-song.webp',desc:'Floral frutado gourmand, luminoso e feminino.',offer:true},
-{id:'athena',name:'Athena',brand:'Maison Alhambra',cat:'feminino',type:'EDP · 100ml',price:239.90,pix:227.91,img:'/produtos/athena.webp',desc:'Elegante, cremoso e sofisticado.',offer:true},
-{id:'delilah-blanc',name:'Delilah Blanc',brand:'Maison Alhambra',cat:'feminino',type:'EDP · 100ml',price:279.90,pix:265.91,img:'/produtos/delilah-blanc.webp',desc:'Floral frutado de apresentação minimalista.',offer:true},
+{id:'angham-second-song',name:'Angham Second Song',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:289.90,pix:275.41,img:'/produtos/angham-second-song.webp',desc:'Floral Frutado Gourmand feminino · lançado em 2026.',offer:true},
+{id:'athena',name:'Athena',brand:'Maison Alhambra',cat:'feminino',type:'EDP · 100ml',price:239.90,pix:227.91,img:'/produtos/athena.webp',desc:'Floral feminino · lançado em 2025.',offer:true},
+{id:'delilah-blanc',name:'Delilah Blanc',brand:'Maison Alhambra',cat:'feminino',type:'EDP · 100ml',price:279.90,pix:265.91,img:'/produtos/delilah-blanc.webp',desc:'Floral Frutado feminino · lançado em 2024.',offer:true},
 {id:'delilah',name:'Delilah Pour Femme',brand:'Maison Alhambra',cat:'feminino',type:'EDP · 100ml',price:279.90,pix:265.91,img:'/produtos/delilah.webp',desc:'Floral Frutado feminino · lançado em 2023.',offer:true},
 {id:'fakhar-rose',name:'Fakhar Rose',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:269.90,pix:256.41,img:'/produtos/fakhar-rose.webp',desc:'Fragrância Floral feminina.',offer:true},
 {id:'sabah',name:'Sabah Al Ward',brand:'Al Wataniah',cat:'feminino',type:'EDP · 100ml',price:249.90,pix:237.41,img:'/produtos/sabah.webp',desc:'Fragrância Oriental Floral feminina.',offer:true},
