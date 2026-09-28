@@ -25,7 +25,7 @@ const CATALOG=[
 {id:'vulcan-feu',name:'Vulcan Feu',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:429.90,pix:408.41,img:'/produtos/vulcan-feu.webp',desc:'Oriental Amadeirado compartilhável · lançado em 2025.',offer:true},
 {id:'khamrah',name:'Khamrah',brand:'Lattafa',cat:'unissex',type:'EDP · 100ml · Unissex',price:229.90,pix:218.41,img:'/produtos/khamrah.webp',desc:'',offer:true},
 {id:'khamrah-qahwa',name:'Khamrah Qahwa',brand:'Lattafa',cat:'unissex',type:'EDP · 100ml · Unissex',price:249.90,pix:237.41,img:'/produtos/khamrah-qahwa.webp',desc:'',offer:true},
-{id:'eclaire',name:'Eclaire',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:279.90,pix:265.91,img:'/produtos/eclaire.webp',desc:'',offer:true},
+{id:'eclaire',name:'Eclaire',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:319.90,pix:303.91,img:'/produtos/eclaire.webp',desc:'',offer:true},
 {id:'liquid-brun',name:'Liquid Brun',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:449.90,pix:427.41,img:'/produtos/liquid-brun.webp',desc:'',offer:true},
 {id:'spectre-ghost',name:'Spectre Ghost',brand:'French Avenue',cat:'masculino',type:'EDP · 80ml',price:329.90,pix:313.41,img:'/produtos/spectre-ghost.webp',desc:'',offer:true},
 {id:'afnan-9pm',name:'9 PM',brand:'Afnan',cat:'masculino',type:'EDP · 100ml',price:219.90,pix:208.91,img:'/produtos/afnan-9pm.webp',desc:'',offer:true},
