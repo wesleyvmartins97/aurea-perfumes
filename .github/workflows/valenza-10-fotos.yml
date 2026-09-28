@@ -29,7 +29,7 @@ jobs:
             ("hawas-ice.webp",None,"https://zaoud.it/products/rasasi-hawas-ice-for-him"),
             ("yara-candy.webp",None,"https://zaoud.it/products/lattafa-yara-candy"),
             ("tiramisu-coco.webp","https://cdn.spellsmell.ru/rc/3e4621d6-c316-4304-8a65-73e2e597ab67.jpg",None),
-            ("fatima-pink.webp",None,"https://hayaatiparfums.com/products/fatima-pink-by-zimaya-100ml"),
+            ("fatima-pink.webp",None,"https://zaoud.it/products/fatima-extrait-de-parfum"),
           ]
 
           def og_image(page):
