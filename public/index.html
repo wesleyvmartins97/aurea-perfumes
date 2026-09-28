@@ -258,7 +258,7 @@ body{
 <script>
 
 let cat='todos',cart=[];try{const savedCart=JSON.parse(localStorage.getItem('aurea_cart')||'[]');cart=Array.isArray(savedCart)?savedCart:[]}catch(e){localStorage.removeItem('aurea_cart');cart=[]}let selectedShipping=null,selectedPayment='pix';
-const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const pixUnitPrice=n=>{const cents=Math.round(Number(n)*100);return Math.floor((cents*95+50)/100)/100};const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 function openBannerProduct(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;cat='todos';document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.cat==='todos'));const search=document.getElementById('search');if(search)search.value='';render();requestAnimationFrame(()=>{const card=document.querySelector('#grid [data-product-id="'+CSS.escape(id)+'"]');(card||document.getElementById('catalogo'))?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>detail(id),500)})}
 
 function initBannerProductLinks(){document.querySelectorAll('.banner-product[data-product]').forEach(el=>el.addEventListener('click',()=>openBannerProduct(el.dataset.product)));document.querySelectorAll('.banner-zone[data-product]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();openBannerProduct(el.dataset.product)}))}
@@ -306,7 +306,7 @@ window.addEventListener('popstate',()=>{
  else if(layer==='account')document.getElementById('accountModal').classList.remove('open');
  else if(layer==='client'){const cc=document.getElementById('clientCenter');if(cc)cc.style.display='none';document.body.style.overflow='';}
 });
-function updateSummary(){const s=document.getElementById('summary');if(!s)return;const isPix=selectedPayment==='pix',unit=x=>isPix?Math.round(Number(x.price)*95)/100:Number(x.price),sub=cart.reduce((a,x)=>a+unit(x)*x.qty,0),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(unit(x)*x.qty)}</strong></div>`).join('')+(isPix?'<div class="summary-row"><span>Desconto Pix nos produtos</span><strong>5%</strong></div>':'')+(selectedShipping?`<div class="summary-row"><span>Frete · ${esc(selectedShipping.name)} (${selectedShipping.delivery_time} ${selectedShipping.delivery_time===1?'dia útil':'dias úteis'})</span><strong>${money(frete)}</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
+function updateSummary(){const s=document.getElementById('summary');if(!s)return;const isPix=selectedPayment==='pix',unit=x=>isPix?pixUnitPrice(x.price):Number(x.price),sub=cart.reduce((a,x)=>a+unit(x)*x.qty,0),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(unit(x)*x.qty)}</strong></div>`).join('')+(isPix?'<div class="summary-row"><span>Desconto Pix nos produtos</span><strong>5%</strong></div>':'')+(selectedShipping?`<div class="summary-row"><span>Frete · ${esc(selectedShipping.name)} (${selectedShipping.delivery_time} ${selectedShipping.delivery_time===1?'dia útil':'dias úteis'})</span><strong>${money(frete)}</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
 async function checkoutShipping(){
  const e=document.getElementById('error'),cep=document.getElementById('checkoutCep').value.replace(/\D/g,'');
  e.classList.add('show');e.innerHTML='<b>Escolha o frete para continuar</b><div id="checkoutShipInline" style="margin-top:10px">Consultando opções para o CEP '+esc(document.getElementById('checkoutCep').value)+'...</div>';
@@ -407,7 +407,7 @@ async function payPix(){
  if(cep.length!==8)return showError('Informe um CEP válido.');
  if(!number.value.trim())return showError('Informe o número do endereço.');
  if(!selectedShipping){checkoutShipping();return}
- const pixSubtotal=cart.reduce((a,x)=>a+(Math.round(Number(x.price)*95)/100)*x.qty,0);const total=Number((pixSubtotal+selectedShipping.price).toFixed(2)),b=document.getElementById('payButton');
+ const pixSubtotal=cart.reduce((a,x)=>a+pixUnitPrice(x.price)*x.qty,0);const total=Number((pixSubtotal+selectedShipping.price).toFixed(2)),b=document.getElementById('payButton');
  b.disabled=true;b.textContent='GERANDO PIX...';
  const failTimer=setTimeout(()=>{if(b&&b.textContent==='GERANDO PIX...'){b.disabled=false;b.textContent='GERAR PAGAMENTO PIX';showError('O pagamento não respondeu. Tente novamente.');}},22000);
  try{
