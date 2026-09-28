@@ -22,5 +22,15 @@ const CATALOG=[
 {id:'queen-of-arabia',name:'Queen of Arabia',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:549.90,pix:522.41,img:'/produtos/queen-of-arabia.webp',desc:'Oriental Floral feminina.',offer:true,banner:true},
 {id:'yara',name:'Yara',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:269.90,pix:256.41,img:'/produtos/yara.webp',desc:'Oriental Baunilha feminina · lançada em 2020.',offer:true,banner:true},
 {id:'tharwah-gold',name:'Tharwah Gold',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:449.90,pix:427.41,img:'/produtos/tharwah-gold.webp',desc:'Oriental Floral feminina.',offer:true,banner:true},
-{id:'vulcan-feu',name:'Vulcan Feu',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:429.90,pix:408.41,img:'/produtos/vulcan-feu.webp',desc:'Oriental Amadeirado compartilhável · lançado em 2025.',offer:true}
+{id:'vulcan-feu',name:'Vulcan Feu',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:429.90,pix:408.41,img:'/produtos/vulcan-feu.webp',desc:'Oriental Amadeirado compartilhável · lançado em 2025.',offer:true},
+{id:'khamrah',name:'Khamrah',brand:'Lattafa',cat:'unissex',type:'EDP · 100ml · Unissex',price:229.90,pix:218.41,img:'/produtos/khamrah.webp',desc:'',offer:true},
+{id:'khamrah-qahwa',name:'Khamrah Qahwa',brand:'Lattafa',cat:'unissex',type:'EDP · 100ml · Unissex',price:249.90,pix:237.41,img:'/produtos/khamrah-qahwa.webp',desc:'',offer:true},
+{id:'eclaire',name:'Eclaire',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:279.90,pix:265.91,img:'/produtos/eclaire.webp',desc:'',offer:true},
+{id:'liquid-brun',name:'Liquid Brun',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:449.90,pix:427.41,img:'/produtos/liquid-brun.webp',desc:'',offer:true},
+{id:'spectre-ghost',name:'Spectre Ghost',brand:'French Avenue',cat:'masculino',type:'EDP · 80ml',price:329.90,pix:313.41,img:'/produtos/spectre-ghost.webp',desc:'',offer:true},
+{id:'afnan-9pm',name:'9 PM',brand:'Afnan',cat:'masculino',type:'EDP · 100ml',price:219.90,pix:208.91,img:'/produtos/afnan-9pm.webp',desc:'',offer:true},
+{id:'hawas-ice',name:'Hawas Ice',brand:'Rasasi',cat:'unissex',type:'EDP · 100ml · Unissex',price:349.90,pix:332.41,img:'/produtos/hawas-ice.webp',desc:'',offer:true},
+{id:'yara-candy',name:'Yara Candy',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:229.90,pix:218.41,img:'/produtos/yara-candy.webp',desc:'',offer:true},
+{id:'tiramisu-coco',name:'Tiramisu Coco',brand:'Zimaya',cat:'unissex',type:'EDP · 100ml · Unissex',price:279.90,pix:265.91,img:'/produtos/tiramisu-coco.webp',desc:'',offer:true},
+{id:'fatima-pink',name:'Fatima Pink',brand:'Zimaya',cat:'feminino',type:'EDP · 100ml',price:269.90,pix:256.41,img:'/produtos/fatima-pink.webp',desc:'',offer:true}
 ];
