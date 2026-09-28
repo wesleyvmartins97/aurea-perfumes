@@ -190,45 +190,20 @@ async function accountAddressSave(request,env){try{const u=await currentCustomer
 async function accountAddressDelete(request,env,id){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);await env.DB.prepare("DELETE FROM customer_addresses WHERE id=? AND customer_id=?").bind(id,u.id).run();return resposta({ok:true})}catch(e){return resposta({ok:false,error:"Não foi possível excluir o endereço."},500)}}
 async function servirAssets(request,env){const response=await env.ASSETS.fetch(request);const contentType=response.headers.get("content-type")||"";if(!contentType.includes("text/html")||new URL(request.url).pathname!=="/")return response;const html=await response.text();const headers=new Headers(response.headers);headers.set("Cache-Control","no-store, max-age=0, must-revalidate");headers.delete("ETag");return new Response(html,{status:response.status,statusText:response.statusText,headers})}
 async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
-const AUREA_CATALOG={
-"angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:289.90,weight:.6,length:20,height:12,width:16},
-"athena":{name:"Athena",brand:"Maison Alhambra",type:"EDP · 100ml",price:239.90,weight:.6,length:20,height:12,width:16},
-"delilah-blanc":{name:"Delilah Blanc",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"delilah":{name:"Delilah Pour Femme",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"fakhar-rose":{name:"Fakhar Rose",brand:"Lattafa",type:"EDP · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
-"sabah":{name:"Sabah Al Ward",brand:"Al Wataniah",type:"EDP · 100ml",price:249.90,weight:.6,length:20,height:12,width:16},
-"asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:259.90,weight:.6,length:20,height:12,width:16},
-"attar":{name:"Attar Al Wesal",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
-"decant-sabah":{name:"Decant Sabah Al Ward",brand:"Al Wataniah",type:"Decant · 5ml",price:52.00,weight:.15,length:12,height:5,width:8},
-"ameerati":{name:"Ameerati",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
-"angham":{name:"Angham",brand:"Lattafa",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"vanilla-voyage":{name:"Vanilla Voyage",brand:"Maison Asrar",type:"EDP · 100ml · Unissex",price:399.90,weight:.6,length:20,height:12,width:16},
-"atheeri":{name:"Atheeri",brand:"Lattafa",type:"EDP · 100ml",price:469.90,weight:.6,length:20,height:12,width:16},
-"club-de-nuit-intense-man":{name:"Club de Nuit Intense Man",brand:"Armaf",type:"EDP · 100ml",price:289.90,weight:.6,length:20,height:12,width:16},
-"musamam-white-intense":{name:"Musamam White Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:329.90,weight:.6,length:20,height:12,width:16},
-"afeef":{name:"Afeef",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:549.90,weight:.6,length:20,height:12,width:16},
-"queen-of-arabia":{name:"Queen of Arabia",brand:"Lattafa",type:"EDP · 100ml",price:519.90,weight:.6,length:20,height:12,width:16},
-"yara":{name:"Yara",brand:"Lattafa",type:"EDP · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
-"tharwah-gold":{name:"Tharwah Gold",brand:"Lattafa",type:"EDP · 100ml",price:449.90,weight:.6,length:20,height:12,width:16},
-"vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:429.90,weight:.6,length:20,height:12,width:16},
-"khamrah":{name:"Khamrah",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:229.90,weight:.6,length:20,height:12,width:16},
-"khamrah-qahwa":{name:"Khamrah Qahwa",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:249.90,weight:.6,length:20,height:12,width:16},
-"eclaire":{name:"Eclaire",brand:"Lattafa",type:"EDP · 100ml",price:319.90,weight:.6,length:20,height:12,width:16},
-"liquid-brun":{name:"Liquid Brun",brand:"French Avenue",type:"EDP · 100ml",price:399.90,weight:.6,length:20,height:12,width:16},
-"spectre-ghost":{name:"Spectre Ghost",brand:"French Avenue",type:"EDP · 80ml",price:329.90,weight:.6,length:20,height:12,width:16},
-"afnan-9pm":{name:"9 PM",brand:"Afnan",type:"EDP · 100ml",price:299.90,weight:.6,length:20,height:12,width:16},
-"hawas-ice":{name:"Hawas Ice",brand:"Rasasi",type:"EDP · 100ml",price:329.90,weight:.6,length:20,height:12,width:16},
-"yara-candy":{name:"Yara Candy",brand:"Lattafa",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
-"tiramisu-coco":{name:"Tiramisu Coco",brand:"Zimaya",type:"EDP · 100ml · Unissex",price:279.90,weight:.6,length:20,height:12,width:16},
-"fatima-pink":{name:"Fatima Pink",brand:"Zimaya",type:"Extrait de Parfum · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
-"supremacy-not-only-intense":{name:"Supremacy Not Only Intense",brand:"Afnan",type:"Extrait de Parfum · 100ml",price:399.90,weight:.6,length:20,height:12,width:16},
-"club-de-nuit-milestone":{name:"Club de Nuit Milestone",brand:"Armaf",type:"EDP · 105ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"club-de-nuit-untold":{name:"Club de Nuit Untold",brand:"Armaf",type:"EDP · 105ml · Unissex",price:329.90,weight:.6,length:20,height:12,width:16},
-"badee-al-oud-amethyst":{name:"Bade'e Al Oud Amethyst",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:229.90,weight:.6,length:20,height:12,width:16},
-"raghba-wood-intense":{name:"Raghba Wood Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:219.90,weight:.6,length:20,height:12,width:16}
-};
+let _catalogCache=null;
+async function officialCatalog(env){
+ if(_catalogCache)return _catalogCache;
+ const response=await env.ASSETS.fetch(new Request("https://valenza.local/products.js"));
+ if(!response.ok)throw new Error("Catálogo oficial indisponível");
+ const source=await response.text(),match=source.match(/const\s+CATALOG\s*=\s*(\[[\s\S]*?\]);/);
+ if(!match)throw new Error("Catálogo oficial inválido");
+ const list=Function('"use strict";return ('+match[1]+')')();
+ if(!Array.isArray(list)||!list.length)throw new Error("Catálogo oficial vazio");
+ _catalogCache=Object.fromEntries(list.map(p=>[String(p.id),p]));
+ return _catalogCache;
+}
 async function seedInventory(env){const now=new Date().toISOString();await env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)").run();const doneV1=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v1'").first();if(!doneV1){const q=Object.keys(AUREA_CATALOG).map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,10,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v1','10',?)").bind(now));await env.DB.batch(q)}const doneV2=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v2-new10'").first();if(!doneV2){const ids=["khamrah","khamrah-qahwa","eclaire","liquid-brun","spectre-ghost","afnan-9pm","hawas-ice","yara-candy","tiramisu-coco","fatima-pink"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v2-new10','100',?)").bind(now));await env.DB.batch(q)}const doneV4=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v4-new5'").first();if(!doneV4){const ids=["supremacy-not-only-intense","club-de-nuit-milestone","club-de-nuit-untold","badee-al-oud-amethyst","raghba-wood-intense"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v4-new5','100',?)").bind(now));await env.DB.batch(q)}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
-function canonicalItems(raw){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");return raw.map(x=>{const id=String(x.id||""),p=AUREA_CATALOG[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);return {id,qty:n,...p,img:String(x.img||"")}})}
+async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);return {id,qty:n,...p,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
 async function calcularFrete(request,env){
@@ -237,7 +212,7 @@ async function calcularFrete(request,env){
   if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
   if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
   await ensureAuthSchema(env);await seedInventory(env);
-  const items=canonicalItems(dados.produtos);
+  const items=await canonicalItems(dados.produtos,env);
   for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
   const produtos=items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}));
   const upstream=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify({postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:produtos})});
@@ -266,7 +241,7 @@ async function criarPagamentoPix(request,env){
   if(!u)return resposta({ok:false,requiresLogin:true,error:"Para finalizar a compra, entre ou crie sua conta VALENZA."},401);
   if(!u.email_verified)return resposta({ok:false,requiresVerification:true,error:"Confirme seu e-mail antes de finalizar a compra."},403);
   if(email!==String(u.email||"").toLowerCase())return resposta({ok:false,error:"O e-mail da compra deve ser o mesmo da sua conta VALENZA."},409);
-  await seedInventory(env);const items=canonicalItems(dados.items);
+  await seedInventory(env);const items=await canonicalItems(dados.items,env);
   const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
   let chosen,freight;{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrierWanted);if(!chosen||String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=String(chosen.carrier||chosen.company||"Envio Ecom");
   const subtotal=items.reduce((s,x)=>s+pixPrice(x.price)*x.qty,0),total=Number((subtotal+freight).toFixed(2));
@@ -305,7 +280,7 @@ async function criarPagamentoCartao(request,env){
   if(!u)return resposta({ok:false,requiresLogin:true,error:"Para finalizar a compra, entre ou crie sua conta VALENZA."},401);
   if(!u.email_verified)return resposta({ok:false,requiresVerification:true,error:"Confirme seu e-mail antes de finalizar a compra."},403);
   if(email!==String(u.email||"").toLowerCase())return resposta({ok:false,error:"O e-mail da compra deve ser o mesmo da sua conta VALENZA."},409);
-  await seedInventory(env);const items=canonicalItems(dados.items);
+  await seedInventory(env);const items=await canonicalItems(dados.items,env);
   const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
   let chosen,freight;{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrierWanted);if(!chosen||String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=String(chosen.carrier||chosen.company||"Envio Ecom");
   const subtotal=items.reduce((s,x)=>s+x.price*x.qty,0),total=Number((subtotal+freight).toFixed(2));
@@ -350,7 +325,7 @@ async function criarEnvioEnvioEcom(env,orderId){
  const lockNow=new Date().toISOString();const lk=await env.DB.prepare("INSERT OR IGNORE INTO shipment_locks(order_id,state,created_at,updated_at) VALUES(?,?,?,?)").bind(String(orderId),"creating",lockNow,lockNow).run();if((lk.meta?.changes||0)<1){const again=await env.DB.prepare("SELECT shipping_id,barcode,label_ready FROM order_shipping WHERE order_id=?").bind(orderId).first();if(again?.shipping_id)return {ok:true,shippingId:again.shipping_id,barcode:again.barcode,existing:true,labelReady:!!again.label_ready};return {ok:false,pending:true,error:"Postagem já está sendo preparada"}}
  const oi=await env.DB.prepare("SELECT product_id,name,quantity,unit_price FROM order_items WHERE order_id=?").bind(orderId).all(),items=oi.results||[];if(!items.length)return {ok:false,error:"Itens do pedido não encontrados"};
  const ord=await env.DB.prepare("SELECT order_number,total FROM orders WHERE id=? UNION SELECT order_number,total FROM guest_orders WHERE id=? LIMIT 1").bind(orderId,orderId).first();if(!ord)return {ok:false,error:"Pedido não encontrado"};
- let weight=0,height=0,width=0,length=0;for(const x of items){const p=AUREA_CATALOG[x.product_id];if(!p)continue;weight+=p.weight*Number(x.quantity);height+=p.height*Number(x.quantity);width=Math.max(width,p.width);length=Math.max(length,p.length)}height=Math.max(5,Math.min(height,100));
+ const catalog=await officialCatalog(env);let weight=0,height=0,width=0,length=0;for(const x of items){const p=catalog[x.product_id];if(!p)continue;weight+=p.weight*Number(x.quantity);height+=p.height*Number(x.quantity);width=Math.max(width,p.width);length=Math.max(length,p.length)}height=Math.max(5,Math.min(height,100));
  const payload={shipments:[{orderId:String(ord.order_number||orderId),shipping_company:String(sh.carrier),cep_origem:originCep,cep_destino:String(sh.cep),freight_cost:Number(sh.freight_cost||0).toFixed(2),delivery_time:String(Number(sh.delivery_time)||0),height:String(height),width:String(width||16),length:String(length||20),weight:Number(weight||.6).toFixed(3),cost:Number(ord.total||0).toFixed(2),name:String(sh.customer_name||""),document_number:String(sh.cpf||""),phone_number:String(sh.phone||""),email:String(sh.email||""),logradouro:String(sh.street||""),number:String(sh.number||""),complemento:String(sh.complement||""),bairro:String(sh.neighborhood||""),localidade:String(sh.city||""),uf:String(sh.state||""),items:items.map(x=>({name:String(x.name),quantity:Number(x.quantity)||1,unit_cost:Number(x.unit_price)||0}))}]};
  const r=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/create",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(payload)}),raw=await r.text();let d;try{d=JSON.parse(raw)}catch{d=null}
  if(!r.ok){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();console.error("EnvioEcom create:",r.status,raw.slice(0,1000));return {ok:false,error:"EnvioEcom recusou a criação do envio",status:r.status}}
