@@ -35,8 +35,27 @@ jobs:
           def og_image(page):
               r=requests.get(page,headers=H,timeout=30); r.raise_for_status()
               s=BeautifulSoup(r.text,"html.parser")
+              preferred={
+                  "rasasi-hawas-ice-for-him":["packaging","bottle and packaging","box"],
+                  "lattafa-yara-candy":["beside its box","box"],
+                  "fatima-extrait-de-parfum":["bottle and box","box"],
+              }
+              keys=[]
+              for marker,vals in preferred.items():
+                  if marker in page: keys=vals
+              if keys:
+                  for img in s.find_all("img"):
+                      alt=(img.get("alt") or "").lower()
+                      if any(k in alt for k in keys):
+                          u=img.get("src") or (img.get("srcset") or "").split(",")[0].strip().split(" ")[0]
+                          if u:
+                              if u.startswith("//"): u="https:"+u
+                              if u.startswith("/"):
+                                  from urllib.parse import urljoin
+                                  u=urljoin(page,u)
+                              return u
               t=s.find("meta",property="og:image") or s.find("meta",attrs={"name":"twitter:image"})
-              if not t or not t.get("content"): raise RuntimeError("Sem og:image: "+page)
+              if not t or not t.get("content"): raise RuntimeError("Sem imagem: "+page)
               u=t["content"]
               if u.startswith("//"): u="https:"+u
               return u
