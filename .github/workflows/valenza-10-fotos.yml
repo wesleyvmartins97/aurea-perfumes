@@ -1,37 +1,52 @@
-name: Instalar 10 fotos Valenza
+name: Ajustar Tiramisu Coco
 on:
-  workflow_dispatch:
   push:
     branches:
       - tmp-valenza-10-fotos
 permissions:
   contents: write
-  actions: read
 jobs:
-  install:
+  adjust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
-      - name: Baixar pacote auditado e instalar imagens
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Reenquadrar somente Tiramisu Coco
         run: |
-          set -euo pipefail
-          mkdir -p /tmp/valenza-artifact /tmp/valenza-images
-          curl -L --fail             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/10990158499/zip"             -o /tmp/valenza-artifact/outer.zip
-          unzip -o /tmp/valenza-artifact/outer.zip -d /tmp/valenza-artifact
-          unzip -o /tmp/valenza-artifact/valenza-10-fotos.zip -d /tmp/valenza-images
-          for f in khamrah.webp khamrah-qahwa.webp eclaire.webp liquid-brun.webp spectre-ghost.webp afnan-9pm.webp hawas-ice.webp yara-candy.webp tiramisu-coco.webp fatima-pink.webp; do
-            test -s "/tmp/valenza-images/$f"
-            cp "/tmp/valenza-images/$f" "public/produtos/$f"
-          done
-          test "$(find public/produtos -maxdepth 1 -type f \( -name 'khamrah.webp' -o -name 'khamrah-qahwa.webp' -o -name 'eclaire.webp' -o -name 'liquid-brun.webp' -o -name 'spectre-ghost.webp' -o -name 'afnan-9pm.webp' -o -name 'hawas-ice.webp' -o -name 'yara-candy.webp' -o -name 'tiramisu-coco.webp' -o -name 'fatima-pink.webp' \) | wc -l)" -eq 10
+          python -m pip install --quiet pillow
+          python <<'PY'
+          from PIL import Image, ImageChops
+          p="public/produtos/tiramisu-coco.webp"
+          im=Image.open(p).convert("RGB")
+          # Detecta tudo que difere do fundo quase branco.
+          px=im.load()
+          mask=Image.new("L", im.size, 0)
+          mp=mask.load()
+          for y in range(im.height):
+              for x in range(im.width):
+                  r,g,b=px[x,y]
+                  if min(r,g,b) < 242:
+                      mp[x,y]=255
+          bbox=mask.getbbox()
+          if not bbox:
+              raise SystemExit("Produto não detectado")
+          l,t,r,b=bbox
+          # Margem pequena para não encostar frasco/caixa.
+          pad=max(35, int(max(r-l,b-t)*0.08))
+          l=max(0,l-pad); t=max(0,t-pad); r=min(im.width,r+pad); b=min(im.height,b+pad)
+          crop=im.crop((l,t,r,b))
+          # Produto ocupa ~82% do quadro, sem cortar e sem distorcer.
+          target=1150
+          crop.thumbnail((target,target),Image.Resampling.LANCZOS)
+          out=Image.new("RGB",(1400,1400),"white")
+          out.paste(crop,((1400-crop.width)//2,(1400-crop.height)//2))
+          out.save(p,"WEBP",quality=94,method=6)
+          print("bbox",bbox,"crop",(l,t,r,b),"final content",crop.size)
+          PY
           git config user.name "Valenza Bot"
           git config user.email "actions@github.com"
-          git add public/produtos/*.webp
+          git add public/produtos/tiramisu-coco.webp
           git diff --cached --quiet && exit 0
-          git commit -m "Adiciona imagens dos 10 novos perfumes"
+          git commit -m "Reenquadra imagem do Tiramisu Coco"
           git push origin HEAD:main
