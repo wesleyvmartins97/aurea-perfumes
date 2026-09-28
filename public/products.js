@@ -19,8 +19,8 @@ const CATALOG=[
 {id:'club-de-nuit-intense-man',name:'Club de Nuit Intense Man',brand:'Armaf',cat:'masculino',type:'EDP · 100ml',price:289.90,pix:275.41,img:'/produtos/club-de-nuit-intense-man.webp',desc:'Fragrância amadeirada masculina.',offer:true,banner:true},
 {id:'musamam-white-intense',name:'Musamam White Intense',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml · Unissex',price:329.90,pix:313.41,img:'/produtos/musamam-white-intense.webp',desc:'Oriental Floral compartilhável · lançado em 2023.',offer:true,banner:true},
 {id:'afeef',name:'Afeef',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml · Unissex',price:579.90,pix:550.91,img:'/produtos/afeef.webp',desc:'Fragrância compartilhável · lançada em 2024.',offer:true,banner:true},
-{id:'queen-of-arabia',name:'Queen of Arabia',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:549.90,pix:522.41,img:'/produtos/queen-of-arabia.webp',desc:'Oriental floral feminino, elegante e envolvente.',offer:true,banner:true},
-{id:'yara',name:'Yara',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:269.90,pix:256.41,img:'/produtos/yara.webp',desc:'Doce, cremoso e feminino, com assinatura confortável.',offer:true,banner:true},
+{id:'queen-of-arabia',name:'Queen of Arabia',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:549.90,pix:522.41,img:'/produtos/queen-of-arabia.webp',desc:'Oriental Floral feminina.',offer:true,banner:true},
+{id:'yara',name:'Yara',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:269.90,pix:256.41,img:'/produtos/yara.webp',desc:'Oriental Baunilha feminina · lançada em 2020.',offer:true,banner:true},
 {id:'tharwah-gold',name:'Tharwah Gold',brand:'Lattafa',cat:'feminino',type:'EDP · 100ml',price:449.90,pix:427.41,img:'/produtos/tharwah-gold.webp',desc:'Floral oriental com baunilha e âmbar.',offer:true,banner:true},
 {id:'vulcan-feu',name:'Vulcan Feu',brand:'French Avenue',cat:'masculino',type:'EDP · 100ml',price:429.90,pix:408.41,img:'/produtos/vulcan-feu.webp',desc:'Frutado amadeirado especiado e compartilhável.',offer:true}
 ];
