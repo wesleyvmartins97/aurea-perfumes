@@ -206,37 +206,17 @@ body{
 #grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{order:2!important;background:#927b67!important;color:#fff!important;border:1px solid #725f50!important}
 @media(max-width:520px){#grid .product-actions>.buy,#topFemininos .product-actions>.buy{height:46px!important;min-height:46px!important;font-size:10px!important}#grid .secondary-actions>.add,#topFemininos .secondary-actions>.add,#grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{height:40px!important;min-height:40px!important;font-size:7.5px!important}}
 </style>
-<style id="valenza-catalog-card-alignment">
-/* Cards uniformes: conteúdo variável não desloca preço nem ações */
-#grid{align-items:stretch!important}
-#grid>.card{display:flex!important;flex-direction:column!important;height:100%!important}
-#grid>.card>.photo{flex:0 0 auto!important}
-#grid>.card>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
-#grid>.card .name{min-height:48px!important;margin:6px 0!important}
-#grid>.card .meta{min-height:16px!important}
-#grid>.card .desc{min-height:50px!important;margin:9px 0 12px!important}
-#grid>.card .price{margin-top:auto!important}
-#grid>.card .product-actions{margin-top:0!important}
-@media(max-width:700px){
- #grid>.card .name{min-height:58px!important}
- #grid>.card .meta{min-height:18px!important}
- #grid>.card .desc{min-height:58px!important}
-}
-</style>
-<style id="valenza-top-card-alignment">
-/* Destaques femininos: mesmo alinhamento vertical do catálogo principal */
-#topFemininos{align-items:stretch!important}
-#topFemininos>.top-product{display:flex!important;flex-direction:column!important;height:100%!important}
-#topFemininos>.top-product>.photo{flex:0 0 auto!important}
-#topFemininos>.top-product>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
-#topFemininos>.top-product .name{min-height:48px!important;margin:6px 0!important}
-#topFemininos>.top-product .meta{min-height:16px!important}
-#topFemininos>.top-product .price{margin-top:auto!important}
-#topFemininos>.top-product .product-actions{margin-top:0!important}
-@media(max-width:700px){
- #topFemininos>.top-product .name{min-height:58px!important}
- #topFemininos>.top-product .meta{min-height:18px!important}
-}
+<style id="valenza-compact-product-cards">
+/* Vitrine compacta: Marca > Nome > tipo/volume > preço > PIX > ações */
+#grid,#topFemininos{align-items:stretch!important}
+#grid>.card,#topFemininos>.top-product{display:flex!important;flex-direction:column!important;height:100%!important}
+#grid>.card>.photo,#topFemininos>.top-product>.photo{flex:0 0 auto!important}
+#grid>.card>.info,#topFemininos>.top-product>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
+#grid .name,#topFemininos .name{margin:6px 0 8px!important;min-height:0!important}
+#grid .meta,#topFemininos .meta{margin:0 0 12px!important;min-height:0!important}
+#grid .desc{display:none!important}
+#grid .price,#topFemininos .price{margin-top:auto!important}
+#grid .product-actions,#topFemininos .product-actions{margin-top:0!important}
 </style>
 <style id="valenza-top-last-center">
 /* Centraliza somente o último destaque feminino quando a linha fica ímpar */
@@ -297,7 +277,7 @@ function initBannerProductLinks(){document.querySelectorAll('.banner-product[dat
 function setCat(c){cat=c;document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.cat===c));document.getElementById('catalogo').scrollIntoView({behavior:'smooth'});render()}
 function renderTopFemininos(){const box=document.getElementById('topFemininos');if(!box)return;const list=CATALOG.filter(p=>p.cat==='feminino').slice(0,5);box.innerHTML=list.map(p=>`<article class="top-product"><div class="photo" onclick="detail('${p.id}')" style="cursor:pointer"><img loading="lazy" src="${esc(p.img)}" alt="${esc(p.brand+' '+p.name)}" onerror="this.onerror=null;this.src='/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_14-4.png'"><span class="tag">FEMININO</span></div><div class="info"><div class="brand">${esc(p.brand)}</div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.type)}</div><div class="price">${money(p.price)}</div><div class="pix">ou ${money(p.pix)} no Pix</div><div class="product-actions"><button class="buy" onclick="buyNow('${p.id}')">COMPRAR</button><div class="secondary-actions"><button class="details" onclick="detail('${p.id}')">VER DETALHES</button><button class="add" onclick="add('${p.id}')">ADICIONAR AO CARRINHO</button></div></div></div></article>`).join('')}
 
-function render(){const q=(document.getElementById('search').value||'').toLowerCase();const list=CATALOG.filter(p=>(cat==='todos'||p.cat===cat||(p.cat==='unissex'&&(cat==='feminino'||cat==='masculino')))&&(!q||(p.name+' '+p.brand+' '+p.type).toLowerCase().includes(q)));document.getElementById('grid').innerHTML=list.map(p=>`<article class="card" data-product-id="${esc(p.id)}"><div class="photo" onclick="detail('${p.id}')" style="cursor:pointer"><img loading="lazy" src="${esc(p.img)}" alt="${esc(p.brand+' '+p.name)}" onerror="this.onerror=null;this.src='/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_14-4.png'">${p.offer?'<span class="tag">SELEÇÃO VALENZA</span>':''}</div><div class="info"><div class="brand">${esc(p.brand)}</div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.type)}</div><div class="desc">${esc(p.desc)}</div><div class="price">${money(p.price)}</div><div class="pix">ou ${money(p.pix)} no Pix</div><div class="product-actions"><button class="buy" onclick="buyNow('${p.id}')">COMPRAR</button><div class="secondary-actions"><button class="details" onclick="detail('${p.id}')">VER DETALHES</button><button class="add" onclick="add('${p.id}')">ADICIONAR AO CARRINHO</button></div></div></div></article>`).join('')||'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">Nenhum produto encontrado.</div>'}
+function render(){const q=(document.getElementById('search').value||'').toLowerCase();const list=CATALOG.filter(p=>(cat==='todos'||p.cat===cat||(p.cat==='unissex'&&(cat==='feminino'||cat==='masculino')))&&(!q||(p.name+' '+p.brand+' '+p.type).toLowerCase().includes(q)));document.getElementById('grid').innerHTML=list.map(p=>`<article class="card" data-product-id="${esc(p.id)}"><div class="photo" onclick="detail('${p.id}')" style="cursor:pointer"><img loading="lazy" src="${esc(p.img)}" alt="${esc(p.brand+' '+p.name)}" onerror="this.onerror=null;this.src='/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_14-4.png'">${p.offer?'<span class="tag">SELEÇÃO VALENZA</span>':''}</div><div class="info"><div class="brand">${esc(p.brand)}</div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.type)}</div><div class="price">${money(p.price)}</div><div class="pix">ou ${money(p.pix)} no Pix</div><div class="product-actions"><button class="buy" onclick="buyNow('${p.id}')">COMPRAR</button><div class="secondary-actions"><button class="details" onclick="detail('${p.id}')">VER DETALHES</button><button class="add" onclick="add('${p.id}')">ADICIONAR AO CARRINHO</button></div></div></div></article>`).join('')||'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">Nenhum produto encontrado.</div>'}
 function add(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;const i=cart.find(x=>x.id===id);i?i.qty++:cart.push({id:p.id,name:p.name,brand:p.brand,type:p.type,price:p.price,img:p.img,qty:1});saveCart();openCart()};function saveCart(){localStorage.setItem('aurea_cart',JSON.stringify(cart));updateCart()};function cartSubtotal(){return cart.reduce((a,x)=>a+x.price*x.qty,0)}function refreshTotal(){const el=document.getElementById('total');if(el)el.textContent=money(cartSubtotal()+(selectedShipping?.price||0));updateSummary()}function updateCart(){document.getElementById('count').textContent=cart.reduce((a,x)=>a+x.qty,0);const box=document.getElementById('cartContent');if(!cart.length){box.innerHTML='<p style="color:#888;font-size:11px">Seu carrinho está vazio.</p>';shipArea.style.display='none';totalArea.style.display='none';selectedShipping=null;return}shipArea.style.display='block';totalArea.style.display='block';box.innerHTML=cart.map(x=>`<div class="cart-item"><img src="${esc(x.img)}"><div class="cart-info"><strong>${esc(x.name)}</strong><br><small>${esc(x.brand)} · ${esc(x.type)}</small><br>${money(x.price)}<div class="qty"><button onclick="changeQty('${x.id}',-1)">−</button><span>${x.qty}</span><button onclick="changeQty('${x.id}',1)">+</button></div><button class="remove" onclick="removeItem('${x.id}')">Remover</button></div></div>`).join('');refreshTotal()};function changeQty(id,d){const i=cart.find(x=>x.id===id);if(!i)return;i.qty+=d;if(i.qty<1)cart=cart.filter(x=>x.id!==id);saveCart()};function removeItem(id){cart=cart.filter(x=>x.id!==id);saveCart()};let aureaLayers=[];
 function pushLayer(name){
  if(aureaLayers[aureaLayers.length-1]===name)return;
