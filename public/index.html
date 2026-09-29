@@ -639,4 +639,21 @@ body.checkout-open .aurea-wa{display:none}
 </a>
 <script>
 (()=>{const w=document.querySelector('.aurea-wa');if(!w)return;let t;w.addEventListener('touchstart',e=>{if(!w.classList.contains('is-touched')){e.preventDefault();w.classList.add('is-touched');clearTimeout(t);t=setTimeout(()=>w.classList.remove('is-touched'),1800)}},{passive:false})})();
-</script></body></html>
+</script>
+<script id="valenza-tab-title">
+(()=>{
+ const normalTitle=document.title||'VALENZA PARFUMS | Perfumes Importados';
+ const awayTitles=['VOLTE PARA A VALENZA','Sua fragrância espera.'];
+ let timer=null,index=0;
+ function stop(){if(timer){clearInterval(timer);timer=null}}
+ function restore(){stop();index=0;document.title=normalTitle}
+ function start(){
+  stop();index=0;document.title=awayTitles[0];
+  timer=setInterval(()=>{index=(index+1)%awayTitles.length;document.title=awayTitles[index]},2200);
+ }
+ document.addEventListener('visibilitychange',()=>document.hidden?start():restore());
+ window.addEventListener('focus',restore);
+ window.addEventListener('blur',()=>{if(document.hidden)start()});
+})();
+</script>
+</body></html>
