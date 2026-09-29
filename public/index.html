@@ -206,6 +206,23 @@ body{
 #grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{order:2!important;background:#927b67!important;color:#fff!important;border:1px solid #725f50!important}
 @media(max-width:520px){#grid .product-actions>.buy,#topFemininos .product-actions>.buy{height:46px!important;min-height:46px!important;font-size:10px!important}#grid .secondary-actions>.add,#topFemininos .secondary-actions>.add,#grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{height:40px!important;min-height:40px!important;font-size:7.5px!important}}
 </style>
+<style id="valenza-catalog-card-alignment">
+/* Cards uniformes: conteúdo variável não desloca preço nem ações */
+#grid{align-items:stretch!important}
+#grid>.card{display:flex!important;flex-direction:column!important;height:100%!important}
+#grid>.card>.photo{flex:0 0 auto!important}
+#grid>.card>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
+#grid>.card .name{min-height:48px!important;margin:6px 0!important}
+#grid>.card .meta{min-height:16px!important}
+#grid>.card .desc{min-height:50px!important;margin:9px 0 12px!important}
+#grid>.card .price{margin-top:auto!important}
+#grid>.card .product-actions{margin-top:0!important}
+@media(max-width:700px){
+ #grid>.card .name{min-height:58px!important}
+ #grid>.card .meta{min-height:18px!important}
+ #grid>.card .desc{min-height:58px!important}
+}
+</style>
 <style id="valenza-top-last-center">
 /* Centraliza somente o último destaque feminino quando a linha fica ímpar */
 @media(max-width:620px){
