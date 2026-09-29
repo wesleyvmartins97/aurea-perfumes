@@ -232,6 +232,15 @@ async function seedInventory(env){const now=new Date().toISOString();await env.D
 async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);return {id,qty:n,...p,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
+const LOCAL_COLATINA={id:"local-colatina",company:"VALENZA",name:"Frete grátis em Colatina",carrier:"Entrega local Valenza",price:0,delivery_time:0,dropoff_points:[]};
+async function destinoColatina(cep){
+ try{
+  const r=await fetch("https://viacep.com.br/ws/"+encodeURIComponent(cep)+"/json/");
+  if(!r.ok)return false;
+  const d=await r.json();
+  return !d.erro&&String(d.localidade||"").trim().toLowerCase()==="colatina"&&String(d.uf||"").trim().toUpperCase()==="ES";
+ }catch{return false}
+}
 async function calcularFrete(request,env){
  try{
   const dados=await request.json(),cep=String(dados.cep||"").replace(/\D/g,"");
@@ -240,6 +249,7 @@ async function calcularFrete(request,env){
   await ensureAuthSchema(env);await seedInventory(env);
   const items=await canonicalItems(dados.produtos,env);
   for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
+  if(await destinoColatina(cep))return resposta({ok:true,fretes:[LOCAL_COLATINA]});
   const produtos=items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}));
   const upstream=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify({postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:produtos})});
   const raw=await upstream.text();let data;try{data=JSON.parse(raw)}catch{data=null}
@@ -347,6 +357,7 @@ async function criarEnvioEnvioEcom(env,orderId){
  if(!env.ENVIOECOM_TOKEN)return {ok:false,error:"Token EnvioEcom ausente"};const originCep=String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"");if(originCep.length!==8)return {ok:false,error:"CEP de origem da postagem não configurado"};
  await ensureAuthSchema(env);const sh=await env.DB.prepare("SELECT * FROM order_shipping WHERE order_id=?").bind(orderId).first();if(!sh)return {ok:false,error:"Dados de envio não encontrados"};
  if(sh.shipping_id){const ready=Number(sh.label_ready)||await tentarGerarEtiqueta(env,orderId,sh.shipping_id,sh.barcode);return {ok:true,shippingId:sh.shipping_id,barcode:sh.barcode,existing:true,labelReady:!!ready}}
+ if(String(sh.carrier||"")==="Entrega local Valenza")return {ok:true,localDelivery:true};
  if(!sh.carrier||!sh.cep||!sh.street||!sh.number||!sh.city||!sh.state)return {ok:false,error:"Dados de entrega incompletos"};
  const lockNow=new Date().toISOString();const lk=await env.DB.prepare("INSERT OR IGNORE INTO shipment_locks(order_id,state,created_at,updated_at) VALUES(?,?,?,?)").bind(String(orderId),"creating",lockNow,lockNow).run();if((lk.meta?.changes||0)<1){const again=await env.DB.prepare("SELECT shipping_id,barcode,label_ready FROM order_shipping WHERE order_id=?").bind(orderId).first();if(again?.shipping_id)return {ok:true,shippingId:again.shipping_id,barcode:again.barcode,existing:true,labelReady:!!again.label_ready};return {ok:false,pending:true,error:"Postagem já está sendo preparada"}}
  const oi=await env.DB.prepare("SELECT product_id,name,quantity,unit_price FROM order_items WHERE order_id=?").bind(orderId).all(),items=oi.results||[];if(!items.length)return {ok:false,error:"Itens do pedido não encontrados"};
