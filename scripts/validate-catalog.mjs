@@ -11,13 +11,14 @@ try{
 if(!Array.isArray(catalog)||!catalog.length)fail.push('CATALOG vazio ou inválido.');
 
 const ids=new Set();
-const requiredText=['id','name','brand','cat','type','img','desc','details'];
+const requiredText=['id','name','brand','collection','cat','type','img','desc','details'];
 const requiredNum=['price','weight','length','height','width'];
 
 for(const p of catalog){
  const tag=p?.id||p?.name||'(sem id)';
  for(const k of requiredText)if(typeof p?.[k]!=='string'||!p[k].trim())fail.push(`${tag}: campo ${k} vazio/ausente.`);
  for(const k of requiredNum)if(!Number.isFinite(Number(p?.[k]))||Number(p[k])<=0)fail.push(`${tag}: campo ${k} inválido.`);
+ if(!['arabes','luxo'].includes(p.collection))fail.push(`${tag}: collection deve ser arabes ou luxo.`);
  if(ids.has(p.id))fail.push(`${tag}: id duplicado.`);
  ids.add(p.id);
  if(/undefined|null/i.test(`${p.name} ${p.brand} ${p.type} ${p.desc} ${p.details}`))fail.push(`${tag}: texto contém undefined/null.`);
