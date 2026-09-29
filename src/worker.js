@@ -190,18 +190,44 @@ async function accountAddressSave(request,env){try{const u=await currentCustomer
 async function accountAddressDelete(request,env,id){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);await env.DB.prepare("DELETE FROM customer_addresses WHERE id=? AND customer_id=?").bind(id,u.id).run();return resposta({ok:true})}catch(e){return resposta({ok:false,error:"Não foi possível excluir o endereço."},500)}}
 async function servirAssets(request,env){const response=await env.ASSETS.fetch(request);const contentType=response.headers.get("content-type")||"";if(!contentType.includes("text/html")||new URL(request.url).pathname!=="/")return response;const html=await response.text();const headers=new Headers(response.headers);headers.set("Cache-Control","no-store, max-age=0, must-revalidate");headers.delete("ETag");return new Response(html,{status:response.status,statusText:response.statusText,headers})}
 async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
-let _catalogCache=null;
-async function officialCatalog(env){
- if(_catalogCache)return _catalogCache;
- const response=await env.ASSETS.fetch(new Request("https://valenza.local/products.js"));
- if(!response.ok)throw new Error("Catálogo oficial indisponível");
- const source=await response.text(),match=source.match(/const\s+CATALOG\s*=\s*(\[[\s\S]*?\]);/);
- if(!match)throw new Error("Catálogo oficial inválido");
- const list=Function('"use strict";return ('+match[1]+')')();
- if(!Array.isArray(list)||!list.length)throw new Error("Catálogo oficial vazio");
- _catalogCache=Object.fromEntries(list.map(p=>[String(p.id),p]));
- return _catalogCache;
-}
+const AUREA_CATALOG={
+"angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:289.90,weight:.6,length:20,height:12,width:16},
+"athena":{name:"Athena",brand:"Maison Alhambra",type:"EDP · 100ml",price:239.90,weight:.6,length:20,height:12,width:16},
+"delilah-blanc":{name:"Delilah Blanc",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
+"delilah":{name:"Delilah Pour Femme",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
+"fakhar-rose":{name:"Fakhar Rose",brand:"Lattafa",type:"EDP · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
+"sabah":{name:"Sabah Al Ward",brand:"Al Wataniah",type:"EDP · 100ml",price:249.90,weight:.6,length:20,height:12,width:16},
+"asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:259.90,weight:.6,length:20,height:12,width:16},
+"attar":{name:"Attar Al Wesal",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
+"decant-sabah":{name:"Decant Sabah Al Ward",brand:"Al Wataniah",type:"Decant · 5ml",price:52.00,weight:.15,length:12,height:5,width:8},
+"ameerati":{name:"Ameerati",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
+"angham":{name:"Angham",brand:"Lattafa",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
+"vanilla-voyage":{name:"Vanilla Voyage",brand:"Maison Asrar",type:"EDP · 100ml · Unissex",price:399.90,weight:.6,length:20,height:12,width:16},
+"atheeri":{name:"Atheeri",brand:"Lattafa",type:"EDP · 100ml",price:469.90,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-intense-man":{name:"Club de Nuit Intense Man",brand:"Armaf",type:"EDP · 100ml",price:289.90,weight:.6,length:20,height:12,width:16},
+"musamam-white-intense":{name:"Musamam White Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:329.90,weight:.6,length:20,height:12,width:16},
+"afeef":{name:"Afeef",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:549.90,weight:.6,length:20,height:12,width:16},
+"queen-of-arabia":{name:"Queen of Arabia",brand:"Lattafa",type:"EDP · 100ml",price:519.90,weight:.6,length:20,height:12,width:16},
+"yara":{name:"Yara",brand:"Lattafa",type:"EDP · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
+"tharwah-gold":{name:"Tharwah Gold",brand:"Lattafa",type:"EDP · 100ml",price:449.90,weight:.6,length:20,height:12,width:16},
+"vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:429.90,weight:.6,length:20,height:12,width:16},
+"khamrah":{name:"Khamrah",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:229.90,weight:.6,length:20,height:12,width:16},
+"khamrah-qahwa":{name:"Khamrah Qahwa",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:249.90,weight:.6,length:20,height:12,width:16},
+"eclaire":{name:"Eclaire",brand:"Lattafa",type:"EDP · 100ml",price:319.90,weight:.6,length:20,height:12,width:16},
+"liquid-brun":{name:"Liquid Brun",brand:"French Avenue",type:"EDP · 100ml",price:399.90,weight:.6,length:20,height:12,width:16},
+"spectre-ghost":{name:"Spectre Ghost",brand:"French Avenue",type:"EDP · 80ml",price:329.90,weight:.6,length:20,height:12,width:16},
+"afnan-9pm":{name:"9 PM",brand:"Afnan",type:"EDP · 100ml",price:299.90,weight:.6,length:20,height:12,width:16},
+"hawas-ice":{name:"Hawas Ice",brand:"Rasasi",type:"EDP · 100ml",price:329.90,weight:.6,length:20,height:12,width:16},
+"yara-candy":{name:"Yara Candy",brand:"Lattafa",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
+"tiramisu-coco":{name:"Tiramisu Coco",brand:"Zimaya",type:"EDP · 100ml · Unissex",price:279.90,weight:.6,length:20,height:12,width:16},
+"fatima-pink":{name:"Fatima Pink",brand:"Zimaya",type:"Extrait de Parfum · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
+"supremacy-not-only-intense":{name:"Supremacy Not Only Intense",brand:"Afnan",type:"Extrait de Parfum · 100ml",price:399.90,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-milestone":{name:"Club de Nuit Milestone",brand:"Armaf",type:"EDP · 105ml",price:279.90,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-untold":{name:"Club de Nuit Untold",brand:"Armaf",type:"EDP · 105ml · Unissex",price:329.90,weight:.6,length:20,height:12,width:16},
+"badee-al-oud-amethyst":{name:"Bade'e Al Oud Amethyst",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:229.90,weight:.6,length:20,height:12,width:16},
+"raghba-wood-intense":{name:"Raghba Wood Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:219.90,weight:.6,length:20,height:12,width:16}
+};
+async function officialCatalog(env){return AUREA_CATALOG}
 async function seedInventory(env){const now=new Date().toISOString();await env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)").run();const doneV1=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v1'").first();if(!doneV1){const catalog=await officialCatalog(env);const q=Object.keys(catalog).map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,10,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v1','10',?)").bind(now));await env.DB.batch(q)}const doneV2=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v2-new10'").first();if(!doneV2){const ids=["khamrah","khamrah-qahwa","eclaire","liquid-brun","spectre-ghost","afnan-9pm","hawas-ice","yara-candy","tiramisu-coco","fatima-pink"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v2-new10','100',?)").bind(now));await env.DB.batch(q)}const doneV4=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v4-new5'").first();if(!doneV4){const ids=["supremacy-not-only-intense","club-de-nuit-milestone","club-de-nuit-untold","badee-al-oud-amethyst","raghba-wood-intense"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v4-new5','100',?)").bind(now));await env.DB.batch(q)}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
 async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);return {id,qty:n,...p,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
