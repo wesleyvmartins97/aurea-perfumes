@@ -258,6 +258,17 @@ body{
 @media(max-width:850px){.header-search{width:38px;flex:0 0 38px}.header-search-box{width:38px;padding:0 10px;overflow:hidden;cursor:pointer}.header-search-input{width:0;min-width:0;opacity:0}.header-search.mobile-open{position:absolute;left:12px;right:12px;top:8px;width:auto;z-index:1100}.header-search.mobile-open .header-search-box{width:100%;cursor:text}.header-search.mobile-open .header-search-input{width:100%;opacity:1}.header-search.mobile-open .header-search-results{top:43px}.account{padding-left:5px!important;padding-right:5px!important}}
 @media(max-width:390px){.header>.logo{min-width:132px!important;font-size:20px!important}.account,.cart{font-size:7px!important}.cart{padding:9px 9px!important}}
 </style>
+
+<style id="valenza-footer-premium">
+.valenza-footer{background:#171513;color:#d8d2ca;text-align:left;padding:0;font-family:Arial,sans-serif}
+.vf-inner{max-width:1180px;margin:auto;padding:58px 28px 46px;display:grid;grid-template-columns:1.65fr .8fr 1fr 1.15fr;gap:54px;border-bottom:1px solid rgba(255,255,255,.1)}
+.vf-logo{font-family:Georgia,serif;color:#fff;font-size:25px;letter-spacing:7px;line-height:1}.vf-parfums{font-size:8px;letter-spacing:5px;color:#9f988f;margin:8px 0 24px}
+.vf-brand p{font-family:Georgia,serif;color:#fff;font-size:18px;line-height:1.45;margin:0 0 12px}.vf-brand span{display:block;max-width:360px;font-size:11px;line-height:1.75;color:#9f988f}
+.vf-col h3{font-size:9px;letter-spacing:2.2px;color:#fff;margin:2px 0 20px;font-weight:600}.vf-col a,.vf-col span{display:block;color:#aaa39b;text-decoration:none;font-size:11px;line-height:1.5;margin:0 0 11px;transition:color .18s ease}.vf-col a:hover{color:#fff}.vf-contact a{overflow-wrap:anywhere}
+.vf-bottom{max-width:1180px;margin:auto;padding:20px 28px 24px;display:flex;justify-content:space-between;gap:25px;color:#77716b;font-size:8px;letter-spacing:1.1px;line-height:1.6}
+@media(max-width:850px){.vf-inner{grid-template-columns:1fr 1fr;gap:38px 28px;padding:44px 22px 36px}.vf-brand{grid-column:1/-1}.vf-brand span{max-width:520px}.vf-contact{grid-column:1/-1}.vf-bottom{padding:18px 22px 22px;flex-direction:column;gap:8px}}
+@media(max-width:520px){.vf-inner{grid-template-columns:1fr 1fr;gap:34px 20px}.vf-col h3{font-size:8px}.vf-col a,.vf-col span{font-size:10px}.vf-bottom{font-size:7px}.vf-logo{font-size:23px}}
+</style>
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a></nav><div class="actions"><div class="header-search" id="headerSearch"><div class="header-search-box" onclick="activateHeaderSearch(event)"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke-width="1.8"></circle><path d="M16 16l4 4" stroke-width="1.8" stroke-linecap="round"></path></svg><input id="headerSearchInput" class="header-search-input" type="search" autocomplete="off" placeholder="Busque sua fragrância..." aria-label="Buscar perfumes" oninput="renderHeaderSearch()" onfocus="renderHeaderSearch()" onkeydown="headerSearchKey(event)"></div><div class="header-search-results" id="headerSearchResults"></div></div><button class="account" onclick="openAccount()">MINHA CONTA</button><button class="cart" onclick="openCart()">CARRINHO (<span id="count">0</span>)</button></div></header>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
@@ -277,7 +288,40 @@ body{
 </section><section class="benefits" aria-label="Benefícios VALENZA"><div class="benefits-grid"><div><div class="benefit-icon">🚚</div><strong>ENVIAMOS PARA TODO O BRASIL</strong><span>Frete calculado pelo seu CEP</span></div><div><div class="benefit-icon">💳</div><strong>ATÉ 3X SEM JUROS</strong><span>Facilidade no pagamento</span></div><div><div class="benefit-icon">🔒</div><strong>COMPRA SEGURA</strong><span>Pagamento protegido</span></div><div><div class="benefit-icon">◆</div><strong>DESCONTO NO PIX</strong><span>Preço especial à vista</span></div></div></section><section class="section top-products" id="femininos-destaque"><div class="eyebrow center">DESTAQUES VALENZA</div><h2 class="title center">Perfumes femininos</h2><p class="top-products-sub">Fragrâncias selecionadas com preços competitivos para o Espírito Santo.</p><div class="top-products-grid" id="topFemininos"></div><div class="top-products-more"><a class="primary" href="#catalogo" onclick="setCat('feminino')">VER TODOS OS FEMININOS</a></div></section>
 <section class="section" id="categorias"><div class="eyebrow center">EXPLORE</div><h2 class="title center">Encontre sua essência</h2><div class="categories shop-categories"><a class="category" href="#catalogo" onclick="setCat('feminino')"><strong>Femininos</strong><span>Delicados e marcantes</span></a><a class="category" href="#catalogo" onclick="setCat('masculino')"><strong>Masculinos</strong><span>Presença e personalidade</span></a><a class="category" href="#catalogo" onclick="setCat('decants')"><strong>Decants</strong><span>Experimente antes do frasco</span></a></div></section>
 <section class="section" id="catalogo"><div class="eyebrow center">CATÁLOGO VALENZA</div><h2 class="title center">Fragrâncias selecionadas</h2><div class="toolbar"><input id="search" type="search" placeholder="Buscar perfume ou marca..." oninput="render()"><button class="filter active" data-cat="todos" onclick="setCat('todos')">TODOS</button><button class="filter" data-cat="feminino" onclick="setCat('feminino')">FEMININOS</button><button class="filter" data-cat="masculino" onclick="setCat('masculino')">MASCULINOS</button><button class="filter" data-cat="decants" onclick="setCat('decants')">DECANTS</button></div><div class="grid" id="grid"></div></section>
-<section class="aurea-closing" aria-label="Compromisso VALENZA"><div class="aurea-closing-inner"><span class="aurea-closing-mark">VALENZA</span><p>Perfumes selecionados, compra segura e envio para todo o Brasil.</p></div></section></main><footer class="footer"><div class="logo">VALENZA</div><div>Sua essência. Sua presença.</div><div style="margin:16px auto 8px;display:flex;justify-content:center;gap:14px 20px;flex-wrap:wrap;max-width:760px"><a href="/privacidade/" style="color:#aaa">Privacidade</a><a href="/termos/" style="color:#aaa">Termos de compra</a><a href="/trocas-e-devolucoes/" style="color:#aaa">Trocas e devoluções</a><a href="/envio-e-entrega/" style="color:#aaa">Envio e entrega</a></div><div style="line-height:1.6">Atendimento: contato@valenzaparfums.com.br · WhatsApp (27) 99796-2708 · Colatina/ES</div><br>© 2026 VALENZA PARFUMS</footer>
+<section class="aurea-closing" aria-label="Compromisso VALENZA"><div class="aurea-closing-inner"><span class="aurea-closing-mark">VALENZA</span><p>Perfumes selecionados, compra segura e envio para todo o Brasil.</p></div></section></main><footer class="footer valenza-footer">
+  <div class="vf-inner">
+    <div class="vf-brand">
+      <div class="vf-logo">VALENZA</div>
+      <div class="vf-parfums">PARFUMS</div>
+      <p>Fragrâncias escolhidas para deixar marca.</p>
+      <span>Uma curadoria de perfumes árabes e grandes nomes da perfumaria internacional, com uma experiência de compra simples, segura e próxima.</span>
+    </div>
+    <div class="vf-col">
+      <h3>NAVEGUE</h3>
+      <a href="#catalogo">Catálogo</a>
+      <a href="#categorias">Categorias</a>
+      <a href="#sobre">Quem somos</a>
+      <a href="#" onclick="openClient();return false">Minha conta</a>
+    </div>
+    <div class="vf-col">
+      <h3>ATENDIMENTO</h3>
+      <a href="/envio-e-entrega/">Envio e entrega</a>
+      <a href="/trocas-e-devolucoes/">Trocas e devoluções</a>
+      <a href="/privacidade/">Privacidade</a>
+      <a href="/termos/">Termos de compra</a>
+    </div>
+    <div class="vf-col vf-contact">
+      <h3>FALE COM A VALENZA</h3>
+      <a href="mailto:contato@valenzaparfums.com.br">contato@valenzaparfums.com.br</a>
+      <a href="https://wa.me/5527997962708" target="_blank" rel="noopener noreferrer">(27) 99796-2708</a>
+      <span>Colatina · Espírito Santo</span>
+    </div>
+  </div>
+  <div class="vf-bottom">
+    <span>COMPRA SEGURA · PAGAMENTO PROTEGIDO · ATENDIMENTO VALENZA</span>
+    <span>© 2026 VALENZA PARFUMS. Todos os direitos reservados.</span>
+  </div>
+</footer>
 <aside class="drawer" id="cart"><button class="close" onclick="closeCart()">×</button><h2>Seu carrinho</h2><div id="cartContent"></div><div id="shipArea" style="display:none" class="shipping"><h3 class="serif">Calcule o frete</h3><p>Informe seu CEP para consultar as opções.</p><div class="cep"><input id="cep" maxlength="9" placeholder="00000-000" oninput="maskCep(this)"><button onclick="shipping()">CALCULAR</button></div><div class="ship-options" id="shipOptions"></div></div><div id="totalArea" style="display:none"><div class="total"><strong>Total</strong><strong id="total">R$ 0,00</strong></div><button class="checkout" onclick="openCheckout()">FINALIZAR COMPRA</button></div></aside>
 <div class="modal" id="accountModal"><button class="modal-close" onclick="closeAccount()">×</button><div class="box account-box"><div class="eyebrow">ÁREA DO CLIENTE</div><h2 class="serif" style="font-size:30px;margin:6px 0 10px">Minha conta</h2><div id="accountBody"><div class="account-message">Carregando...</div></div></div></div>
 <div class="modal" id="detailModal"><button class="modal-close" type="button" aria-label="Fechar detalhes" onclick="if(window.AureaCloseDetail){window.AureaCloseDetail()}else{closeDetail()}">×</button><div class="box detail" id="detailBox"></div></div>
