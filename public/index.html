@@ -265,13 +265,13 @@ body{
 .vf-bottom{max-width:1180px;margin:auto;padding:20px 28px 24px;display:flex;justify-content:space-between;gap:25px;color:#77716b;font-size:8px;letter-spacing:1.1px;line-height:1.6}
 @media(max-width:850px){.vf-inner{grid-template-columns:1fr 1fr;gap:38px 28px;padding:44px 22px 36px}.vf-brand{grid-column:1/-1}.vf-brand span{max-width:520px}.vf-contact{grid-column:1/-1}.vf-bottom{padding:18px 22px 22px;flex-direction:column;gap:8px}}
 @media(max-width:520px){.vf-inner{grid-template-columns:1fr 1fr;gap:34px 20px}.vf-col h3{font-size:8px}.vf-col a,.vf-col span{font-size:10px}.vf-bottom{font-size:7px}.vf-logo{font-size:23px}}
-.vf-assurance{max-width:1180px;margin:auto;padding:25px 28px;display:grid;grid-template-columns:1.15fr .85fr;gap:46px;border-bottom:1px solid rgba(255,255,255,.1)}
-.vf-assurance h3{margin:0 0 13px;color:#fff;font-size:8px;font-weight:600;letter-spacing:2.2px}
-.vf-payments{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.vf-paymark{height:28px;min-width:46px;padding:0 10px;border:1px solid rgba(255,255,255,.18);border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#d8d2ca;font-size:9px;font-weight:700;letter-spacing:.35px;background:rgba(255,255,255,.025)}.vf-paymark.pix{font-size:10px;letter-spacing:1px}
-.vf-payment-note{margin-top:10px;color:#817b74;font-size:9px;line-height:1.55}
-.vf-security{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.vf-security-item{display:flex;gap:10px;align-items:flex-start}.vf-security-icon{width:28px;height:28px;flex:0 0 28px;border:1px solid rgba(255,255,255,.16);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#d8d2ca;font-size:11px}.vf-security-item strong{display:block;color:#d8d2ca;font-size:9px;letter-spacing:.7px;margin:2px 0 4px}.vf-security-item span{display:block;color:#817b74;font-size:9px;line-height:1.45}
-@media(max-width:850px){.vf-assurance{grid-template-columns:1fr;gap:24px;padding:24px 22px}.vf-security{max-width:520px}}
-@media(max-width:520px){.vf-payments{gap:6px}.vf-paymark{height:27px;min-width:43px;padding:0 8px;font-size:8px}.vf-security{grid-template-columns:1fr 1fr;gap:14px 10px}.vf-assurance{padding-top:22px;padding-bottom:22px}}
+.vf-assurance{max-width:1180px;margin:auto;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;gap:32px;border-bottom:1px solid rgba(255,255,255,.1)}
+.vf-assurance-group{display:flex;align-items:center;gap:14px;min-width:0}.vf-assurance h3{margin:0;color:#8f8982;font-size:7px;font-weight:600;letter-spacing:1.8px;white-space:nowrap}
+.vf-payments{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.vf-paymark{height:24px;min-width:42px;padding:0 8px;border:1px solid rgba(255,255,255,.2);border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#eee9e3;font-size:8px;font-weight:700;letter-spacing:.3px;background:#211f1c}.vf-paymark.pix{color:#fff;letter-spacing:.8px}
+.vf-payment-note{color:#77716b;font-size:8px;white-space:nowrap}
+.vf-security{display:flex;align-items:center;gap:22px}.vf-security-item{display:flex;gap:8px;align-items:center;white-space:nowrap}.vf-security-icon{width:22px;height:22px;flex:0 0 22px;border:1px solid rgba(255,255,255,.22);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#eee9e3;font-size:9px}.vf-security-item strong{display:block;color:#d8d2ca;font-size:8px;letter-spacing:.55px;margin-bottom:2px}.vf-security-item span{display:block;color:#77716b;font-size:7px}
+@media(max-width:950px){.vf-assurance{align-items:flex-start;flex-direction:column;gap:14px}.vf-payment-note{white-space:normal}.vf-security{flex-wrap:wrap}}
+@media(max-width:520px){.vf-assurance{padding:17px 22px}.vf-assurance-group{align-items:flex-start;flex-direction:column;gap:9px}.vf-security{gap:12px;align-items:flex-start;flex-direction:column}.vf-paymark{height:23px;min-width:40px;padding:0 7px}.vf-payment-note{font-size:7px}}
 
 /* ===== VALENZA CSS 14 ===== */
 .header-status{display:flex!important;flex-direction:column;align-items:flex-start!important;justify-content:center;gap:2px;line-height:1.05;white-space:nowrap}
@@ -355,23 +355,16 @@ body.checkout-open .aurea-wa{display:none}
     </div>
   </div>
   <div class="vf-assurance" aria-label="Pagamento e segurança">
-    <div>
+    <div class="vf-assurance-group">
       <h3>FORMAS DE PAGAMENTO</h3>
       <div class="vf-payments" aria-label="PIX e principais cartões de crédito">
-        <span class="vf-paymark pix">PIX</span>
-        <span class="vf-paymark">VISA</span>
-        <span class="vf-paymark">MASTER</span>
-        <span class="vf-paymark">ELO</span>
-        <span class="vf-paymark">AMEX</span>
+        <span class="vf-paymark pix">PIX</span><span class="vf-paymark">VISA</span><span class="vf-paymark">MASTER</span><span class="vf-paymark">ELO</span><span class="vf-paymark">AMEX</span>
       </div>
-      <div class="vf-payment-note">PIX com preço especial · Cartão de crédito em até 3x sem juros</div>
+      <span class="vf-payment-note">PIX com preço especial · até 3x sem juros</span>
     </div>
-    <div>
-      <h3>COMPRA COM CONFIANÇA</h3>
-      <div class="vf-security">
-        <div class="vf-security-item"><span class="vf-security-icon">◇</span><div><strong>PAGAMENTO PROTEGIDO</strong><span>Processamento seguro durante a compra</span></div></div>
-        <div class="vf-security-item"><span class="vf-security-icon">✓</span><div><strong>AMBIENTE SEGURO</strong><span>Seus dados protegidos durante a navegação</span></div></div>
-      </div>
+    <div class="vf-security" aria-label="Segurança da compra">
+      <div class="vf-security-item"><span class="vf-security-icon">✓</span><div><strong>PAGAMENTO PROTEGIDO</strong><span>Processamento seguro</span></div></div>
+      <div class="vf-security-item"><span class="vf-security-icon">✓</span><div><strong>AMBIENTE SEGURO</strong><span>Dados protegidos</span></div></div>
     </div>
   </div>
   <div class="vf-bottom">
