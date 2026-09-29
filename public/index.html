@@ -333,7 +333,7 @@ body.checkout-open .aurea-wa{display:none}
 </section><section class="benefits" aria-label="Benefícios VALENZA"><div class="benefits-grid"><div><div class="benefit-icon">🚚</div><strong>ENVIAMOS PARA TODO O BRASIL</strong><span>Frete calculado pelo seu CEP</span></div><div><div class="benefit-icon">💳</div><strong>ATÉ 3X SEM JUROS</strong><span>Facilidade no pagamento</span></div><div><div class="benefit-icon">🔒</div><strong>COMPRA SEGURA</strong><span>Pagamento protegido</span></div><div><div class="benefit-icon">◆</div><strong>DESCONTO NO PIX</strong><span>Preço especial à vista</span></div></div></section><section class="section top-products" id="femininos-destaque"><div class="eyebrow center">DESTAQUES VALENZA</div><h2 class="title center">Perfumes femininos</h2><p class="top-products-sub">Fragrâncias selecionadas com preços competitivos para o Espírito Santo.</p><div class="top-products-grid" id="topFemininos"></div><div class="top-products-more"><a class="primary" href="#catalogo" onclick="setCat('feminino')">VER TODOS OS FEMININOS</a></div></section>
 <section class="section" id="categorias"><div class="eyebrow center">EXPLORE</div><h2 class="title center">Encontre sua essência</h2><div class="categories shop-categories"><a class="category" href="#catalogo" onclick="setCat('feminino')"><strong>Femininos</strong><span>Delicados e marcantes</span></a><a class="category" href="#catalogo" onclick="setCat('masculino')"><strong>Masculinos</strong><span>Presença e personalidade</span></a><a class="category" href="#catalogo" onclick="setCat('decants')"><strong>Decants</strong><span>Experimente antes do frasco</span></a></div></section>
 <section class="section" id="catalogo"><div class="eyebrow center">CATÁLOGO VALENZA</div><h2 class="title center">Fragrâncias selecionadas</h2><div class="toolbar"><input id="search" type="search" placeholder="Buscar perfume ou marca..." oninput="render()"><button class="filter active" data-cat="todos" onclick="setCat('todos')">TODOS</button><button class="filter" data-cat="feminino" onclick="setCat('feminino')">FEMININOS</button><button class="filter" data-cat="masculino" onclick="setCat('masculino')">MASCULINOS</button><button class="filter" data-cat="decants" onclick="setCat('decants')">DECANTS</button></div><div class="grid" id="grid"></div></section>
-<section class="aurea-closing" aria-label="Compromisso VALENZA"><div class="aurea-closing-inner"><span class="aurea-closing-mark">VALENZA</span><p>Perfumes selecionados, compra segura e envio para todo o Brasil.</p></div></section></main><footer class="footer valenza-footer">
+<section class="valenza-about" id="sobre" aria-labelledby="sobre-title"><div class="valenza-about-inner"><div class="eyebrow center">NOSSA ESSÊNCIA</div><h2 id="sobre-title">Quem somos</h2><p>A VALENZA PARFUMS é uma loja online de Colatina, Espírito Santo, dedicada à seleção de perfumes árabes e grandes nomes da perfumaria internacional. Nossa proposta é unir curadoria, compra segura, atendimento próximo e uma experiência simples do pedido à entrega.</p><div class="valenza-about-points"><div><strong>CURADORIA</strong><span>Fragrâncias selecionadas com atenção à procedência e à experiência de compra.</span></div><div><strong>ATENDIMENTO PRÓXIMO</strong><span>Suporte direto pelos canais oficiais da VALENZA antes e depois da compra.</span></div><div><strong>COMPRA SEGURA</strong><span>Pagamento protegido, informações claras e acompanhamento do pedido.</span></div></div></div></section><section class="aurea-closing" aria-label="Compromisso VALENZA"><div class="aurea-closing-inner"><span class="aurea-closing-mark">VALENZA</span><p>Perfumes selecionados, compra segura e envio para todo o Brasil.</p></div></section></main><footer class="footer valenza-footer">
   <div class="vf-inner">
     <div class="vf-brand">
       <div class="vf-logo">VALENZA</div>
@@ -346,7 +346,7 @@ body.checkout-open .aurea-wa{display:none}
       <a href="#catalogo">Catálogo</a>
       <a href="#categorias">Categorias</a>
       <a href="#sobre">Quem somos</a>
-      <a href="#" onclick="openClient();return false">Minha conta</a>
+      <a href="#" onclick="openFooterAccount();return false">Minha conta</a>
     </div>
     <div class="vf-col">
       <h3>ATENDIMENTO</h3>
@@ -579,6 +579,12 @@ let slideIndex=0,slideTimer=null;function drawSlider(){const s=document.getEleme
 function buyNow(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;const i=cart.find(x=>x.id===id);i?i.qty++:cart.push({id:p.id,name:p.name,brand:p.brand,type:p.type,price:p.price,img:p.img,qty:1});saveCart();openCart();setTimeout(()=>document.getElementById('cep')?.focus(),180)}
 let accountUser=null;
 async function openAccount(){if(accountUser&&typeof openClient==='function'){openClient();return}document.getElementById('accountModal').classList.add('open');pushLayer('account');await loadAccount();if(accountUser&&typeof openClient==='function'){closeAccount();openClient()}}
+
+async function openFooterAccount(){
+ try{await loadAccount()}catch(e){accountUser=null}
+ if(accountUser){openClient();return}
+ document.getElementById('accountModal').classList.add('open');pushLayer('account');renderAccount();
+}
 function closeAccount(fromHistory=false){document.getElementById('accountModal').classList.remove('open');dropLayer('account',fromHistory)}
 function accountMsg(t){const e=document.getElementById('accountMessage');if(e)e.textContent=t}
 async function loadAccount(){try{const r=await fetch('/api/auth/me',{cache:'no-store'});if(r.ok){const d=await r.json();accountUser=d.user||null}else accountUser=null}catch(e){accountUser=null}renderAccount()}
