@@ -207,15 +207,15 @@ body{
 @media(max-width:520px){#grid .product-actions>.buy,#topFemininos .product-actions>.buy{height:46px!important;min-height:46px!important;font-size:10px!important}#grid .secondary-actions>.add,#topFemininos .secondary-actions>.add,#grid .secondary-actions>.details,#topFemininos .secondary-actions>.details{height:40px!important;min-height:40px!important;font-size:7.5px!important}}
 </style>
 <style id="valenza-compact-product-cards">
-/* Cards compactos sem esticar a altura pelo vizinho */
-#grid,#topFemininos{align-items:start!important}
-#grid>.card,#topFemininos>.top-product{display:flex!important;flex-direction:column!important;height:auto!important;align-self:start!important}
+/* Vitrine compacta: Marca > Nome > tipo/volume > preço > PIX > ações */
+#grid,#topFemininos{align-items:stretch!important}
+#grid>.card,#topFemininos>.top-product{display:flex!important;flex-direction:column!important;height:100%!important}
 #grid>.card>.photo,#topFemininos>.top-product>.photo{flex:0 0 auto!important}
-#grid>.card>.info,#topFemininos>.top-product>.info{display:block!important;flex:none!important}
+#grid>.card>.info,#topFemininos>.top-product>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
 #grid .name,#topFemininos .name{margin:6px 0 8px!important;min-height:0!important}
 #grid .meta,#topFemininos .meta{margin:0 0 12px!important;min-height:0!important}
 #grid .desc{display:none!important}
-#grid .price,#topFemininos .price{margin-top:0!important}
+#grid .price,#topFemininos .price{margin-top:auto!important}
 #grid .product-actions,#topFemininos .product-actions{margin-top:0!important}
 </style>
 <style id="valenza-top-last-center">
