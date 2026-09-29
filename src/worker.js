@@ -245,7 +245,8 @@ async function calcularFrete(request,env){
   if(destinoColatina(cep))return resposta({ok:true,fretes:[LOCAL_COLATINA]});
   if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
   await ensureAuthSchema(env);await seedInventory(env);
-  for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
+  const stockChecks=await env.DB.batch(items.map(it=>env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id)));
+  for(let i=0;i<items.length;i++){const inv=stockChecks[i]?.results?.[0];if(Number(inv?.stock||0)<items[i].qty)return resposta({ok:false,error:items[i].name+" está sem estoque suficiente."},409)}
   const produtos=items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}));
   const upstream=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify({postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:produtos})});
   const raw=await upstream.text();let data;try{data=JSON.parse(raw)}catch{data=null}
