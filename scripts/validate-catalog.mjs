@@ -18,7 +18,7 @@ for(const p of catalog){
  const tag=p?.id||p?.name||'(sem id)';
  for(const k of requiredText)if(typeof p?.[k]!=='string'||!p[k].trim())fail.push(`${tag}: campo ${k} vazio/ausente.`);
  for(const k of requiredNum)if(!Number.isFinite(Number(p?.[k]))||Number(p[k])<=0)fail.push(`${tag}: campo ${k} inválido.`);
- if(!['arabes','luxo'].includes(p.collection))fail.push(`${tag}: collection deve ser arabes ou luxo.`);
+ if(!['arabes','designer'].includes(p.collection))fail.push(`${tag}: collection deve ser arabes ou designer.`);
  if(ids.has(p.id))fail.push(`${tag}: id duplicado.`);
  ids.add(p.id);
  if(/undefined|null/i.test(`${p.name} ${p.brand} ${p.type} ${p.desc} ${p.details}`))fail.push(`${tag}: texto contém undefined/null.`);
