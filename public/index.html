@@ -24,7 +24,6 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
 .card .photo,.top-product .photo{isolation:isolate!important;background:linear-gradient(135deg,#fffdf8 0%,#fff8ed 55%,#f8eadb 100%)!important}.card .photo:before,.top-product .photo:before{content:""!important;position:absolute!important;z-index:0!important;inset:0!important;opacity:1!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='360' viewBox='0 0 600 360'%3E%3Cg opacity='.72'%3E%3Cg transform='translate(38 270)'%3E%3Cellipse rx='72' ry='19' fill='%23d8c59f' transform='rotate(-25)'/%3E%3Cellipse rx='66' ry='17' fill='%23c7b68f' transform='rotate(28)'/%3E%3Cg fill='%23f4d6d5'%3E%3Ccircle cx='-38' cy='-34' r='28'/%3E%3Ccircle cx='-10' cy='-48' r='30'/%3E%3Ccircle cx='18' cy='-34' r='28'/%3E%3Ccircle cx='-10' cy='-17' r='30'/%3E%3C/g%3E%3Ccircle cx='-10' cy='-33' r='12' fill='%23d8aa72'/%3E%3C/g%3E%3Cg transform='translate(555 80)'%3E%3Cellipse rx='65' ry='16' fill='%23d9c89e' transform='rotate(-35)'/%3E%3Cg fill='%23fff'%3E%3Ccircle cx='-28' cy='15' r='24'/%3E%3Ccircle cx='0' cy='0' r='25'/%3E%3Ccircle cx='27' cy='15' r='24'/%3E%3Ccircle cx='0' cy='30' r='25'/%3E%3C/g%3E%3Ccircle cy='15' r='9' fill='%23d9b45d'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),radial-gradient(circle at 50% 40%,rgba(255,255,255,.96),rgba(255,249,239,.55) 48%,transparent 75%)!important;background-size:cover!important;background-position:center!important}.card:nth-child(3n+2) .photo,.top-product:nth-child(3n+2) .photo{background:linear-gradient(135deg,#fffdf7,#fff4dc 58%,#f2dfb9)!important}.card:nth-child(3n) .photo,.top-product:nth-child(3n) .photo{background:linear-gradient(135deg,#fffafa,#fceeea 58%,#f0d8d2)!important}.card .photo img,.top-product .photo img{position:relative!important;z-index:1!important;width:82%!important;height:82%!important;object-fit:contain!important;padding:0!important;filter:drop-shadow(0 15px 14px rgba(62,43,25,.17))!important}.card .tag,.top-product .tag{z-index:3!important}
 
 /* Beneficios compactos: quatro itens em uma unica faixa no celular */
-@media(max-width:700px){.benefits{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;padding:10px 2%!important;align-items:start!important}.benefit{padding:2px 4px!important;min-width:0!important;border-right:1px solid rgba(255,255,255,.16)!important}.benefit:last-child{border-right:0!important}.benefit .ico{font-size:14px!important;margin-bottom:3px!important;line-height:1!important}.benefit strong{font-size:7px!important;line-height:1.15!important;letter-spacing:.15px!important;display:block!important}.benefit span{font-size:6px!important;line-height:1.15!important;margin-top:2px!important;display:block!important}}
 
 /* ===== VALENZA CSS 02 ===== */
 @media(max-width:700px){
@@ -36,60 +35,14 @@ html{overflow-x:hidden}body{overflow-x:hidden}.header{gap:18px}.nav{flex:1;justi
  .slide-dots{bottom:7px!important}
 }
 
-/* ===== VALENZA CSS 03 ===== */
+/* ===== VALENZA: benefícios responsivos ===== */
 @media(max-width:700px){
-  section.benefits{height:auto!important;min-height:82px!important;padding:11px 8px!important;display:block!important}
-  section.benefits > .benefits-grid{
-    position:static!important;
-    display:grid!important;
-    grid-template-columns:repeat(4,1fr)!important;
-    width:100%!important;
-    max-width:100%!important;
-    height:auto!important;
-    margin:0!important;
-    padding:0!important;
-    gap:0!important;
-  }
-  section.benefits > .benefits-grid > div{
-    position:static!important;
-    display:block!important;
-    width:100%!important;
-    max-width:none!important;
-    min-width:0!important;
-    margin:0!important;
-    padding:0 5px!important;
-    transform:none!important;
-    text-align:center!important;
-  }
-  section.benefits > .benefits-grid > div > .benefit-icon{
-    position:static!important;width:auto!important;max-width:none!important;
-    margin:0 0 5px!important;padding:0!important;text-align:center!important;
-    font-size:14px!important;line-height:1!important;
-  }
-  section.benefits > .benefits-grid > div > strong{
-    display:block!important;font-size:7px!important;line-height:1.15!important;
-    text-align:center!important;white-space:normal!important;
-  }
-  section.benefits > .benefits-grid > div > span{
-    display:block!important;font-size:6px!important;line-height:1.15!important;
-    margin-top:3px!important;text-align:center!important;white-space:normal!important;
-  }
-}
-
-/* ===== VALENZA CSS 04 ===== */
-@media(max-width:700px){
-  section.benefits{
-    background:#8f7966!important;
-    min-height:0!important;height:auto!important;
-    padding:3px 8px 4px!important;
-    border-top:1px solid #bca995!important;
-    border-bottom:1px solid #bca995!important;
-  }
-  section.benefits > .benefits-grid{height:auto!important;min-height:39px!important;}
-  section.benefits > .benefits-grid > div{padding:0 5px!important;}
-  section.benefits .benefit-icon{font-size:12px!important;line-height:1!important;margin:0 0 2px!important;}
-  section.benefits strong{color:#fffaf4!important;font-size:6.7px!important;line-height:1.05!important;font-weight:600!important;}
-  section.benefits span{color:#eee5dc!important;font-size:5.5px!important;line-height:1.05!important;margin-top:2px!important;}
+ section.benefits{display:block!important;background:#8f7966!important;min-height:0!important;height:auto!important;padding:3px 8px 4px!important;border-top:1px solid #bca995!important;border-bottom:1px solid #bca995!important}
+ section.benefits>.benefits-grid{position:static!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;width:100%!important;max-width:100%!important;height:auto!important;min-height:39px!important;margin:0!important;padding:0!important;gap:0!important}
+ section.benefits>.benefits-grid>div{position:static!important;display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0 5px!important;transform:none!important;text-align:center!important}
+ section.benefits .benefit-icon{position:static!important;width:auto!important;max-width:none!important;margin:0 0 2px!important;padding:0!important;text-align:center!important;font-size:12px!important;line-height:1!important}
+ section.benefits strong{display:block!important;color:#fffaf4!important;font-size:6.7px!important;line-height:1.05!important;font-weight:600!important;letter-spacing:.1px!important;text-align:center!important;white-space:normal!important}
+ section.benefits span{display:block!important;color:#eee5dc!important;font-size:5.5px!important;line-height:1.05!important;margin-top:2px!important;text-align:center!important;white-space:normal!important}
 }
 
 /* ===== VALENZA CSS 05 ===== */
