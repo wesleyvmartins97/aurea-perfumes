@@ -223,6 +223,21 @@ body{
  #grid>.card .desc{min-height:58px!important}
 }
 </style>
+<style id="valenza-top-card-alignment">
+/* Destaques femininos: mesmo alinhamento vertical do catálogo principal */
+#topFemininos{align-items:stretch!important}
+#topFemininos>.top-product{display:flex!important;flex-direction:column!important;height:100%!important}
+#topFemininos>.top-product>.photo{flex:0 0 auto!important}
+#topFemininos>.top-product>.info{display:flex!important;flex-direction:column!important;flex:1 1 auto!important}
+#topFemininos>.top-product .name{min-height:48px!important;margin:6px 0!important}
+#topFemininos>.top-product .meta{min-height:16px!important}
+#topFemininos>.top-product .price{margin-top:auto!important}
+#topFemininos>.top-product .product-actions{margin-top:0!important}
+@media(max-width:700px){
+ #topFemininos>.top-product .name{min-height:58px!important}
+ #topFemininos>.top-product .meta{min-height:18px!important}
+}
+</style>
 <style id="valenza-top-last-center">
 /* Centraliza somente o último destaque feminino quando a linha fica ímpar */
 @media(max-width:620px){
