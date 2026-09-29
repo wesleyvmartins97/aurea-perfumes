@@ -204,7 +204,7 @@ const AUREA_CATALOG={
 "angham":{name:"Angham",brand:"Lattafa",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
 "vanilla-voyage":{name:"Vanilla Voyage",brand:"Maison Asrar",type:"EDP · 100ml · Unissex",price:399.90,weight:.6,length:20,height:12,width:16},
 "atheeri":{name:"Atheeri",brand:"Lattafa",type:"EDP · 100ml",price:469.90,weight:.6,length:20,height:12,width:16},
-"club-de-nuit-intense-man":{name:"Club de Nuit Intense Man",brand:"Armaf",type:"EDP · 100ml",price:289.90,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-intense-man":{name:"Club de Nuit Intense Man",brand:"Armaf",type:"EDT · 105ml",price:289.90,weight:.6,length:20,height:12,width:16},
 "musamam-white-intense":{name:"Musamam White Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:329.90,weight:.6,length:20,height:12,width:16},
 "afeef":{name:"Afeef",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:549.90,weight:.6,length:20,height:12,width:16},
 "queen-of-arabia":{name:"Queen of Arabia",brand:"Lattafa",type:"EDP · 100ml",price:519.90,weight:.6,length:20,height:12,width:16},
@@ -241,11 +241,11 @@ async function calcularFrete(request,env){
  try{
   const dados=await request.json(),cep=String(dados.cep||"").replace(/\D/g,"");
   if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
+  const items=await canonicalItems(dados.produtos,env);
+  if(destinoColatina(cep))return resposta({ok:true,fretes:[LOCAL_COLATINA]});
   if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
   await ensureAuthSchema(env);await seedInventory(env);
-  const items=await canonicalItems(dados.produtos,env);
   for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
-  if(await destinoColatina(cep))return resposta({ok:true,fretes:[LOCAL_COLATINA]});
   const produtos=items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}));
   const upstream=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify({postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:produtos})});
   const raw=await upstream.text();let data;try{data=JSON.parse(raw)}catch{data=null}
