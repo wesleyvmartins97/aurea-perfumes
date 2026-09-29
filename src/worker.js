@@ -233,13 +233,9 @@ async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
 const LOCAL_COLATINA={id:"local-colatina",company:"VALENZA",name:"Frete grátis em Colatina",carrier:"Entrega local Valenza",price:0,delivery_time:0,dropoff_points:[]};
-async function destinoColatina(cep){
- try{
-  const r=await fetch("https://viacep.com.br/ws/"+encodeURIComponent(cep)+"/json/");
-  if(!r.ok)return false;
-  const d=await r.json();
-  return !d.erro&&String(d.localidade||"").trim().toLowerCase()==="colatina"&&String(d.uf||"").trim().toUpperCase()==="ES";
- }catch{return false}
+function destinoColatina(cep){
+ const n=Number(String(cep||"").replace(/\D/g,""));
+ return Number.isInteger(n)&&n>=29700000&&n<=29719999;
 }
 async function calcularFrete(request,env){
  try{
