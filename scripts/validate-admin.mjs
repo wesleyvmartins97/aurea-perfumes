@@ -30,6 +30,20 @@ if(!wrangler.includes('"ADMIN_EMAILS"'))fail.push('ADMIN_EMAILS não configurado
 if(!wrangler.includes('"ADMIN_USERNAME": "wesleymartins"'))fail.push('Usuário administrativo esperado não configurado.');
 if(!wrangler.includes('"/admin"')||!wrangler.includes('"/admin/*"'))fail.push('run_worker_first não intercepta /admin e /admin/* antes do fallback SPA.');
 if(/ADMIN_PASSWORD/i.test(home+admin+worker+wrangler))fail.push('Senha administrativa não deve ficar em código ou variável pública.');
+if(!worker.includes('/api/admin/orders/delete-tests'))fail.push('Rota de limpeza dos pedidos de teste ausente.');
+if(!worker.includes('admin_deleted_test_orders'))fail.push('Exclusão de testes sem arquivo interno de segurança.');
+if(!worker.includes('Venda de cliente protegida'))fail.push('Trava para venda real ausente.');
+if(!worker.includes('Postagem EnvioEcom criada ou em preparação'))fail.push('Trava de postagem EnvioEcom ausente.');
+if(!worker.includes('Pagamento ainda ativo; cancele ou aguarde expirar'))fail.push('Trava para pagamento ativo ausente.');
+if(!worker.includes('shipment_locks'))fail.push('Proteção por lock de postagem ausente.');
+if(!worker.includes('shipping_id')||!worker.includes('barcode')||!worker.includes('tracking_code'))fail.push('Proteção pelos identificadores de postagem/rastreio incompleta.');
+if(!worker.includes('stock_deducted')||!worker.includes('UPDATE inventory SET stock=stock+?'))fail.push('Restauração de estoque da limpeza ausente.');
+if(!worker.includes('admin.id')||!worker.includes('admin.email'))fail.push('Limpeza não está limitada à própria conta administrativa.');
+if(!admin.includes('vaDeleteOrder'))fail.push('Seleção individual de pedidos de teste ausente.');
+if(!admin.includes('APAGAR SELECIONADOS'))fail.push('Ação de limpeza em lote ausente.');
+if(!admin.includes('data-delete-one'))fail.push('Ação de limpeza pedido a pedido ausente.');
+if(!admin.includes('Digite APAGAR'))fail.push('Confirmação explícita da exclusão ausente.');
+if(!admin.includes('CLIENTE REAL'))fail.push('Painel não sinaliza venda real protegida.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
-console.log('ADMIN APROVADO — integrado à Minha Conta, credencial separada, sessão própria, rate limit e /admin bloqueado.');
+console.log('ADMIN APROVADO — acesso privado, pedidos de teste selecionáveis, vendas reais/EnvioEcom/pagamentos ativos protegidos e exclusões arquivadas.');
