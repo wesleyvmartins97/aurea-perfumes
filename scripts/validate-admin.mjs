@@ -28,6 +28,7 @@ if(!worker.includes('allowedAdminEmail'))fail.push('Conta administrativa não es
 if(!worker.includes('if(url.pathname==="/admin"||url.pathname.startsWith("/admin/"))'))fail.push('/admin não foi bloqueado com 404.');
 if(!wrangler.includes('"ADMIN_EMAILS"'))fail.push('ADMIN_EMAILS não configurado.');
 if(!wrangler.includes('"ADMIN_USERNAME": "wesleymartins"'))fail.push('Usuário administrativo esperado não configurado.');
+if(!wrangler.includes('"/admin*"'))fail.push('run_worker_first não intercepta /admin antes do fallback SPA.');
 if(/ADMIN_PASSWORD/i.test(home+admin+worker+wrangler))fail.push('Senha administrativa não deve ficar em código ou variável pública.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
