@@ -69,8 +69,6 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name,created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_location ON analytics_events(country,region_code,city,created_at)")
-  ,env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_geo_cache (key TEXT PRIMARY KEY, city TEXT, region TEXT, region_code TEXT, country TEXT, created_at TEXT NOT NULL)")
-  ,env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_geo_rate (bucket TEXT PRIMARY KEY, created_at TEXT NOT NULL)")
  ]).catch(e=>{authSchemaReady=null;throw e});
  return authSchemaReady;
 }
@@ -194,30 +192,18 @@ async function analyticsEvent(request,env){
  }catch(e){console.error("Analytics event:",e);return resposta({ok:false},500)}
 }
 
-function geoCityFromAddress(a={}){return analyticsText(a.city||a.town||a.municipality||a.village||a.county||"",120)}
-function geoRegionCode(a={}){const raw=analyticsText(a["ISO3166-2-lvl4"]||a["ISO3166-2-lvl6"]||"",30);return raw.includes("-")?raw.split("-").pop():raw}
 async function analyticsLocation(request,env){
  try{
   await ensureAuthSchema(env);
   const origin=request.headers.get("Origin")||"";
   if(origin){try{if(new URL(origin).hostname!==new URL(request.url).hostname)return resposta({ok:false},403)}catch{return resposta({ok:false},403)}}
-  const d=await request.json().catch(()=>({})),visitorId=analyticsText(d.visitorId,80),sessionId=analyticsText(d.sessionId,80),lat=Number(d.lat),lon=Number(d.lon);
-  if(!/^[A-Za-z0-9_-]{8,80}$/.test(visitorId)||!/^[A-Za-z0-9_-]{8,80}$/.test(sessionId)||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return resposta({ok:false,error:"Localização inválida."},400);
-  const qLat=Math.round(lat*100)/100,qLon=Math.round(lon*100)/100,key=await sha256(qLat.toFixed(2)+","+qLon.toFixed(2)),db=primaryDb(env);
-  let geo=await db.prepare("SELECT city,region,region_code,country FROM analytics_geo_cache WHERE key=?").bind(key).first();
-  if(!geo){
-   const bucket=new Date().toISOString().slice(0,19),gate=await db.prepare("INSERT OR IGNORE INTO analytics_geo_rate(bucket,created_at) VALUES(?,?)").bind(bucket,new Date().toISOString()).run();
-   if((gate.meta?.changes||0)>0){
-    try{
-     const u=new URL("https://nominatim.openstreetmap.org/reverse");u.searchParams.set("format","jsonv2");u.searchParams.set("lat",String(qLat));u.searchParams.set("lon",String(qLon));u.searchParams.set("zoom","10");u.searchParams.set("addressdetails","1");u.searchParams.set("accept-language","pt-BR");
-     const rr=await fetch(u.toString(),{headers:{"User-Agent":"VALENZA-PARFUMS/1.0 (contato@valenzaparfums.com.br)","Referer":"https://www.valenzaparfums.com.br/","Accept":"application/json"}});
-     if(rr.ok){const j=await rr.json(),a=j?.address||{},city=geoCityFromAddress(a),region=analyticsText(a.state||a.region||"",120),regionCode=geoRegionCode(a),country=analyticsText((a.country_code||"").toUpperCase(),8);if(city||region||country){geo={city,region,region_code:regionCode,country};await db.prepare("INSERT OR REPLACE INTO analytics_geo_cache(key,city,region,region_code,country,created_at) VALUES(?,?,?,?,?,?)").bind(key,city,region,regionCode,country,new Date().toISOString()).run()}}
-    }catch(e){console.error("Reverse geo:",e)}
-   }
-  }
-  if(!geo)return resposta({ok:true,resolved:false});
-  await db.prepare("UPDATE analytics_events SET city=?,region=?,region_code=?,country=? WHERE visitor_id=? AND session_id=?").bind(geo.city||"",geo.region||"",geo.region_code||"",geo.country||"",visitorId,sessionId).run();
-  return resposta({ok:true,resolved:true,city:geo.city||"",region:geo.region||"",regionCode:geo.region_code||"",country:geo.country||""});
+  const d=await request.json().catch(()=>({})),visitorId=analyticsText(d.visitorId,80),sessionId=analyticsText(d.sessionId,80);
+  if(!/^[A-Za-z0-9_-]{8,80}$/.test(visitorId)||!/^[A-Za-z0-9_-]{8,80}$/.test(sessionId))return resposta({ok:false,error:"Sessão analítica inválida."},400);
+  const city=analyticsText(d.city,120),region=analyticsText(d.region,120),rawCode=analyticsText(d.regionCode,30),country=analyticsText(d.country,8).toUpperCase(),regionCode=rawCode.includes("-")?rawCode.split("-").pop():rawCode;
+  if(!city&&!region&&!country)return resposta({ok:false,error:"Cidade não identificada."},400);
+  const db=primaryDb(env);
+  await db.prepare("UPDATE analytics_events SET city=?,region=?,region_code=?,country=? WHERE visitor_id=? AND session_id=?").bind(city,region,regionCode,country,visitorId,sessionId).run();
+  return resposta({ok:true,resolved:true,city,region,regionCode,country});
  }catch(e){console.error("Analytics location:",e);return resposta({ok:false},500)}
 }
 async function analyticsDashboard(env){
