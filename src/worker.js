@@ -23,10 +23,12 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/pagamento/config"&&request.method==="GET"){const mp=mpConfig(env);return resposta({ok:true,cardEnabled:Boolean(mp.publicKey),publicKey:mp.publicKey||"",testMode:mp.testMode})}
  if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
  if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
- if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(),env);
+ if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(request,url.pathname.slice("/api/pagamento/".length).trim(),env);
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
-}};
+},
+async scheduled(controller,env,ctx){ctx.waitUntil(reconcileStalePixReservations(env))}
+};
 
 async function ensureAuthSchema(env){
  if(!env.DB)throw new Error("Banco D1 não conectado.");
@@ -160,12 +162,19 @@ async function accountOrderPix(request,env){
   const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
   const mr=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}}),raw=await mr.text();let md;try{md=JSON.parse(raw)}catch{md={}}if(!mr.ok)return resposta({ok:false,error:"Não foi possível consultar este Pix agora."},502);
   const tx=md?.transactions?.payments?.[0]||{},st=String(tx.status||md.status||""),detail=String(tx.status_detail||md.status_detail||""),approved=["processed","approved"].includes(st)||detail==="accredited",pix=tx?.payment_method?.qr_code||tx?.payment_method?.ticket_url?tx.payment_method:(tx?.payment_method||{});
-  if(approved){await consultarPagamento(id,env);return resposta({ok:true,paid:true,status:"approved",message:"Este pedido já está pago."})}
-  if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await consultarPagamento(id,env);return resposta({ok:false,expired:st==="expired",status:st,error:st==="expired"?"Este Pix expirou e não pode mais ser pago.":"Este Pix não está mais disponível para pagamento."},409)}
+  if(approved){await consultarPagamentoCore(id,env);return resposta({ok:true,paid:true,status:"approved",message:"Este pedido já está pago."})}
+  if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await consultarPagamentoCore(id,env);return resposta({ok:false,expired:st==="expired",status:st,error:st==="expired"?"Este Pix expirou e não pode mais ser pago.":"Este Pix não está mais disponível para pagamento."},409)}
   const qr=String(pix.qr_code||tx.qr_code||""),qr64=String(pix.qr_code_base64||tx.qr_code_base64||""),ticket=String(pix.ticket_url||tx.ticket_url||"");
   if(!qr&&!qr64&&!ticket)return resposta({ok:false,error:"O Mercado Pago não retornou os dados deste Pix. Gere um novo pagamento."},409);
   return resposta({ok:true,orderId:id,status:st||"pending",statusDetail:detail,amount:Number(ord.total||0).toFixed(2),qrCode:qr,qrCodeBase64:qr64,ticketUrl:ticket});
  }catch(e){console.error("Recuperar PIX:",e);return resposta({ok:false,error:"Não foi possível recuperar este Pix agora."},500)}
+}
+async function releaseReservedStock(env,orderId,now=new Date().toISOString()){
+ const its=await env.DB.prepare("SELECT id,product_id,quantity FROM order_items WHERE order_id=? AND stock_deducted=0").bind(orderId).all();
+ for(const it of (its.results||[])){
+  const marked=await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE id=? AND stock_deducted=0").bind(it.id).run();
+  if((marked.meta?.changes||0)>0)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(Number(it.quantity),now,it.product_id).run();
+ }
 }
 async function accountCancelOrder(request,env){
  try{
@@ -179,8 +188,7 @@ async function accountCancelOrder(request,env){
     if(mr.ok){const md=await mr.json(),tx=md?.transactions?.payments?.[0]||{},st=String(tx.status||md.status||"");if(["processed","approved"].includes(st)||String(tx.status_detail||md.status_detail||"")==="accredited")return resposta({ok:false,error:"O pagamento já foi aprovado e o pedido não pode ser cancelado."},409)}
    }catch(e){console.error("Consulta antes do cancelamento:",e)}
   }
-  const now=new Date().toISOString(),its=await env.DB.prepare("SELECT id,product_id,quantity FROM order_items WHERE order_id=? AND stock_deducted=0").bind(id).all();
-  for(const it of (its.results||[])){await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(Number(it.quantity),now,it.product_id).run();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE id=? AND stock_deducted=0").bind(it.id).run()}
+  const now=new Date().toISOString();await releaseReservedStock(env,id,now);
   await env.DB.batch([env.DB.prepare("UPDATE orders SET status='Cancelado',updated_at=? WHERE id=? AND customer_id=?").bind(now,id,u.id),env.DB.prepare("UPDATE order_payments SET status='cancelled',status_detail='cancelled_by_customer',updated_at=? WHERE order_id=?").bind(now,id)]);
   return resposta({ok:true,message:"Pedido cancelado."});
  }catch(e){console.error("Cancelar pedido:",e);return resposta({ok:false,error:"Não foi possível cancelar o pedido agora."},500)}
@@ -191,60 +199,61 @@ async function accountAddressDelete(request,env,id){try{const u=await currentCus
 async function servirAssets(request,env){const response=await env.ASSETS.fetch(request);const contentType=response.headers.get("content-type")||"";if(!contentType.includes("text/html")||new URL(request.url).pathname!=="/")return response;const html=await response.text();const headers=new Headers(response.headers);headers.set("Cache-Control","no-store, max-age=0, must-revalidate");headers.delete("ETag");return new Response(html,{status:response.status,statusText:response.statusText,headers})}
 async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
 const AUREA_CATALOG={
-"angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:289.90,weight:.6,length:20,height:12,width:16},
-"athena":{name:"Athena",brand:"Maison Alhambra",type:"EDP · 100ml",price:239.90,weight:.6,length:20,height:12,width:16},
-"delilah-blanc":{name:"Delilah Blanc",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"delilah":{name:"Delilah Pour Femme",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"fakhar-rose":{name:"Fakhar Rose",brand:"Lattafa",type:"EDP · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
-"sabah":{name:"Sabah Al Ward",brand:"Al Wataniah",type:"EDP · 100ml",price:249.90,weight:.6,length:20,height:12,width:16},
-"asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:259.90,weight:.6,length:20,height:12,width:16},
-"attar":{name:"Attar Al Wesal",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
-"decant-sabah":{name:"Decant Sabah Al Ward",brand:"Al Wataniah",type:"Decant · 5ml",price:52.00,weight:.15,length:12,height:5,width:8},
-"ameerati":{name:"Ameerati",brand:"Al Wataniah",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
-"angham":{name:"Angham",brand:"Lattafa",type:"EDP · 100ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"vanilla-voyage":{name:"Vanilla Voyage",brand:"Maison Asrar",type:"EDP · 100ml · Unissex",price:399.90,weight:.6,length:20,height:12,width:16},
-"atheeri":{name:"Atheeri",brand:"Lattafa",type:"EDP · 100ml",price:469.90,weight:.6,length:20,height:12,width:16},
-"club-de-nuit-intense-man":{name:"Club de Nuit Intense Man",brand:"Armaf",type:"EDT · 105ml",price:289.90,weight:.6,length:20,height:12,width:16},
-"musamam-white-intense":{name:"Musamam White Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:329.90,weight:.6,length:20,height:12,width:16},
-"afeef":{name:"Afeef",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:549.90,weight:.6,length:20,height:12,width:16},
-"queen-of-arabia":{name:"Queen of Arabia",brand:"Lattafa",type:"EDP · 100ml",price:519.90,weight:.6,length:20,height:12,width:16},
-"yara":{name:"Yara",brand:"Lattafa",type:"EDP · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
-"tharwah-gold":{name:"Tharwah Gold",brand:"Lattafa",type:"EDP · 100ml",price:449.90,weight:.6,length:20,height:12,width:16},
-"vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:429.90,weight:.6,length:20,height:12,width:16},
-"khamrah":{name:"Khamrah",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:229.90,weight:.6,length:20,height:12,width:16},
-"khamrah-qahwa":{name:"Khamrah Qahwa",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:249.90,weight:.6,length:20,height:12,width:16},
-"eclaire":{name:"Eclaire",brand:"Lattafa",type:"EDP · 100ml",price:319.90,weight:.6,length:20,height:12,width:16},
-"liquid-brun":{name:"Liquid Brun",brand:"French Avenue",type:"EDP · 100ml",price:399.90,weight:.6,length:20,height:12,width:16},
-"spectre-ghost":{name:"Spectre Ghost",brand:"French Avenue",type:"EDP · 80ml",price:329.90,weight:.6,length:20,height:12,width:16},
-"afnan-9pm":{name:"9 PM",brand:"Afnan",type:"EDP · 100ml",price:299.90,weight:.6,length:20,height:12,width:16},
-"hawas-ice":{name:"Hawas Ice",brand:"Rasasi",type:"EDP · 100ml",price:329.90,weight:.6,length:20,height:12,width:16},
-"yara-candy":{name:"Yara Candy",brand:"Lattafa",type:"EDP · 100ml",price:229.90,weight:.6,length:20,height:12,width:16},
-"tiramisu-coco":{name:"Tiramisu Coco",brand:"Zimaya",type:"EDP · 100ml · Unissex",price:279.90,weight:.6,length:20,height:12,width:16},
-"fatima-pink":{name:"Fatima Pink",brand:"Zimaya",type:"Extrait de Parfum · 100ml",price:269.90,weight:.6,length:20,height:12,width:16},
-"supremacy-not-only-intense":{name:"Supremacy Not Only Intense",brand:"Afnan",type:"Extrait de Parfum · 100ml",price:399.90,weight:.6,length:20,height:12,width:16},
-"club-de-nuit-milestone":{name:"Club de Nuit Milestone",brand:"Armaf",type:"EDP · 105ml",price:279.90,weight:.6,length:20,height:12,width:16},
-"club-de-nuit-untold":{name:"Club de Nuit Untold",brand:"Armaf",type:"EDP · 105ml · Unissex",price:329.90,weight:.6,length:20,height:12,width:16},
-"badee-al-oud-amethyst":{name:"Bade'e Al Oud Amethyst",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:229.90,weight:.6,length:20,height:12,width:16},
-"raghba-wood-intense":{name:"Raghba Wood Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:219.90,weight:.6,length:20,height:12,width:16},
-"designer-la-vie-est-belle":{name:"La Vie Est Belle",brand:"Lancôme",type:"EDP · 100ml",price:729.90,weight:.6,length:20,height:12,width:16},
-"designer-good-girl":{name:"Good Girl",brand:"Carolina Herrera",type:"EDP · 80ml",price:729.90,weight:.6,length:20,height:12,width:16},
-"designer-libre":{name:"Libre",brand:"Yves Saint Laurent",type:"EDP · 90ml",price:899.90,weight:.6,length:20,height:12,width:16},
-"designer-jadore":{name:"J'adore",brand:"Dior",type:"EDP · 100ml",price:1049.90,weight:.6,length:20,height:12,width:16},
-"designer-sauvage":{name:"Sauvage",brand:"Dior",type:"EDT · 100ml",price:899.90,weight:.6,length:20,height:12,width:16},
-"designer-212-vip-rose":{name:"212 VIP Rosé",brand:"Carolina Herrera",type:"EDP · 80ml",price:649.90,weight:.6,length:20,height:12,width:16},
-"designer-1-million":{name:"1 Million",brand:"Rabanne",type:"EDT · 100ml",price:519.90,weight:.6,length:20,height:12,width:16},
-"designer-versace-eros":{name:"Eros",brand:"Versace",type:"EDT · 100ml",price:759.90,weight:.6,length:20,height:12,width:16},
-"designer-acqua-di-gio":{name:"Acqua di Giò",brand:"Giorgio Armani",type:"EDT · 100ml",price:699.90,weight:.6,length:20,height:12,width:16},
-"designer-my-way":{name:"My Way",brand:"Giorgio Armani",type:"EDP · 90ml",price:799.90,weight:.6,length:20,height:12,width:16},
-"designer-scandal":{name:"Scandal",brand:"Jean Paul Gaultier",type:"EDP · 80ml",price:719.90,weight:.6,length:20,height:12,width:16},
-"designer-invictus":{name:"Invictus",brand:"Rabanne",type:"EDT · 100ml",price:799.90,weight:.6,length:20,height:12,width:16},
-"designer-black-opium":{name:"Black Opium",brand:"Yves Saint Laurent",type:"EDP · 90ml",price:649.90,weight:.6,length:20,height:12,width:16},
-"designer-light-blue":{name:"Light Blue",brand:"Dolce & Gabbana",type:"EDT · 100ml",price:729.90,weight:.6,length:20,height:12,width:16},
-"designer-miss-dior":{name:"Miss Dior",brand:"Dior",type:"EDP · 100ml",price:829.90,weight:.6,length:20,height:12,width:16},
-"designer-linterdit":{name:"L'Interdit",brand:"Givenchy",type:"EDP · 80ml",price:799.90,weight:.6,length:20,height:12,width:16}
+"angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:289.9,weight:.6,length:20,height:12,width:16},
+"athena":{name:"Athena",brand:"Maison Alhambra",type:"EDP · 100ml",price:239.9,weight:.6,length:20,height:12,width:16},
+"delilah-blanc":{name:"Delilah Blanc",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.9,weight:.6,length:20,height:12,width:16},
+"delilah":{name:"Delilah Pour Femme",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.9,weight:.6,length:20,height:12,width:16},
+"fakhar-rose":{name:"Fakhar Rose",brand:"Lattafa",type:"EDP · 100ml",price:269.9,weight:.6,length:20,height:12,width:16},
+"sabah":{name:"Sabah Al Ward",brand:"Al Wataniah",type:"EDP · 100ml",price:249.9,weight:.6,length:20,height:12,width:16},
+"asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:259.9,weight:.6,length:20,height:12,width:16},
+"attar":{name:"Attar Al Wesal",brand:"Al Wataniah",type:"EDP · 100ml",price:229.9,weight:.6,length:20,height:12,width:16},
+"decant-sabah":{name:"Decant Sabah Al Ward",brand:"Al Wataniah",type:"Decant · 5ml",price:52,weight:.15,length:12,height:5,width:8},
+"ameerati":{name:"Ameerati",brand:"Al Wataniah",type:"EDP · 100ml",price:229.9,weight:.6,length:20,height:12,width:16},
+"angham":{name:"Angham",brand:"Lattafa",type:"EDP · 100ml",price:279.9,weight:.6,length:20,height:12,width:16},
+"vanilla-voyage":{name:"Vanilla Voyage",brand:"Maison Asrar",type:"EDP · 100ml · Unissex",price:399.9,weight:.6,length:20,height:12,width:16},
+"atheeri":{name:"Atheeri",brand:"Lattafa",type:"EDP · 100ml",price:469.9,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-intense-man":{name:"Club de Nuit Intense Man",brand:"Armaf",type:"EDT · 105ml",price:289.9,weight:.6,length:20,height:12,width:16},
+"musamam-white-intense":{name:"Musamam White Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:329.9,weight:.6,length:20,height:12,width:16},
+"afeef":{name:"Afeef",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:549.9,weight:.6,length:20,height:12,width:16},
+"queen-of-arabia":{name:"Queen of Arabia",brand:"Lattafa",type:"EDP · 100ml",price:519.9,weight:.6,length:20,height:12,width:16},
+"yara":{name:"Yara",brand:"Lattafa",type:"EDP · 100ml",price:269.9,weight:.6,length:20,height:12,width:16},
+"tharwah-gold":{name:"Tharwah Gold",brand:"Lattafa",type:"EDP · 100ml",price:449.9,weight:.6,length:20,height:12,width:16},
+"vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:429.9,weight:.6,length:20,height:12,width:16},
+"khamrah":{name:"Khamrah",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:249.9,weight:.6,length:20,height:12,width:16},
+"khamrah-qahwa":{name:"Khamrah Qahwa",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:269.9,weight:.6,length:20,height:12,width:16},
+"eclaire":{name:"Eclaire",brand:"Lattafa",type:"EDP · 100ml",price:319.9,weight:.6,length:20,height:12,width:16},
+"liquid-brun":{name:"Liquid Brun",brand:"French Avenue",type:"EDP · 100ml",price:399.9,weight:.6,length:20,height:12,width:16},
+"spectre-ghost":{name:"Spectre Ghost",brand:"French Avenue",type:"EDP · 80ml",price:329.9,weight:.6,length:20,height:12,width:16},
+"afnan-9pm":{name:"9 PM",brand:"Afnan",type:"EDP · 100ml",price:299.9,weight:.6,length:20,height:12,width:16},
+"hawas-ice":{name:"Hawas Ice",brand:"Rasasi",type:"EDP · 100ml",price:329.9,weight:.6,length:20,height:12,width:16},
+"yara-candy":{name:"Yara Candy",brand:"Lattafa",type:"EDP · 100ml",price:249.9,weight:.6,length:20,height:12,width:16},
+"tiramisu-coco":{name:"Tiramisu Coco",brand:"Zimaya",type:"EDP · 100ml · Unissex",price:279.9,weight:.6,length:20,height:12,width:16},
+"fatima-pink":{name:"Fatima Pink",brand:"Zimaya",type:"Extrait de Parfum · 100ml",price:269.9,weight:.6,length:20,height:12,width:16},
+"supremacy-not-only-intense":{name:"Supremacy Not Only Intense",brand:"Afnan",type:"Extrait de Parfum · 100ml",price:399.9,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-milestone":{name:"Club de Nuit Milestone",brand:"Armaf",type:"EDP · 105ml",price:279.9,weight:.6,length:20,height:12,width:16},
+"club-de-nuit-untold":{name:"Club de Nuit Untold",brand:"Armaf",type:"EDP · 105ml · Unissex",price:399.9,weight:.6,length:20,height:12,width:16},
+"badee-al-oud-amethyst":{name:"Bade'e Al Oud Amethyst",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:229.9,weight:.6,length:20,height:12,width:16},
+"raghba-wood-intense":{name:"Raghba Wood Intense",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:219.9,weight:.6,length:20,height:12,width:16},
+"designer-la-vie-est-belle":{name:"La Vie Est Belle",brand:"Lancôme",type:"EDP · 100ml",price:749.9,weight:.6,length:20,height:12,width:16},
+"designer-good-girl":{name:"Good Girl",brand:"Carolina Herrera",type:"EDP · 80ml",price:779.9,weight:.6,length:20,height:12,width:16},
+"designer-libre":{name:"Libre",brand:"Yves Saint Laurent",type:"EDP · 90ml",price:979.9,weight:.6,length:20,height:12,width:16},
+"designer-jadore":{name:"J'adore",brand:"Dior",type:"EDP · 100ml",price:999.9,weight:.6,length:20,height:12,width:16},
+"designer-sauvage":{name:"Sauvage",brand:"Dior",type:"EDT · 100ml",price:829.9,weight:.6,length:20,height:12,width:16},
+"designer-212-vip-rose":{name:"212 VIP Rosé",brand:"Carolina Herrera",type:"EDP · 80ml",price:839.9,weight:.6,length:20,height:12,width:16},
+"designer-1-million":{name:"1 Million",brand:"Rabanne",type:"EDT · 100ml",price:559.9,weight:.6,length:20,height:12,width:16},
+"designer-versace-eros":{name:"Eros",brand:"Versace",type:"EDT · 100ml",price:729.9,weight:.6,length:20,height:12,width:16},
+"designer-acqua-di-gio":{name:"Acqua di Giò",brand:"Giorgio Armani",type:"EDT · 100ml",price:649.9,weight:.6,length:20,height:12,width:16},
+"designer-my-way":{name:"My Way",brand:"Giorgio Armani",type:"EDP · 90ml",price:999.9,weight:.6,length:20,height:12,width:16},
+"designer-scandal":{name:"Scandal",brand:"Jean Paul Gaultier",type:"EDP · 80ml",price:849.9,weight:.6,length:20,height:12,width:16},
+"designer-invictus":{name:"Invictus",brand:"Rabanne",type:"EDT · 100ml",price:649.9,weight:.6,length:20,height:12,width:16},
+"designer-black-opium":{name:"Black Opium",brand:"Yves Saint Laurent",type:"EDP · 90ml",price:949.9,weight:.6,length:20,height:12,width:16},
+"designer-light-blue":{name:"Light Blue",brand:"Dolce & Gabbana",type:"EDT · 100ml",price:629.9,weight:.6,length:20,height:12,width:16},
+"designer-miss-dior":{name:"Miss Dior",brand:"Dior",type:"EDP · 100ml",price:929.9,weight:.6,length:20,height:12,width:16},
+"designer-linterdit":{name:"L'Interdit",brand:"Givenchy",type:"EDP · 80ml",price:849.9,weight:.6,length:20,height:12,width:16},
+"armaf-club-de-nuit-maleka":{name:"Club de Nuit Maleka",brand:"Armaf",type:"EDP · 105ml",price:449.90,weight:.6,length:20,height:12,width:16}
 };
 async function officialCatalog(env){return AUREA_CATALOG}
-async function seedInventory(env){const now=new Date().toISOString();await env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)").run();const doneV1=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v1'").first();if(!doneV1){const catalog=await officialCatalog(env);const q=Object.keys(catalog).map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,10,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v1','10',?)").bind(now));await env.DB.batch(q)}const doneV2=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v2-new10'").first();if(!doneV2){const ids=["khamrah","khamrah-qahwa","eclaire","liquid-brun","spectre-ghost","afnan-9pm","hawas-ice","yara-candy","tiramisu-coco","fatima-pink"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v2-new10','100',?)").bind(now));await env.DB.batch(q)}const doneV4=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v4-new5'").first();if(!doneV4){const ids=["supremacy-not-only-intense","club-de-nuit-milestone","club-de-nuit-untold","badee-al-oud-amethyst","raghba-wood-intense"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v4-new5','100',?)").bind(now));await env.DB.batch(q)}const doneV5=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v5-designer16'").first();if(!doneV5){const ids=["designer-la-vie-est-belle","designer-good-girl","designer-libre","designer-jadore","designer-sauvage","designer-212-vip-rose","designer-1-million","designer-versace-eros","designer-acqua-di-gio","designer-my-way","designer-scandal","designer-invictus","designer-black-opium","designer-light-blue","designer-miss-dior","designer-linterdit"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v5-designer16','100',?)").bind(now));await env.DB.batch(q)}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
+async function seedInventory(env){const now=new Date().toISOString();await env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)").run();const doneV1=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v1'").first();if(!doneV1){const catalog=await officialCatalog(env);const q=Object.keys(catalog).map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,10,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v1','10',?)").bind(now));await env.DB.batch(q)}const doneV2=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v2-new10'").first();if(!doneV2){const ids=["khamrah","khamrah-qahwa","eclaire","liquid-brun","spectre-ghost","afnan-9pm","hawas-ice","yara-candy","tiramisu-coco","fatima-pink"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v2-new10','100',?)").bind(now));await env.DB.batch(q)}const doneV4=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v4-new5'").first();if(!doneV4){const ids=["supremacy-not-only-intense","club-de-nuit-milestone","club-de-nuit-untold","badee-al-oud-amethyst","raghba-wood-intense"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v4-new5','100',?)").bind(now));await env.DB.batch(q)}const doneV5=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v5-designer16'").first();if(!doneV5){const ids=["designer-la-vie-est-belle","designer-good-girl","designer-libre","designer-jadore","designer-sauvage","designer-212-vip-rose","designer-1-million","designer-versace-eros","designer-acqua-di-gio","designer-my-way","designer-scandal","designer-invictus","designer-black-opium","designer-light-blue","designer-miss-dior","designer-linterdit"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v5-designer16','100',?)").bind(now));await env.DB.batch(q)}const doneV6=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v6-maleka'").first();if(!doneV6){await env.DB.batch([env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("armaf-club-de-nuit-maleka",100,now),env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v6-maleka','100',?)").bind(now)])}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
 async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);return {id,qty:n,...p,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
@@ -252,6 +261,11 @@ const LOCAL_COLATINA={id:"local-colatina",company:"VALENZA",name:"Frete grátis 
 function destinoColatina(cep){
  const n=Number(String(cep||"").replace(/\D/g,""));
  return Number.isInteger(n)&&n>=29700000&&n<=29719999;
+}
+function shippingAddressComplete(shipping){
+ const cs=String(shipping?.cityState||""),parts=cs.split(/\s*-\s*/);
+ const street=String(shipping?.street||"").trim(),number=String(shipping?.number||"").trim(),neighborhood=String(shipping?.neighborhood||"").trim(),city=String(shipping?.city||parts[0]||"").trim(),state=String(shipping?.state||parts[1]||"").trim().toUpperCase();
+ return Boolean(street&&number&&neighborhood&&city&&/^[A-Z]{2}$/.test(state));
 }
 async function calcularFrete(request,env){
  try{
@@ -285,7 +299,7 @@ async function criarPagamentoPix(request,env){
   const dados=await request.json(),deviceId=String(dados.deviceId||"").trim().slice(0,256),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
   if(String(dados.paymentMethod||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Método de pagamento não disponível."},400);
   if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
-  const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
+  const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);if(!shippingAddressComplete(shipping))return resposta({ok:false,error:"Preencha o endereço completo antes de pagar."},400);
   await ensureAuthSchema(env);const u=await currentCustomer(request,env);
   if(!u)return resposta({ok:false,requiresLogin:true,error:"Para finalizar a compra, entre ou crie sua conta VALENZA."},401);
   if(!u.email_verified)return resposta({ok:false,requiresVerification:true,error:"Confirme seu e-mail antes de finalizar a compra."},403);
@@ -293,7 +307,7 @@ async function criarPagamentoPix(request,env){
   await seedInventory(env);const items=await canonicalItems(dados.items,env);
   const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
   const localDelivery=await destinoColatina(cep);
-  let chosen,freight;if(localDelivery){if(String(shipping.id||"")!==LOCAL_COLATINA.id)return resposta({ok:false,error:"Calcule o frete novamente para usar a entrega grátis em Colatina."},409);chosen=LOCAL_COLATINA;freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrierWanted);if(!chosen||String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=localDelivery?"Entrega local Valenza":String(chosen.carrier||chosen.company||"Envio Ecom");
+  let chosen,freight;if(localDelivery){if(String(shipping.id||"")!==LOCAL_COLATINA.id)return resposta({ok:false,error:"Calcule o frete novamente para usar a entrega grátis em Colatina."},409);chosen=LOCAL_COLATINA;freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);if(carrierWanted&&String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=localDelivery?"Entrega local Valenza":String(chosen.carrier||chosen.company||"Envio Ecom");
   const subtotal=items.reduce((s,x)=>s+pixPrice(x.price)*x.qty,0),total=Number((subtotal+freight).toFixed(2));
   for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
   const reserveAt=new Date().toISOString(),reserve=items.map(it=>env.DB.prepare("UPDATE inventory SET stock=stock-?,updated_at=? WHERE product_id=? AND stock>=?").bind(it.qty,reserveAt,it.id,it.qty)),rr=await env.DB.batch(reserve);
@@ -324,7 +338,7 @@ async function criarPagamentoCartao(request,env){
   if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);
   if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
   if(!token||!paymentMethodId||!Number.isInteger(installments)||installments<1||installments>12)return resposta({ok:false,error:"Dados do cartão ou parcelamento inválidos."},400);
-  const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
+  const cep=String(shipping.cep||"").replace(/\D/g,"");if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);if(!shippingAddressComplete(shipping))return resposta({ok:false,error:"Preencha o endereço completo antes de pagar."},400);
   if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
   await ensureAuthSchema(env);const u=await currentCustomer(request,env);
   if(!u)return resposta({ok:false,requiresLogin:true,error:"Para finalizar a compra, entre ou crie sua conta VALENZA."},401);
@@ -333,7 +347,7 @@ async function criarPagamentoCartao(request,env){
   await seedInventory(env);const items=await canonicalItems(dados.items,env);
   const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
   const localDelivery=await destinoColatina(cep);
-  let chosen,freight;if(localDelivery){if(String(shipping.id||"")!==LOCAL_COLATINA.id)return resposta({ok:false,error:"Calcule o frete novamente para usar a entrega grátis em Colatina."},409);chosen=LOCAL_COLATINA;freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)chosen=quotes.find(x=>String(x.carrier||x.company||"")===carrierWanted);if(!chosen||String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=localDelivery?"Entrega local Valenza":String(chosen.carrier||chosen.company||"Envio Ecom");
+  let chosen,freight;if(localDelivery){if(String(shipping.id||"")!==LOCAL_COLATINA.id)return resposta({ok:false,error:"Calcule o frete novamente para usar a entrega grátis em Colatina."},409);chosen=LOCAL_COLATINA;freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);if(carrierWanted&&String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=localDelivery?"Entrega local Valenza":String(chosen.carrier||chosen.company||"Envio Ecom");
   const subtotal=items.reduce((s,x)=>s+x.price*x.qty,0),total=Number((subtotal+freight).toFixed(2));
   for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
   const reserveAt=new Date().toISOString(),reserve=items.map(it=>env.DB.prepare("UPDATE inventory SET stock=stock-?,updated_at=? WHERE product_id=? AND stock>=?").bind(it.qty,reserveAt,it.id,it.qty)),rr=await env.DB.batch(reserve);
@@ -366,7 +380,30 @@ async function tentarGerarEtiqueta(env,orderId,shippingId,barcode){
   await env.DB.prepare("UPDATE order_shipping SET label_ready=1,updated_at=? WHERE order_id=?").bind(new Date().toISOString(),orderId).run();return true;
  }catch(e){console.error("Gerar etiqueta:",e);return false}
 }
-async function webhookMercadoPago(request,env){try{const body=await request.json().catch(()=>({}));const id=String(body?.data?.id||body?.id||"");if(!id)return resposta({ok:true});const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Mercado Pago não configurado."},503);const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)return resposta({ok:true});const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||""),detail=String(tx.status_detail||d.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",pid=String(d.id||id),now=new Date().toISOString();const label=approved?"Pago":({processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado"}[st]||"Processando");await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE guest_orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid).run();if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Webhook expedição:",e)}}else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){const its=await env.DB.prepare("SELECT id,product_id,quantity FROM order_items WHERE order_id=? AND stock_deducted=0").bind(pid).all();for(const it of (its.results||[])){await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(Number(it.quantity),now,it.product_id).run();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE id=? AND stock_deducted=0").bind(it.id).run()}}return resposta({ok:true})}catch(e){console.error("Webhook Mercado Pago:",e);return resposta({ok:true})}}
+async function reconcileStalePixReservations(env){
+ try{
+  await ensureAuthSchema(env);const cfg=mpConfig(env);if(!cfg.accessToken)return;
+  const cutoff=new Date(Date.now()-40*60e3).toISOString();
+  const rows=await env.DB.prepare("SELECT order_id FROM order_payments WHERE lower(method)='pix' AND created_at<? AND lower(COALESCE(status,'')) IN ('','created','pending','processing','action_required') ORDER BY created_at ASC LIMIT 20").bind(cutoff).all();
+  for(const row of (rows.results||[])){
+   const id=String(row.order_id||"");if(!id)continue;
+   try{
+    const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});
+    if(!r.ok)continue;
+    const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||"").toLowerCase(),detail=String(tx.status_detail||d.status_detail||""),approved=["processed","approved"].includes(st)||detail==="accredited",now=new Date().toISOString();
+    if(approved){
+     await env.DB.batch([env.DB.prepare("UPDATE orders SET status='Pago',updated_at=? WHERE id=?").bind(now,id),env.DB.prepare("UPDATE guest_orders SET status='Pago',updated_at=? WHERE id=?").bind(now,id),env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st||"approved",detail,now,id),env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(id)]);
+     if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,id)}catch(e){console.error("Reconciliação PIX expedição:",e)}
+    }else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){
+     await releaseReservedStock(env,id,now);
+     const label=st==="expired"?"Expirado":(["canceled","cancelled"].includes(st)?"Cancelado":"Pagamento recusado");
+     await env.DB.batch([env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,id),env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,id),env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,id)]);
+    }
+   }catch(e){console.error("Reconciliação PIX item:",id,e)}
+  }
+ }catch(e){console.error("Reconciliação PIX:",e)}
+}
+async function webhookMercadoPago(request,env){try{const body=await request.json().catch(()=>({}));const id=String(body?.data?.id||body?.id||"");if(!id)return resposta({ok:true});await ensureAuthSchema(env);const local=await env.DB.prepare("SELECT id FROM orders WHERE id=? UNION SELECT id FROM guest_orders WHERE id=? LIMIT 1").bind(id,id).first();if(!local)return resposta({ok:true});const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Mercado Pago não configurado."},503);const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)return resposta({ok:true});const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||""),detail=String(tx.status_detail||d.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",pid=String(d.id||id),now=new Date().toISOString();const label=approved?"Pago":({processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado"}[st]||"Processando");await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE guest_orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid).run();if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Webhook expedição:",e)}}else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now)}return resposta({ok:true})}catch(e){console.error("Webhook Mercado Pago:",e);return resposta({ok:true})}}
 async function criarEnvioEnvioEcom(env,orderId){
  await ensureAuthSchema(env);
  if(!env.ENVIOECOM_TOKEN)return {ok:false,error:"Token EnvioEcom ausente"};const originCep=String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"");if(originCep.length!==8)return {ok:false,error:"CEP de origem da postagem não configurado"};
@@ -374,18 +411,27 @@ async function criarEnvioEnvioEcom(env,orderId){
  if(sh.shipping_id){const ready=Number(sh.label_ready)||await tentarGerarEtiqueta(env,orderId,sh.shipping_id,sh.barcode);return {ok:true,shippingId:sh.shipping_id,barcode:sh.barcode,existing:true,labelReady:!!ready}}
  if(String(sh.carrier||"")==="Entrega local Valenza")return {ok:true,localDelivery:true};
  if(!sh.carrier||!sh.cep||!sh.street||!sh.number||!sh.city||!sh.state)return {ok:false,error:"Dados de entrega incompletos"};
- const lockNow=new Date().toISOString();const lk=await env.DB.prepare("INSERT OR IGNORE INTO shipment_locks(order_id,state,created_at,updated_at) VALUES(?,?,?,?)").bind(String(orderId),"creating",lockNow,lockNow).run();if((lk.meta?.changes||0)<1){const again=await env.DB.prepare("SELECT shipping_id,barcode,label_ready FROM order_shipping WHERE order_id=?").bind(orderId).first();if(again?.shipping_id)return {ok:true,shippingId:again.shipping_id,barcode:again.barcode,existing:true,labelReady:!!again.label_ready};return {ok:false,pending:true,error:"Postagem já está sendo preparada"}}
+ const oldLock=await env.DB.prepare("SELECT state,updated_at FROM shipment_locks WHERE order_id=?").bind(String(orderId)).first();if(oldLock?.state==="creating"&&Date.parse(oldLock.updated_at||"0")<Date.now()-10*60e3)await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(String(orderId)).run();const lockNow=new Date().toISOString();const lk=await env.DB.prepare("INSERT OR IGNORE INTO shipment_locks(order_id,state,created_at,updated_at) VALUES(?,?,?,?)").bind(String(orderId),"creating",lockNow,lockNow).run();if((lk.meta?.changes||0)<1){const again=await env.DB.prepare("SELECT shipping_id,barcode,label_ready FROM order_shipping WHERE order_id=?").bind(orderId).first();if(again?.shipping_id)return {ok:true,shippingId:again.shipping_id,barcode:again.barcode,existing:true,labelReady:!!again.label_ready};return {ok:false,pending:true,error:"Postagem já está sendo preparada"}}
  const oi=await env.DB.prepare("SELECT product_id,name,quantity,unit_price FROM order_items WHERE order_id=?").bind(orderId).all(),items=oi.results||[];if(!items.length)return {ok:false,error:"Itens do pedido não encontrados"};
  const ord=await env.DB.prepare("SELECT order_number,total FROM orders WHERE id=? UNION SELECT order_number,total FROM guest_orders WHERE id=? LIMIT 1").bind(orderId,orderId).first();if(!ord)return {ok:false,error:"Pedido não encontrado"};
  const catalog=await officialCatalog(env);let weight=0,height=0,width=0,length=0;for(const x of items){const p=catalog[x.product_id];if(!p)continue;weight+=p.weight*Number(x.quantity);height+=p.height*Number(x.quantity);width=Math.max(width,p.width);length=Math.max(length,p.length)}height=Math.max(5,Math.min(height,100));
  const payload={shipments:[{orderId:String(ord.order_number||orderId),shipping_company:String(sh.carrier),cep_origem:originCep,cep_destino:String(sh.cep),freight_cost:Number(sh.freight_cost||0).toFixed(2),delivery_time:String(Number(sh.delivery_time)||0),height:String(height),width:String(width||16),length:String(length||20),weight:Number(weight||.6).toFixed(3),cost:Number(ord.total||0).toFixed(2),name:String(sh.customer_name||""),document_number:String(sh.cpf||""),phone_number:String(sh.phone||""),email:String(sh.email||""),logradouro:String(sh.street||""),number:String(sh.number||""),complemento:String(sh.complement||""),bairro:String(sh.neighborhood||""),localidade:String(sh.city||""),uf:String(sh.state||""),items:items.map(x=>({name:String(x.name),quantity:Number(x.quantity)||1,unit_cost:Number(x.unit_price)||0}))}]};
- const r=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/create",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(payload)}),raw=await r.text();let d;try{d=JSON.parse(raw)}catch{d=null}
+ let r,raw;try{r=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/create",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(payload)});raw=await r.text()}catch(e){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();throw e}let d;try{d=JSON.parse(raw)}catch{d=null}
  if(!r.ok){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();console.error("EnvioEcom create:",r.status,raw.slice(0,1000));return {ok:false,error:"EnvioEcom recusou a criação do envio",status:r.status}}
  const x=Array.isArray(d)?d[0]:(Array.isArray(d?.shipments)?d.shipments[0]:(d?.data?.[0]||d?.shipment||d)),sid=x?.shipping_id??x?.id??null,barcode=x?.barcode??x?.tracking_code??null;if(!sid){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();return {ok:false,error:"Envio criado sem identificador"}};
  const now=new Date().toISOString();await env.DB.batch([env.DB.prepare("UPDATE order_shipping SET shipping_id=?,barcode=?,updated_at=? WHERE order_id=? AND shipping_id IS NULL").bind(String(sid),barcode?String(barcode):null,now,orderId),env.DB.prepare("UPDATE orders SET tracking_code=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,String(sh.carrier),now,orderId),env.DB.prepare("UPDATE guest_orders SET tracking_code=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,String(sh.carrier),now,orderId)]);
  await env.DB.prepare("UPDATE shipment_locks SET state=?,updated_at=? WHERE order_id=?").bind("created",new Date().toISOString(),orderId).run();const labelReady=await tentarGerarEtiqueta(env,orderId,sid,barcode);return {ok:true,shippingId:String(sid),barcode:barcode?String(barcode):null,labelReady};
 }
-async function consultarPagamento(orderId,env){
+async function consultarPagamento(request,orderId,env){
+ try{
+  if(!orderId)return resposta({ok:false,error:"ID de pagamento inválido."},400);
+  const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);
+  const own=await env.DB.prepare("SELECT id FROM orders WHERE id=? AND customer_id=? UNION SELECT id FROM guest_orders WHERE id=? AND lower(email)=lower(?) LIMIT 1").bind(String(orderId),u.id,String(orderId),u.email).first();
+  if(!own)return resposta({ok:false,error:"Pedido não encontrado na sua conta."},404);
+  return consultarPagamentoCore(orderId,env);
+ }catch(e){console.error("Autorização consulta pagamento:",e);return resposta({ok:false,error:"Não foi possível consultar este pagamento."},500)}
+}
+async function consultarPagamentoCore(orderId,env){
  if(!orderId)return resposta({ok:false,error:"ID de pagamento inválido."},400);const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
  try{
   await ensureAuthSchema(env);const card=await env.DB.prepare("SELECT order_id FROM order_payments WHERE order_id=?").bind(String(orderId)).first();
@@ -394,7 +440,7 @@ async function consultarPagamento(orderId,env){
    const tx=result?.transactions?.payments?.[0]||{},st=String(tx.status||result.status||""),detail=String(tx.status_detail||result.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",map={processed:"Pago",approved:"Pago",processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado",expired:"Expirado"},label=approved?"Pago":(map[st]||"Processando"),now=new Date().toISOString(),pid=String(result.id||orderId);
    await env.DB.batch([env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid),env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid),env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid)]);
    if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Consulta expedição:",e)}}
-   else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){const its=await env.DB.prepare("SELECT id,product_id,quantity FROM order_items WHERE order_id=? AND stock_deducted=0").bind(pid).all();for(const it of (its.results||[])){await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(Number(it.quantity),now,it.product_id).run();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE id=? AND stock_deducted=0").bind(it.id).run()}}
+   else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now)}
    return resposta({ok:true,orderId:pid,status:approved?"approved":st,statusDetail:detail,paymentId:pid,shipping:null});
   }
   if(!/^\d+$/.test(String(orderId)))return resposta({ok:false,error:"ID de pagamento inválido."},400);
@@ -402,7 +448,7 @@ async function consultarPagamento(orderId,env){
   const map={approved:"Pago",pending:"Aguardando pagamento",in_process:"Processando",rejected:"Pagamento recusado",cancelled:"Cancelado",expired:"Expirado",refunded:"Reembolsado"},label=map[result.status]||String(result.status||"Aguardando pagamento"),now=new Date().toISOString(),pid=String(result.id??orderId);
   await env.DB.batch([env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid),env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid)]);
   if(result.status==="approved"){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Consulta expedição legacy:",e)}}
-  else if(["cancelled","rejected","expired"].includes(result.status)){const its=await env.DB.prepare("SELECT id,product_id,quantity FROM order_items WHERE order_id=? AND stock_deducted=0").bind(pid).all();for(const it of (its.results||[])){await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(Number(it.quantity),now,it.product_id).run();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE id=? AND stock_deducted=0").bind(it.id).run()}}
+  else if(["cancelled","rejected","expired"].includes(result.status)){await releaseReservedStock(env,pid,now)}
   return resposta({ok:true,orderId:pid,status:result.status??null,statusDetail:result.status_detail??null,paymentId:pid,shipping:null});
  }catch(e){console.error("Consultar pagamento:",e);return resposta({ok:false,error:"Erro ao consultar pagamento."},500)}
 }

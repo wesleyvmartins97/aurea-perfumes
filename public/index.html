@@ -649,6 +649,12 @@ async function saveClientProfile(){
 }
 initClientCenter();
 
+function openProductFromUrl(){
+ const id=new URLSearchParams(location.search).get('produto');
+ if(!id||!CATALOG.some(x=>x.id===id))return;
+ detail(id);
+}
+
 function bootAurea(){
  try{render()}catch(e){console.error('AUREA render',e)}
  try{enableOutsideModalClose()}catch(e){console.error('AUREA modal',e)}
