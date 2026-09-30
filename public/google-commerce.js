@@ -6,7 +6,6 @@ const PENDING_PREFIX='valenza_pending_purchase_';
 const VISITOR_KEY='valenza_analytics_visitor';
 const SESSION_KEY='valenza_analytics_session';
 const ATTR_KEY='valenza_analytics_attribution';
-const LOCATION_KEY='valenza_location_choice';
 let measurementId='',ready=false,loading=false,currentProductId='';
 
 function catalog(){
@@ -115,13 +114,6 @@ function loadGoogleTag(){
  if(currentProductId)trackCurrentProduct();
 }
 
-function locationChoice(){
- try{return JSON.parse(localStorage.getItem(LOCATION_KEY)||'null')}catch{return null}
-}
-function saveLocationChoice(choice){
- try{localStorage.setItem(LOCATION_KEY,JSON.stringify({choice,t:Date.now()}))}catch{}
-}
-function removeLocationPrimer(){document.getElementById('valenzaLocationPrimer')?.remove()}
 async function sendDeviceLocation(position){
  try{
   const u=new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
@@ -137,36 +129,20 @@ async function sendDeviceLocation(position){
  }catch{return {}}
 }
 function requestDeviceLocation(){
- removeLocationPrimer();
- if(!navigator.geolocation){saveLocationChoice('unsupported');return}
+ if(!navigator.geolocation)return false;
  navigator.geolocation.getCurrentPosition(
-  async pos=>{saveLocationChoice('granted');await sendDeviceLocation(pos)},
-  err=>{saveLocationChoice(err?.code===1?'blocked':'failed')},
+  pos=>{sendDeviceLocation(pos).catch(()=>{})},
+  ()=>{},
   {enableHighAccuracy:true,timeout:9000,maximumAge:10*60*1000}
  );
+ return true;
 }
-function locationPrimer(){
- if(!consentGranted()||!navigator.geolocation||document.getElementById('valenzaLocationPrimer'))return;
- const saved=locationChoice(),age=saved?Date.now()-Number(saved.t||0):Infinity;
- if(saved?.choice==='granted'||saved?.choice==='blocked'||saved?.choice==='unsupported')return;
- if(saved?.choice==='later'&&age<30*86400e3)return;
- const box=document.createElement('div');box.id='valenzaLocationPrimer';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Localização aproximada');
- box.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(18,16,14,.62);display:grid;place-items:center;padding:22px';
- box.innerHTML='<div style="width:min(460px,100%);background:#fbf9f6;border:1px solid #d9d0c7;box-shadow:0 28px 80px rgba(0,0,0,.35);padding:30px 26px;text-align:left;color:#171513"><div style="font:10px Arial,sans-serif;letter-spacing:4px;color:#9a8877;margin-bottom:14px">EXPERIÊNCIA VALENZA</div><div style="font:32px/1.08 Georgia,serif;margin-bottom:16px">Sua cidade, com mais precisão</div><div style="font:13px/1.75 Arial,sans-serif;color:#6f675f;margin-bottom:22px">Se você permitir, usamos a localização do aparelho somente para identificar <b>cidade e estado</b> nas estatísticas da loja. A VALENZA recebe apenas essa informação resumida — não salvamos GPS, endereço, CEP, latitude ou longitude.</div><div style="display:grid;gap:9px"><button id="valenzaLocationAllow" type="button" style="border:0;background:#171513;color:#fff;padding:14px 16px;font:700 11px Arial,sans-serif;letter-spacing:1.4px;cursor:pointer">USAR MINHA LOCALIZAÇÃO</button><button id="valenzaLocationLater" type="button" style="border:1px solid #cfc5bc;background:#fff;color:#171513;padding:13px 16px;font:600 10px Arial,sans-serif;letter-spacing:1.2px;cursor:pointer">AGORA NÃO</button></div><div style="font:10px/1.5 Arial,sans-serif;color:#9a9189;margin-top:14px">Depois de continuar, o próprio navegador poderá pedir sua autorização.</div></div>';
- document.body.appendChild(box);
- document.getElementById('valenzaLocationAllow').onclick=requestDeviceLocation;
- document.getElementById('valenzaLocationLater').onclick=()=>{saveLocationChoice('later');removeLocationPrimer()};
-}
-async function maybeRequestDeviceLocation(){
- if(!consentGranted()||!navigator.geolocation)return;
+async function refreshGrantedDeviceLocation(){
+ if(!consentGranted()||!navigator.geolocation||!navigator.permissions?.query)return;
  try{
-  if(navigator.permissions?.query){
-   const p=await navigator.permissions.query({name:'geolocation'});
-   if(p.state==='granted'){navigator.geolocation.getCurrentPosition(pos=>sendDeviceLocation(pos).catch(()=>{}),()=>{},{enableHighAccuracy:true,timeout:7000,maximumAge:10*60*1000});saveLocationChoice('granted');return}
-   if(p.state==='denied'){saveLocationChoice('blocked');return}
-  }
+  const p=await navigator.permissions.query({name:'geolocation'});
+  if(p.state==='granted')navigator.geolocation.getCurrentPosition(pos=>sendDeviceLocation(pos).catch(()=>{}),()=>{},{enableHighAccuracy:true,timeout:7000,maximumAge:10*60*1000});
  }catch{}
- locationPrimer();
 }
 function consentBanner(){
  if(document.getElementById('valenzaConsent'))return;
@@ -175,9 +151,9 @@ function consentBanner(){
  box.setAttribute('role','dialog');
  box.setAttribute('aria-label','Preferências de privacidade');
  box.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:5000;max-width:760px;margin:auto;background:#171513;color:#f4efe9;border:1px solid #4d453f;border-radius:8px;padding:16px 18px;font:11px/1.55 Arial,sans-serif;box-shadow:0 15px 45px rgba(0,0,0,.28)';
- box.innerHTML='<div style="font:17px Georgia,serif;margin-bottom:6px">Privacidade e medição</div><div style="color:#c9c1b8">Com sua autorização, a VALENZA usa medição própria e Google Analytics para entender visitas, origem do tráfego, produtos vistos, carrinho e compras e melhorar a loja. A localização usada nessa medição é aproximada por cidade/estado. Você pode continuar sem permitir essa medição.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="valenzaConsentAccept" type="button" style="border:0;background:#f5f1ec;color:#171513;padding:10px 14px;font-size:10px;font-weight:700;cursor:pointer">ACEITAR MEDIÇÃO</button><button id="valenzaConsentReject" type="button" style="border:1px solid #625951;background:transparent;color:#f5f1ec;padding:10px 14px;font-size:10px;cursor:pointer">CONTINUAR SEM MEDIÇÃO</button><a href="/privacidade/" style="color:#d8d0c8;align-self:center;margin-left:auto">Privacidade</a></div>';
+ box.innerHTML='<div style="font:10px Arial,sans-serif;letter-spacing:3px;color:#b7a99d;margin-bottom:7px">EXPERIÊNCIA VALENZA</div><div style="font:20px Georgia,serif;margin-bottom:7px">Uma experiência mais personalizada</div><div style="color:#c9c1b8">Ao ativar, você autoriza a VALENZA a usar medição própria e Google Analytics para entender a experiência na loja e melhorar navegação, produtos e campanhas. O navegador também poderá pedir sua localização para deixar apenas <b>cidade e estado</b> mais precisos; essa permissão pode ser negada sem impedir o uso da loja.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="valenzaConsentAccept" type="button" style="border:0;background:#f5f1ec;color:#171513;padding:10px 14px;font-size:10px;font-weight:700;cursor:pointer">ATIVAR EXPERIÊNCIA VALENZA</button><button id="valenzaConsentReject" type="button" style="border:1px solid #625951;background:transparent;color:#f5f1ec;padding:10px 14px;font-size:10px;cursor:pointer">CONTINUAR SEM PERSONALIZAÇÃO</button><a href="/privacidade/" style="color:#d8d0c8;align-self:center;margin-left:auto">Privacidade</a></div>';
  document.body.appendChild(box);
- box.querySelector('#valenzaConsentAccept').onclick=()=>{localStorage.setItem(CONSENT_KEY,'granted');box.remove();trackInternalPageView();loadGoogleTag();setTimeout(maybeRequestDeviceLocation,250)};
+ box.querySelector('#valenzaConsentAccept').onclick=()=>{localStorage.setItem(CONSENT_KEY,'granted');requestDeviceLocation();box.remove();trackInternalPageView();loadGoogleTag()};
  box.querySelector('#valenzaConsentReject').onclick=()=>{localStorage.setItem(CONSENT_KEY,'denied');box.remove()};
 }
 async function init(){
@@ -187,7 +163,7 @@ async function init(){
   if(r.ok&&d.ok&&d.enabled&&/^G-[A-Z0-9]+$/i.test(String(d.measurementId||'')))measurementId=String(d.measurementId);
  }catch{}
  let consent='';try{consent=localStorage.getItem(CONSENT_KEY)||''}catch{}
- if(consent==='granted'){trackInternalPageView();loadGoogleTag();setTimeout(maybeRequestDeviceLocation,300)}
+ if(consent==='granted'){trackInternalPageView();loadGoogleTag();refreshGrantedDeviceLocation()}
  else if(consent!=='denied')consentBanner();
 }
 
@@ -232,7 +208,7 @@ window.valenzaTrackPurchase=({transactionId,value,paymentType='card'}={})=>{
  }
  return sent;
 };
-window.valenzaResetAnalyticsConsent=()=>{try{localStorage.removeItem(CONSENT_KEY);localStorage.removeItem(LOCATION_KEY)}catch{};location.reload()};
+window.valenzaResetAnalyticsConsent=()=>{try{localStorage.removeItem(CONSENT_KEY)}catch{};location.reload()};
 
 function wrap(name,factory){
  const original=window[name];

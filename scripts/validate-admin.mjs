@@ -30,6 +30,15 @@ if(!worker.includes('admin_login_attempts'))fail.push('Proteção contra tentati
 if(!worker.includes('valenza_admin='))fail.push('Cookie administrativo separado ausente.');
 if(!worker.includes('SameSite=Strict'))fail.push('Cookie administrativo sem SameSite=Strict.');
 if(!worker.includes('HttpOnly; Secure'))fail.push('Cookie administrativo sem HttpOnly/Secure.');
+if(!worker.includes('__Host-valenza_session='))fail.push('Sessão do cliente não usa cookie único __Host- seguro.');
+if(!worker.includes('legacySessionClearCookies'))fail.push('Migração não limpa cookies antigos aurea_session.');
+if(worker.includes('sessionCookies(request,token)'))fail.push('Sessão do cliente voltou a gravar cookies duplicados.');
+if(!worker.includes('if(url.protocol!=="https:")'))fail.push('Worker não força HTTP para HTTPS antes da autenticação.');
+if(!worker.includes('target.protocol="https:"'))fail.push('Redirecionamento canônico não força HTTPS.');
+if(!worker.includes('Strict-Transport-Security'))fail.push('Worker não envia HSTS para manter a loja em HTTPS.');
+if(!home.includes("credentials:'include'"))fail.push('Fluxo de conta não envia credenciais explicitamente.');
+if(!worker.includes('Seu cadastro pendente expirou após 24 horas'))fail.push('Reenvio não informa corretamente cadastro expirado.');
+if(!home.includes("if(d.expired||d.notPending)"))fail.push('Front não direciona cadastro expirado para CRIAR CONTA.');
 if(!worker.includes('allowedAdminEmail'))fail.push('Conta administrativa não está vinculada à conta autorizada.');
 if(!worker.includes('if(url.pathname==="/admin"||url.pathname.startsWith("/admin/"))'))fail.push('/admin não foi bloqueado com 404.');
 if(!wrangler.includes('"ADMIN_EMAILS"'))fail.push('ADMIN_EMAILS não configurado.');

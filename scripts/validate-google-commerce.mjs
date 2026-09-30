@@ -15,7 +15,8 @@ if(!worker.includes('GA4_MEASUREMENT_ID'))fail.push('Worker não lê GA4_MEASURE
 if(!worker.includes('/api/analytics/event'))fail.push('Worker sem endpoint de Analytics interno.');
 if(!worker.includes('/api/analytics/location'))fail.push('Worker sem endpoint para atualizar cidade/estado autorizados.');
 if(!js.includes('navigator.geolocation.getCurrentPosition'))fail.push('Site não solicita localização nativa após autorização.');
-if(!js.includes('EXPERIÊNCIA VALENZA')||!js.includes('USAR MINHA LOCALIZAÇÃO')||!js.includes('AGORA NÃO'))fail.push('Pré-permissão de localização não segue o fluxo visual esperado.');
+if(!js.includes('EXPERIÊNCIA VALENZA')||!js.includes('ATIVAR EXPERIÊNCIA VALENZA')||!js.includes('CONTINUAR SEM PERSONALIZAÇÃO'))fail.push('Banner de privacidade não segue o fluxo visual VALENZA esperado.');
+if(js.includes('valenzaLocationPrimer')||js.includes('USAR MINHA LOCALIZAÇÃO')||js.includes('AGORA NÃO'))fail.push('Fluxo antigo de segunda janela de localização ainda está presente.');
 if(!js.includes('api.bigdatacloud.net/data/reverse-geocode-client'))fail.push('Localização autorizada não resolve cidade/estado no próprio navegador.');
 if(!js.includes("JSON.stringify({visitorId:visitorId(),sessionId:sessionId(),city,region,regionCode,country})"))fail.push('Cliente não envia apenas cidade/estado resumidos ao Worker.');
 const locationWorker=worker.slice(worker.indexOf('async function analyticsLocation'),worker.indexOf('async function analyticsDashboard'));if(/\blat\b|\blon\b|latitude|longitude|nominatim/i.test(locationWorker))fail.push('Worker de Analytics não deve receber coordenadas brutas.');
@@ -31,7 +32,8 @@ if(!privacy.includes('estado/região e cidade aproximados'))fail.push('Privacida
 if(!privacy.includes('não armazena nessa medição o endereço IP'))fail.push('Privacidade não informa que IP não é armazenado na medição.');
 const analyticsBlock=worker.slice(worker.indexOf('async function analyticsEvent'),worker.indexOf('async function analyticsDashboard'));if(analyticsBlock.includes('CF-Connecting-IP')||analyticsBlock.includes('latitude')||analyticsBlock.includes('longitude')||analyticsBlock.includes('postalCode'))fail.push('Analytics interno não deve armazenar IP, coordenadas ou CEP da visita.');
 if(!js.includes("CONSENT_KEY='valenza_google_consent'"))fail.push('Tracking sem consentimento persistente.');
-if(!js.includes("CONTINUAR SEM MEDIÇÃO"))fail.push('Banner sem opção de continuar sem medição.');
+if(!js.includes("CONTINUAR SEM PERSONALIZAÇÃO"))fail.push('Banner sem opção clara de continuar sem personalização.');
+if(!js.includes("localStorage.setItem(CONSENT_KEY,'granted');requestDeviceLocation();"))fail.push('Aceite da medição não aciona a permissão nativa de localização no mesmo clique.');
 if(!js.includes('valenzaTrackPurchase'))fail.push('Função de purchase ausente.');
 if(!js.includes('PURCHASE_PREFIX'))fail.push('Deduplicação de purchase ausente.');
 if(!home.includes("window.valenzaTrackBeginCheckout?.()"))fail.push('Checkout não dispara begin_checkout no ponto real de abertura.');
