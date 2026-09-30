@@ -4,6 +4,8 @@ const fail=[];
 const CPF='140.992.757-10';
 const EMAIL='contato@valenzaparfums.com.br';
 const WHATS='99796-2708';
+const ADDRESS='Av. Silvio Avidos, 1077';
+const CEP='29703-131';
 const read=p=>fs.readFileSync(p,'utf8');
 
 const files={
@@ -26,6 +28,8 @@ for(const [i,html] of allLegal.entries()){
  if(!html.includes(EMAIL))fail.push(`${legalNames[i]}: e-mail oficial ausente.`);
  if(!html.includes(WHATS))fail.push(`${legalNames[i]}: WhatsApp oficial ausente.`);
  if(!html.includes('Colatina/ES'))fail.push(`${legalNames[i]}: local da operação ausente.`);
+ if(!html.includes(ADDRESS)||!html.includes(CEP))fail.push(`${legalNames[i]}: endereço operacional completo ausente.`);
+ if(!/não funciona como loja física nem ponto de retirada/i.test(html))fail.push(`${legalNames[i]}: aviso sobre ausência de loja física/ponto de retirada ausente.`);
  if(!html.includes('rel="icon"'))fail.push(`${legalNames[i]}: favicon ausente.`);
  if(!html.includes('rel="canonical"'))fail.push(`${legalNames[i]}: canonical ausente.`);
 }
@@ -37,6 +41,9 @@ for(const path of ['/termos/','/trocas-e-devolucoes/','/envio-e-entrega/','/priv
 if(!files.home.includes('checkout-policies'))fail.push('Checkout sem bloco de políticas.');
 if(!files.home.includes(CPF))fail.push('Home sem identificação por CPF.');
 if(!files.home.includes('"taxID":"'+CPF+'"'))fail.push('Schema da loja sem taxID.');
+if(!files.home.includes('"@type":"PostalAddress"')||!files.home.includes('"postalCode":"29703-131"'))fail.push('Schema da loja sem endereço postal estruturado.');
+if(!files.home.includes(ADDRESS)||!files.home.includes(CEP))fail.push('Home sem endereço operacional completo.');
+if(!/Não é loja física nem ponto de retirada\./i.test(files.home))fail.push('Home sem aviso de que o endereço não é loja física/ponto de retirada.');
 if(!/Fornecedor responsável/i.test(files.home))fail.push('Rodapé sem identificação do fornecedor.');
 if(!/Dúvidas sobre o produto\?/i.test(files.home))fail.push('Home sem bloco de transparência sobre produto/procedência.');
 
