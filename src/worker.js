@@ -26,7 +26,9 @@ export default{async fetch(request,env){
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(url.pathname.slice("/api/pagamento/".length).trim(),env);
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
-}};
+},
+async scheduled(controller,env,ctx){ctx.waitUntil(reconcileStalePixReservations(env))}
+};
 
 async function ensureAuthSchema(env){
  if(!env.DB)throw new Error("Banco D1 não conectado.");
@@ -377,6 +379,29 @@ async function tentarGerarEtiqueta(env,orderId,shippingId,barcode){
   const ct=String(r.headers.get("content-type")||"");if(!ct.includes("pdf"))return false;
   await env.DB.prepare("UPDATE order_shipping SET label_ready=1,updated_at=? WHERE order_id=?").bind(new Date().toISOString(),orderId).run();return true;
  }catch(e){console.error("Gerar etiqueta:",e);return false}
+}
+async function reconcileStalePixReservations(env){
+ try{
+  await ensureAuthSchema(env);const cfg=mpConfig(env);if(!cfg.accessToken)return;
+  const cutoff=new Date(Date.now()-40*60e3).toISOString();
+  const rows=await env.DB.prepare("SELECT order_id FROM order_payments WHERE lower(method)='pix' AND created_at<? AND lower(COALESCE(status,'')) IN ('','created','pending','processing','action_required') ORDER BY created_at ASC LIMIT 20").bind(cutoff).all();
+  for(const row of (rows.results||[])){
+   const id=String(row.order_id||"");if(!id)continue;
+   try{
+    const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});
+    if(!r.ok)continue;
+    const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||"").toLowerCase(),detail=String(tx.status_detail||d.status_detail||""),approved=["processed","approved"].includes(st)||detail==="accredited",now=new Date().toISOString();
+    if(approved){
+     await env.DB.batch([env.DB.prepare("UPDATE orders SET status='Pago',updated_at=? WHERE id=?").bind(now,id),env.DB.prepare("UPDATE guest_orders SET status='Pago',updated_at=? WHERE id=?").bind(now,id),env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st||"approved",detail,now,id),env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(id)]);
+     if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,id)}catch(e){console.error("Reconciliação PIX expedição:",e)}
+    }else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){
+     await releaseReservedStock(env,id,now);
+     const label=st==="expired"?"Expirado":(["canceled","cancelled"].includes(st)?"Cancelado":"Pagamento recusado");
+     await env.DB.batch([env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,id),env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,id),env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,id)]);
+    }
+   }catch(e){console.error("Reconciliação PIX item:",id,e)}
+  }
+ }catch(e){console.error("Reconciliação PIX:",e)}
 }
 async function webhookMercadoPago(request,env){try{const body=await request.json().catch(()=>({}));const id=String(body?.data?.id||body?.id||"");if(!id)return resposta({ok:true});const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Mercado Pago não configurado."},503);const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)return resposta({ok:true});const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||""),detail=String(tx.status_detail||d.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",pid=String(d.id||id),now=new Date().toISOString();const label=approved?"Pago":({processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado"}[st]||"Processando");await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE guest_orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid).run();if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Webhook expedição:",e)}}else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now)}return resposta({ok:true})}catch(e){console.error("Webhook Mercado Pago:",e);return resposta({ok:true})}}
 async function criarEnvioEnvioEcom(env,orderId){
