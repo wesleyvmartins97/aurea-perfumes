@@ -15,6 +15,7 @@ on:
       - 'public/favicon.png'
       - 'public/index.html'
       - 'public/admin/**'
+      - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
@@ -36,6 +37,7 @@ on:
       - 'public/favicon.png'
       - 'public/index.html'
       - 'public/admin/**'
+      - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
@@ -76,6 +78,8 @@ jobs:
         run: node --check scripts/validate-google-commerce.mjs
       - name: Auditar tracking Google
         run: node scripts/validate-google-commerce.mjs
+      - name: Validar sintaxe do painel administrativo
+        run: node --check public/admin-account.js
       - name: Validar painel administrativo
         run: node scripts/validate-admin.mjs
       - name: Validar sintaxe do Worker

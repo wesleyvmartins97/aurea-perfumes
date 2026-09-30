@@ -11,6 +11,10 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/auth/logout"&&request.method==="POST")return authLogout(request,env);
  if(url.pathname==="/api/auth/verify"&&request.method==="GET")return authVerify(url,env);
  if(url.pathname==="/api/auth/resend-verification"&&request.method==="POST")return authResendVerification(request,env);
+ if(url.pathname==="/api/admin/status"&&request.method==="GET")return adminStatus(request,env);
+ if(url.pathname==="/api/admin/setup"&&request.method==="POST")return adminSetup(request,env);
+ if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
+ if(url.pathname==="/api/admin/logout"&&request.method==="POST")return adminLogout(request,env);
  if(url.pathname==="/api/admin/dashboard"&&request.method==="GET")return adminDashboard(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
  if(url.pathname==="/api/account/profile"&&request.method==="POST")return accountProfile(request,env);
@@ -26,6 +30,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
  if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(request,url.pathname.slice("/api/pagamento/".length).trim(),env);
+ if(url.pathname==="/admin"||url.pathname.startsWith("/admin/"))return new Response("Not Found",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","X-Robots-Tag":"noindex, nofollow, noarchive"}});
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
@@ -48,7 +53,11 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory (product_id TEXT PRIMARY KEY, stock INTEGER NOT NULL DEFAULT 10, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, name TEXT NOT NULL, brand TEXT, type TEXT, image TEXT, quantity INTEGER NOT NULL, unit_price REAL NOT NULL, stock_deducted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS order_payments (order_id TEXT PRIMARY KEY, method TEXT NOT NULL, installments INTEGER NOT NULL DEFAULT 1, installment_amount REAL NOT NULL DEFAULT 0, total_paid REAL NOT NULL DEFAULT 0, status TEXT, status_detail TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS shipment_locks (order_id TEXT PRIMARY KEY, state TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
-  env.DB.prepare("CREATE TABLE IF NOT EXISTS order_shipping (order_id TEXT PRIMARY KEY, email TEXT, customer_name TEXT, cpf TEXT, phone TEXT, cep TEXT, street TEXT, number TEXT, complement TEXT, neighborhood TEXT, city TEXT, state TEXT, carrier TEXT, freight_cost REAL NOT NULL DEFAULT 0, delivery_time INTEGER NOT NULL DEFAULT 0, shipping_id TEXT, barcode TEXT, label_ready INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)")
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS order_shipping (order_id TEXT PRIMARY KEY, email TEXT, customer_name TEXT, cpf TEXT, phone TEXT, cep TEXT, street TEXT, number TEXT, complement TEXT, neighborhood TEXT, city TEXT, state TEXT, carrier TEXT, freight_cost REAL NOT NULL DEFAULT 0, delivery_time INTEGER NOT NULL DEFAULT 0, shipping_id TEXT, barcode TEXT, label_ready INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_credentials (username TEXT PRIMARY KEY, customer_id TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_sessions (id TEXT PRIMARY KEY, customer_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(token_hash)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_login_attempts (key TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0, blocked_until TEXT, updated_at TEXT NOT NULL)")
  ]);
 }
 const enc=new TextEncoder();
@@ -129,34 +138,99 @@ async function authLogout(request,env){try{await ensureAuthSchema(env);const t=c
 
 async function currentCustomer(request,env){await ensureAuthSchema(env);const t=cookieToken(request);if(!t)return null;const th=await sha256(t);const u=await env.DB.prepare("SELECT c.id,c.name,c.email,c.email_verified,s.expires_at FROM customer_sessions s JOIN customers c ON c.id=s.customer_id WHERE s.token_hash=?").bind(th).first();if(!u||Date.parse(u.expires_at)<Date.now())return null;return u}
 
-async function adminCustomer(request,env){
+function adminUsername(env){return String(env.ADMIN_USERNAME||"wesleymartins").trim().toLowerCase()}
+function adminCookieToken(request){const c=request.headers.get("Cookie")||"";const m=c.match(/(?:^|;\s*)valenza_admin=([^;]+)/);return m?decodeURIComponent(m[1]):""}
+function adminSessionCookie(token,maxAge=14400){return "valenza_admin="+encodeURIComponent(token)+"; Path=/api/admin; HttpOnly; Secure; SameSite=Strict; Max-Age="+maxAge}
+function allowedAdminEmail(env,email){const allowed=String(env.ADMIN_EMAILS||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);return allowed.includes(String(email||"").toLowerCase())}
+async function eligibleAdminCustomer(request,env){
  const u=await currentCustomer(request,env);
- if(!u)return {response:resposta({ok:false,error:"Entre na sua conta VALENZA para acessar o painel."},401)};
- if(!u.email_verified)return {response:resposta({ok:false,error:"Confirme seu e-mail antes de acessar o painel."},403)};
- const allowed=String(env.ADMIN_EMAILS||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
- if(!allowed.length)return {response:resposta({ok:false,error:"Painel administrativo ainda não foi autorizado no servidor."},503)};
- if(!allowed.includes(String(u.email||"").toLowerCase()))return {response:resposta({ok:false,error:"Esta conta não possui acesso administrativo."},403)};
- return {user:u};
+ if(!u||!u.email_verified||!allowedAdminEmail(env,u.email))return null;
+ return u;
+}
+async function currentAdmin(request,env){
+ const u=await eligibleAdminCustomer(request,env);if(!u)return null;
+ const token=adminCookieToken(request);if(!token)return null;
+ const th=await sha256(token);
+ const s=await env.DB.prepare("SELECT customer_id,expires_at FROM admin_sessions WHERE token_hash=? AND customer_id=?").bind(th,u.id).first();
+ if(!s||Date.parse(s.expires_at)<Date.now()){if(s)await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(th).run();return null}
+ return u;
+}
+async function createAdminSession(user,env){
+ const token=randomToken(),th=await sha256(token),now=new Date().toISOString(),exp=new Date(Date.now()+4*3600e3).toISOString();
+ await env.DB.prepare("DELETE FROM admin_sessions WHERE customer_id=? OR expires_at<?").bind(user.id,now).run();
+ await env.DB.prepare("INSERT INTO admin_sessions(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),user.id,th,exp,now).run();
+ return {token,exp};
+}
+async function adminAttemptKey(request){const ip=String(request.headers.get("CF-Connecting-IP")||request.headers.get("X-Forwarded-For")||"unknown").split(",")[0].trim();return sha256("admin-login:"+ip)}
+async function adminRateState(request,env){
+ const key=await adminAttemptKey(request),row=await env.DB.prepare("SELECT failures,blocked_until,updated_at FROM admin_login_attempts WHERE key=?").bind(key).first(),now=Date.now();
+ if(!row)return {key,blocked:false};
+ const blockedUntil=Date.parse(row.blocked_until||"");
+ if(Number.isFinite(blockedUntil)&&blockedUntil>now)return {key,blocked:true,retryAfter:Math.max(1,Math.ceil((blockedUntil-now)/1000))};
+ if(Date.parse(row.updated_at||"0")<now-15*60e3){await env.DB.prepare("DELETE FROM admin_login_attempts WHERE key=?").bind(key).run();return {key,blocked:false}}
+ return {key,blocked:false,failures:Number(row.failures||0)};
+}
+async function adminRegisterFailure(key,failures,env){
+ const next=Number(failures||0)+1,now=new Date(),block=next>=5?new Date(now.getTime()+15*60e3).toISOString():null,count=next>=5?0:next;
+ await env.DB.prepare("INSERT INTO admin_login_attempts(key,failures,blocked_until,updated_at) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET failures=excluded.failures,blocked_until=excluded.blocked_until,updated_at=excluded.updated_at").bind(key,count,block,now.toISOString()).run();
+}
+async function adminStatus(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const u=await eligibleAdminCustomer(request,env);if(!u)return resposta({ok:false},404);
+  const username=adminUsername(env),cred=await env.DB.prepare("SELECT username FROM admin_credentials WHERE username=? AND customer_id=?").bind(username,u.id).first(),active=await currentAdmin(request,env);
+  return resposta({ok:true,eligible:true,configured:!!cred,authenticated:!!active,username});
+ }catch(e){console.error("Admin status:",e);return resposta({ok:false},500)}
+}
+async function adminSetup(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const u=await eligibleAdminCustomer(request,env);if(!u)return resposta({ok:false,error:"Acesso não autorizado."},404);
+  const username=adminUsername(env),existing=await env.DB.prepare("SELECT username FROM admin_credentials WHERE username=?").bind(username).first();
+  if(existing)return resposta({ok:false,error:"A senha administrativa já foi criada. Use ENTRAR."},409);
+  const d=await request.json().catch(()=>({})),user=String(d.username||"").trim().toLowerCase(),pass=String(d.password||""),confirm=String(d.confirmPassword||"");
+  if(user!==username)return resposta({ok:false,error:"Usuário administrativo inválido."},400);
+  if(pass.length<12)return resposta({ok:false,error:"Crie uma senha administrativa com pelo menos 12 caracteres."},400);
+  if(pass!==confirm)return resposta({ok:false,error:"As senhas não coincidem."},400);
+  const hp=await hashPassword(pass),now=new Date().toISOString();
+  await env.DB.prepare("INSERT INTO admin_credentials(username,customer_id,password_hash,password_salt,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind(username,u.id,hp.hash,hp.salt,now,now).run();
+  const sess=await createAdminSession(u,env),h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie(sess.token));
+  return new Response(JSON.stringify({ok:true,configured:true,authenticated:true,username}),{status:200,headers:h});
+ }catch(e){console.error("Admin setup:",e);return resposta({ok:false,error:"Não foi possível criar a senha administrativa."},500)}
+}
+async function adminLogin(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const u=await eligibleAdminCustomer(request,env);if(!u)return resposta({ok:false,error:"Acesso não autorizado."},404);
+  const rate=await adminRateState(request,env);if(rate.blocked)return resposta({ok:false,error:"Muitas tentativas. Aguarde alguns minutos e tente novamente.",retryAfter:rate.retryAfter},429);
+  const d=await request.json().catch(()=>({})),user=String(d.username||"").trim().toLowerCase(),pass=String(d.password||""),username=adminUsername(env);
+  const cred=user===username?await env.DB.prepare("SELECT customer_id,password_hash,password_salt FROM admin_credentials WHERE username=?").bind(username).first():null;
+  let valid=false;if(cred&&cred.customer_id===u.id&&pass){const hp=await hashPassword(pass,cred.password_salt);valid=hp.hash===cred.password_hash}
+  if(!valid){await adminRegisterFailure(rate.key,rate.failures,env);return resposta({ok:false,error:"Usuário ou senha administrativa incorretos."},401)}
+  await env.DB.prepare("DELETE FROM admin_login_attempts WHERE key=?").bind(rate.key).run();
+  const sess=await createAdminSession(u,env),h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie(sess.token));
+  return new Response(JSON.stringify({ok:true,authenticated:true,username}),{status:200,headers:h});
+ }catch(e){console.error("Admin login:",e);return resposta({ok:false,error:"Não foi possível entrar no painel agora."},500)}
+}
+async function adminLogout(request,env){
+ try{await ensureAuthSchema(env);const token=adminCookieToken(request);if(token)await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await sha256(token)).run();const h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie("",0));return new Response(JSON.stringify({ok:true}),{headers:h})}catch(e){return resposta({ok:true})}
 }
 async function adminDashboard(request,env){
  try{
   await ensureAuthSchema(env);
-  const auth=await adminCustomer(request,env);if(auth.response)return auth.response;
+  const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
   await seedInventory(env);
   const allOrdersCte="WITH all_orders AS (SELECT id,order_number,status,total,created_at FROM orders UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) ";
   const [customers,orders,recentOrders,recentCustomers,inventory,topProducts]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN email_verified=1 THEN 1 ELSE 0 END) verified FROM customers").first(),
    env.DB.prepare(allOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN status='Pago' THEN total ELSE 0 END),0) revenue,SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN status IN ('Cancelado','Expirado','Reembolsado') THEN 1 ELSE 0 END) closed_orders FROM all_orders").first(),
-   env.DB.prepare("WITH all_orders AS (SELECT o.id,o.order_number,o.status,o.total,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.order_number,a.status,a.total,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.carrier,s.barcode,s.shipping_id,s.label_ready FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id ORDER BY a.created_at DESC LIMIT 30").all(),
-   env.DB.prepare("SELECT name,email,email_verified,created_at FROM customers ORDER BY created_at DESC LIMIT 20").all(),
+   env.DB.prepare("WITH all_orders AS (SELECT o.id,o.order_number,o.status,o.total,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.order_number,a.status,a.total,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.carrier,s.barcode,s.shipping_id,s.label_ready FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id ORDER BY a.created_at DESC LIMIT 50").all(),
+   env.DB.prepare("SELECT name,email,email_verified,created_at FROM customers ORDER BY created_at DESC LIMIT 50").all(),
    env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory ORDER BY stock ASC,product_id ASC").all(),
    env.DB.prepare("WITH paid AS (SELECT id FROM orders WHERE status='Pago' UNION SELECT g.id FROM guest_orders g WHERE g.status='Pago' AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN paid p ON p.id=oi.order_id GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").all()
   ]);
-  const totalOrders=Number(orders?.total_orders||0),paidOrders=Number(orders?.paid_orders||0),revenue=Number(orders?.revenue||0);
-  const stockRows=inventory.results||[];
-  return resposta({ok:true,admin:{name:auth.user.name,email:auth.user.email},generatedAt:new Date().toISOString(),metrics:{
-   customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:stockRows.filter(x=>Number(x.stock||0)<=2).length
-  },recentOrders:recentOrders.results||[],recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
+  const totalOrders=Number(orders?.total_orders||0),paidOrders=Number(orders?.paid_orders||0),revenue=Number(orders?.revenue||0),stockRows=inventory.results||[];
+  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:stockRows.filter(x=>Number(x.stock||0)<=2).length},recentOrders:recentOrders.results||[],recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
  }catch(e){console.error("Admin dashboard:",e);return resposta({ok:false,error:"Não foi possível carregar o painel administrativo."},500)}
 }
 async function accountData(request,env){try{
@@ -229,7 +303,7 @@ async function accountCancelOrder(request,env){
 async function accountProfile(request,env){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);const d=await request.json(),name=String(d.name||"").trim(),phone=String(d.phone||"").replace(/\D/g,"").slice(0,11),cpf=String(d.cpf||"").replace(/\D/g,"").slice(0,11),birth=String(d.birthDate||"").trim();if(name.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);const now=new Date().toISOString();await env.DB.batch([env.DB.prepare("UPDATE customers SET name=?,updated_at=? WHERE id=?").bind(name,now,u.id),env.DB.prepare("INSERT INTO customer_profiles(customer_id,phone,cpf,birth_date,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(customer_id) DO UPDATE SET phone=excluded.phone,cpf=excluded.cpf,birth_date=excluded.birth_date,updated_at=excluded.updated_at").bind(u.id,phone,cpf,birth,now)]);return resposta({ok:true,message:"Dados salvos."})}catch(e){return resposta({ok:false,error:"Não foi possível salvar seus dados."},500)}}
 async function accountAddressSave(request,env){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);const d=await request.json();const v={label:String(d.label||"Principal").trim(),recipient:String(d.recipient||u.name).trim(),cep:String(d.cep||"").replace(/\D/g,""),street:String(d.street||"").trim(),number:String(d.number||"").trim(),complement:String(d.complement||"").trim(),neighborhood:String(d.neighborhood||"").trim(),city:String(d.city||"").trim(),state:String(d.state||"").trim().toUpperCase().slice(0,2)};if(v.cep.length!==8||!v.street||!v.number||!v.neighborhood||!v.city||v.state.length!==2)return resposta({ok:false,error:"Preencha o endereço completo."},400);const now=new Date().toISOString(),id=String(d.id||"").trim()||crypto.randomUUID(),def=d.isDefault?1:0;if(def)await env.DB.prepare("UPDATE customer_addresses SET is_default=0 WHERE customer_id=?").bind(u.id).run();const own=await env.DB.prepare("SELECT id FROM customer_addresses WHERE id=? AND customer_id=?").bind(id,u.id).first();if(own)await env.DB.prepare("UPDATE customer_addresses SET label=?,recipient=?,cep=?,street=?,number=?,complement=?,neighborhood=?,city=?,state=?,is_default=?,updated_at=? WHERE id=? AND customer_id=?").bind(v.label,v.recipient,v.cep,v.street,v.number,v.complement,v.neighborhood,v.city,v.state,def,now,id,u.id).run();else await env.DB.prepare("INSERT INTO customer_addresses(id,customer_id,label,recipient,cep,street,number,complement,neighborhood,city,state,is_default,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,u.id,v.label,v.recipient,v.cep,v.street,v.number,v.complement,v.neighborhood,v.city,v.state,def,now,now).run();return resposta({ok:true,message:"Endereço salvo."})}catch(e){console.error("Endereco:",e);return resposta({ok:false,error:"Não foi possível salvar o endereço."},500)}}
 async function accountAddressDelete(request,env,id){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);await env.DB.prepare("DELETE FROM customer_addresses WHERE id=? AND customer_id=?").bind(id,u.id).run();return resposta({ok:true})}catch(e){return resposta({ok:false,error:"Não foi possível excluir o endereço."},500)}}
-async function servirAssets(request,env){const response=await env.ASSETS.fetch(request);const contentType=response.headers.get("content-type")||"",path=new URL(request.url).pathname,isAdmin=path==="/admin"||path==="/admin/";if(!contentType.includes("text/html")||(path!=="/"&&!isAdmin))return response;const html=await response.text();const headers=new Headers(response.headers);headers.set("Cache-Control","no-store, max-age=0, must-revalidate");headers.delete("ETag");if(isAdmin){headers.set("X-Robots-Tag","noindex, nofollow, noarchive");headers.set("X-Frame-Options","DENY");headers.set("Referrer-Policy","no-referrer");headers.set("Content-Security-Policy","default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'")}return new Response(html,{status:response.status,statusText:response.statusText,headers})}
+async function servirAssets(request,env){const response=await env.ASSETS.fetch(request);const contentType=response.headers.get("content-type")||"";if(!contentType.includes("text/html")||new URL(request.url).pathname!=="/")return response;const html=await response.text();const headers=new Headers(response.headers);headers.set("Cache-Control","no-store, max-age=0, must-revalidate");headers.delete("ETag");return new Response(html,{status:response.status,statusText:response.statusText,headers})}
 async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
 const AUREA_CATALOG={
 "angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:289.9,weight:.6,length:20,height:12,width:16},

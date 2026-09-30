@@ -1,22 +1,34 @@
 import fs from 'node:fs';
 const fail=[];
 const read=p=>fs.readFileSync(p,'utf8');
-const admin=read('public/admin/index.html');
+const admin=read('public/admin-account.js');
+const home=read('public/index.html');
 const worker=read('src/worker.js');
 const wrangler=read('wrangler.jsonc');
 
-if(!admin.includes('<meta name="robots" content="noindex,nofollow,noarchive">'))fail.push('Admin sem noindex.');
-if(!admin.includes('/api/admin/dashboard'))fail.push('Admin não consulta endpoint protegido.');
-if(!admin.includes("credentials:'same-origin'"))fail.push('Admin não usa sessão same-origin.');
-if(!worker.includes('async function adminCustomer'))fail.push('Guard administrativo ausente.');
-if(!worker.includes('env.ADMIN_EMAILS'))fail.push('Guard não lê ADMIN_EMAILS.');
-if(!worker.includes('allowed.includes(String(u.email||"").toLowerCase())'))fail.push('Guard não valida e-mail autorizado.');
-if(!worker.includes('if(url.pathname==="/api/admin/dashboard"&&request.method==="GET")'))fail.push('Rota admin ausente.');
-if(!worker.includes('X-Robots-Tag'))fail.push('Headers anti-indexação ausentes.');
-if(!worker.includes('X-Frame-Options'))fail.push('Proteção contra iframe ausente.');
+if(fs.existsSync('public/admin/index.html'))fail.push('A rota pública /admin ainda existe.');
+if(!home.includes('id="ccAdminNav"'))fail.push('Minha Conta sem botão administrativo oculto.');
+if(!home.includes('src="/admin-account.js"'))fail.push('Minha Conta não carrega o módulo administrativo.');
+if(!home.includes("if(t==='admin')"))fail.push('Aba administrativa não está integrada ao clientTab.');
+if(!admin.includes('/api/admin/status'))fail.push('Módulo admin sem consulta de elegibilidade.');
+if(!admin.includes('/api/admin/setup'))fail.push('Módulo admin sem criação segura de senha.');
+if(!admin.includes('/api/admin/login'))fail.push('Módulo admin sem login separado.');
+if(!admin.includes('/api/admin/dashboard'))fail.push('Módulo admin sem dashboard protegido.');
+if(!admin.includes("credentials:'same-origin'"))fail.push('Módulo admin não usa sessão same-origin.');
+for(const route of ['status','setup','login','logout','dashboard']){
+ if(!worker.includes('/api/admin/'+route))fail.push('Rota /api/admin/'+route+' ausente.');
+}
+if(!worker.includes('admin_credentials'))fail.push('Credenciais administrativas não possuem tabela dedicada.');
+if(!worker.includes('admin_sessions'))fail.push('Sessões administrativas não possuem tabela dedicada.');
+if(!worker.includes('admin_login_attempts'))fail.push('Proteção contra tentativas repetidas ausente.');
+if(!worker.includes('valenza_admin='))fail.push('Cookie administrativo separado ausente.');
+if(!worker.includes('SameSite=Strict'))fail.push('Cookie administrativo sem SameSite=Strict.');
+if(!worker.includes('HttpOnly; Secure'))fail.push('Cookie administrativo sem HttpOnly/Secure.');
+if(!worker.includes('allowedAdminEmail'))fail.push('Conta administrativa não está vinculada à conta autorizada.');
+if(!worker.includes('if(url.pathname==="/admin"||url.pathname.startsWith("/admin/"))'))fail.push('/admin não foi bloqueado com 404.');
 if(!wrangler.includes('"ADMIN_EMAILS"'))fail.push('ADMIN_EMAILS não configurado.');
-if(/<script\s+src=["']https?:\/\//i.test(admin))fail.push('Admin carrega script externo.');
-const scripts=[...admin.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(Boolean);
-for(const [i,code] of scripts.entries()){try{new Function(code)}catch(e){fail.push('JavaScript inline '+(i+1)+' inválido: '+e.message)}}
+if(!wrangler.includes('"ADMIN_USERNAME": "wesleymartins"'))fail.push('Usuário administrativo esperado não configurado.');
+if(/ADMIN_PASSWORD/i.test(home+admin+worker+wrangler))fail.push('Senha administrativa não deve ficar em código ou variável pública.');
+try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
-console.log('ADMIN APROVADO — rota protegida, anti-indexação, sessão e interface validadas.');
+console.log('ADMIN APROVADO — integrado à Minha Conta, credencial separada, sessão própria, rate limit e /admin bloqueado.');
