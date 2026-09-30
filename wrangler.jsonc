@@ -23,6 +23,7 @@
     "crons": ["*/10 * * * *"]
   },
   "vars": {
-    "MERCADOPAGO_MODE": "production"
+    "MERCADOPAGO_MODE": "production",
+    "ADMIN_EMAILS": "wesleyvmartins97@gmail.com"
   }
 }
