@@ -13,6 +13,13 @@ if(!home.includes('src="/google-commerce.js"'))fail.push('Home não carrega goog
 if(!worker.includes('/api/google/config'))fail.push('Worker sem endpoint público de configuração Google.');
 if(!worker.includes('GA4_MEASUREMENT_ID'))fail.push('Worker não lê GA4_MEASUREMENT_ID do ambiente.');
 if(!worker.includes('/api/analytics/event'))fail.push('Worker sem endpoint de Analytics interno.');
+if(!worker.includes('/api/analytics/location'))fail.push('Worker sem endpoint para atualizar cidade/estado autorizados.');
+if(!js.includes('navigator.geolocation.getCurrentPosition'))fail.push('Site não solicita localização nativa após autorização.');
+if(!js.includes('EXPERIÊNCIA VALENZA')||!js.includes('USAR MINHA LOCALIZAÇÃO')||!js.includes('AGORA NÃO'))fail.push('Pré-permissão de localização não segue o fluxo visual esperado.');
+if(!js.includes('api.bigdatacloud.net/data/reverse-geocode-client'))fail.push('Localização autorizada não resolve cidade/estado no próprio navegador.');
+if(!js.includes("JSON.stringify({visitorId:visitorId(),sessionId:sessionId(),city,region,regionCode,country})"))fail.push('Cliente não envia apenas cidade/estado resumidos ao Worker.');
+const locationWorker=worker.slice(worker.indexOf('async function analyticsLocation'),worker.indexOf('async function analyticsDashboard'));if(/\blat\b|\blon\b|latitude|longitude|nominatim/i.test(locationWorker))fail.push('Worker de Analytics não deve receber coordenadas brutas.');
+if(!privacy.includes('BigDataCloud')||!privacy.includes('não armazena nessa medição latitude, longitude, GPS'))fail.push('Privacidade não documenta corretamente a localização opcional.');
 if(!worker.includes('CREATE TABLE IF NOT EXISTS analytics_events'))fail.push('Analytics interno sem tabela dedicada.');
 if(!worker.includes('request.cf||{}'))fail.push('Analytics interno não lê geolocalização aproximada da Cloudflare.');
 if(!js.includes("VISITOR_KEY='valenza_analytics_visitor'"))fail.push('Analytics interno sem identificador anônimo de visitante.');
