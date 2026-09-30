@@ -17,6 +17,10 @@ on:
   pull_request:
     paths:
       - 'public/products.js'
+      - '.github/workflows/catalog-integrity.yml'
+      - 'scripts/generate-seo.mjs'
+      - 'public/favicon.png'
+      - 'public/index.html'
       - 'public/perfume/**'
       - 'public/produtos/**'
       - 'public/sitemap.xml'
