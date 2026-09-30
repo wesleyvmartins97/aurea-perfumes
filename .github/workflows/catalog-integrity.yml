@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'public/products.js'
+      - 'scripts/generate-seo.mjs'
+      - 'public/favicon.png'
+      - 'public/index.html'
       - 'public/perfume/**'
       - 'public/produtos/**'
       - 'public/sitemap.xml'
