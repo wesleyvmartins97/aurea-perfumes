@@ -16,6 +16,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
  if(url.pathname==="/api/admin/logout"&&request.method==="POST")return adminLogout(request,env);
  if(url.pathname==="/api/admin/dashboard"&&request.method==="GET")return adminDashboard(request,env);
+ if(url.pathname==="/api/admin/orders/delete-tests"&&request.method==="POST")return adminDeleteTestOrders(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
  if(url.pathname==="/api/account/profile"&&request.method==="POST")return accountProfile(request,env);
  if(url.pathname==="/api/account/order/cancel"&&request.method==="POST")return accountCancelOrder(request,env);
@@ -57,7 +58,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_credentials (username TEXT PRIMARY KEY, customer_id TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_sessions (id TEXT PRIMARY KEY, customer_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(token_hash)"),
-  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_login_attempts (key TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0, blocked_until TEXT, updated_at TEXT NOT NULL)")
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_login_attempts (key TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0, blocked_until TEXT, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_deleted_test_orders (id TEXT PRIMARY KEY, admin_customer_id TEXT NOT NULL, order_id TEXT NOT NULL UNIQUE, order_number TEXT, snapshot_json TEXT NOT NULL, deleted_at TEXT NOT NULL, FOREIGN KEY(admin_customer_id) REFERENCES customers(id) ON DELETE CASCADE)")
  ]);
 }
 const enc=new TextEncoder();
@@ -215,22 +217,74 @@ async function adminLogin(request,env){
 async function adminLogout(request,env){
  try{await ensureAuthSchema(env);const token=adminCookieToken(request);if(token)await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await sha256(token)).run();const h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie("",0));return new Response(JSON.stringify({ok:true}),{headers:h})}catch(e){return resposta({ok:true})}
 }
+function adminOrderHasShipment(row){
+ return Boolean(String(row?.shipping_id||"").trim()||String(row?.barcode||"").trim()||Number(row?.label_ready||0)||String(row?.tracking_code||"").trim()||String(row?.tracking_url||"").trim()||String(row?.lock_state||"").trim());
+}
+function adminOrderIsActive(row){return ["Aguardando pagamento","Processando"].includes(String(row?.status||""))}
+function adminOrderDeletePolicy(row,admin){
+ const own=String(row?.customer_id||"")===String(admin.id)||(!row?.customer_id&&String(row?.email||"").toLowerCase()===String(admin.email||"").toLowerCase());
+ if(!own)return {allowed:false,reason:"Venda de cliente protegida"};
+ if(adminOrderHasShipment(row))return {allowed:false,reason:"Postagem EnvioEcom criada ou em preparação"};
+ if(adminOrderIsActive(row))return {allowed:false,reason:"Pagamento ainda ativo; cancele ou aguarde expirar"};
+ return {allowed:true,reason:"Pedido da sua conta de testes"};
+}
+async function adminDeleteTestOrders(request,env){
+ try{
+  await ensureAuthSchema(env);await seedInventory(env);
+  const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const d=await request.json().catch(()=>({})),confirm=String(d.confirm||"").trim().toUpperCase(),rawIds=Array.isArray(d.orderIds)?d.orderIds:[];
+  const ids=[...new Set(rawIds.map(x=>String(x||"").trim()).filter(Boolean))].slice(0,20);
+  if(confirm!=="APAGAR")return resposta({ok:false,error:"Digite APAGAR para confirmar a exclusão."},400);
+  if(!ids.length)return resposta({ok:false,error:"Selecione pelo menos um pedido."},400);
+  const marks=ids.map(()=>"?").join(",");
+  const qr=await env.DB.prepare("WITH selected AS (SELECT o.id,o.customer_id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email email,'orders' source FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.id IN ("+marks+") UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email,'guest_orders' source FROM guest_orders g WHERE g.id IN ("+marks+") AND NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT s.*,sh.shipping_id,sh.barcode,sh.label_ready,sh.cep,sh.street,sh.number,sh.complement,sh.neighborhood,sh.city,sh.state,sh.freight_cost,sh.delivery_time,l.state lock_state,p.method,p.installments,p.installment_amount,p.total_paid,p.status payment_status,p.status_detail FROM selected s LEFT JOIN order_shipping sh ON sh.order_id=s.id LEFT JOIN shipment_locks l ON l.order_id=s.id LEFT JOIN order_payments p ON p.order_id=s.id").bind(...ids,...ids).all();
+  const rows=qr.results||[],rowMap=new Map(rows.map(x=>[String(x.id),x]));
+  const missing=ids.filter(id=>!rowMap.has(id));if(missing.length)return resposta({ok:false,error:"Um ou mais pedidos selecionados não existem mais. Atualize o painel e tente novamente.",missing},409);
+  const blocked=[];
+  for(const id of ids){const row=rowMap.get(id),policy=adminOrderDeletePolicy(row,admin);if(!policy.allowed)blocked.push({id,orderNumber:row.order_number,status:row.status,reason:policy.reason})}
+  if(blocked.length)return resposta({ok:false,error:"A exclusão foi bloqueada para proteger pedidos reais, pagamentos ativos ou postagens do EnvioEcom.",blocked},409);
+
+  const ir=await env.DB.prepare("SELECT id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at FROM order_items WHERE order_id IN ("+marks+") ORDER BY created_at").bind(...ids).all();
+  const items=ir.results||[],itemsBy=new Map();for(const it of items){if(!itemsBy.has(String(it.order_id)))itemsBy.set(String(it.order_id),[]);itemsBy.get(String(it.order_id)).push(it)}
+  const now=new Date().toISOString(),ops=[];let restoredUnits=0;
+  for(const id of ids){
+   const row=rowMap.get(id),orderItems=itemsBy.get(id)||[];
+   const snapshot={order:{id:row.id,order_number:row.order_number,status:row.status,total:row.total,tracking_code:row.tracking_code,tracking_url:row.tracking_url,carrier:row.carrier,created_at:row.created_at,customer_name:row.customer_name,email:row.email,source:row.source},payment:{method:row.method,installments:row.installments,installment_amount:row.installment_amount,total_paid:row.total_paid,status:row.payment_status,status_detail:row.status_detail},shipping:{shipping_id:row.shipping_id,barcode:row.barcode,label_ready:row.label_ready,cep:row.cep,street:row.street,number:row.number,complement:row.complement,neighborhood:row.neighborhood,city:row.city,state:row.state,freight_cost:row.freight_cost,delivery_time:row.delivery_time},items:orderItems};
+   ops.push(env.DB.prepare("INSERT OR REPLACE INTO admin_deleted_test_orders(id,admin_customer_id,order_id,order_number,snapshot_json,deleted_at) VALUES(?,?,?,?,?,?)").bind(crypto.randomUUID(),admin.id,id,String(row.order_number||""),JSON.stringify(snapshot),now));
+   for(const it of orderItems){
+    const state=Number(it.stock_deducted),qty=Math.max(0,Number(it.quantity)||0);
+    if(state!==2&&qty>0){ops.push(env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(qty,now,String(it.product_id)));restoredUnits+=qty}
+   }
+   ops.push(env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(id));
+   ops.push(env.DB.prepare("DELETE FROM order_shipping WHERE order_id=?").bind(id));
+   ops.push(env.DB.prepare("DELETE FROM order_payments WHERE order_id=?").bind(id));
+   ops.push(env.DB.prepare("DELETE FROM order_items WHERE order_id=?").bind(id));
+   ops.push(env.DB.prepare("DELETE FROM orders WHERE id=? AND customer_id=?").bind(id,admin.id));
+   ops.push(env.DB.prepare("DELETE FROM guest_orders WHERE id=? AND lower(email)=lower(?)").bind(id,admin.email));
+  }
+  await env.DB.batch(ops);
+  return resposta({ok:true,deletedOrders:ids.length,restoredUnits,archived:true,message:ids.length===1?"Pedido de teste removido e arquivado com segurança.":ids.length+" pedidos de teste removidos e arquivados com segurança."});
+ }catch(e){console.error("Admin delete test orders:",e);return resposta({ok:false,error:"Não foi possível apagar os pedidos de teste agora."},500)}
+}
 async function adminDashboard(request,env){
  try{
   await ensureAuthSchema(env);
   const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
   await seedInventory(env);
   const allOrdersCte="WITH all_orders AS (SELECT id,order_number,status,total,created_at FROM orders UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) ";
-  const [customers,orders,recentOrders,recentCustomers,inventory,topProducts]=await Promise.all([
+  const [customers,orders,recentOrders,recentCustomers,inventory,topProducts,deletedTests]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN email_verified=1 THEN 1 ELSE 0 END) verified FROM customers").first(),
    env.DB.prepare(allOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN status='Pago' THEN total ELSE 0 END),0) revenue,SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN status IN ('Cancelado','Expirado','Reembolsado') THEN 1 ELSE 0 END) closed_orders FROM all_orders").first(),
-   env.DB.prepare("WITH all_orders AS (SELECT o.id,o.order_number,o.status,o.total,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.order_number,a.status,a.total,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.carrier,s.barcode,s.shipping_id,s.label_ready FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id ORDER BY a.created_at DESC LIMIT 50").all(),
+   env.DB.prepare("WITH all_orders AS (SELECT o.id,o.customer_id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.customer_id,a.order_number,a.status,a.total,a.tracking_code,a.tracking_url,a.carrier,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.barcode,s.shipping_id,s.label_ready,l.state lock_state FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id LEFT JOIN shipment_locks l ON l.order_id=a.id ORDER BY a.created_at DESC LIMIT 50").all(),
    env.DB.prepare("SELECT name,email,email_verified,created_at FROM customers ORDER BY created_at DESC LIMIT 50").all(),
    env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory ORDER BY stock ASC,product_id ASC").all(),
-   env.DB.prepare("WITH paid AS (SELECT id FROM orders WHERE status='Pago' UNION SELECT g.id FROM guest_orders g WHERE g.status='Pago' AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN paid p ON p.id=oi.order_id GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").all()
+   env.DB.prepare("WITH paid AS (SELECT id FROM orders WHERE status='Pago' UNION SELECT g.id FROM guest_orders g WHERE g.status='Pago' AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN paid p ON p.id=oi.order_id GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").all(),
+   env.DB.prepare("SELECT COUNT(*) total FROM admin_deleted_test_orders WHERE admin_customer_id=?").bind(admin.id).first()
   ]);
+  const recent=(recentOrders.results||[]).map(row=>{const policy=adminOrderDeletePolicy(row,admin);return {...row,is_test_account:policy.reason!=="Venda de cliente protegida",delete_allowed:policy.allowed,delete_reason:policy.reason}});
+  for(const row of recent)delete row.customer_id;
   const totalOrders=Number(orders?.total_orders||0),paidOrders=Number(orders?.paid_orders||0),revenue=Number(orders?.revenue||0),stockRows=inventory.results||[];
-  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:stockRows.filter(x=>Number(x.stock||0)<=2).length},recentOrders:recentOrders.results||[],recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
+  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:stockRows.filter(x=>Number(x.stock||0)<=2).length,deletedTestOrders:Number(deletedTests?.total||0)},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
  }catch(e){console.error("Admin dashboard:",e);return resposta({ok:false,error:"Não foi possível carregar o painel administrativo."},500)}
 }
 async function accountData(request,env){try{
