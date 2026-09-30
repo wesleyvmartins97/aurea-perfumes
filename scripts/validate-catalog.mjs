@@ -67,7 +67,8 @@ const home=read('public/index.html');
 if(!home.includes('"@type":"WebSite"'))fail.push('Home sem WebSite JSON-LD para nome do site.');
 if(!home.includes('rel="icon"'))fail.push('Home sem favicon declarado.');
 const homeH1=(home.match(/<h1\b/gi)||[]).length;
-if(homeH1!==1)fail.push(`Home deve conter exatamente um H1; encontrado(s): ${homeH1}.`);
+const homeH1Close=(home.match(/<\/h1>/gi)||[]).length;
+if(homeH1!==1||homeH1Close!==1)fail.push(`Home deve conter exatamente um H1 com abertura e fechamento válidos; aberturas e fechamentos de H1: ${homeH1}/${homeH1Close}.`);
 if(/<img\b(?=[^>]*src=)(?![^>]*\balt=)[^>]*>/i.test(home))fail.push('Home contém imagem sem atributo alt.');
 if(!fs.existsSync('public/favicon.png'))fail.push('favicon.png ausente.');
 
