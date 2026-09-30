@@ -5,7 +5,13 @@ on:
     branches: [main]
     paths:
       - 'public/products.js'
+      - 'public/privacidade/**'
+      - 'scripts/validate-google-commerce.mjs'
+      - 'public/google-commerce.js'
       - 'scripts/generate-seo.mjs'
+      - 'public/merchant-feed.xml'
+      - 'scripts/validate-merchant.mjs'
+      - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
       - 'public/perfume/**'
@@ -17,8 +23,13 @@ on:
   pull_request:
     paths:
       - 'public/products.js'
-      - '.github/workflows/catalog-integrity.yml'
+      - 'public/privacidade/**'
+      - 'scripts/validate-google-commerce.mjs'
+      - 'public/google-commerce.js'
       - 'scripts/generate-seo.mjs'
+      - 'public/merchant-feed.xml'
+      - 'scripts/validate-merchant.mjs'
+      - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
       - 'public/perfume/**'
@@ -26,6 +37,7 @@ on:
       - 'public/sitemap.xml'
       - 'src/worker.js'
       - 'scripts/validate-catalog.mjs'
+      - '.github/workflows/catalog-integrity.yml'
 
 jobs:
   validar-catalogo:
@@ -38,10 +50,26 @@ jobs:
           node-version: '22'
       - name: Validar sintaxe do gerador SEO
         run: node --check scripts/generate-seo.mjs
+      - name: Validar sintaxe do gerador Merchant
+        run: node --check scripts/generate-merchant.mjs
+      - name: Validar sintaxe do auditor Merchant
+        run: node --check scripts/validate-merchant.mjs
       - name: Regenerar SEO e confirmar sincronismo
         run: |
           node scripts/generate-seo.mjs
           git diff --exit-code -- public/perfume public/sitemap.xml
+      - name: Regenerar Merchant e confirmar sincronismo
+        run: |
+          node scripts/generate-merchant.mjs
+          git diff --exit-code -- public/merchant-feed.xml
+      - name: Validar Merchant feed
+        run: node scripts/validate-merchant.mjs
+      - name: Validar sintaxe do tracking Google
+        run: node --check public/google-commerce.js
+      - name: Validar sintaxe do auditor Google
+        run: node --check scripts/validate-google-commerce.mjs
+      - name: Auditar tracking Google
+        run: node scripts/validate-google-commerce.mjs
       - name: Validar sintaxe do Worker
         run: node --check src/worker.js
       - name: Validar sintaxe do catálogo

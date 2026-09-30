@@ -38,9 +38,11 @@ for(const p of catalog){
   if(/http-equiv=["']refresh/i.test(html))fail.push(`${tag}: página SEO não deve redirecionar automaticamente.`);
   if(!html.includes('"@type":"Product"'))fail.push(`${tag}: página SEO sem Product JSON-LD.`);
   if(!html.includes('"@type":"BreadcrumbList"'))fail.push(`${tag}: página SEO sem BreadcrumbList JSON-LD.`);
-  if(!html.includes('"availability":"https://schema.org/PreOrder"'))fail.push(`${tag}: disponibilidade estruturada deve ser PreOrder.`);
+  if(!html.includes('"availability":"https://schema.org/InStock"'))fail.push(`${tag}: disponibilidade estruturada deve ser InStock.`);
   if(!html.includes('"logo":"https://valenzaparfums.com.br/favicon.png"'))fail.push(`${tag}: seller sem logo estruturado.`);
   if(!html.includes('COMPRAR NA VALENZA'))fail.push(`${tag}: página SEO sem CTA visível.`);
+  if(!html.includes('src="/google-commerce.js"'))fail.push(`${tag}: página SEO sem tracking preparado.`);
+  if(!html.includes(`valenzaSetCurrentProduct?.("${p.id}")`))fail.push(`${tag}: página SEO sem identificação do produto para tracking.`);
  }
 }
 
@@ -66,6 +68,7 @@ for(const p of catalog){
 const home=read('public/index.html');
 if(!home.includes('"@type":"WebSite"'))fail.push('Home sem WebSite JSON-LD para nome do site.');
 if(!home.includes('rel="icon"'))fail.push('Home sem favicon declarado.');
+if(!home.includes('try{openProductFromUrl()}'))fail.push('Home não abre ?produto= automaticamente.');
 const homeH1=(home.match(/<h1\b/gi)||[]).length;
 const homeH1Close=(home.match(/<\/h1>/gi)||[]).length;
 if(homeH1!==1||homeH1Close!==1)fail.push(`Home deve conter exatamente um H1 com abertura e fechamento válidos; aberturas e fechamentos de H1: ${homeH1}/${homeH1Close}.`);

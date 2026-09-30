@@ -4,6 +4,7 @@ export default{async fetch(request,env){
  const url=new URL(request.url);
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
+ if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
  if(url.pathname==="/api/auth/login"&&request.method==="POST")return authLogin(request,env);
  if(url.pathname==="/api/auth/me"&&request.method==="GET")return authMe(request,env);
