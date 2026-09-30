@@ -38,7 +38,7 @@ for(const p of catalog){
   if(/http-equiv=["']refresh/i.test(html))fail.push(`${tag}: página SEO não deve redirecionar automaticamente.`);
   if(!html.includes('"@type":"Product"'))fail.push(`${tag}: página SEO sem Product JSON-LD.`);
   if(!html.includes('"@type":"BreadcrumbList"'))fail.push(`${tag}: página SEO sem BreadcrumbList JSON-LD.`);
-  if(!html.includes('"availability":"https://schema.org/PreOrder"'))fail.push(`${tag}: disponibilidade estruturada deve ser PreOrder.`);
+  if(!html.includes('"availability":"https://schema.org/InStock"'))fail.push(`${tag}: disponibilidade estruturada deve ser InStock.`);
   if(!html.includes('"logo":"https://valenzaparfums.com.br/favicon.png"'))fail.push(`${tag}: seller sem logo estruturado.`);
   if(!html.includes('COMPRAR NA VALENZA'))fail.push(`${tag}: página SEO sem CTA visível.`);
  }
