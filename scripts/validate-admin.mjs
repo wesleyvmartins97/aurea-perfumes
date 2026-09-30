@@ -14,6 +14,12 @@ if(!admin.includes('/api/admin/status'))fail.push('Módulo admin sem consulta de
 if(!admin.includes('/api/admin/setup'))fail.push('Módulo admin sem criação segura de senha.');
 if(!admin.includes('/api/admin/login'))fail.push('Módulo admin sem login separado.');
 if(!admin.includes('/api/admin/dashboard'))fail.push('Módulo admin sem dashboard protegido.');
+if(!admin.includes("if(adminView==='analytics')"))fail.push('Aba Analytics ainda não possui renderização real.');
+if(!admin.includes('Localização das visitas'))fail.push('Analytics sem painel de localização.');
+if(!admin.includes('Origem do tráfego'))fail.push('Analytics sem painel de origem do tráfego.');
+if(!admin.includes('Funil · últimos 30 dias'))fail.push('Analytics sem funil de conversão.');
+if(!worker.includes('async function analyticsDashboard(env)'))fail.push('Worker sem agregador Analytics administrativo.');
+if(!worker.includes('analytics=await analyticsDashboard(env)'))fail.push('Dashboard não entrega métricas Analytics.');
 if(!admin.includes("credentials:'same-origin'"))fail.push('Módulo admin não usa sessão same-origin.');
 for(const route of ['status','setup','login','logout','dashboard']){
  if(!worker.includes('/api/admin/'+route))fail.push('Rota /api/admin/'+route+' ausente.');
