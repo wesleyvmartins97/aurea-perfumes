@@ -220,15 +220,24 @@ async function adminLogout(request,env){
 function adminOrderHasShipment(row){
  return Boolean(String(row?.shipping_id||"").trim()||String(row?.barcode||"").trim()||Number(row?.label_ready||0)||String(row?.tracking_code||"").trim()||String(row?.tracking_url||"").trim()||String(row?.lock_state||"").trim());
 }
-function adminOrderIsActive(row){return ["Aguardando pagamento","Processando"].includes(String(row?.status||""))}
+function adminStatusKey(v){return String(v||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[\s-]+/g,"_")}
 function adminOrderDeletePolicy(row,admin){
  const own=String(row?.customer_id||"")===String(admin.id)||(!row?.customer_id&&String(row?.email||"").toLowerCase()===String(admin.email||"").toLowerCase());
  if(!own)return {allowed:false,reason:"Venda de cliente protegida"};
  if(adminOrderHasShipment(row))return {allowed:false,reason:"Postagem EnvioEcom criada ou em preparação"};
- if(adminOrderIsActive(row))return {allowed:false,reason:"Pagamento ainda ativo; cancele ou aguarde expirar"};
+
+ const orderStatus=adminStatusKey(row?.status),paymentStatus=adminStatusKey(row?.payment_status);
+ const active=new Set(["aguardando_pagamento","processando","processing","pending","created","action_required","in_process","authorized","in_mediation","pending_contingency"]);
+ const deletableOrder=new Set(["cancelado","expirado","pagamento_recusado","reembolsado","pago"]);
+ const knownPayment=new Set(["failed","rejected","canceled","cancelled","expired","refunded","partially_refunded","processed","approved"]);
+
+ if(active.has(orderStatus)||active.has(paymentStatus))return {allowed:false,reason:"Pagamento ainda ativo; cancele ou aguarde expirar"};
+ if(!deletableOrder.has(orderStatus))return {allowed:false,reason:"Status de pagamento não encerrado ou não reconhecido"};
+ if(paymentStatus&&!knownPayment.has(paymentStatus))return {allowed:false,reason:"Status bruto do Mercado Pago ainda não permite exclusão"};
  return {allowed:true,reason:"Pedido da sua conta de testes"};
 }
 async function adminDeleteTestOrders(request,env){
+ let adminDeleteLocks=[];
  try{
   await ensureAuthSchema(env);await seedInventory(env);
   const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
@@ -244,6 +253,23 @@ async function adminDeleteTestOrders(request,env){
   for(const id of ids){const row=rowMap.get(id),policy=adminOrderDeletePolicy(row,admin);if(!policy.allowed)blocked.push({id,orderNumber:row.order_number,status:row.status,reason:policy.reason})}
   if(blocked.length)return resposta({ok:false,error:"A exclusão foi bloqueada para proteger pedidos reais, pagamentos ativos ou postagens do EnvioEcom.",blocked},409);
 
+  const lockNow=new Date().toISOString();
+  for(const id of ids){
+   const lk=await env.DB.prepare("INSERT OR IGNORE INTO shipment_locks(order_id,state,created_at,updated_at) VALUES(?,?,?,?)").bind(id,"admin_deleting",lockNow,lockNow).run();
+   if((lk.meta?.changes||0)<1){
+    if(adminDeleteLocks.length)await env.DB.batch(adminDeleteLocks.map(x=>env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=? AND state='admin_deleting'").bind(x)));
+    adminDeleteLocks=[];
+    return resposta({ok:false,error:"A exclusão foi bloqueada porque uma postagem entrou em preparação. Atualize o painel antes de tentar novamente."},409);
+   }
+   adminDeleteLocks.push(id);
+  }
+  const sr=await env.DB.prepare("SELECT s.order_id,s.shipping_id,s.barcode,s.label_ready,o.tracking_code order_tracking,g.tracking_code guest_tracking FROM order_shipping s LEFT JOIN orders o ON o.id=s.order_id LEFT JOIN guest_orders g ON g.id=s.order_id WHERE s.order_id IN ("+marks+")").bind(...ids).all();
+  const createdAfterLock=(sr.results||[]).filter(x=>String(x.shipping_id||"").trim()||String(x.barcode||"").trim()||Number(x.label_ready||0)||String(x.order_tracking||"").trim()||String(x.guest_tracking||"").trim());
+  if(createdAfterLock.length){
+   await env.DB.batch(adminDeleteLocks.map(x=>env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=? AND state='admin_deleting'").bind(x)));adminDeleteLocks=[];
+   return resposta({ok:false,error:"A exclusão foi bloqueada porque a postagem do EnvioEcom já foi criada.",blocked:createdAfterLock.map(x=>x.order_id)},409);
+  }
+
   const ir=await env.DB.prepare("SELECT id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at FROM order_items WHERE order_id IN ("+marks+") ORDER BY created_at").bind(...ids).all();
   const items=ir.results||[],itemsBy=new Map();for(const it of items){if(!itemsBy.has(String(it.order_id)))itemsBy.set(String(it.order_id),[]);itemsBy.get(String(it.order_id)).push(it)}
   const now=new Date().toISOString(),ops=[];let restoredUnits=0;
@@ -255,16 +281,19 @@ async function adminDeleteTestOrders(request,env){
     const state=Number(it.stock_deducted),qty=Math.max(0,Number(it.quantity)||0);
     if(state!==2&&qty>0){ops.push(env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(qty,now,String(it.product_id)));restoredUnits+=qty}
    }
-   ops.push(env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(id));
+   ops.push(env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=? AND state='admin_deleting'").bind(id));
    ops.push(env.DB.prepare("DELETE FROM order_shipping WHERE order_id=?").bind(id));
    ops.push(env.DB.prepare("DELETE FROM order_payments WHERE order_id=?").bind(id));
    ops.push(env.DB.prepare("DELETE FROM order_items WHERE order_id=?").bind(id));
    ops.push(env.DB.prepare("DELETE FROM orders WHERE id=? AND customer_id=?").bind(id,admin.id));
    ops.push(env.DB.prepare("DELETE FROM guest_orders WHERE id=? AND lower(email)=lower(?)").bind(id,admin.email));
   }
-  await env.DB.batch(ops);
+  await env.DB.batch(ops);adminDeleteLocks=[];
   return resposta({ok:true,deletedOrders:ids.length,restoredUnits,archived:true,message:ids.length===1?"Pedido de teste removido e arquivado com segurança.":ids.length+" pedidos de teste removidos e arquivados com segurança."});
- }catch(e){console.error("Admin delete test orders:",e);return resposta({ok:false,error:"Não foi possível apagar os pedidos de teste agora."},500)}
+ }catch(e){
+  if(adminDeleteLocks.length)try{await env.DB.batch(adminDeleteLocks.map(x=>env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=? AND state='admin_deleting'").bind(x)))}catch(cleanErr){console.error("Admin cleanup delete locks:",cleanErr)}
+  console.error("Admin delete test orders:",e);return resposta({ok:false,error:"Não foi possível apagar os pedidos de teste agora."},500)
+ }
 }
 async function adminDashboard(request,env){
  try{
