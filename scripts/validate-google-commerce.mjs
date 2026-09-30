@@ -18,6 +18,7 @@ if(!worker.includes('request.cf||{}'))fail.push('Analytics interno não lê geol
 if(!js.includes("VISITOR_KEY='valenza_analytics_visitor'"))fail.push('Analytics interno sem identificador anônimo de visitante.');
 if(!js.includes("SESSION_KEY='valenza_analytics_session'"))fail.push('Analytics interno sem sessão de visita.');
 if(!js.includes("fetch('/api/analytics/event'"))fail.push('Funil não espelha eventos no Analytics interno.');
+if(!js.includes("if(r.ok&&d.ok&&d.enabled"))fail.push('Analytics interno ainda depende de o GA4 estar disponível.');
 if(!js.includes("if(!consentGranted())return false"))fail.push('Analytics interno não está bloqueado por consentimento.');
 if(!privacy.includes('estado/região e cidade aproximados'))fail.push('Privacidade não informa geolocalização aproximada da medição.');
 if(!privacy.includes('não armazena nessa medição o endereço IP'))fail.push('Privacidade não informa que IP não é armazenado na medição.');
