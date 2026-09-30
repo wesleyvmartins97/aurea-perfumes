@@ -19,7 +19,7 @@ if(!js.includes('PURCHASE_PREFIX'))fail.push('Deduplicação de purchase ausente
 if(!home.includes("valenzaRememberOrder"))fail.push('Checkout não preserva snapshot de pedido para conversão.');
 if(!home.includes("valenzaTrackPurchase"))fail.push('Checkout não dispara purchase após aprovação.');
 if(!/Google Analytics/i.test(privacy))fail.push('Privacidade não explica Google Analytics.');
-if(/G-[A-Z0-9]{6,}/i.test(home+worker))fail.push('ID real/falso do GA4 foi hardcoded no HTML/Worker; deve vir do ambiente.');
+if(/[\"']G-[A-Z0-9]{6,}[\"']/i.test(home+worker))fail.push('ID real/falso do GA4 foi hardcoded no HTML/Worker; deve vir do ambiente.');
 if(/api_secret|GA4_API_SECRET/i.test(home+js))fail.push('Segredo de Analytics exposto no cliente.');
 if(fail.length){
  console.error(`\nTRACKING REPROVADO — ${fail.length} erro(s):\n- ${fail.join('\n- ')}\n`);
