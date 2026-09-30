@@ -39,6 +39,8 @@ for(const path of ['/termos/','/trocas-e-devolucoes/','/envio-e-entrega/','/priv
 }
 
 if(!files.home.includes('checkout-policies'))fail.push('Checkout sem bloco de políticas.');
+if(!files.home.includes('.commerce-trust{')||!files.home.includes('.commerce-trust-grid{')||!files.home.includes('.commerce-trust-card{'))fail.push('CSS da confiança comercial ausente.');
+if(!files.home.includes('.checkout-policies{'))fail.push('CSS do bloco de políticas do checkout ausente.');
 if(!files.home.includes(CPF))fail.push('Home sem identificação por CPF.');
 if(!files.home.includes('"taxID":"'+CPF+'"'))fail.push('Schema da loja sem taxID.');
 if(!files.home.includes('"@type":"PostalAddress"')||!files.home.includes('"postalCode":"29703-131"'))fail.push('Schema da loja sem endereço postal estruturado.');
