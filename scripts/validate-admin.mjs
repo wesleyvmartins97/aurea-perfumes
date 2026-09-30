@@ -35,6 +35,12 @@ if(!worker.includes('admin_deleted_test_orders'))fail.push('Exclusão de testes 
 if(!worker.includes('Venda de cliente protegida'))fail.push('Trava para venda real ausente.');
 if(!worker.includes('Postagem EnvioEcom criada ou em preparação'))fail.push('Trava de postagem EnvioEcom ausente.');
 if(!worker.includes('Pagamento ainda ativo; cancele ou aguarde expirar'))fail.push('Trava para pagamento ativo ausente.');
+if(!worker.includes('"action_required"')||!worker.includes('"pending_contingency"')||!worker.includes('"authorized"'))fail.push('Trava de estados intermediários do Mercado Pago incompleta.');
+if(!worker.includes('Status de pagamento não encerrado ou não reconhecido'))fail.push('Política não está deny-by-default para status desconhecido.');
+if(!worker.includes('Status bruto do Mercado Pago ainda não permite exclusão'))fail.push('Status bruto do Mercado Pago não está sendo validado.');
+if(worker.includes('["Aguardando pagamento","Processando"].includes(String(row?.status||""))'))fail.push('Política antiga e permissiva de status ainda presente.');
+if(!worker.includes('"admin_deleting"'))fail.push('Lock exclusivo durante exclusão administrativa ausente.');
+if(!worker.includes('createdAfterLock'))fail.push('Rechecagem de postagem após lock administrativo ausente.');
 if(!worker.includes('shipment_locks'))fail.push('Proteção por lock de postagem ausente.');
 if(!worker.includes('shipping_id')||!worker.includes('barcode')||!worker.includes('tracking_code'))fail.push('Proteção pelos identificadores de postagem/rastreio incompleta.');
 if(!worker.includes('stock_deducted')||!worker.includes('UPDATE inventory SET stock=stock+?'))fail.push('Restauração de estoque da limpeza ausente.');
@@ -46,4 +52,4 @@ if(!admin.includes('Digite APAGAR'))fail.push('Confirmação explícita da exclu
 if(!admin.includes('CLIENTE REAL'))fail.push('Painel não sinaliza venda real protegida.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
-console.log('ADMIN APROVADO — acesso privado, pedidos de teste selecionáveis, vendas reais/EnvioEcom/pagamentos ativos protegidos e exclusões arquivadas.');
+console.log('ADMIN APROVADO — deny-by-default para pagamentos, action_required protegido, lock anti-corrida do EnvioEcom e exclusões de teste arquivadas.');
