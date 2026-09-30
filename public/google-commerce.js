@@ -124,7 +124,15 @@ function saveLocationChoice(choice){
 function removeLocationPrimer(){document.getElementById('valenzaLocationPrimer')?.remove()}
 async function sendDeviceLocation(position){
  try{
-  const r=await fetch('/api/analytics/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({visitorId:visitorId(),sessionId:sessionId(),lat:Number(position.coords.latitude),lon:Number(position.coords.longitude)})});
+  const u=new URL('https://api.bigdatacloud.net/data/reverse-geocode-client');
+  u.searchParams.set('latitude',String(Number(position.coords.latitude)));
+  u.searchParams.set('longitude',String(Number(position.coords.longitude)));
+  u.searchParams.set('localityLanguage','pt');
+  const rr=await fetch(u.toString(),{method:'GET',cache:'no-store'}),geo=await rr.json().catch(()=>({}));
+  if(!rr.ok)return {};
+  const city=String(geo.city||geo.locality||'').trim(),region=String(geo.principalSubdivision||'').trim(),regionCode=String(geo.principalSubdivisionCode||'').trim(),country=String(geo.countryCode||'').trim().toUpperCase();
+  if(!city&&!region&&!country)return {};
+  const r=await fetch('/api/analytics/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({visitorId:visitorId(),sessionId:sessionId(),city,region,regionCode,country})});
   return await r.json().catch(()=>({}));
  }catch{return {}}
 }
@@ -144,7 +152,7 @@ function locationPrimer(){
  if(saved?.choice==='later'&&age<30*86400e3)return;
  const box=document.createElement('div');box.id='valenzaLocationPrimer';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','Localização aproximada');
  box.style.cssText='position:fixed;inset:0;z-index:6000;background:rgba(18,16,14,.62);display:grid;place-items:center;padding:22px';
- box.innerHTML='<div style="width:min(460px,100%);background:#fbf9f6;border:1px solid #d9d0c7;box-shadow:0 28px 80px rgba(0,0,0,.35);padding:30px 26px;text-align:left;color:#171513"><div style="font:10px Arial,sans-serif;letter-spacing:4px;color:#9a8877;margin-bottom:14px">EXPERIÊNCIA VALENZA</div><div style="font:32px/1.08 Georgia,serif;margin-bottom:16px">Sua cidade, com mais precisão</div><div style="font:13px/1.75 Arial,sans-serif;color:#6f675f;margin-bottom:22px">Se você permitir, usamos a localização do aparelho somente para identificar <b>cidade e estado</b> nas estatísticas da loja. Não salvamos GPS, endereço, CEP, latitude ou longitude.</div><div style="display:grid;gap:9px"><button id="valenzaLocationAllow" type="button" style="border:0;background:#171513;color:#fff;padding:14px 16px;font:700 11px Arial,sans-serif;letter-spacing:1.4px;cursor:pointer">USAR MINHA LOCALIZAÇÃO</button><button id="valenzaLocationLater" type="button" style="border:1px solid #cfc5bc;background:#fff;color:#171513;padding:13px 16px;font:600 10px Arial,sans-serif;letter-spacing:1.2px;cursor:pointer">AGORA NÃO</button></div><div style="font:10px/1.5 Arial,sans-serif;color:#9a9189;margin-top:14px">Depois de continuar, o próprio navegador poderá pedir sua autorização.</div></div>';
+ box.innerHTML='<div style="width:min(460px,100%);background:#fbf9f6;border:1px solid #d9d0c7;box-shadow:0 28px 80px rgba(0,0,0,.35);padding:30px 26px;text-align:left;color:#171513"><div style="font:10px Arial,sans-serif;letter-spacing:4px;color:#9a8877;margin-bottom:14px">EXPERIÊNCIA VALENZA</div><div style="font:32px/1.08 Georgia,serif;margin-bottom:16px">Sua cidade, com mais precisão</div><div style="font:13px/1.75 Arial,sans-serif;color:#6f675f;margin-bottom:22px">Se você permitir, usamos a localização do aparelho somente para identificar <b>cidade e estado</b> nas estatísticas da loja. A VALENZA recebe apenas essa informação resumida — não salvamos GPS, endereço, CEP, latitude ou longitude.</div><div style="display:grid;gap:9px"><button id="valenzaLocationAllow" type="button" style="border:0;background:#171513;color:#fff;padding:14px 16px;font:700 11px Arial,sans-serif;letter-spacing:1.4px;cursor:pointer">USAR MINHA LOCALIZAÇÃO</button><button id="valenzaLocationLater" type="button" style="border:1px solid #cfc5bc;background:#fff;color:#171513;padding:13px 16px;font:600 10px Arial,sans-serif;letter-spacing:1.2px;cursor:pointer">AGORA NÃO</button></div><div style="font:10px/1.5 Arial,sans-serif;color:#9a9189;margin-top:14px">Depois de continuar, o próprio navegador poderá pedir sua autorização.</div></div>';
  document.body.appendChild(box);
  document.getElementById('valenzaLocationAllow').onclick=requestDeviceLocation;
  document.getElementById('valenzaLocationLater').onclick=()=>{saveLocationChoice('later');removeLocationPrimer()};
