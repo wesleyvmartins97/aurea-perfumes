@@ -29,5 +29,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validar sintaxe do Worker
+        run: node --check src/worker.js
+      - name: Validar sintaxe do catálogo
+        run: node --check public/products.js
       - name: Validar catálogo completo
         run: node scripts/validate-catalog.mjs
