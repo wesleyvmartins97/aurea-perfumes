@@ -16,6 +16,16 @@ if(!js.includes("CONSENT_KEY='valenza_google_consent'"))fail.push('Tracking sem 
 if(!js.includes("CONTINUAR SEM MEDIÇÃO"))fail.push('Banner sem opção de continuar sem medição.');
 if(!js.includes('valenzaTrackPurchase'))fail.push('Função de purchase ausente.');
 if(!js.includes('PURCHASE_PREFIX'))fail.push('Deduplicação de purchase ausente.');
+if(!home.includes("window.valenzaTrackBeginCheckout?.()"))fail.push('Checkout não dispara begin_checkout no ponto real de abertura.');
+if(!home.includes("window.valenzaTrackShippingInfo?.()"))fail.push('Checkout não dispara add_shipping_info na seleção real de frete.');
+if(!home.includes("window.valenzaTrackPaymentInfo?.('pix')"))fail.push('PIX não dispara add_payment_info ao submeter pagamento.');
+if(!home.includes("window.valenzaTrackPaymentInfo?.('card')"))fail.push('Cartão não dispara add_payment_info ao submeter pagamento.');
+if(!js.includes('window.valenzaTrackBeginCheckout'))fail.push('Helper begin_checkout ausente.');
+if(!js.includes('window.valenzaTrackShippingInfo'))fail.push('Helper add_shipping_info ausente.');
+if(!js.includes('window.valenzaTrackPaymentInfo'))fail.push('Helper add_payment_info ausente.');
+if(js.includes("wrap('openCheckout'")||js.includes("wrap('selectCheckoutShipping'")||js.includes("wrap('choosePayment'"))fail.push('Eventos críticos ainda dependem de wrappers frágeis.');
+if(!js.includes('return {value:cartValue(source,paymentType),items:eventItems(source,paymentType)}'))fail.push('Valor do funil pode incluir frete; GA4 deve receber somente valor dos itens.');
+if(!js.includes('purchaseItems.length?itemsValue(purchaseItems)'))fail.push('Purchase não calcula valor pelos itens.');
 if(!home.includes("valenzaRememberOrder"))fail.push('Checkout não preserva snapshot de pedido para conversão.');
 if(!home.includes("valenzaTrackPurchase"))fail.push('Checkout não dispara purchase após aprovação.');
 if(!/Google Analytics/i.test(privacy))fail.push('Privacidade não explica Google Analytics.');
