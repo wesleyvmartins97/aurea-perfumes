@@ -19,7 +19,7 @@ for(const p of catalog){
   '@context':'https://schema.org',
   '@graph':[
    {'@type':'Product','@id':url+'#product',name:p.name,image:[image],description:strip(p.desc),brand:{'@type':'Brand',name:p.brand},sku:p.id,
-    offers:{'@type':'Offer',url,priceCurrency:'BRL',price:Number(p.price).toFixed(2),availability:'https://schema.org/PreOrder',itemCondition:'https://schema.org/NewCondition',seller:{'@type':'Organization',name:'VALENZA PARFUMS',url:ROOT+'/'}}
+    offers:{'@type':'Offer',url,priceCurrency:'BRL',price:Number(p.price).toFixed(2),availability:'https://schema.org/PreOrder',itemCondition:'https://schema.org/NewCondition',seller:{'@type':'Organization',name:'VALENZA PARFUMS',url:ROOT+'/',logo:ROOT+'/favicon.png'}}
    },
    {'@type':'BreadcrumbList',itemListElement:[
     {'@type':'ListItem',position:1,name:'VALENZA PARFUMS',item:ROOT+'/'},
