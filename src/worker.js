@@ -7,6 +7,7 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
  if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env);
+ if(url.pathname==="/api/analytics/location"&&request.method==="POST")return analyticsLocation(request,env);
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
  if(url.pathname==="/api/auth/login"&&request.method==="POST")return authLogin(request,env);
  if(url.pathname==="/api/auth/me"&&request.method==="GET")return authMe(request,env);
@@ -37,7 +38,7 @@ export default{async fetch(request,env){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(reconcileStalePixReservations(env))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env)]))}
 };
 
 let authSchemaReady=null;
@@ -86,9 +87,26 @@ function cookieTokens(request){const c=request.headers.get("Cookie")||"";const o
 function sessionCookies(request,token,maxAge=2592000){const host=new URL(request.url).hostname.toLowerCase(),exp=(maxAge>0?new Date(Date.now()+maxAge*1000):new Date(0)).toUTCString(),base="aurea_session="+encodeURIComponent(token)+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge+"; Expires="+exp,out=[base];if(host==="valenzaparfums.com.br"||host==="www.valenzaparfums.com.br")out.push(base+"; Domain=valenzaparfums.com.br");return out}
 function primaryDb(env){return typeof env.DB.withSession==="function"?env.DB.withSession("first-primary"):env.DB}
 async function validCustomerSession(request,env){const tokens=cookieTokens(request);if(!tokens.length)return {user:null,reason:"missing_cookie"};const db=primaryDb(env);for(const t of tokens){const th=await sha256(t);const u=await db.prepare("SELECT c.id,c.name,c.email,c.email_verified,s.expires_at FROM customer_sessions s JOIN customers c ON c.id=s.customer_id WHERE s.token_hash=?").bind(th).first();if(u&&Date.parse(u.expires_at)>=Date.now())return {user:u,token:t,reason:null}}return {user:null,reason:"session_not_found"}}
+
+async function cleanupExpiredPendingCustomers(env){
+ try{
+  await ensureAuthSchema(env);const db=primaryDb(env),now=new Date().toISOString();
+  const r=await db.prepare("DELETE FROM customers WHERE email_verified=0 AND NOT EXISTS(SELECT 1 FROM email_verifications ev WHERE ev.customer_id=customers.id AND ev.expires_at>?) AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=customers.id) AND NOT EXISTS(SELECT 1 FROM guest_orders g WHERE lower(g.email)=lower(customers.email)) AND NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=customers.id)").bind(now).run();
+  return Number(r.meta?.changes||0);
+ }catch(e){console.error("Limpeza pendentes:",e);return 0}
+}
+async function cleanupExpiredPendingEmail(env,email){
+ try{
+  await ensureAuthSchema(env);const db=primaryDb(env),now=new Date().toISOString();
+  const row=await db.prepare("SELECT c.id FROM customers c WHERE c.email=? AND c.email_verified=0 AND NOT EXISTS(SELECT 1 FROM email_verifications ev WHERE ev.customer_id=c.id AND ev.expires_at>?) AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=c.id) AND NOT EXISTS(SELECT 1 FROM guest_orders g WHERE lower(g.email)=lower(c.email)) AND NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=c.id)").bind(email,now).first();
+  if(row?.id)await db.prepare("DELETE FROM customers WHERE id=?").bind(row.id).run();
+  return !!row?.id;
+ }catch(e){console.error("Limpeza pendente por e-mail:",e);return false}
+}
 async function authRegister(request,env){
  try{await ensureAuthSchema(env);const d=await request.json();const name=String(d.name||"").trim();const email=String(d.email||"").trim().toLowerCase();const pass=String(d.password||"");
  if(name.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(pass.length<8)return resposta({ok:false,error:"A senha precisa ter pelo menos 8 caracteres."},400);
+ await cleanupExpiredPendingEmail(env,email);
  const exists=await env.DB.prepare("SELECT id,name,email_verified FROM customers WHERE email=?").bind(email).first();
  if(exists){
   if(exists.email_verified)return resposta({ok:false,error:"Já existe uma conta confirmada com este e-mail. Use ENTRAR."},409);
@@ -124,6 +142,7 @@ async function authResendVerification(request,env){
   await ensureAuthSchema(env);
   const d=await request.json(),email=String(d.email||"").trim().toLowerCase();
   if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);
+  await cleanupExpiredPendingEmail(env,email);
   const u=await env.DB.prepare("SELECT id,name,email,email_verified FROM customers WHERE email=?").bind(email).first();
   if(!u)return resposta({ok:true,message:"Se houver uma conta pendente para este e-mail, enviaremos uma nova confirmação."});
   if(u.email_verified)return resposta({ok:true,alreadyVerified:true,message:"Este e-mail já está confirmado. Você já pode entrar."});
@@ -171,6 +190,21 @@ async function analyticsEvent(request,env){
    .bind(crypto.randomUUID(),eventKey,visitorId,sessionId,eventName,pagePath.startsWith("/")?pagePath:"/",analyticsText(d.productId),analyticsText(d.productName),value,transactionId,analyticsText(d.source,80),analyticsText(d.medium,80),analyticsText(d.campaign,120),analyticsText(d.referrerHost,160),analyticsText(cf.country,8),analyticsText(cf.region,100),analyticsText(cf.regionCode,20),analyticsText(cf.city,120),now).run();
   return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
  }catch(e){console.error("Analytics event:",e);return resposta({ok:false},500)}
+}
+
+async function analyticsLocation(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const origin=request.headers.get("Origin")||"";
+  if(origin){try{if(new URL(origin).hostname!==new URL(request.url).hostname)return resposta({ok:false},403)}catch{return resposta({ok:false},403)}}
+  const d=await request.json().catch(()=>({})),visitorId=analyticsText(d.visitorId,80),sessionId=analyticsText(d.sessionId,80);
+  if(!/^[A-Za-z0-9_-]{8,80}$/.test(visitorId)||!/^[A-Za-z0-9_-]{8,80}$/.test(sessionId))return resposta({ok:false,error:"Sessão analítica inválida."},400);
+  const city=analyticsText(d.city,120),region=analyticsText(d.region,120),rawCode=analyticsText(d.regionCode,30),country=analyticsText(d.country,8).toUpperCase(),regionCode=rawCode.includes("-")?rawCode.split("-").pop():rawCode;
+  if(!city&&!region&&!country)return resposta({ok:false,error:"Cidade não identificada."},400);
+  const db=primaryDb(env);
+  await db.prepare("UPDATE analytics_events SET city=?,region=?,region_code=?,country=? WHERE visitor_id=? AND session_id=?").bind(city,region,regionCode,country,visitorId,sessionId).run();
+  return resposta({ok:true,resolved:true,city,region,regionCode,country});
+ }catch(e){console.error("Analytics location:",e);return resposta({ok:false},500)}
 }
 async function analyticsDashboard(env){
  const now=Date.now(),since24=new Date(now-24*3600e3).toISOString(),since7=new Date(now-7*86400e3).toISOString(),since30=new Date(now-30*86400e3).toISOString();
@@ -344,12 +378,13 @@ async function adminDashboard(request,env){
   await ensureAuthSchema(env);
   const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
   await seedInventory(env);
+  await cleanupExpiredPendingCustomers(env);
   const allOrdersCte="WITH all_orders AS (SELECT id,order_number,status,total,created_at FROM orders UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) ";
   const [customers,orders,recentOrders,recentCustomers,inventory,topProducts,deletedTests]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN email_verified=1 THEN 1 ELSE 0 END) verified FROM customers").first(),
    env.DB.prepare(allOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN status='Pago' THEN total ELSE 0 END),0) revenue,SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN status IN ('Cancelado','Expirado','Reembolsado') THEN 1 ELSE 0 END) closed_orders FROM all_orders").first(),
    env.DB.prepare("WITH all_orders AS (SELECT o.id,o.customer_id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.customer_id,a.order_number,a.status,a.total,a.tracking_code,a.tracking_url,a.carrier,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.barcode,s.shipping_id,s.label_ready,l.state lock_state FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id LEFT JOIN shipment_locks l ON l.order_id=a.id ORDER BY a.created_at DESC LIMIT 50").all(),
-   env.DB.prepare("SELECT name,email,email_verified,created_at FROM customers ORDER BY created_at DESC LIMIT 50").all(),
+   env.DB.prepare("SELECT c.name,c.email,c.email_verified,c.created_at FROM customers c WHERE c.email_verified=1 OR EXISTS(SELECT 1 FROM email_verifications ev WHERE ev.customer_id=c.id AND ev.expires_at>?) ORDER BY c.created_at DESC LIMIT 50").bind(new Date().toISOString()).all(),
    env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory ORDER BY stock ASC,product_id ASC").all(),
    env.DB.prepare("WITH paid AS (SELECT id FROM orders WHERE status='Pago' UNION SELECT g.id FROM guest_orders g WHERE g.status='Pago' AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN paid p ON p.id=oi.order_id GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").all(),
    env.DB.prepare("SELECT COUNT(*) total FROM admin_deleted_test_orders WHERE admin_customer_id=?").bind(admin.id).first()
