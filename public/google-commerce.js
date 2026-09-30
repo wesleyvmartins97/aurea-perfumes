@@ -129,12 +129,11 @@ async function init(){
  try{
   const r=await fetch('/api/google/config?t='+Date.now(),{cache:'no-store'});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok||!d.ok||!d.enabled||!/^G-[A-Z0-9]+$/i.test(String(d.measurementId||'')))return;
-  measurementId=String(d.measurementId);
-  const consent=localStorage.getItem(CONSENT_KEY);
-  if(consent==='granted'){trackInternalPageView();loadGoogleTag()}
-  else if(consent!=='denied')consentBanner();
+  if(r.ok&&d.ok&&d.enabled&&/^G-[A-Z0-9]+$/i.test(String(d.measurementId||'')))measurementId=String(d.measurementId);
  }catch{}
+ let consent='';try{consent=localStorage.getItem(CONSENT_KEY)||''}catch{}
+ if(consent==='granted'){trackInternalPageView();loadGoogleTag()}
+ else if(consent!=='denied')consentBanner();
 }
 
 window.valenzaTrackEvent=(name,params)=>emit(name,params||{});
