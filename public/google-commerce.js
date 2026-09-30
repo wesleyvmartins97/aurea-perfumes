@@ -34,9 +34,12 @@ function item(x,qty=x.qty||1,price=x.price){
 function eventItems(source=currentCart(),paymentType='card'){
  return source.map(x=>item(x,x.qty,paymentType==='pix'?pixUnit(x.price):x.price));
 }
-function orderValue(source=currentCart(),paymentType='card',shipping=currentShipping()){
+function itemsValue(items=[]){
+ return Number(items.reduce((sum,x)=>sum+Number(x.price||0)*Number(x.quantity||1),0).toFixed(2));
+}
+function cartValue(source=currentCart(),paymentType='card'){
  const subtotal=source.reduce((sum,x)=>sum+(paymentType==='pix'?pixUnit(x.price):Number(x.price||0))*Number(x.qty||1),0);
- return Number((subtotal+Number(shipping?.price||0)).toFixed(2));
+ return Number(subtotal.toFixed(2));
 }
 function emit(name,params={}){
  if(!ready||typeof window.gtag!=='function')return false;
@@ -87,13 +90,15 @@ window.valenzaTrackEvent=(name,params)=>emit(name,params||{});
 window.valenzaRememberOrder=({transactionId,value,paymentType='card'}={})=>{
  const id=String(transactionId||'').trim();
  if(!id)return;
- const source=currentCart(),shipping=currentShipping();
+ const source=currentCart(),shipping=currentShipping(),items=eventItems(source,paymentType);
+ const shippingValue=Number(shipping?.price||0),commerceValue=itemsValue(items);
  const snap={
   transactionId:id,
   paymentType,
-  value:Number(value)>0?Number(value):orderValue(source,paymentType,shipping),
-  shipping:Number(shipping?.price||0),
-  items:eventItems(source,paymentType),
+  value:commerceValue,
+  total:Number(value)>0?Number(value):Number((commerceValue+shippingValue).toFixed(2)),
+  shipping:shippingValue,
+  items,
   savedAt:Date.now()
  };
  try{localStorage.setItem(PENDING_PREFIX+id,JSON.stringify(snap))}catch{}
@@ -105,11 +110,15 @@ window.valenzaTrackPurchase=({transactionId,value,paymentType='card'}={})=>{
  let snap=null;
  try{snap=JSON.parse(localStorage.getItem(PENDING_PREFIX+id)||'null')}catch{}
  const source=currentCart(),shipping=currentShipping();
+ const purchaseItems=Array.isArray(snap?.items)&&snap.items.length?snap.items:eventItems(source,paymentType);
+ const shippingValue=Number(snap?.shipping??shipping?.price??0);
+ const fallbackTotal=Number(value)>0?Number(value):Number(snap?.total||0);
+ const commerceValue=purchaseItems.length?itemsValue(purchaseItems):Math.max(0,Number((fallbackTotal-shippingValue).toFixed(2)));
  const payload={
   transaction_id:id,
-  value:Number(value)>0?Number(value):(Number(snap?.value)>0?Number(snap.value):orderValue(source,paymentType,shipping)),
-  shipping:Number(snap?.shipping??shipping?.price??0),
-  items:Array.isArray(snap?.items)&&snap.items.length?snap.items:eventItems(source,paymentType),
+  value:commerceValue,
+  shipping:shippingValue,
+  items:purchaseItems,
   payment_type:String(paymentType||snap?.paymentType||'')
  };
  const sent=emit('purchase',payload);
@@ -134,9 +143,22 @@ function trackCurrentProduct(){
 }
 window.valenzaSetCurrentProduct=id=>{currentProductId=String(id||'');if(ready)trackCurrentProduct()};
 function cartParams(paymentType='card'){
- const source=currentCart(),shipping=currentShipping();
- return {value:orderValue(source,paymentType,shipping),items:eventItems(source,paymentType)};
+ const source=currentCart();
+ return {value:cartValue(source,paymentType),items:eventItems(source,paymentType)};
 }
+window.valenzaTrackBeginCheckout=()=>{
+ const p=cartParams();
+ return p.items.length?emit('begin_checkout',p):false;
+};
+window.valenzaTrackShippingInfo=()=>{
+ const p=cartParams();
+ return p.items.length?emit('add_shipping_info',{...p,shipping_tier:String(currentShipping()?.name||'')}):false;
+};
+window.valenzaTrackPaymentInfo=(paymentType='')=>{
+ const type=String(paymentType||'').toLowerCase();
+ const p=cartParams(type==='pix'?'pix':'card');
+ return p.items.length?emit('add_payment_info',{...p,payment_type:type||'card'}):false;
+};
 function installWrappers(){
  wrap('detail',orig=>function(id){const r=orig.apply(this,arguments);const p=productById(id);if(p)emit('view_item',{value:Number(p.price||0),items:[item(p,1,p.price)]});return r});
  wrap('add',orig=>function(id){const p=productById(id);const r=orig.apply(this,arguments);if(p)emit('add_to_cart',{value:Number(p.price||0),items:[item(p,1,p.price)]});return r});
@@ -144,9 +166,6 @@ function installWrappers(){
  wrap('removeItem',orig=>function(id){const before=currentCart().find(x=>String(x.id)===String(id));const r=orig.apply(this,arguments);if(before)emit('remove_from_cart',{value:Number(before.price||0)*Number(before.qty||1),items:[item(before,before.qty,before.price)]});return r});
  wrap('changeQty',orig=>function(id,d){const p=currentCart().find(x=>String(x.id)===String(id))||productById(id);const r=orig.apply(this,arguments);if(p&&Number(d)>0)emit('add_to_cart',{value:Number(p.price||0),items:[item(p,1,p.price)]});else if(p&&Number(d)<0)emit('remove_from_cart',{value:Number(p.price||0),items:[item(p,1,p.price)]});return r});
  wrap('openCart',orig=>function(){const r=orig.apply(this,arguments);const p=cartParams();if(p.items.length)emit('view_cart',p);return r});
- wrap('openCheckout',orig=>async function(){const r=await orig.apply(this,arguments);if(document.getElementById('checkoutModal')?.classList.contains('open')){const p=cartParams();if(p.items.length)emit('begin_checkout',p)}return r});
- wrap('selectCheckoutShipping',orig=>function(){const r=orig.apply(this,arguments);const p=cartParams();if(p.items.length)emit('add_shipping_info',{...p,shipping_tier:String(currentShipping()?.name||'')});return r});
- wrap('choosePayment',orig=>async function(kind){const r=await orig.apply(this,arguments);const type=String(kind||'');const p=cartParams(type==='pix'?'pix':'card');if(p.items.length)emit('add_payment_info',{...p,payment_type:type});return r});
 }
 installWrappers();
 init();
