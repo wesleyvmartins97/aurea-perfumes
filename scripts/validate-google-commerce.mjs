@@ -22,7 +22,7 @@ if(!js.includes("if(r.ok&&d.ok&&d.enabled"))fail.push('Analytics interno ainda d
 if(!js.includes("if(!consentGranted())return false"))fail.push('Analytics interno não está bloqueado por consentimento.');
 if(!privacy.includes('estado/região e cidade aproximados'))fail.push('Privacidade não informa geolocalização aproximada da medição.');
 if(!privacy.includes('não armazena nessa medição o endereço IP'))fail.push('Privacidade não informa que IP não é armazenado na medição.');
-if(worker.includes('CF-Connecting-IP'))fail.push('Analytics não deve armazenar ou depender do IP bruto do visitante.');
+const analyticsBlock=worker.slice(worker.indexOf('async function analyticsEvent'),worker.indexOf('async function analyticsDashboard'));if(analyticsBlock.includes('CF-Connecting-IP')||analyticsBlock.includes('latitude')||analyticsBlock.includes('longitude')||analyticsBlock.includes('postalCode'))fail.push('Analytics interno não deve armazenar IP, coordenadas ou CEP da visita.');
 if(!js.includes("CONSENT_KEY='valenza_google_consent'"))fail.push('Tracking sem consentimento persistente.');
 if(!js.includes("CONTINUAR SEM MEDIÇÃO"))fail.push('Banner sem opção de continuar sem medição.');
 if(!js.includes('valenzaTrackPurchase'))fail.push('Função de purchase ausente.');
