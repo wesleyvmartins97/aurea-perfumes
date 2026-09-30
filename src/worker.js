@@ -83,8 +83,9 @@ async function hashPassword(password,saltB64){
  return {hash:bytesHex(bits),salt:btoa(String.fromCharCode(...salt))};
 }
 function validEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)}
-function cookieTokens(request){const c=request.headers.get("Cookie")||"";const out=[];for(const part of c.split(";")){const p=part.trim();if(!p.startsWith("aurea_session="))continue;try{const t=decodeURIComponent(p.slice("aurea_session=".length));if(t&&!out.includes(t))out.push(t)}catch{}}return out}
-function sessionCookies(request,token,maxAge=2592000){const host=new URL(request.url).hostname.toLowerCase(),exp=(maxAge>0?new Date(Date.now()+maxAge*1000):new Date(0)).toUTCString(),base="aurea_session="+encodeURIComponent(token)+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge+"; Expires="+exp,out=[base];if(host==="valenzaparfums.com.br"||host==="www.valenzaparfums.com.br")out.push(base+"; Domain=valenzaparfums.com.br");return out}
+function cookieTokens(request){const c=request.headers.get("Cookie")||"",out=[];for(const part of c.split(";")){const p=part.trim();let raw="";if(p.startsWith("__Host-valenza_session="))raw=p.slice("__Host-valenza_session=".length);else if(p.startsWith("aurea_session="))raw=p.slice("aurea_session=".length);else continue;try{const t=decodeURIComponent(raw);if(t&&!out.includes(t))out.push(t)}catch{}}return out}
+function sessionCookie(token,maxAge=2592000){const exp=(maxAge>0?new Date(Date.now()+maxAge*1000):new Date(0)).toUTCString();return "__Host-valenza_session="+encodeURIComponent(token)+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+maxAge+"; Expires="+exp+"; Priority=High"}
+function legacySessionClearCookies(){const expired="Thu, 01 Jan 1970 00:00:00 GMT",base="aurea_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Expires="+expired;return [base,base+"; Domain=valenzaparfums.com.br"]}
 function primaryDb(env){return typeof env.DB.withSession==="function"?env.DB.withSession("first-primary"):env.DB}
 async function validCustomerSession(request,env){const tokens=cookieTokens(request);if(!tokens.length)return {user:null,reason:"missing_cookie"};const db=primaryDb(env);for(const t of tokens){const th=await sha256(t);const u=await db.prepare("SELECT c.id,c.name,c.email,c.email_verified,s.expires_at FROM customer_sessions s JOIN customers c ON c.id=s.customer_id WHERE s.token_hash=?").bind(th).first();if(u&&Date.parse(u.expires_at)>=Date.now())return {user:u,token:t,reason:null}}return {user:null,reason:"session_not_found"}}
 
@@ -142,9 +143,9 @@ async function authResendVerification(request,env){
   await ensureAuthSchema(env);
   const d=await request.json(),email=String(d.email||"").trim().toLowerCase();
   if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);
-  await cleanupExpiredPendingEmail(env,email);
+  const expired=await cleanupExpiredPendingEmail(env,email);
   const u=await env.DB.prepare("SELECT id,name,email,email_verified FROM customers WHERE email=?").bind(email).first();
-  if(!u)return resposta({ok:true,message:"Se houver uma conta pendente para este e-mail, enviaremos uma nova confirmação."});
+  if(!u)return resposta({ok:true,expired:!!expired,notPending:true,message:expired?"Seu cadastro pendente expirou após 24 horas. Use CRIAR CONTA para se cadastrar novamente.":"Não há um cadastro pendente ativo para este e-mail. Use CRIAR CONTA se quiser se cadastrar."});
   if(u.email_verified)return resposta({ok:true,alreadyVerified:true,message:"Este e-mail já está confirmado. Você já pode entrar."});
   await env.DB.prepare("DELETE FROM email_verifications WHERE customer_id=?").bind(u.id).run();
   const token=randomToken(),th=await sha256(token),now=new Date().toISOString(),exp=new Date(Date.now()+24*3600e3).toISOString();
@@ -159,14 +160,14 @@ function htmlMsg(title,msg,ok){return new Response('<!doctype html><meta charset
 async function authLogin(request,env){
  try{await ensureAuthSchema(env);const d=await request.json();const email=String(d.email||"").trim().toLowerCase(),pass=String(d.password||"");const u=await env.DB.prepare("SELECT id,name,email,password_hash,password_salt,email_verified FROM customers WHERE email=?").bind(email).first();if(!u)return resposta({ok:false,error:"E-mail ou senha incorretos."},401);let hp;try{hp=await hashPassword(pass,u.password_salt)}catch(e){hp={hash:await sha256(u.password_salt+":"+pass)}}if(hp.hash!==u.password_hash)return resposta({ok:false,error:"E-mail ou senha incorretos."},401);if(!u.email_verified)return resposta({ok:false,error:"Confirme seu e-mail antes de entrar."},403);
  const db=primaryDb(env);for(const oldToken of cookieTokens(request))await db.prepare("DELETE FROM customer_sessions WHERE token_hash=?").bind(await sha256(oldToken)).run();
- const token=randomToken(),th=await sha256(token),now=new Date().toISOString(),exp=new Date(Date.now()+30*86400e3).toISOString();await db.prepare("INSERT INTO customer_sessions(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),u.id,th,exp,now).run();const persisted=await db.prepare("SELECT id FROM customer_sessions WHERE token_hash=?").bind(th).first();if(!persisted)throw new Error("Sessão criada, mas não persistida.");const h=new Headers(jsonHeaders);for(const c of sessionCookies(request,token))h.append("Set-Cookie",c);return new Response(JSON.stringify({ok:true,user:{name:u.name,email:u.email}}),{status:200,headers:h});
+ const token=randomToken(),th=await sha256(token),now=new Date().toISOString(),exp=new Date(Date.now()+30*86400e3).toISOString();await db.prepare("INSERT INTO customer_sessions(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),u.id,th,exp,now).run();const persisted=await db.prepare("SELECT id FROM customer_sessions WHERE token_hash=?").bind(th).first();if(!persisted)throw new Error("Sessão criada, mas não persistida.");const h=new Headers(jsonHeaders);for(const c of legacySessionClearCookies())h.append("Set-Cookie",c);h.append("Set-Cookie",sessionCookie(token));return new Response(JSON.stringify({ok:true,user:{name:u.name,email:u.email}}),{status:200,headers:h});
  }catch(e){console.error("Login:",e);return resposta({ok:false,error:"Não foi possível entrar agora."},500)}
 }
 async function authMe(request,env){
  try{await ensureAuthSchema(env);const s=await validCustomerSession(request,env);if(!s.user)return resposta({ok:false,user:null,reason:s.reason},401);const u=s.user;return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified}});
  }catch(e){console.error("Auth me:",e);return resposta({ok:false,user:null,reason:"server_error"},500)}
 }
-async function authLogout(request,env){try{await ensureAuthSchema(env);const db=primaryDb(env);for(const t of cookieTokens(request))await db.prepare("DELETE FROM customer_sessions WHERE token_hash=?").bind(await sha256(t)).run();const h=new Headers(jsonHeaders);for(const c of sessionCookies(request,"",0))h.append("Set-Cookie",c);return new Response(JSON.stringify({ok:true}),{headers:h})}catch(e){console.error("Logout:",e);return resposta({ok:true})}}
+async function authLogout(request,env){try{await ensureAuthSchema(env);const db=primaryDb(env);for(const t of cookieTokens(request))await db.prepare("DELETE FROM customer_sessions WHERE token_hash=?").bind(await sha256(t)).run();const h=new Headers(jsonHeaders);h.append("Set-Cookie",sessionCookie("",0));for(const c of legacySessionClearCookies())h.append("Set-Cookie",c);return new Response(JSON.stringify({ok:true}),{headers:h})}catch(e){console.error("Logout:",e);return resposta({ok:true})}}
 
 
 async function currentCustomer(request,env){await ensureAuthSchema(env);const s=await validCustomerSession(request,env);return s.user||null}
