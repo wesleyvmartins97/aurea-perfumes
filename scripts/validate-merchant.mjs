@@ -11,7 +11,7 @@ if(!feed.includes('xmlns:g="http://base.google.com/ns/1.0"'))fail.push('Namespac
 if(!feed.includes('<rss')||!feed.includes('<channel>'))fail.push('Feed não está em RSS 2.0 válido.');
 const items=(feed.match(/<item>/g)||[]).length;
 if(items!==sellable.length)fail.push(`Feed tem ${items} itens, mas catálogo vendável tem ${sellable.length}.`);
-if(/<g:availability>(preorder|backorder)<\/g.test(feed))fail.push('Feed usa preorder/backorder indevidamente.');
+if(/<g:availability>(preorder|backorder)<\/g:availability>/i.test(feed))fail.push('Feed usa preorder/backorder indevidamente.');
 if(/<g:gtin>|<g:mpn>|<g:identifier_exists>/i.test(feed))fail.push('Feed contém identificadores não cadastrados no catálogo.');
 
 for(const p of sellable){
