@@ -386,7 +386,7 @@ if(!history.state||(!history.state.aureaBase&&!history.state.aureaLayer)){
 function openCart(){document.getElementById('cart').classList.add('open');pushLayer('cart')};if(sessionStorage.getItem('aurea_open_cart')==='1'){sessionStorage.removeItem('aurea_open_cart');setTimeout(()=>{updateCart();openCart()},0)}
 function closeCart(fromHistory=false){document.getElementById('cart').classList.remove('open');dropLayer('cart',fromHistory)}
 function enableOutsideModalClose(){['detailModal'].forEach(id=>{const m=document.getElementById(id);if(!m||m.dataset.outsideClose)return;m.dataset.outsideClose='1';m.addEventListener('click',e=>{if(e.target===m)closeDetail()})})}
-function detail(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;document.getElementById('detailBox').innerHTML=`<img src="${esc(p.img)}" alt="${esc(p.name)}"><div class="detail-copy"><div class="brand">${esc(p.brand)}</div><h2>${esc(p.name)}</h2><div class="meta">${esc(p.type)}</div>${p.desc?`<p>${esc(p.desc)}</p>`:''}<div class="price">${money(p.price)}</div><div class="pix">ou ${money(p.pix)} no Pix</div><div style="margin:14px 0;padding:11px 12px;border:1px solid #d8cfc6;background:#f7f3ef;font-size:11px;line-height:1.55;color:#4f4740"><strong style="display:block;font-size:10px;letter-spacing:1px;color:#171513;margin-bottom:3px">DISPONÍVEL PARA COMPRA ONLINE · SOB ENCOMENDA</strong>Este perfume é adquirido especialmente para o seu pedido. Preparação em até 10 dias úteis; depois, segue pela transportadora escolhida.</div>${p.details||''}<button class="add" onclick="add('${p.id}');closeDetail()">ADICIONAR AO CARRINHO</button></div>`;document.getElementById('detailModal').classList.add('open');pushLayer('detail')};function closeDetail(fromHistory=false){document.getElementById('detailModal').classList.remove('open');dropLayer('detail',fromHistory)};let autoShippingTimer=null,lastAutoShippingCep='';function maskCep(i){let v=i.value.replace(/\D/g,'').slice(0,8);i.value=v.replace(/(\d{5})(\d)/,'$1-$2')};function autoShipping(i){const cep=String(i?.value||'').replace(/\D/g,'');clearTimeout(autoShippingTimer);if(cep.length!==8){lastAutoShippingCep='';return}if(cep===lastAutoShippingCep)return;lastAutoShippingCep=cep;autoShippingTimer=setTimeout(()=>{if(document.getElementById('cep')===i&&String(i.value||'').replace(/\D/g,'')===cep)shipping()},180)};function maskCpf(i){let v=i.value.replace(/\D/g,'').slice(0,11);i.value=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')};function maskBirthDate(el){
+function detail(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;document.getElementById('detailBox').innerHTML=`<img src="${esc(p.img)}" alt="${esc(p.name)}"><div class="detail-copy"><div class="brand">${esc(p.brand)}</div><h2>${esc(p.name)}</h2><div class="meta">${esc(p.type)}</div>${p.desc?`<p>${esc(p.desc)}</p>`:''}<div class="price">${money(p.price)}</div><div class="pix">ou ${money(p.pix)} no Pix</div><div style="margin:14px 0;padding:11px 12px;border:1px solid #d8cfc6;background:#f7f3ef;font-size:11px;line-height:1.55;color:#4f4740"><strong style="display:block;font-size:10px;letter-spacing:1px;color:#171513;margin-bottom:3px">DISPONÍVEL PARA COMPRA ONLINE · SOB ENCOMENDA</strong>Este perfume é adquirido especialmente para o seu pedido. Preparação em até 10 dias úteis; depois, segue pela transportadora escolhida.</div>${p.details||''}<button class="add" onclick="add('${p.id}');closeDetail()">ADICIONAR AO CARRINHO</button></div>`;document.getElementById('detailModal').classList.add('open');pushLayer('detail')};function closeDetail(fromHistory=false){document.getElementById('detailModal').classList.remove('open');dropLayer('detail',fromHistory)};let autoShippingTimer=null,lastAutoShippingCep='';function maskCep(i){let v=i.value.replace(/\D/g,'').slice(0,8);i.value=v.replace(/(\d{5})(\d)/,'$1-$2')};function formatCepValue(v){const n=String(v||'').replace(/\D/g,'').slice(0,8);return n.length===8?n.replace(/(\d{5})(\d{3})/,'$1-$2'):String(v||'')};function autoShipping(i){const cep=String(i?.value||'').replace(/\D/g,'');clearTimeout(autoShippingTimer);if(cep.length!==8){lastAutoShippingCep='';return}if(cep===lastAutoShippingCep)return;lastAutoShippingCep=cep;autoShippingTimer=setTimeout(()=>{if(document.getElementById('cep')===i&&String(i.value||'').replace(/\D/g,'')===cep)shipping()},180)};function maskCpf(i){let v=i.value.replace(/\D/g,'').slice(0,11);i.value=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')};function maskBirthDate(el){
  let v=el.value.replace(/\D/g,'').slice(0,8);
  if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
  else if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);
@@ -648,9 +648,50 @@ function clientTab(t){
  if(t==='addresses'){renderClientAddresses();return}
  if(t==='profile'){renderClientProfile()}
 }
+let clientAddressCepTimer=null,clientAddressCepAbort=null,clientAddressCepRequest=0;
 function renderClientAddresses(){
  const m=document.getElementById('ccMain'),a=clientData.addresses;
- m.innerHTML='<h2 class="ccTitle">Meus endereços</h2>'+(a.length?a.map(x=>'<div class="ccAddress"><b>'+esc(x.label)+(x.is_default?' · PRINCIPAL':'')+'</b><br>'+esc(x.recipient)+'<br>'+esc(x.street)+', '+esc(x.number)+(x.complement?' · '+esc(x.complement):'')+'<br>'+esc(x.neighborhood)+' · '+esc(x.city)+'/'+esc(x.state)+' · CEP '+esc(x.cep)+'<br><button onclick="deleteClientAddress(\''+x.id+'\')">EXCLUIR</button></div>').join(''):'<div class="ccEmpty">Nenhum endereço salvo.</div>')+'<h2 style="font:22px Georgia,serif;margin-top:26px">Adicionar endereço</h2><div class="ccForm"><div><label>NOME DO ENDEREÇO</label><input id="caLabel" placeholder="Casa"></div><div><label>DESTINATÁRIO</label><input id="caRecipient" value="'+esc(clientData.user.name)+'"></div><div><label>CEP</label><input id="caCep"></div><div><label>RUA</label><input id="caStreet"></div><div><label>NÚMERO</label><input id="caNumber"></div><div><label>COMPLEMENTO</label><input id="caComplement"></div><div><label>BAIRRO</label><input id="caNeighborhood"></div><div><label>CIDADE</label><input id="caCity"></div><div><label>UF</label><input id="caState" maxlength="2"></div><div><label><input id="caDefault" type="checkbox"> Endereço principal</label></div><div class="ccFull"><button class="ccBtn" onclick="saveClientAddress()">SALVAR ENDEREÇO</button><div class="ccMsg" id="caMsg"></div></div></div>';
+ m.innerHTML='<h2 class="ccTitle">Meus endereços</h2>'+(a.length?a.map(x=>'<div class="ccAddress"><b>'+esc(x.label)+(x.is_default?' · PRINCIPAL':'')+'</b><br>'+esc(x.recipient)+'<br>'+esc(x.street)+', '+esc(x.number)+(x.complement?' · '+esc(x.complement):'')+'<br>'+esc(x.neighborhood)+' · '+esc(x.city)+'/'+esc(x.state)+' · CEP '+esc(formatCepValue(x.cep))+'<br><button onclick="deleteClientAddress(\''+x.id+'\')">EXCLUIR</button></div>').join(''):'<div class="ccEmpty">Nenhum endereço salvo.</div>')+'<h2 style="font:22px Georgia,serif;margin-top:26px">Adicionar endereço</h2><div class="ccForm"><div><label>NOME DO ENDEREÇO</label><input id="caLabel" placeholder="Casa"></div><div><label>DESTINATÁRIO</label><input id="caRecipient" value="'+esc(clientData.user.name)+'"></div><div><label>CEP</label><input id="caCep" maxlength="9" inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" oninput="autoClientAddressCep(this)"><div class="ccMsg" id="caCepMsg" style="margin-top:5px"></div></div><div><label>RUA</label><input id="caStreet" autocomplete="address-line1"></div><div><label>NÚMERO</label><input id="caNumber"></div><div><label>COMPLEMENTO</label><input id="caComplement" autocomplete="address-line2"></div><div><label>BAIRRO</label><input id="caNeighborhood"></div><div><label>CIDADE</label><input id="caCity" autocomplete="address-level2"></div><div><label>UF</label><input id="caState" maxlength="2" autocomplete="address-level1"></div><div><label><input id="caDefault" type="checkbox"> Endereço principal</label></div><div class="ccFull"><button class="ccBtn" onclick="saveClientAddress()">SALVAR ENDEREÇO</button><div class="ccMsg" id="caMsg"></div></div></div>';
+}
+function autoClientAddressCep(input){
+ maskCep(input);
+ const cep=String(input?.value||'').replace(/\D/g,''),msg=document.getElementById('caCepMsg');
+ clearTimeout(clientAddressCepTimer);
+ if(cep.length!==8){
+  clientAddressCepRequest++;
+  if(clientAddressCepAbort){clientAddressCepAbort.abort();clientAddressCepAbort=null}
+  if(msg){msg.textContent='';msg.style.color=''}
+  return;
+ }
+ clientAddressCepTimer=setTimeout(()=>lookupClientAddressCep(input,cep),180);
+}
+async function lookupClientAddressCep(input,expectedCep){
+ const cep=String(expectedCep||input?.value||'').replace(/\D/g,'');
+ if(cep.length!==8)return;
+ const msg=document.getElementById('caCepMsg'),requestId=++clientAddressCepRequest;
+ if(clientAddressCepAbort)clientAddressCepAbort.abort();
+ clientAddressCepAbort=new AbortController();
+ if(msg){msg.textContent='Buscando endereço...';msg.style.color='#777'}
+ try{
+  const r=await fetch('https://viacep.com.br/ws/'+encodeURIComponent(cep)+'/json/',{signal:clientAddressCepAbort.signal,cache:'no-store'});
+  if(!r.ok)throw Error('consulta');
+  const d=await r.json();
+  if(requestId!==clientAddressCepRequest||String(input?.value||'').replace(/\D/g,'')!==cep)return;
+  if(d.erro){if(msg){msg.textContent='CEP não encontrado. Confira os números ou preencha o endereço manualmente.';msg.style.color='#8b403a'}return}
+  const street=document.getElementById('caStreet'),neighborhood=document.getElementById('caNeighborhood'),city=document.getElementById('caCity'),state=document.getElementById('caState');
+  if(street)street.value=d.logradouro||'';
+  if(neighborhood)neighborhood.value=d.bairro||'';
+  if(city)city.value=d.localidade||'';
+  if(state)state.value=String(d.uf||'').toUpperCase();
+  if(msg){msg.textContent='Endereço encontrado ✓';msg.style.color='#41735a'}
+  if(document.activeElement===input){const number=document.getElementById('caNumber');if(number)setTimeout(()=>number.focus(),80)}
+ }catch(e){
+  if(e?.name==='AbortError')return;
+  if(requestId!==clientAddressCepRequest)return;
+  if(msg){msg.textContent='Não foi possível consultar o CEP agora. Você pode preencher o endereço manualmente.';msg.style.color='#8b403a'}
+ }finally{
+  if(requestId===clientAddressCepRequest)clientAddressCepAbort=null;
+ }
 }
 async function saveClientAddress(){
  const el=id=>document.getElementById(id),msg=el('caMsg');
