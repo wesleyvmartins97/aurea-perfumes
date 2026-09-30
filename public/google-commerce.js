@@ -3,6 +3,9 @@
 const CONSENT_KEY='valenza_google_consent';
 const PURCHASE_PREFIX='valenza_purchase_';
 const PENDING_PREFIX='valenza_pending_purchase_';
+const VISITOR_KEY='valenza_analytics_visitor';
+const SESSION_KEY='valenza_analytics_session';
+const ATTR_KEY='valenza_analytics_attribution';
 let measurementId='',ready=false,loading=false,currentProductId='';
 
 function catalog(){
@@ -41,10 +44,58 @@ function cartValue(source=currentCart(),paymentType='card'){
  const subtotal=source.reduce((sum,x)=>sum+(paymentType==='pix'?pixUnit(x.price):Number(x.price||0))*Number(x.qty||1),0);
  return Number(subtotal.toFixed(2));
 }
-function emit(name,params={}){
- if(!ready||typeof window.gtag!=='function')return false;
- window.gtag('event',name,{currency:'BRL',...params});
+
+function uid(){
+ try{return crypto.randomUUID().replace(/-/g,'')}catch{return Date.now().toString(36)+Math.random().toString(36).slice(2)}
+}
+function consentGranted(){
+ try{return localStorage.getItem(CONSENT_KEY)==='granted'}catch{return false}
+}
+function visitorId(){
+ try{let id=localStorage.getItem(VISITOR_KEY)||'';if(!/^[A-Za-z0-9_-]{8,80}$/.test(id)){id=uid();localStorage.setItem(VISITOR_KEY,id)}return id}catch{return uid()}
+}
+function sessionId(){
+ const now=Date.now();
+ try{
+  let s=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+  if(!s||!/^[A-Za-z0-9_-]{8,80}$/.test(String(s.id||''))||now-Number(s.t||0)>30*60*1000)s={id:uid(),t:now};
+  else s.t=now;
+  localStorage.setItem(SESSION_KEY,JSON.stringify(s));return s.id;
+ }catch{return uid()}
+}
+function attribution(){
+ try{
+  const u=new URL(location.href),sameHost=h=>h===location.hostname||h==='valenzaparfums.com.br'||h==='www.valenzaparfums.com.br';
+  const utm={source:u.searchParams.get('utm_source')||'',medium:u.searchParams.get('utm_medium')||'',campaign:u.searchParams.get('utm_campaign')||''};
+  let refHost='';try{refHost=document.referrer?new URL(document.referrer).hostname:''}catch{}
+  let current=null;try{current=JSON.parse(localStorage.getItem(ATTR_KEY)||'null')}catch{}
+  if(utm.source||utm.medium||utm.campaign||(!current&&refHost&&!sameHost(refHost))){
+   current={source:utm.source||(refHost||'referral'),medium:utm.medium||(refHost?'referral':'none'),campaign:utm.campaign||'',referrerHost:refHost||''};
+   localStorage.setItem(ATTR_KEY,JSON.stringify(current));
+  }
+  if(!current)current={source:'direct',medium:'none',campaign:'',referrerHost:''};
+  return current;
+ }catch{return {source:'direct',medium:'none',campaign:'',referrerHost:''}}
+}
+function internalTrack(name,params={}){
+ if(!consentGranted())return false;
+ const first=Array.isArray(params.items)&&params.items.length?params.items[0]:null,a=attribution();
+ const payload={
+  eventId:uid(),visitorId:visitorId(),sessionId:sessionId(),eventName:String(name||''),
+  pagePath:location.pathname,
+  productId:String(first?.item_id||''),productName:String(first?.item_name||''),
+  value:Number(params.value||0),transactionId:String(params.transaction_id||''),
+  source:String(a.source||''),medium:String(a.medium||''),campaign:String(a.campaign||''),referrerHost:String(a.referrerHost||'')
+ };
+ fetch('/api/analytics/event',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',keepalive:true,body:JSON.stringify(payload)}).catch(()=>{});
  return true;
+}
+function trackInternalPageView(){return internalTrack('page_view',{})}
+function emit(name,params={}){
+ if(!consentGranted())return false;
+ const internal=internalTrack(name,params);
+ if(ready&&typeof window.gtag==='function')window.gtag('event',name,{currency:'BRL',...params});
+ return internal||ready;
 }
 function loadGoogleTag(){
  if(ready||loading||!/^G-[A-Z0-9]+$/i.test(measurementId))return;
@@ -69,21 +120,20 @@ function consentBanner(){
  box.setAttribute('role','dialog');
  box.setAttribute('aria-label','Preferências de privacidade');
  box.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:5000;max-width:760px;margin:auto;background:#171513;color:#f4efe9;border:1px solid #4d453f;border-radius:8px;padding:16px 18px;font:11px/1.55 Arial,sans-serif;box-shadow:0 15px 45px rgba(0,0,0,.28)';
- box.innerHTML='<div style="font:17px Georgia,serif;margin-bottom:6px">Privacidade e medição</div><div style="color:#c9c1b8">Com sua autorização, a VALENZA usa Google Analytics para entender visitas, carrinho e compras e melhorar a loja. Você pode continuar sem permitir essa medição.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="valenzaConsentAccept" type="button" style="border:0;background:#f5f1ec;color:#171513;padding:10px 14px;font-size:10px;font-weight:700;cursor:pointer">ACEITAR MEDIÇÃO</button><button id="valenzaConsentReject" type="button" style="border:1px solid #625951;background:transparent;color:#f5f1ec;padding:10px 14px;font-size:10px;cursor:pointer">CONTINUAR SEM MEDIÇÃO</button><a href="/privacidade/" style="color:#d8d0c8;align-self:center;margin-left:auto">Privacidade</a></div>';
+ box.innerHTML='<div style="font:17px Georgia,serif;margin-bottom:6px">Privacidade e medição</div><div style="color:#c9c1b8">Com sua autorização, a VALENZA usa medição própria e Google Analytics para entender visitas, origem do tráfego, produtos vistos, carrinho e compras e melhorar a loja. A localização usada nessa medição é aproximada por cidade/estado. Você pode continuar sem permitir essa medição.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="valenzaConsentAccept" type="button" style="border:0;background:#f5f1ec;color:#171513;padding:10px 14px;font-size:10px;font-weight:700;cursor:pointer">ACEITAR MEDIÇÃO</button><button id="valenzaConsentReject" type="button" style="border:1px solid #625951;background:transparent;color:#f5f1ec;padding:10px 14px;font-size:10px;cursor:pointer">CONTINUAR SEM MEDIÇÃO</button><a href="/privacidade/" style="color:#d8d0c8;align-self:center;margin-left:auto">Privacidade</a></div>';
  document.body.appendChild(box);
- box.querySelector('#valenzaConsentAccept').onclick=()=>{localStorage.setItem(CONSENT_KEY,'granted');box.remove();loadGoogleTag()};
+ box.querySelector('#valenzaConsentAccept').onclick=()=>{localStorage.setItem(CONSENT_KEY,'granted');box.remove();trackInternalPageView();loadGoogleTag()};
  box.querySelector('#valenzaConsentReject').onclick=()=>{localStorage.setItem(CONSENT_KEY,'denied');box.remove()};
 }
 async function init(){
  try{
   const r=await fetch('/api/google/config?t='+Date.now(),{cache:'no-store'});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok||!d.ok||!d.enabled||!/^G-[A-Z0-9]+$/i.test(String(d.measurementId||'')))return;
-  measurementId=String(d.measurementId);
-  const consent=localStorage.getItem(CONSENT_KEY);
-  if(consent==='granted')loadGoogleTag();
-  else if(consent!=='denied')consentBanner();
+  if(r.ok&&d.ok&&d.enabled&&/^G-[A-Z0-9]+$/i.test(String(d.measurementId||'')))measurementId=String(d.measurementId);
  }catch{}
+ let consent='';try{consent=localStorage.getItem(CONSENT_KEY)||''}catch{}
+ if(consent==='granted'){trackInternalPageView();loadGoogleTag()}
+ else if(consent!=='denied')consentBanner();
 }
 
 window.valenzaTrackEvent=(name,params)=>emit(name,params||{});

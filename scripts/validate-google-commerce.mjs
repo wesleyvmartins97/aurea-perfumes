@@ -12,6 +12,17 @@ for(const event of ['view_item','add_to_cart','remove_from_cart','view_cart','be
 if(!home.includes('src="/google-commerce.js"'))fail.push('Home não carrega google-commerce.js.');
 if(!worker.includes('/api/google/config'))fail.push('Worker sem endpoint público de configuração Google.');
 if(!worker.includes('GA4_MEASUREMENT_ID'))fail.push('Worker não lê GA4_MEASUREMENT_ID do ambiente.');
+if(!worker.includes('/api/analytics/event'))fail.push('Worker sem endpoint de Analytics interno.');
+if(!worker.includes('CREATE TABLE IF NOT EXISTS analytics_events'))fail.push('Analytics interno sem tabela dedicada.');
+if(!worker.includes('request.cf||{}'))fail.push('Analytics interno não lê geolocalização aproximada da Cloudflare.');
+if(!js.includes("VISITOR_KEY='valenza_analytics_visitor'"))fail.push('Analytics interno sem identificador anônimo de visitante.');
+if(!js.includes("SESSION_KEY='valenza_analytics_session'"))fail.push('Analytics interno sem sessão de visita.');
+if(!js.includes("fetch('/api/analytics/event'"))fail.push('Funil não espelha eventos no Analytics interno.');
+if(!js.includes("if(r.ok&&d.ok&&d.enabled"))fail.push('Analytics interno ainda depende de o GA4 estar disponível.');
+if(!js.includes("if(!consentGranted())return false"))fail.push('Analytics interno não está bloqueado por consentimento.');
+if(!privacy.includes('estado/região e cidade aproximados'))fail.push('Privacidade não informa geolocalização aproximada da medição.');
+if(!privacy.includes('não armazena nessa medição o endereço IP'))fail.push('Privacidade não informa que IP não é armazenado na medição.');
+const analyticsBlock=worker.slice(worker.indexOf('async function analyticsEvent'),worker.indexOf('async function analyticsDashboard'));if(analyticsBlock.includes('CF-Connecting-IP')||analyticsBlock.includes('latitude')||analyticsBlock.includes('longitude')||analyticsBlock.includes('postalCode'))fail.push('Analytics interno não deve armazenar IP, coordenadas ou CEP da visita.');
 if(!js.includes("CONSENT_KEY='valenza_google_consent'"))fail.push('Tracking sem consentimento persistente.');
 if(!js.includes("CONTINUAR SEM MEDIÇÃO"))fail.push('Banner sem opção de continuar sem medição.');
 if(!js.includes('valenzaTrackPurchase'))fail.push('Função de purchase ausente.');
