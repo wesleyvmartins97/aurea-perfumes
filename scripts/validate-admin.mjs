@@ -35,6 +35,7 @@ if(!worker.includes('legacySessionClearCookies'))fail.push('Migração não limp
 if(worker.includes('sessionCookies(request,token)'))fail.push('Sessão do cliente voltou a gravar cookies duplicados.');
 if(!worker.includes('if(url.protocol!=="https:")'))fail.push('Worker não força HTTP para HTTPS antes da autenticação.');
 if(!worker.includes('target.protocol="https:"'))fail.push('Redirecionamento canônico não força HTTPS.');
+if(!worker.includes('Strict-Transport-Security'))fail.push('Worker não envia HSTS para manter a loja em HTTPS.');
 if(!home.includes("credentials:'include'"))fail.push('Fluxo de conta não envia credenciais explicitamente.');
 if(!worker.includes('Seu cadastro pendente expirou após 24 horas'))fail.push('Reenvio não informa corretamente cadastro expirado.');
 if(!home.includes("if(d.expired||d.notPending)"))fail.push('Front não direciona cadastro expirado para CRIAR CONTA.');
