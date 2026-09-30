@@ -6,6 +6,7 @@ export default{async fetch(request,env){
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
+ if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env);
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
  if(url.pathname==="/api/auth/login"&&request.method==="POST")return authLogin(request,env);
  if(url.pathname==="/api/auth/me"&&request.method==="GET")return authMe(request,env);
@@ -62,7 +63,11 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_sessions (id TEXT PRIMARY KEY, customer_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(token_hash)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_login_attempts (key TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0, blocked_until TEXT, updated_at TEXT NOT NULL)"),
-  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_deleted_test_orders (id TEXT PRIMARY KEY, admin_customer_id TEXT NOT NULL, order_id TEXT NOT NULL UNIQUE, order_number TEXT, snapshot_json TEXT NOT NULL, deleted_at TEXT NOT NULL, FOREIGN KEY(admin_customer_id) REFERENCES customers(id) ON DELETE CASCADE)")
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_deleted_test_orders (id TEXT PRIMARY KEY, admin_customer_id TEXT NOT NULL, order_id TEXT NOT NULL UNIQUE, order_number TEXT, snapshot_json TEXT NOT NULL, deleted_at TEXT NOT NULL, FOREIGN KEY(admin_customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_events (id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, visitor_id TEXT NOT NULL, session_id TEXT NOT NULL, event_name TEXT NOT NULL, page_path TEXT, product_id TEXT, product_name TEXT, value REAL NOT NULL DEFAULT 0, transaction_id TEXT, source TEXT, medium TEXT, campaign TEXT, referrer_host TEXT, country TEXT, region TEXT, region_code TEXT, city TEXT, created_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name,created_at)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_location ON analytics_events(country,region_code,city,created_at)")
  ]).catch(e=>{authSchemaReady=null;throw e});
  return authSchemaReady;
 }
@@ -147,6 +152,38 @@ async function authLogout(request,env){try{await ensureAuthSchema(env);const db=
 
 async function currentCustomer(request,env){await ensureAuthSchema(env);const s=await validCustomerSession(request,env);return s.user||null}
 
+
+function analyticsText(v,max=120){return String(v||"").trim().slice(0,max)}
+async function analyticsEvent(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const origin=request.headers.get("Origin")||"";
+  if(origin){try{if(new URL(origin).hostname!==new URL(request.url).hostname)return resposta({ok:false},403)}catch{return resposta({ok:false},403)}}
+  const d=await request.json().catch(()=>({})),eventName=analyticsText(d.eventName,40);
+  const allowed=new Set(["page_view","view_item","add_to_cart","remove_from_cart","view_cart","begin_checkout","add_shipping_info","add_payment_info","purchase"]);
+  if(!allowed.has(eventName))return resposta({ok:false,error:"Evento inválido."},400);
+  const visitorId=analyticsText(d.visitorId,80),sessionId=analyticsText(d.sessionId,80);
+  if(!/^[A-Za-z0-9_-]{8,80}$/.test(visitorId)||!/^[A-Za-z0-9_-]{8,80}$/.test(sessionId))return resposta({ok:false,error:"Sessão analítica inválida."},400);
+  const transactionId=analyticsText(d.transactionId,120),rawKey=analyticsText(d.eventId,120),eventKey=eventName==="purchase"&&transactionId?"purchase:"+transactionId:rawKey;
+  if(!/^[A-Za-z0-9:_-]{8,160}$/.test(eventKey))return resposta({ok:false,error:"Identificador analítico inválido."},400);
+  const cf=request.cf||{},pagePath=analyticsText(d.pagePath,300),value=Math.max(0,Math.min(1000000,Number(d.value)||0)),now=new Date().toISOString();
+  await env.DB.prepare("INSERT OR IGNORE INTO analytics_events(id,event_key,visitor_id,session_id,event_name,page_path,product_id,product_name,value,transaction_id,source,medium,campaign,referrer_host,country,region,region_code,city,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+   .bind(crypto.randomUUID(),eventKey,visitorId,sessionId,eventName,pagePath.startsWith("/")?pagePath:"/",analyticsText(d.productId),analyticsText(d.productName),value,transactionId,analyticsText(d.source,80),analyticsText(d.medium,80),analyticsText(d.campaign,120),analyticsText(d.referrerHost,160),analyticsText(cf.country,8),analyticsText(cf.region,100),analyticsText(cf.regionCode,20),analyticsText(cf.city,120),now).run();
+  return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
+ }catch(e){console.error("Analytics event:",e);return resposta({ok:false},500)}
+}
+async function analyticsDashboard(env){
+ const now=Date.now(),since24=new Date(now-24*3600e3).toISOString(),since7=new Date(now-7*86400e3).toISOString(),since30=new Date(now-30*86400e3).toISOString();
+ const [metrics,locations,sources,products,daily]=await Promise.all([
+  env.DB.prepare("SELECT COUNT(DISTINCT CASE WHEN created_at>=? THEN session_id END) sessions24h,COUNT(DISTINCT CASE WHEN created_at>=? THEN session_id END) sessions7d,COUNT(DISTINCT session_id) sessions30d,COUNT(DISTINCT visitor_id) visitors30d,SUM(CASE WHEN event_name='page_view' THEN 1 ELSE 0 END) page_views30d,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) product_views30d,SUM(CASE WHEN event_name='add_to_cart' THEN 1 ELSE 0 END) add_to_cart30d,SUM(CASE WHEN event_name='begin_checkout' THEN 1 ELSE 0 END) begin_checkout30d,COUNT(DISTINCT CASE WHEN event_name='purchase' THEN COALESCE(NULLIF(transaction_id,''),event_key) END) purchases30d,MIN(created_at) first_event_at FROM analytics_events WHERE created_at>=?").bind(since24,since7,since30).first(),
+  env.DB.prepare("SELECT country,region,region_code,city,COUNT(DISTINCT session_id) sessions FROM analytics_events WHERE created_at>=? AND event_name='page_view' GROUP BY country,region,region_code,city ORDER BY sessions DESC LIMIT 15").bind(since30).all(),
+  env.DB.prepare("SELECT COALESCE(NULLIF(source,''),'direct') source,COALESCE(NULLIF(medium,''),'none') medium,COUNT(DISTINCT session_id) sessions FROM analytics_events WHERE created_at>=? AND event_name='page_view' GROUP BY source,medium ORDER BY sessions DESC LIMIT 12").bind(since30).all(),
+  env.DB.prepare("SELECT product_id,MAX(product_name) product_name,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) views,SUM(CASE WHEN event_name='add_to_cart' THEN 1 ELSE 0 END) carts FROM analytics_events WHERE created_at>=? AND product_id IS NOT NULL AND product_id<>'' AND event_name IN ('view_item','add_to_cart') GROUP BY product_id ORDER BY views DESC,carts DESC LIMIT 12").bind(since30).all(),
+  env.DB.prepare("SELECT substr(created_at,1,10) day,COUNT(DISTINCT session_id) sessions,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) product_views,SUM(CASE WHEN event_name='begin_checkout' THEN 1 ELSE 0 END) checkouts,COUNT(DISTINCT CASE WHEN event_name='purchase' THEN COALESCE(NULLIF(transaction_id,''),event_key) END) purchases FROM analytics_events WHERE created_at>=? GROUP BY substr(created_at,1,10) ORDER BY day DESC LIMIT 7").bind(since7).all()
+ ]);
+ const m=metrics||{},sessions30=Number(m.sessions30d||0),purchases30=Number(m.purchases30d||0);
+ return {periodDays:30,sessions24h:Number(m.sessions24h||0),sessions7d:Number(m.sessions7d||0),sessions30d:sessions30,visitors30d:Number(m.visitors30d||0),pageViews30d:Number(m.page_views30d||0),productViews30d:Number(m.product_views30d||0),addToCart30d:Number(m.add_to_cart30d||0),beginCheckout30d:Number(m.begin_checkout30d||0),purchases30d:purchases30,conversion30d:sessions30?Number((purchases30*100/sessions30).toFixed(2)):0,firstEventAt:m.first_event_at||null,locations:locations.results||[],sources:sources.results||[],products:products.results||[],daily:daily.results||[]};
+}
 function adminUsername(env){return String(env.ADMIN_USERNAME||"wesleymartins").trim().toLowerCase()}
 function adminCookieToken(request){const c=request.headers.get("Cookie")||"";const m=c.match(/(?:^|;\s*)valenza_admin=([^;]+)/);return m?decodeURIComponent(m[1]):""}
 function adminSessionCookie(token,maxAge=14400){return "valenza_admin="+encodeURIComponent(token)+"; Path=/api/admin; HttpOnly; Secure; SameSite=Strict; Max-Age="+maxAge}
@@ -319,8 +356,8 @@ async function adminDashboard(request,env){
   ]);
   const recent=(recentOrders.results||[]).map(row=>{const policy=adminOrderDeletePolicy(row,admin);return {...row,is_test_account:policy.reason!=="Venda de cliente protegida",delete_allowed:policy.allowed,delete_reason:policy.reason}});
   for(const row of recent)delete row.customer_id;
-  const totalOrders=Number(orders?.total_orders||0),paidOrders=Number(orders?.paid_orders||0),revenue=Number(orders?.revenue||0),stockRows=inventory.results||[];
-  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:stockRows.filter(x=>Number(x.stock||0)<=2).length,deletedTestOrders:Number(deletedTests?.total||0)},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
+  const totalOrders=Number(orders?.total_orders||0),paidOrders=Number(orders?.paid_orders||0),revenue=Number(orders?.revenue||0),stockRows=inventory.results||[],analytics=await analyticsDashboard(env);
+  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),analytics,metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:stockRows.filter(x=>Number(x.stock||0)<=2).length,deletedTestOrders:Number(deletedTests?.total||0)},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
  }catch(e){console.error("Admin dashboard:",e);return resposta({ok:false,error:"Não foi possível carregar o painel administrativo."},500)}
 }
 async function accountData(request,env){try{
