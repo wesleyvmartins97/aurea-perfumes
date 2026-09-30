@@ -3,7 +3,7 @@
 const CONSENT_KEY='valenza_google_consent';
 const PURCHASE_PREFIX='valenza_purchase_';
 const PENDING_PREFIX='valenza_pending_purchase_';
-let measurementId='',ready=false,loading=false;
+let measurementId='',ready=false,loading=false,currentProductId='';
 
 function catalog(){
  try{return typeof CATALOG!=='undefined'&&Array.isArray(CATALOG)?CATALOG:[]}catch{return []}
@@ -54,9 +54,10 @@ function loadGoogleTag(){
  s.async=true;
  s.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(measurementId);
  s.onload=()=>{ready=true;loading=false};
- s.onerror=()=>{loading=false};
+ s.onerror=()=>{loading=false;ready=false};
  document.head.appendChild(s);
  ready=true;
+ if(currentProductId)trackCurrentProduct();
 }
 function consentBanner(){
  if(document.getElementById('valenzaConsent'))return;
@@ -127,6 +128,11 @@ function wrap(name,factory){
  window[name]=wrapped;
 }
 function productById(id){return catalog().find(x=>String(x.id)===String(id))}
+function trackCurrentProduct(){
+ const p=productById(currentProductId);
+ if(p)emit('view_item',{value:Number(p.price||0),items:[item(p,1,p.price)]});
+}
+window.valenzaSetCurrentProduct=id=>{currentProductId=String(id||'');if(ready)trackCurrentProduct()};
 function cartParams(paymentType='card'){
  const source=currentCart(),shipping=currentShipping();
  return {value:orderValue(source,paymentType,shipping),items:eventItems(source,paymentType)};

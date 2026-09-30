@@ -670,6 +670,7 @@ function openProductFromUrl(){
 
 function bootAurea(){
  try{render()}catch(e){console.error('AUREA render',e)}
+ try{openProductFromUrl()}catch(e){console.error('VALENZA produto URL',e)}
  try{enableOutsideModalClose()}catch(e){console.error('AUREA modal',e)}
 
  try{updateCart()}catch(e){console.error('AUREA carrinho',e)}

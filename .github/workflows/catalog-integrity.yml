@@ -23,8 +23,13 @@ on:
   pull_request:
     paths:
       - 'public/products.js'
-      - '.github/workflows/catalog-integrity.yml'
+      - 'public/privacidade/**'
+      - 'scripts/validate-google-commerce.mjs'
+      - 'public/google-commerce.js'
       - 'scripts/generate-seo.mjs'
+      - 'public/merchant-feed.xml'
+      - 'scripts/validate-merchant.mjs'
+      - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
       - 'public/perfume/**'
@@ -32,6 +37,7 @@ on:
       - 'public/sitemap.xml'
       - 'src/worker.js'
       - 'scripts/validate-catalog.mjs'
+      - '.github/workflows/catalog-integrity.yml'
 
 jobs:
   validar-catalogo:
