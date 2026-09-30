@@ -33,13 +33,13 @@ for(const p of catalog){
   if(!html.includes(`/perfume/${p.id}/`))fail.push(`${tag}: canonical/URL SEO não corresponde ao id.`);
   if(!html.includes(`"sku":"${p.id}"`))fail.push(`${tag}: JSON-LD sem SKU correto.`);
   if(!html.includes(p.type))fail.push(`${tag}: tipo/volume da página SEO diverge do catálogo.`);
-  if(!html.includes('https://valenzaparfums.com.br'+p.img))fail.push(`${tag}: imagem da página SEO diverge do catálogo.`);
+  if(!html.includes('https://www.valenzaparfums.com.br'+p.img))fail.push(`${tag}: imagem da página SEO diverge do catálogo.`);
   if(!html.includes(`"price":"${Number(p.price).toFixed(2)}"`))fail.push(`${tag}: preço da página SEO diverge do catálogo.`);
   if(/http-equiv=["']refresh/i.test(html))fail.push(`${tag}: página SEO não deve redirecionar automaticamente.`);
   if(!html.includes('"@type":"Product"'))fail.push(`${tag}: página SEO sem Product JSON-LD.`);
   if(!html.includes('"@type":"BreadcrumbList"'))fail.push(`${tag}: página SEO sem BreadcrumbList JSON-LD.`);
   if(!html.includes('"availability":"https://schema.org/InStock"'))fail.push(`${tag}: disponibilidade estruturada deve ser InStock.`);
-  if(!html.includes('"logo":"https://valenzaparfums.com.br/favicon.png"'))fail.push(`${tag}: seller sem logo estruturado.`);
+  if(!html.includes('"logo":"https://www.valenzaparfums.com.br/favicon.png"'))fail.push(`${tag}: seller sem logo estruturado.`);
   if(!html.includes('COMPRAR NA VALENZA'))fail.push(`${tag}: página SEO sem CTA visível.`);
   if(!html.includes('src="/google-commerce.js"'))fail.push(`${tag}: página SEO sem tracking preparado.`);
   if(!html.includes(`valenzaSetCurrentProduct?.("${p.id}")`))fail.push(`${tag}: página SEO sem identificação do produto para tracking.`);
@@ -62,8 +62,8 @@ for(const id of Object.keys(official))if(!ids.has(id))fail.push(`${id}: existe n
 
 const sitemap=read('public/sitemap.xml');
 for(const p of catalog){
- if(!sitemap.includes(`https://valenzaparfums.com.br/perfume/${p.id}/`))fail.push(`${p.id}: ausente no sitemap.`);
- if(!sitemap.includes(`https://valenzaparfums.com.br${p.img}`))fail.push(`${p.id}: imagem ausente no sitemap.`);
+ if(!sitemap.includes(`https://www.valenzaparfums.com.br/perfume/${p.id}/`))fail.push(`${p.id}: ausente no sitemap.`);
+ if(!sitemap.includes(`https://www.valenzaparfums.com.br${p.img}`))fail.push(`${p.id}: imagem ausente no sitemap.`);
 }
 const home=read('public/index.html');
 if(!home.includes('"@type":"WebSite"'))fail.push('Home sem WebSite JSON-LD para nome do site.');

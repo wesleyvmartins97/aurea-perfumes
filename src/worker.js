@@ -2,6 +2,7 @@ const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Contr
 
 export default{async fetch(request,env){
  const url=new URL(request.url);
+ if(url.hostname==="valenzaparfums.com.br"&&(request.method==="GET"||request.method==="HEAD")&&!url.pathname.startsWith("/api/")){const target=new URL(request.url);target.hostname="www.valenzaparfums.com.br";return Response.redirect(target.toString(),308)}
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
