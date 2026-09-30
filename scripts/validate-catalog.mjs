@@ -35,6 +35,11 @@ for(const p of catalog){
   if(!html.includes(p.type))fail.push(`${tag}: tipo/volume da página SEO diverge do catálogo.`);
   if(!html.includes('https://valenzaparfums.com.br'+p.img))fail.push(`${tag}: imagem da página SEO diverge do catálogo.`);
   if(!html.includes(`"price":"${Number(p.price).toFixed(2)}"`))fail.push(`${tag}: preço da página SEO diverge do catálogo.`);
+  if(/http-equiv=["']refresh/i.test(html))fail.push(`${tag}: página SEO não deve redirecionar automaticamente.`);
+  if(!html.includes('"@type":"Product"'))fail.push(`${tag}: página SEO sem Product JSON-LD.`);
+  if(!html.includes('"@type":"BreadcrumbList"'))fail.push(`${tag}: página SEO sem BreadcrumbList JSON-LD.`);
+  if(!html.includes('"availability":"https://schema.org/PreOrder"'))fail.push(`${tag}: disponibilidade estruturada deve ser PreOrder.`);
+  if(!html.includes('COMPRAR NA VALENZA'))fail.push(`${tag}: página SEO sem CTA visível.`);
  }
 }
 
@@ -53,7 +58,14 @@ for(const p of catalog){
 for(const id of Object.keys(official))if(!ids.has(id))fail.push(`${id}: existe no Worker, mas não em products.js.`);
 
 const sitemap=read('public/sitemap.xml');
-for(const p of catalog)if(!sitemap.includes(`https://valenzaparfums.com.br/perfume/${p.id}/`))fail.push(`${p.id}: ausente no sitemap.`);
+for(const p of catalog){
+ if(!sitemap.includes(`https://valenzaparfums.com.br/perfume/${p.id}/`))fail.push(`${p.id}: ausente no sitemap.`);
+ if(!sitemap.includes(`https://valenzaparfums.com.br${p.img}`))fail.push(`${p.id}: imagem ausente no sitemap.`);
+}
+const home=read('public/index.html');
+if(!home.includes('"@type":"WebSite"'))fail.push('Home sem WebSite JSON-LD para nome do site.');
+if(!home.includes('rel="icon"'))fail.push('Home sem favicon declarado.');
+if(!fs.existsSync('public/favicon.png'))fail.push('favicon.png ausente.');
 
 if(fail.length){
  console.error(`\nCATÁLOGO REPROVADO — ${fail.length} erro(s):\n- ${fail.join('\n- ')}\n`);
