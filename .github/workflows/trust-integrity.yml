@@ -1,0 +1,36 @@
+name: Confiança comercial
+
+on:
+  pull_request:
+    paths:
+      - 'public/index.html'
+      - 'public/privacidade/**'
+      - 'public/termos/**'
+      - 'public/trocas-e-devolucoes/**'
+      - 'public/envio-e-entrega/**'
+      - 'scripts/validate-trust.mjs'
+      - '.github/workflows/trust-integrity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'public/index.html'
+      - 'public/privacidade/**'
+      - 'public/termos/**'
+      - 'public/trocas-e-devolucoes/**'
+      - 'public/envio-e-entrega/**'
+      - 'scripts/validate-trust.mjs'
+      - '.github/workflows/trust-integrity.yml'
+
+jobs:
+  validar-confianca:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar sintaxe do teste
+        run: node --check scripts/validate-trust.mjs
+      - name: Validar confiança comercial
+        run: node scripts/validate-trust.mjs
