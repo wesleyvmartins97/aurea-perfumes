@@ -14,6 +14,9 @@ on:
       - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
+      - 'public/admin/**'
+      - 'scripts/validate-admin.mjs'
+      - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
       - 'public/sitemap.xml'
@@ -32,6 +35,9 @@ on:
       - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
+      - 'public/admin/**'
+      - 'scripts/validate-admin.mjs'
+      - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
       - 'public/sitemap.xml'
@@ -70,6 +76,8 @@ jobs:
         run: node --check scripts/validate-google-commerce.mjs
       - name: Auditar tracking Google
         run: node scripts/validate-google-commerce.mjs
+      - name: Validar painel administrativo
+        run: node scripts/validate-admin.mjs
       - name: Validar sintaxe do Worker
         run: node --check src/worker.js
       - name: Validar sintaxe do catálogo
