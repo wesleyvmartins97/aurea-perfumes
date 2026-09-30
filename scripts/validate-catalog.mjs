@@ -39,6 +39,7 @@ for(const p of catalog){
   if(!html.includes('"@type":"Product"'))fail.push(`${tag}: página SEO sem Product JSON-LD.`);
   if(!html.includes('"@type":"BreadcrumbList"'))fail.push(`${tag}: página SEO sem BreadcrumbList JSON-LD.`);
   if(!html.includes('"availability":"https://schema.org/PreOrder"'))fail.push(`${tag}: disponibilidade estruturada deve ser PreOrder.`);
+  if(!html.includes('"logo":"https://valenzaparfums.com.br/favicon.png"'))fail.push(`${tag}: seller sem logo estruturado.`);
   if(!html.includes('COMPRAR NA VALENZA'))fail.push(`${tag}: página SEO sem CTA visível.`);
  }
 }
@@ -65,6 +66,9 @@ for(const p of catalog){
 const home=read('public/index.html');
 if(!home.includes('"@type":"WebSite"'))fail.push('Home sem WebSite JSON-LD para nome do site.');
 if(!home.includes('rel="icon"'))fail.push('Home sem favicon declarado.');
+const homeH1=(home.match(/<h1\b/gi)||[]).length;
+if(homeH1!==1)fail.push(`Home deve conter exatamente um H1; encontrado(s): ${homeH1}.`);
+if(/<img\b(?=[^>]*src=)(?![^>]*\balt=)[^>]*>/i.test(home))fail.push('Home contém imagem sem atributo alt.');
 if(!fs.existsSync('public/favicon.png'))fail.push('favicon.png ausente.');
 
 if(fail.length){
