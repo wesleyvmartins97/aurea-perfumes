@@ -56,6 +56,13 @@ if(!admin.includes('APAGAR SELECIONADOS'))fail.push('Ação de limpeza em lote a
 if(!admin.includes('data-delete-one'))fail.push('Ação de limpeza pedido a pedido ausente.');
 if(!admin.includes('Digite APAGAR'))fail.push('Confirmação explícita da exclusão ausente.');
 if(!admin.includes('CLIENTE REAL'))fail.push('Painel não sinaliza venda real protegida.');
+if(!admin.includes('PENDENTE · 24H'))fail.push('Painel não sinaliza validade de 24h dos cadastros pendentes.');
+if(!worker.includes('cleanupExpiredPendingCustomers'))fail.push('Limpeza automática de cadastros pendentes expirados ausente.');
+if(!worker.includes('cleanupExpiredPendingEmail'))fail.push('Recadastro não limpa pendência expirada do mesmo e-mail.');
+if(!worker.includes('Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env)])'))fail.push('Cron não executa limpeza periódica das pendências.');
+if(!worker.includes('NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege pedidos vinculados.');
+if(!worker.includes('NOT EXISTS(SELECT 1 FROM guest_orders g WHERE lower(g.email)=lower(customers.email))'))fail.push('Limpeza de pendência não protege pedidos legados pelo e-mail.');
+if(!worker.includes('NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege conta administrativa.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
 console.log('ADMIN APROVADO — deny-by-default para pagamentos, action_required protegido, lock anti-corrida do EnvioEcom e exclusões de teste arquivadas.');
