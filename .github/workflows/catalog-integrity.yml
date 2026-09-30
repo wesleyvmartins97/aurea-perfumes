@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'public/products.js'
+      - 'scripts/generate-seo.mjs'
+      - 'public/favicon.png'
+      - 'public/index.html'
       - 'public/perfume/**'
       - 'public/produtos/**'
       - 'public/sitemap.xml'
@@ -29,6 +32,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validar sintaxe do gerador SEO
+        run: node --check scripts/generate-seo.mjs
+      - name: Regenerar SEO e confirmar sincronismo
+        run: |
+          node scripts/generate-seo.mjs
+          git diff --exit-code -- public/perfume public/sitemap.xml
       - name: Validar sintaxe do Worker
         run: node --check src/worker.js
       - name: Validar sintaxe do catálogo
