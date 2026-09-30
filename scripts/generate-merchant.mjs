@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const ROOT='https://valenzaparfums.com.br';
+const ROOT='https://www.valenzaparfums.com.br';
 const read=p=>fs.readFileSync(p,'utf8');
 const catalog=vm.runInNewContext(`${read('public/products.js')}\n;CATALOG`,{console});
 if(!Array.isArray(catalog)||!catalog.length)throw new Error('CATALOG vazio ou inválido');

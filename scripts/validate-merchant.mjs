@@ -23,7 +23,7 @@ for(const p of sellable){
  if(!block.includes('<g:condition>new</g:condition>'))fail.push(`${tag}: condition ausente.`);
  if(!block.includes(`<g:brand>${String(p.brand).replace(/&/g,'&amp;')}</g:brand>`)&&!block.includes('<g:brand>'))fail.push(`${tag}: brand ausente.`);
  if(!block.includes(`/perfume/${encodeURIComponent(p.id)}/`))fail.push(`${tag}: link divergente.`);
- if(!block.includes('https://valenzaparfums.com.br'+p.img))fail.push(`${tag}: imagem divergente.`);
+ if(!block.includes('https://www.valenzaparfums.com.br'+p.img))fail.push(`${tag}: imagem divergente.`);
  if(!block.includes('<g:product_type>'))fail.push(`${tag}: product_type ausente.`);
 }
 if(fail.length){
