@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   fetch-images:
-    if: github.event.head_commit.message == 'chore: fetch Asad product images locally'
+    if: "${{ github.event.head_commit.message == 'chore: retry fetch Asad product images locally' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
