@@ -31,6 +31,7 @@ if(!js.includes("if(!consentGranted())return false"))fail.push('Analytics intern
 if(!privacy.includes('estado/região e cidade aproximados'))fail.push('Privacidade não informa geolocalização aproximada da medição.');
 if(!privacy.includes('não armazena nessa medição o endereço IP'))fail.push('Privacidade não informa que IP não é armazenado na medição.');
 const analyticsBlock=worker.slice(worker.indexOf('async function analyticsEvent'),worker.indexOf('async function analyticsDashboard'));if(analyticsBlock.includes('CF-Connecting-IP')||analyticsBlock.includes('latitude')||analyticsBlock.includes('longitude')||analyticsBlock.includes('postalCode'))fail.push('Analytics interno não deve armazenar IP, coordenadas ou CEP da visita.');
+if(!worker.includes("date(created_at,'-3 hours') day"))fail.push('Resumo diário do Analytics não respeita o fuso horário do Brasil.');
 if(!js.includes("CONSENT_KEY='valenza_google_consent'"))fail.push('Tracking sem consentimento persistente.');
 if(!js.includes("CONTINUAR SEM PERSONALIZAÇÃO"))fail.push('Banner sem opção clara de continuar sem personalização.');
 if(!js.includes("localStorage.setItem(CONSENT_KEY,'granted');requestDeviceLocation();"))fail.push('Aceite da medição não aciona a permissão nativa de localização no mesmo clique.');

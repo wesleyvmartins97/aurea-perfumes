@@ -51,7 +51,7 @@ if(!admin.includes('Esta tela não cria nem altera postagens'))fail.push('Aba EN
 if(!admin.includes('vaCopyTrack'))fail.push('Aba ENVIOS sem ação de copiar rastreio.');
 if(!worker.includes('shippingSummary')||!worker.includes('shippingRows'))fail.push('Dashboard sem agregação operacional de envios.');
 if(!worker.includes('labelReady:Number(sh.label_ready||0)'))fail.push('Envios sem contador de etiqueta pronta.');
-if(!worker.includes('!x.is_test_account&&String(x.status)==="Pago"'))fail.push('Alerta de envio ainda considera pedidos da conta de teste.');
+if(!worker.includes('const paidWithoutShipping=Number(sh.awaiting||0)'))fail.push('Alerta de envio não usa o total de clientes reais aguardando postagem.');
 if(!admin.includes("if(adminView==='finance')"))fail.push('Aba FINANCEIRO sem renderização.');
 if(!admin.includes('Faturamento real')||!admin.includes('Pagos reais'))fail.push('Resumo não separa vendas reais de testes.');
 if(!worker.includes('const realOrdersCte='))fail.push('Worker sem separação de pedidos reais no Financeiro.');
@@ -62,6 +62,15 @@ if(!admin.includes('Central de alertas'))fail.push('Aba ALERTAS sem conteúdo.')
 if(!admin.includes('/api/admin/notifications/read'))fail.push('Painel sem ação de marcar alertas como lidos.');
 if(!worker.includes('CREATE TABLE IF NOT EXISTS admin_notifications'))fail.push('Worker sem tabela de notificações administrativas.');
 if(!worker.includes('async function notifyPaidOrder(env,orderId)'))fail.push('Worker sem gerador de alerta de compra paga.');
+if(!worker.includes('webhookMercadoPago(request,env,ctx)')||!worker.includes('const task=notifyPaidOrder(env,pid)'))fail.push('Webhook do Mercado Pago não dispara alerta de venda.');
+if(!worker.includes('retryPendingSaleNotifications(env)'))fail.push('Cron não tenta reenviar avisos de venda que falharam.');
+if(!worker.includes('if(Number(ins.meta?.changes||0)<1)return;'))fail.push('Aviso de venda não usa a inserção única como trava contra e-mail duplicado.');
+if(!worker.includes('orderBelongsToAdmin(env,row)'))fail.push('Aviso de venda não exclui completamente pedidos da conta administrativa.');
+if(!worker.includes('productSales:productSales.results||[]'))fail.push('Produtos não recebe vendas completas de todos os itens.');
+if(!admin.includes('(d.productSales||[])'))fail.push('Aba Produtos ainda usa apenas o top 10 para VENDIDOS.');
+if(!worker.includes('local_delivery')||!admin.includes('ENTREGA LOCAL'))fail.push('Envios não distingue entrega local de postagem EnvioEcom.');
+if(!worker.includes('const paidWithoutShipping=Number(sh.awaiting||0)'))fail.push('Alerta de envio não usa o total completo de pedidos aguardando postagem.');
+if(!admin.includes('const localIso=id=>')||!admin.includes('z.toISOString()'))fail.push('Promoções não converte datetime-local pelo fuso do navegador.');
 if(!worker.includes('Nova venda confirmada | VALENZA PARFUMS'))fail.push('Worker sem aviso de venda por e-mail.');
 if(!worker.includes('SELECT 1 ok FROM admin_credentials WHERE customer_id=?'))fail.push('Alerta de compra não exclui a conta administrativa/testes.');
 if(!worker.includes('/api/admin/notifications/read'))fail.push('Worker sem endpoint protegido de leitura dos alertas.');
@@ -120,7 +129,7 @@ if(!admin.includes('CLIENTE REAL'))fail.push('Painel não sinaliza venda real pr
 if(!admin.includes('PENDENTE · 24H'))fail.push('Painel não sinaliza validade de 24h dos cadastros pendentes.');
 if(!worker.includes('cleanupExpiredPendingCustomers'))fail.push('Limpeza automática de cadastros pendentes expirados ausente.');
 if(!worker.includes('cleanupExpiredPendingEmail'))fail.push('Recadastro não limpa pendência expirada do mesmo e-mail.');
-if(!worker.includes('Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env)])'))fail.push('Cron não executa limpeza periódica das pendências.');
+if(!worker.includes('Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env)])'))fail.push('Cron não executa reconciliação, limpeza de pendências e retry dos avisos de venda.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege pedidos vinculados.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM guest_orders g WHERE lower(g.email)=lower(customers.email))'))fail.push('Limpeza de pendência não protege pedidos legados pelo e-mail.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege conta administrativa.');
