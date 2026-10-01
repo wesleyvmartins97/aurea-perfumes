@@ -62,6 +62,15 @@ if(!admin.includes('Central de alertas'))fail.push('Aba ALERTAS sem conteúdo.')
 if(!admin.includes('/api/admin/notifications/read'))fail.push('Painel sem ação de marcar alertas como lidos.');
 if(!worker.includes('CREATE TABLE IF NOT EXISTS admin_notifications'))fail.push('Worker sem tabela de notificações administrativas.');
 if(!worker.includes('async function notifyPaidOrder(env,orderId)'))fail.push('Worker sem gerador de alerta de compra paga.');
+if(!worker.includes('webhookMercadoPago(request,env,ctx)')||!worker.includes('const task=notifyPaidOrder(env,pid)'))fail.push('Webhook do Mercado Pago não dispara alerta de venda.');
+if(!worker.includes('retryPendingSaleNotifications(env)'))fail.push('Cron não tenta reenviar avisos de venda que falharam.');
+if(!worker.includes('if(Number(ins.meta?.changes||0)<1)return;'))fail.push('Aviso de venda não usa a inserção única como trava contra e-mail duplicado.');
+if(!worker.includes('orderBelongsToAdmin(env,row)'))fail.push('Aviso de venda não exclui completamente pedidos da conta administrativa.');
+if(!worker.includes('productSales:productSales.results||[]'))fail.push('Produtos não recebe vendas completas de todos os itens.');
+if(!admin.includes('(d.productSales||[])'))fail.push('Aba Produtos ainda usa apenas o top 10 para VENDIDOS.');
+if(!worker.includes('local_delivery')||!admin.includes('ENTREGA LOCAL'))fail.push('Envios não distingue entrega local de postagem EnvioEcom.');
+if(!worker.includes('const paidWithoutShipping=Number(sh.awaiting||0)'))fail.push('Alerta de envio não usa o total completo de pedidos aguardando postagem.');
+if(!admin.includes('const localIso=id=>')||!admin.includes('z.toISOString()'))fail.push('Promoções não converte datetime-local pelo fuso do navegador.');
 if(!worker.includes('Nova venda confirmada | VALENZA PARFUMS'))fail.push('Worker sem aviso de venda por e-mail.');
 if(!worker.includes('SELECT 1 ok FROM admin_credentials WHERE customer_id=?'))fail.push('Alerta de compra não exclui a conta administrativa/testes.');
 if(!worker.includes('/api/admin/notifications/read'))fail.push('Worker sem endpoint protegido de leitura dos alertas.');
