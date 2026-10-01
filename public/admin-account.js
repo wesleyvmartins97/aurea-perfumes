@@ -1,5 +1,5 @@
 (()=>{'use strict';
-let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='',adminSalePollTimer=null,adminSaleTitleTimer=null,adminSalePollBusy=false,adminSaleWatcherPrimed=false,adminSaleSoundCtx=null;
+let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='',adminSalePollTimer=null,adminSaleTitleTimer=null,adminSalePollBusy=false,adminSaleWatcherPrimed=false,adminSaleSoundCtx=null,adminSaleCursorTime='';
 const ADMIN_SALE_POLL_MS=30000,ADMIN_SALE_SEEN_KEY='valenza_admin_seen_sales_v1',ADMIN_SALE_ALERTS_KEY='valenza_admin_sale_alerts_v1';
 const adminBaseTitle=document.title;
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -110,6 +110,13 @@ async function enableAdminSaleAlerts(){
  const msg=('Notification'in window&&Notification.permission==='granted')?'Pop-up, som e notificações do navegador estão ativos.':'Pop-up, som e título da aba estão ativos. As notificações do navegador estão bloqueadas ou indisponíveis.';
  if(typeof window.valenzaNotice==='function')window.valenzaNotice(msg)
 }
+async function refreshAdminDashboardQuietly(){
+ try{
+  const r=await fetch('/api/admin/dashboard?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok)return false;
+  adminData=d;renderDashboard();return true
+ }catch{return false}
+}
 async function pollAdminSaleNotifications(){
  if(adminSalePollBusy||!adminStatusState?.authenticated)return;
  adminSalePollBusy=true;
@@ -117,8 +124,8 @@ async function pollAdminSaleNotifications(){
   const r=await fetch('/api/admin/notifications/poll?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
   if(r.status===401){stopAdminSaleWatcher();if(adminStatusState)adminStatusState.authenticated=false;return}
   if(!r.ok||!d.ok)return;
-  const incoming=Array.isArray(d.notifications)?d.notifications:[],seen=new Set(adminSeenSaleIds()),fresh=incoming.filter(x=>x?.id&&!seen.has(String(x.id))).sort((x,y)=>Date.parse(x.created_at||0)-Date.parse(y.created_at||0));
-  rememberAdminSaleIds(incoming.map(x=>x.id));
+  const incoming=Array.isArray(d.notifications)?d.notifications:[],seen=new Set(adminSeenSaleIds()),cursorMs=Date.parse(adminSaleCursorTime||0)||0,fresh=incoming.filter(x=>x?.id&&!seen.has(String(x.id))&&Date.parse(x.created_at||0)>cursorMs).sort((x,y)=>Date.parse(x.created_at||0)-Date.parse(y.created_at||0));
+  rememberAdminSaleIds(incoming.map(x=>x.id));adminSaleCursorTime=String(d.generatedAt||adminSaleCursorTime||'');
   updateAdminUnreadBadge(d.unread);
   if(adminData){
    const byId=new Map((adminData.notifications||[]).map(x=>[String(x.id),x]));for(const n of incoming)byId.set(String(n.id),n);
@@ -126,21 +133,20 @@ async function pollAdminSaleNotifications(){
    if(adminData.metrics)adminData.metrics.unreadNotifications=Number(d.unread||0)
   }
   fresh.forEach(handleAdminNewSale);
-  if(fresh.length&&['overview','alerts'].includes(adminView))renderAdminBody()
+  if(fresh.length&&['overview','alerts'].includes(adminView)){const ok=await refreshAdminDashboardQuietly();if(!ok)renderAdminBody()}
  }catch(e){console.error('VALENZA poll de vendas:',e)}
  finally{adminSalePollBusy=false}
 }
 function startAdminSaleWatcher(){
  if(!adminStatusState?.authenticated)return;
  if(!adminSaleWatcherPrimed){
-  const current=(adminData?.notifications||[]).filter(x=>String(x.type||'')==='sale').map(x=>x.id);rememberAdminSaleIds(current);adminSaleWatcherPrimed=true
+  const current=(adminData?.notifications||[]).filter(x=>String(x.type||'')==='sale').map(x=>x.id);rememberAdminSaleIds(current);adminSaleCursorTime=String(adminData?.generatedAt||new Date().toISOString());adminSaleWatcherPrimed=true
  }
- if(!adminSalePollTimer)adminSalePollTimer=setInterval(pollAdminSaleNotifications,ADMIN_SALE_POLL_MS);
- setTimeout(pollAdminSaleNotifications,1200)
+ if(!adminSalePollTimer){adminSalePollTimer=setInterval(pollAdminSaleNotifications,ADMIN_SALE_POLL_MS);setTimeout(pollAdminSaleNotifications,1200)}
 }
 function stopAdminSaleWatcher(){
  if(adminSalePollTimer){clearInterval(adminSalePollTimer);adminSalePollTimer=null}
- adminSalePollBusy=false;adminSaleWatcherPrimed=false;stopAdminTitleAlert()
+ adminSalePollBusy=false;adminSaleWatcherPrimed=false;adminSaleCursorTime='';stopAdminTitleAlert()
 }
 
 function lockView(mode){
