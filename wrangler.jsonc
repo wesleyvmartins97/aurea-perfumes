@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "aurea-perfumes",
   "main": "src/worker.js",
-  "compatibility_date": "2026-08-28",
+  "compatibility_date": "2026-08-28",\n  // Preserva variáveis e secrets configurados no painel da Cloudflare em futuros deploys.\n  "keep_vars": true,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -27,6 +27,6 @@
   "vars": {
     "MERCADOPAGO_MODE": "production",
     "ADMIN_EMAILS": "wesleyvmartins97@gmail.com",
-    "ADMIN_USERNAME": "wesleymartins"
+    "ADMIN_USERNAME": "wesleymartins",\n    // Valores não secretos necessários em produção. Segredos continuam somente no painel da Cloudflare.\n    "ENVIOECOM_ORIGIN_CEP": "29703131",\n    "GA4_MEASUREMENT_ID": "G-B2Q60PHCRE"
   }
 }
