@@ -14,6 +14,15 @@ if(!worker.includes('/api/google/config'))fail.push('Worker sem endpoint públic
 if(!worker.includes('GA4_MEASUREMENT_ID'))fail.push('Worker não lê GA4_MEASUREMENT_ID do ambiente.');
 if(!worker.includes('/api/analytics/event'))fail.push('Worker sem endpoint de Analytics interno.');
 if(!worker.includes('/api/analytics/location'))fail.push('Worker sem endpoint para atualizar cidade/estado autorizados.');
+if(!worker.includes('/api/meta/config')||!worker.includes('/api/meta/event'))fail.push('Worker sem endpoints Meta Pixel/CAPI.');
+if(!worker.includes('META_PIXEL_ID')||!worker.includes('META_CAPI_ACCESS_TOKEN'))fail.push('Worker não lê configuração Meta pelo ambiente.');
+if(!worker.includes('event_id:eventId')||!worker.includes('action_source:"website"'))fail.push('Meta CAPI sem event_id/action_source para deduplicação.');
+if(!worker.includes('graph.facebook.com/')||!worker.includes('Authorization:"Bearer "+cfg.token'))fail.push('Meta CAPI sem envio seguro para Graph API.');
+if(!js.includes('connect.facebook.net/en_US/fbevents.js'))fail.push('Meta Pixel não carrega biblioteca oficial após consentimento.');
+if(!js.includes("window.fbq('track',eventName,data,{eventID:eventId})"))fail.push('Meta Pixel sem eventID compartilhado para deduplicação.');
+if(!js.includes("fetch('/api/meta/event'"))fail.push('Meta CAPI não recebe os eventos do navegador.');
+if(!js.includes("purchase:'+String(params.transaction_id)"))fail.push('Purchase Meta não usa ID estável do pedido.');
+if(!privacy.includes('Meta Pixel')||!privacy.includes('Meta Conversions API'))fail.push('Privacidade não documenta Meta Pixel/CAPI.');
 if(!js.includes('navigator.geolocation.getCurrentPosition'))fail.push('Site não solicita localização nativa após autorização.');
 if(!js.includes('EXPERIÊNCIA VALENZA')||!js.includes('ATIVAR EXPERIÊNCIA VALENZA')||!js.includes('CONTINUAR SEM PERSONALIZAÇÃO'))fail.push('Banner de privacidade não segue o fluxo visual VALENZA esperado.');
 if(js.includes('valenzaLocationPrimer')||js.includes('USAR MINHA LOCALIZAÇÃO')||js.includes('AGORA NÃO'))fail.push('Fluxo antigo de segunda janela de localização ainda está presente.');
