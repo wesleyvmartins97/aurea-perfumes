@@ -10,6 +10,7 @@ on:
       - 'public/google-commerce.js'
       - 'scripts/generate-seo.mjs'
       - 'public/merchant-feed.xml'
+      - 'public/google-merchant.xml'
       - 'scripts/validate-merchant.mjs'
       - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
@@ -27,6 +28,7 @@ on:
   pull_request:
     paths:
       - 'public/products.js'
+      - 'public/google-merchant.xml'
       - 'public/privacidade/**'
       - 'scripts/validate-google-commerce.mjs'
       - 'public/google-commerce.js'
@@ -69,7 +71,7 @@ jobs:
       - name: Regenerar Merchant e confirmar sincronismo
         run: |
           node scripts/generate-merchant.mjs
-          git diff --exit-code -- public/merchant-feed.xml
+          git diff --exit-code -- public/merchant-feed.xml public/google-merchant.xml
       - name: Validar Merchant feed
         run: node scripts/validate-merchant.mjs
       - name: Validar sintaxe do tracking Google

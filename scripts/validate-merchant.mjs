@@ -6,6 +6,8 @@ const fail=[];
 const catalog=vm.runInNewContext(`${read('public/products.js')}\n;CATALOG`,{console});
 const sellable=catalog.filter(p=>p.offer!==false);
 const feed=read('public/merchant-feed.xml');
+const legacyFeed=read('public/google-merchant.xml');
+if(legacyFeed!==feed)fail.push('google-merchant.xml diverge do merchant-feed.xml canônico.');
 
 if(!feed.includes('xmlns:g="http://base.google.com/ns/1.0"'))fail.push('Namespace Google Merchant ausente.');
 if(!feed.includes('<rss')||!feed.includes('<channel>'))fail.push('Feed não está em RSS 2.0 válido.');
