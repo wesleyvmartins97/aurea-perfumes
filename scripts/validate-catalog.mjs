@@ -11,6 +11,17 @@ try{
 if(!Array.isArray(catalog)||!catalog.length)fail.push('CATALOG vazio ou inválido.');
 
 const ids=new Set();
+const asadBourbon=catalog.find(p=>p.id==='asad-bourbon');
+if(!asadBourbon)fail.push('Asad Bourbon ausente do catálogo.');
+else{
+ if(Number(asadBourbon.price)!==299.90)fail.push(`Asad Bourbon: preço deve ser R$299,90; encontrado R${Number(asadBourbon.price).toFixed(2)}.`);
+ const bourbonPix=Math.floor((Math.round(Number(asadBourbon.price)*100)*95+50)/100)/100;
+ if(bourbonPix!==284.91)fail.push(`Asad Bourbon: PIX esperado R$284,91; encontrado R${bourbonPix.toFixed(2)}.`);
+ if(asadBourbon.img!=='/produtos/asad-bourbon.webp')fail.push('Asad Bourbon: imagem principal divergente.');
+ if(!String(asadBourbon.details||'').includes('Pimenta-Rosa, Lavanda e Ameixa Mirabelle'))fail.push('Asad Bourbon: topo olfativo divergente.');
+ if(!String(asadBourbon.details||'').includes('Cacau, Davana e Noz-moscada'))fail.push('Asad Bourbon: corpo olfativo divergente.');
+ if(!String(asadBourbon.details||'').includes('Vetiver, Baunilha Bourbon e Âmbar'))fail.push('Asad Bourbon: fundo olfativo divergente.');
+}
 const asad=catalog.find(p=>p.id==='asad');
 if(!asad)fail.push('Asad ausente do catálogo.');
 else{
@@ -54,6 +65,7 @@ for(const p of catalog){
 }
 
 const worker=read('src/worker.js');
+if(!worker.includes("catalog-stock-v7-asad-bourbon")||!worker.includes('bind("asad-bourbon",100,now)'))fail.push('Asad Bourbon sem seed seguro de estoque no D1.');
 const match=worker.match(/const AUREA_CATALOG=(\{[\s\S]*?\n\});\nasync function officialCatalog/);
 let official={};
 if(!match)fail.push('AUREA_CATALOG não encontrado no Worker.');
