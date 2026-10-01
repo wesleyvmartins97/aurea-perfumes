@@ -28,6 +28,10 @@ if(!worker.includes('async function recordAdminAudit'))fail.push('Worker sem gra
 if(!worker.includes('"test_orders_deleted"')||!worker.includes('"promotion_save"')||!worker.includes('"promotion_toggle"')||!worker.includes('"notifications_read"'))fail.push('Auditoria não cobre ações administrativas essenciais.');
 if(!worker.includes('mercadoPagoMode:mp.testMode?"TESTE":"PRODUÇÃO"'))fail.push('Sistema não informa modo do Mercado Pago.');
 if(!worker.includes('canonicalHost:"www.valenzaparfums.com.br"'))fail.push('Sistema não confirma domínio canônico.');
+if(!worker.includes('env.DB.prepare(realOrdersCte+"SELECT oi.product_id'))fail.push('Mais vendidos ainda pode incluir pedidos de teste.');
+if(!worker.includes('pending_real'))fail.push('Dashboard sem contador de pagamentos pendentes reais.');
+if(!worker.includes('pendingOrders:Number(fin.pending_real||0)'))fail.push('Resumo ainda usa pendências de teste.');
+if(!admin.includes("['EnvioEcom',!!s.envioEcom&&!!s.envioOriginCep"))fail.push('Sistema marca EnvioEcom como OK sem validar CEP de origem.');
 if(!admin.includes('não exibe tokens, senhas ou chaves'))fail.push('Sistema não deixa claro que segredos não são exibidos.');
 if(!admin.includes("if(adminView==='promotions')"))fail.push('Aba PROMOÇÕES sem renderização.');
 if(!admin.includes('/api/admin/promotions/save')||!admin.includes('/api/admin/promotions/toggle'))fail.push('Aba PROMOÇÕES sem ações administrativas.');
