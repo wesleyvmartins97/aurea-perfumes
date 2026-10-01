@@ -595,7 +595,7 @@ async function retryPendingSaleWhatsApp(env){
 }
 async function saleNotificationRow(env,orderId){
  const id=String(orderId||"");if(!id)return null;
- return env.DB.prepare("SELECT o.id,o.customer_id,o.order_number,o.status,o.total,c.name customer_name,c.email,p.method FROM orders o LEFT JOIN customers c ON c.id=o.customer_id LEFT JOIN order_payments p ON p.order_id=o.id WHERE o.id=? UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.customer_name,g.email,p.method FROM guest_orders g LEFT JOIN order_payments p ON p.order_id=g.id WHERE g.id=? AND NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) LIMIT 1").bind(id,id).first()
+ return env.DB.prepare("SELECT o.id,o.customer_id,o.order_number,o.status,o.total,c.name customer_name,c.email,p.method,p.updated_at paid_at FROM orders o LEFT JOIN customers c ON c.id=o.customer_id LEFT JOIN order_payments p ON p.order_id=o.id WHERE o.id=? UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.customer_name,g.email,p.method,p.updated_at paid_at FROM guest_orders g LEFT JOIN order_payments p ON p.order_id=g.id WHERE g.id=? AND NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) LIMIT 1").bind(id,id).first()
 }
 async function orderBelongsToAdmin(env,row){
  if(!row)return false;
