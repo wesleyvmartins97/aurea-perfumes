@@ -67,6 +67,12 @@ for(const p of catalog){
 }
 for(const id of Object.keys(official))if(!ids.has(id))fail.push(`${id}: existe no Worker, mas não em products.js.`);
 
+const merchantFeed=read('public/merchant-feed.xml');
+const googleMerchant=read('public/google-merchant.xml');
+const asadMerchantBlock=(merchantFeed.match(/<item>[\s\S]*?<g:id>asad<\/g:id>[\s\S]*?<\/item>/)||[])[0]||'';
+const asadGoogleMerchantBlock=(googleMerchant.match(/<item>[\s\S]*?<g:id>asad<\/g:id>[\s\S]*?<\/item>/)||[])[0]||'';
+if(!asadMerchantBlock.includes('<g:price>269.90 BRL</g:price>'))fail.push('Asad: Merchant principal não está em R$269,90.');
+if(!asadGoogleMerchantBlock.includes('<g:price>269.90 BRL</g:price>'))fail.push('Asad: Google Merchant legado não está em R$269,90.');
 const sitemap=read('public/sitemap.xml');
 for(const p of catalog){
  if(!sitemap.includes(`https://www.valenzaparfums.com.br/perfume/${p.id}/`))fail.push(`${p.id}: ausente no sitemap.`);
