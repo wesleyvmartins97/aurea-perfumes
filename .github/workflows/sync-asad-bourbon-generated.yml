@@ -1,0 +1,34 @@
+name: Sync Asad Bourbon generated files
+on:
+  push:
+    branches:
+      - feat-asad-bourbon-2026-10-01
+    paths:
+      - .github/workflows/sync-asad-bourbon-generated.yml
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat-asad-bourbon-2026-10-01
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regenerate SEO, sitemap and Merchant
+        run: |
+          set -euo pipefail
+          node scripts/generate-seo.mjs
+          node scripts/generate-merchant.mjs
+          test -s public/perfume/asad-bourbon/index.html
+          grep -q '<g:id>asad-bourbon</g:id>' public/merchant-feed.xml
+          grep -q '/perfume/asad-bourbon/' public/sitemap.xml
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/perfume public/sitemap.xml public/merchant-feed.xml
+          git commit -m "Gerados: SEO e Merchant do Asad Bourbon"
+          git push origin HEAD:feat-asad-bourbon-2026-10-01
