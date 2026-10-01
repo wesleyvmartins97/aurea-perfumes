@@ -773,13 +773,35 @@ async function saveClientAddress(){
 }
 async function deleteClientAddress(id){if(!confirm('Excluir este endereço?'))return;try{const r=await fetch('/api/account/addresses/'+encodeURIComponent(id),{method:'POST',credentials:'same-origin'});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível excluir o endereço agora.');await fetchClientData();renderClientAddresses()}catch(e){valenzaNotice(clientErrorMessage(e,'Não foi possível excluir o endereço agora. Tente novamente.'))}}
 function renderClientProfile(){
- const u=clientData.user;document.getElementById('ccMain').innerHTML='<h2 class="ccTitle">Meus dados</h2><div class="ccForm"><div class="ccFull"><label>NOME COMPLETO</label><input id="cpName" value="'+esc(u.name)+'"></div><div><label>E-MAIL</label><input value="'+esc(u.email)+'" disabled></div><div><label>TELEFONE</label><input id="cpPhone" value="'+esc(u.phone||'')+'"></div><div><label>CPF</label><input id="cpCpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="maskCpf(this)" value="'+esc(u.cpf||'')+'"></div><div><label>DATA DE NASCIMENTO</label><input id="cpBirth" type="date" value="'+esc(u.birthDate||'')+'"></div><div class="ccFull"><button class="ccBtn" onclick="saveClientProfile()">SALVAR ALTERAÇÕES</button><div class="ccMsg" id="cpMsg"></div></div></div>';
+ const u=clientData.user;document.getElementById('ccMain').innerHTML='<h2 class="ccTitle">Meus dados</h2><div class="ccForm"><div class="ccFull"><label>NOME COMPLETO</label><input id="cpName" value="'+esc(u.name)+'"></div><div><label>E-MAIL</label><input value="'+esc(u.email)+'" disabled></div><div><label>TELEFONE</label><input id="cpPhone" value="'+esc(u.phone||'')+'"></div><div><label>CPF</label><input id="cpCpf" maxlength="14" inputmode="numeric" autocomplete="off" oninput="maskCpf(this)" value="'+esc(u.cpf||'')+'"></div><div><label>DATA DE NASCIMENTO</label><input id="cpBirth" type="date" value="'+esc(u.birthDate||'')+'"></div><div class="ccFull"><button class="ccBtn" onclick="saveClientProfile()">SALVAR ALTERAÇÕES</button><div class="ccMsg" id="cpMsg"></div></div></div><div style="margin-top:30px;padding-top:26px;border-top:1px solid #e7e1da"><div class="eyebrow">SEGURANÇA DA CONTA</div><h3 class="serif" style="font-size:24px;margin:8px 0 8px">Alterar senha</h3><p style="font-size:11px;line-height:1.6;color:#777;margin:0 0 18px">Confirme sua senha atual e escolha uma nova. Recomendamos uma senha longa e exclusiva para a VALENZA.</p><div class="ccForm"><div class="ccFull"><label>SENHA ATUAL</label><input id="cpCurrentPassword" type="password" autocomplete="current-password"></div><div><label>NOVA SENHA</label><input id="cpNewPassword" type="password" autocomplete="new-password"></div><div><label>CONFIRMAR NOVA SENHA</label><input id="cpConfirmPassword" type="password" autocomplete="new-password"></div><div class="ccFull" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="ccBtn" id="cpPasswordSave" onclick="saveClientPassword()">ALTERAR SENHA</button><button class="ccBtn" id="cpPasswordToggle" type="button" onclick="toggleClientPasswordVisibility()" style="background:#fff;color:#171513;border:1px solid #171513">MOSTRAR SENHAS</button></div><div class="ccFull"><div class="ccMsg" id="cpPasswordMsg"></div></div></div></div>';
  const cpf=document.getElementById('cpCpf');if(cpf)maskCpf(cpf);
 }
 async function saveClientProfile(){
  const el=id=>document.getElementById(id),msg=el('cpMsg');msg.textContent='Salvando...';
  try{const r=await fetch('/api/account/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:el('cpName').value,phone:el('cpPhone').value,cpf:el('cpCpf').value,birthDate:el('cpBirth').value})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível salvar seus dados agora.');msg.textContent=d.message||'Dados salvos.';await fetchClientData();accountUser={...accountUser,name:clientData.user.name};renderAccount()}
  catch(e){msg.textContent=clientErrorMessage(e,'Não foi possível salvar seus dados agora. Tente novamente.')}
+}
+function toggleClientPasswordVisibility(){
+ const ids=['cpCurrentPassword','cpNewPassword','cpConfirmPassword'],fields=ids.map(id=>document.getElementById(id)).filter(Boolean),show=fields.some(el=>el.type==='password');
+ fields.forEach(el=>el.type=show?'text':'password');
+ const btn=document.getElementById('cpPasswordToggle');if(btn)btn.textContent=show?'OCULTAR SENHAS':'MOSTRAR SENHAS';
+}
+async function saveClientPassword(){
+ const current=document.getElementById('cpCurrentPassword'),next=document.getElementById('cpNewPassword'),confirmNew=document.getElementById('cpConfirmPassword'),msg=document.getElementById('cpPasswordMsg'),btn=document.getElementById('cpPasswordSave');
+ if(!current||!next||!confirmNew||!msg||!btn)return;
+ msg.style.color='#666';
+ if(!current.value){msg.textContent='Informe sua senha atual.';return}
+ if(next.value.length<8){msg.textContent='A nova senha precisa ter pelo menos 8 caracteres.';return}
+ if(next.value!==confirmNew.value){msg.textContent='A confirmação da nova senha não confere.';return}
+ btn.disabled=true;btn.textContent='ALTERANDO...';msg.textContent='Validando sua senha atual...';
+ try{
+  const r=await fetch('/api/account/password',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({currentPassword:current.value,newPassword:next.value})}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível alterar sua senha agora.');
+  current.value='';next.value='';confirmNew.value='';[current,next,confirmNew].forEach(el=>el.type='password');
+  const toggle=document.getElementById('cpPasswordToggle');if(toggle)toggle.textContent='MOSTRAR SENHAS';
+  msg.style.color='#3e6b4a';msg.textContent=d.message||'Senha alterada com sucesso.';
+ }catch(e){msg.style.color='#8b403a';msg.textContent=clientErrorMessage(e,'Não foi possível alterar sua senha agora. Tente novamente.')}
+ finally{btn.disabled=false;btn.textContent='ALTERAR SENHA'}
 }
 initClientCenter();
 
