@@ -256,6 +256,28 @@ body.checkout-open .aurea-wa{display:none}
  #categorias .shop-categories .category strong{font-size:14px!important}
  #catalogo .title{font-size:27px!important}
 }
+
+/* VALENZA: trava visual do selo SOB ENCOMENDA nos cards */
+#grid .card .photo>.tag,#topFemininos .top-product .photo>.tag{
+ position:absolute!important;
+ left:10px!important;top:10px!important;right:auto!important;bottom:auto!important;
+ z-index:6!important;
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ width:auto!important;height:auto!important;max-width:calc(100% - 20px)!important;
+ margin:0!important;padding:6px 8px!important;
+ background:rgba(23,21,19,.92)!important;color:#fff!important;
+ border:0!important;border-radius:2px!important;
+ font-family:Arial,Helvetica,sans-serif!important;font-size:7px!important;font-weight:700!important;line-height:1!important;
+ letter-spacing:.8px!important;white-space:nowrap!important;text-align:center!important;
+ transform:none!important;opacity:1!important;visibility:visible!important;
+ pointer-events:none!important;
+}
+@media(max-width:700px){
+ #grid .card .photo>.tag,#topFemininos .top-product .photo>.tag{
+  left:8px!important;top:8px!important;padding:5px 6px!important;
+  font-size:6.5px!important;letter-spacing:.65px!important;
+ }
+}
 </style>
 
 
