@@ -12,6 +12,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/catalog/runtime"&&request.method==="GET")return catalogRuntimePublic(env);
  if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env);
  if(url.pathname==="/api/analytics/location"&&request.method==="POST")return analyticsLocation(request,env);
+ if(url.pathname==="/api/opportunities/sync"&&request.method==="POST")return opportunitySync(request,env);
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
  if(url.pathname==="/api/auth/login"&&request.method==="POST")return authLogin(request,env);
  if(url.pathname==="/api/auth/me"&&request.method==="GET")return authMe(request,env);
@@ -28,6 +29,9 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/product-promotions/save"&&request.method==="POST")return adminProductPromotionSave(request,env);
  if(url.pathname==="/api/admin/product-promotions/toggle"&&request.method==="POST")return adminProductPromotionToggle(request,env);
  if(url.pathname==="/api/admin/products/update"&&request.method==="POST")return adminProductUpdate(request,env);
+ if(url.pathname==="/api/admin/opportunities/email"&&request.method==="POST")return adminOpportunityEmail(request,env);
+ if(url.pathname==="/api/admin/opportunities/contacted"&&request.method==="POST")return adminOpportunityContacted(request,env);
+ if(url.pathname==="/api/admin/opportunities/archive"&&request.method==="POST")return adminOpportunityArchive(request,env);
  if(url.pathname==="/api/admin/notifications/read"&&request.method==="POST")return adminNotificationsRead(request,env);
  if(url.pathname==="/api/admin/orders/delete-tests"&&request.method==="POST")return adminDeleteTestOrders(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
@@ -84,6 +88,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_product_promotions_active ON product_promotions(active,starts_at,ends_at,updated_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_product_promotions_product ON product_promotions(product_id)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS product_settings (product_id TEXT PRIMARY KEY, price_override REAL, unit_cost REAL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS checkout_opportunities (id TEXT PRIMARY KEY, customer_id TEXT NOT NULL UNIQUE, cart_json TEXT NOT NULL DEFAULT '[]', stage TEXT NOT NULL DEFAULT 'cart', payment_method TEXT, last_error TEXT, subtotal REAL NOT NULL DEFAULT 0, phone TEXT, status TEXT NOT NULL DEFAULT 'active', contacted_at TEXT, email_sent_at TEXT, recovered_order_id TEXT, recovered_at TEXT, recoveries INTEGER NOT NULL DEFAULT 0, last_seen_at TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_checkout_opportunities_status ON checkout_opportunities(status,last_seen_at,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_audit_log (id TEXT PRIMARY KEY, admin_customer_id TEXT NOT NULL, action TEXT NOT NULL, detail_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_events (id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, visitor_id TEXT NOT NULL, session_id TEXT NOT NULL, event_name TEXT NOT NULL, page_path TEXT, product_id TEXT, product_name TEXT, value REAL NOT NULL DEFAULT 0, transaction_id TEXT, source TEXT, medium TEXT, campaign TEXT, referrer_host TEXT, country TEXT, region TEXT, region_code TEXT, city TEXT, created_at TEXT NOT NULL)"),
@@ -519,7 +525,7 @@ async function orderBelongsToAdmin(env,row){
 }
 async function notifyPaidOrder(env,orderId){
  try{
-  await ensureAuthSchema(env);const id=String(orderId||"");if(!id)return;
+  await ensureAuthSchema(env);const id=String(orderId||"");if(!id)return;await markOpportunityRecovered(env,id);
   const row=await saleNotificationRow(env,id);
   if(!row||String(row.status)!=="Pago"||await orderBelongsToAdmin(env,row))return;
   const key="paid:"+id,now=new Date().toISOString(),title="Nova compra confirmada",message="Pedido "+String(row.order_number||id)+" · "+String(row.customer_name||"Cliente")+" · "+Number(row.total||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -550,6 +556,71 @@ async function adminNotificationsRead(request,env){
   await recordAdminAudit(env,admin,"notifications_read",{count:Number(r.meta?.changes||0)});
   return resposta({ok:true});
  }catch(e){console.error("Ler notificações:",e);return resposta({ok:false,error:"Não foi possível atualizar os alertas."},500)}
+}
+
+async function opportunitySync(request,env){
+ try{
+  await ensureAuthSchema(env);const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,ignored:true},401);
+  const isAdmin=await env.DB.prepare("SELECT 1 ok FROM admin_credentials WHERE customer_id=? LIMIT 1").bind(u.id).first();if(isAdmin)return resposta({ok:true,ignored:true});
+  const d=await request.json().catch(()=>({})),rawItems=Array.isArray(d.items)?d.items:[],now=new Date().toISOString();
+  if(!rawItems.length){await env.DB.prepare("UPDATE checkout_opportunities SET cart_json='[]',subtotal=0,status='cleared',stage='cart',last_error=NULL,last_seen_at=?,updated_at=? WHERE customer_id=?").bind(now,now,u.id).run();return resposta({ok:true,cleared:true})}
+  const allowedStages=new Set(["cart","checkout","shipping","payment","payment_error"]),stage=allowedStages.has(String(d.stage||""))?String(d.stage):"cart",paymentMethod=["pix","card"].includes(String(d.paymentMethod||"").toLowerCase())?String(d.paymentMethod).toLowerCase():null,lastError=String(d.lastError||"").trim().slice(0,300);
+  const items=await canonicalItems(rawItems,env),snapshot=items.map(x=>({id:x.id,name:x.name,brand:x.brand,type:x.type,qty:x.qty,price:Number(x.price),img:String(x.img||"")})),subtotal=Number(items.reduce((s,x)=>s+Number(x.price)*Number(x.qty),0).toFixed(2));
+  const profile=await env.DB.prepare("SELECT phone FROM customer_profiles WHERE customer_id=?").bind(u.id).first(),provided=String(d.phone||"").replace(/\D/g,"").slice(0,11),phone=(provided.length>=10?provided:String(profile?.phone||"").replace(/\D/g,"").slice(0,11))||null;
+  const existing=await env.DB.prepare("SELECT id FROM checkout_opportunities WHERE customer_id=?").bind(u.id).first(),id=String(existing?.id||crypto.randomUUID());
+  await env.DB.prepare("INSERT INTO checkout_opportunities(id,customer_id,cart_json,stage,payment_method,last_error,subtotal,phone,status,last_seen_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(customer_id) DO UPDATE SET cart_json=excluded.cart_json,stage=excluded.stage,payment_method=COALESCE(excluded.payment_method,checkout_opportunities.payment_method),last_error=CASE WHEN excluded.last_error<>'' THEN excluded.last_error WHEN excluded.stage<>'payment_error' THEN NULL ELSE checkout_opportunities.last_error END,subtotal=excluded.subtotal,phone=COALESCE(excluded.phone,checkout_opportunities.phone),status='active',recovered_order_id=NULL,recovered_at=NULL,last_seen_at=excluded.last_seen_at,updated_at=excluded.updated_at")
+   .bind(id,u.id,JSON.stringify(snapshot),stage,paymentMethod,lastError,subtotal,phone,"active",now,now,now).run();
+  return resposta({ok:true});
+ }catch(e){console.error("Oportunidade sync:",e);return resposta({ok:false,error:"Não foi possível registrar o carrinho agora."},500)}
+}
+async function markOpportunityRecovered(env,orderId){
+ try{
+  const row=await env.DB.prepare("SELECT customer_id FROM orders WHERE id=? LIMIT 1").bind(String(orderId||"")).first();if(!row?.customer_id)return;
+  const now=new Date().toISOString();await env.DB.prepare("UPDATE checkout_opportunities SET status='recovered',recovered_order_id=?,recovered_at=?,recoveries=recoveries+1,last_error=NULL,updated_at=? WHERE customer_id=? AND status='active'").bind(String(orderId),now,now,row.customer_id).run();
+ }catch(e){console.error("Oportunidade recuperada:",e)}
+}
+async function markOpportunityPaymentIssue(env,orderId,message){
+ try{
+  const row=await env.DB.prepare("SELECT customer_id FROM orders WHERE id=? LIMIT 1").bind(String(orderId||"")).first();if(!row?.customer_id)return;
+  const now=new Date().toISOString();await env.DB.prepare("UPDATE checkout_opportunities SET status='active',stage='payment_error',last_error=?,last_seen_at=?,updated_at=? WHERE customer_id=?").bind(String(message||"Pagamento não concluído").slice(0,300),now,now,row.customer_id).run();
+ }catch(e){console.error("Oportunidade erro pagamento:",e)}
+}
+function opportunityItems(row){try{const x=JSON.parse(row?.cart_json||"[]");return Array.isArray(x)?x:[]}catch{return[]}}
+async function sendOpportunityRecoveryEmail(env,row){
+ if(!env.RESEND_API_KEY)return {ok:false,error:"Resend não configurado"};
+ const items=opportunityItems(row),safeName=escapeHtml(String(row.customer_name||"Cliente")),safeItems=items.map(x=>'<li style="margin:0 0 8px">'+escapeHtml(String(x.name||"Produto"))+' × '+Number(x.qty||1)+' — '+Number(Number(x.price||0)*Number(x.qty||1)).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})+'</li>').join(""),total=Number(row.subtotal||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}),shopUrl="https://www.valenzaparfums.com.br/";
+ const html='<!doctype html><html><body style="margin:0;background:#f5f1ec;font-family:Arial;color:#201d1a"><table width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px"><tr><td align="center"><table width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border:1px solid #e7e0d8"><tr><td style="padding:30px;text-align:center;border-bottom:1px solid #eee7df"><div style="font-family:Georgia,serif;font-size:26px;letter-spacing:7px">VALENZA</div><div style="margin-top:6px;font-size:10px;letter-spacing:4px;color:#8b7a68">SEU CARRINHO</div></td></tr><tr><td style="padding:30px"><h1 style="font:27px Georgia,serif;margin:0 0 16px">Olá, '+safeName+'.</h1><p style="font-size:15px;line-height:1.6;color:#4f4943">Você deixou alguns perfumes no carrinho. Se quiser continuar, sua seleção está aqui para você voltar à VALENZA.</p><ul style="padding-left:20px;font-size:14px;line-height:1.5">'+safeItems+'</ul><p style="font-size:20px"><b>Total do carrinho: '+total+'</b></p><p style="margin:24px 0"><a href="'+shopUrl+'" style="display:inline-block;background:#171513;color:#fff;text-decoration:none;font-size:12px;font-weight:bold;letter-spacing:1.5px;padding:15px 22px">VOLTAR À VALENZA</a></p><p style="font-size:12px;color:#8a8178">Os preços e a disponibilidade são confirmados novamente no checkout.</p></td></tr></table></td></tr></table></body></html>';
+ const textBody='Olá, '+String(row.customer_name||"Cliente")+'.\n\nVocê deixou itens no carrinho da VALENZA PARFUMS.\n\n'+items.map(x=>'- '+String(x.name||"Produto")+' x '+Number(x.qty||1)).join('\n')+'\n\nTotal do carrinho: '+total+'\n\nVoltar à loja: '+shopUrl+'\n\nOs preços e a disponibilidade são confirmados novamente no checkout.';
+ try{const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.AUREA_EMAIL_FROM||"VALENZA PARFUMS <contato@valenzaparfums.com.br>",to:[row.email],subject:"Seu carrinho está esperando | VALENZA PARFUMS",html,text:textBody})});if(!r.ok){console.error("Recuperação carrinho e-mail:",r.status,await r.text());return {ok:false,error:"Não foi possível enviar o e-mail."}}return {ok:true}}catch(e){console.error("Recuperação carrinho:",e);return {ok:false,error:"Não foi possível enviar o e-mail."}}
+}
+async function adminOpportunityEmail(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const d=await request.json().catch(()=>({})),id=String(d.id||"").trim();if(!id)return resposta({ok:false,error:"Oportunidade inválida."},400);
+  const row=await env.DB.prepare("SELECT co.*,c.name customer_name,c.email FROM checkout_opportunities co JOIN customers c ON c.id=co.customer_id WHERE co.id=? AND NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=co.customer_id) LIMIT 1").bind(id).first();if(!row)return resposta({ok:false,error:"Oportunidade não encontrada."},404);
+  if(String(row.status)!=="active")return resposta({ok:false,error:"Esta oportunidade não está mais ativa."},409);
+  if(row.email_sent_at&&Date.parse(row.email_sent_at)>Date.now()-15*60e3)return resposta({ok:false,error:"Um e-mail já foi enviado para este cliente há menos de 15 minutos."},429);
+  const sent=await sendOpportunityRecoveryEmail(env,row);if(!sent.ok)return resposta({ok:false,error:sent.error||"Não foi possível enviar o e-mail."},503);
+  const now=new Date().toISOString();await env.DB.prepare("UPDATE checkout_opportunities SET email_sent_at=?,contacted_at=?,updated_at=? WHERE id=?").bind(now,now,now,id).run();
+  await recordAdminAudit(env,admin,"opportunity_email",{id,customerEmail:row.email,subtotal:Number(row.subtotal||0)});
+  return resposta({ok:true,message:"E-mail de recuperação enviado."});
+ }catch(e){console.error("Admin oportunidade e-mail:",e);return resposta({ok:false,error:"Não foi possível enviar o e-mail agora."},500)}
+}
+async function adminOpportunityContacted(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const d=await request.json().catch(()=>({})),id=String(d.id||"").trim(),now=new Date().toISOString();if(!id)return resposta({ok:false,error:"Oportunidade inválida."},400);
+  const r=await env.DB.prepare("UPDATE checkout_opportunities SET contacted_at=?,updated_at=? WHERE id=? AND status='active'").bind(now,now,id).run();if(Number(r.meta?.changes||0)<1)return resposta({ok:false,error:"Oportunidade ativa não encontrada."},404);
+  await recordAdminAudit(env,admin,"opportunity_contacted",{id});return resposta({ok:true});
+ }catch(e){return resposta({ok:false,error:"Não foi possível atualizar o contato."},500)}
+}
+async function adminOpportunityArchive(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const d=await request.json().catch(()=>({})),id=String(d.id||"").trim(),now=new Date().toISOString();if(!id)return resposta({ok:false,error:"Oportunidade inválida."},400);
+  const r=await env.DB.prepare("UPDATE checkout_opportunities SET status='dismissed',updated_at=? WHERE id=? AND status='active'").bind(now,id).run();if(Number(r.meta?.changes||0)<1)return resposta({ok:false,error:"Oportunidade ativa não encontrada."},404);
+  await recordAdminAudit(env,admin,"opportunity_archive",{id});return resposta({ok:true});
+ }catch(e){return resposta({ok:false,error:"Não foi possível arquivar a oportunidade."},500)}
 }
 async function adminProductUpdate(request,env){
  try{
@@ -921,7 +992,7 @@ async function reconcileStalePixReservations(env){
   }
  }catch(e){console.error("Reconciliação PIX:",e)}
 }
-async function webhookMercadoPago(request,env,ctx){try{const body=await request.json().catch(()=>({}));const id=String(body?.data?.id||body?.id||"");if(!id)return resposta({ok:true});await ensureAuthSchema(env);const local=await env.DB.prepare("SELECT id FROM orders WHERE id=? UNION SELECT id FROM guest_orders WHERE id=? LIMIT 1").bind(id,id).first();if(!local)return resposta({ok:true});const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Mercado Pago não configurado."},503);const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)return resposta({ok:true});const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||""),detail=String(tx.status_detail||d.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",pid=String(d.id||id),now=new Date().toISOString();const label=approved?"Pago":({processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado"}[st]||"Processando");await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE guest_orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid).run();if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Webhook expedição:",e)}const task=notifyPaidOrder(env,pid);if(ctx?.waitUntil)ctx.waitUntil(task);else await task}else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now)}return resposta({ok:true})}catch(e){console.error("Webhook Mercado Pago:",e);return resposta({ok:true})}}
+async function webhookMercadoPago(request,env,ctx){try{const body=await request.json().catch(()=>({}));const id=String(body?.data?.id||body?.id||"");if(!id)return resposta({ok:true});await ensureAuthSchema(env);const local=await env.DB.prepare("SELECT id FROM orders WHERE id=? UNION SELECT id FROM guest_orders WHERE id=? LIMIT 1").bind(id,id).first();if(!local)return resposta({ok:true});const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Mercado Pago não configurado."},503);const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)return resposta({ok:true});const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||""),detail=String(tx.status_detail||d.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",pid=String(d.id||id),now=new Date().toISOString();const label=approved?"Pago":({processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado"}[st]||"Processando");await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE guest_orders SET status=? WHERE id=?").bind(label,pid).run();await env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid).run();if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Webhook expedição:",e)}const task=notifyPaidOrder(env,pid);if(ctx?.waitUntil)ctx.waitUntil(task);else await task}else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now);await markOpportunityPaymentIssue(env,pid,detail||label)}return resposta({ok:true})}catch(e){console.error("Webhook Mercado Pago:",e);return resposta({ok:true})}}
 async function criarEnvioEnvioEcom(env,orderId){
  await ensureAuthSchema(env);
  if(!env.ENVIOECOM_TOKEN)return {ok:false,error:"Token EnvioEcom ausente"};const originCep=String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"");if(originCep.length!==8)return {ok:false,error:"CEP de origem da postagem não configurado"};
@@ -958,7 +1029,7 @@ async function consultarPagamentoCore(orderId,env){
    const tx=result?.transactions?.payments?.[0]||{},st=String(tx.status||result.status||""),detail=String(tx.status_detail||result.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",map={processed:"Pago",approved:"Pago",processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado",expired:"Expirado"},label=approved?"Pago":(map[st]||"Processando"),now=new Date().toISOString(),pid=String(result.id||orderId);
    await env.DB.batch([env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid),env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid),env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid)]);
    if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Consulta expedição:",e)}await notifyPaidOrder(env,pid)}
-   else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now)}
+   else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now);await markOpportunityPaymentIssue(env,pid,detail||label)}
    return resposta({ok:true,orderId:pid,status:approved?"approved":st,statusDetail:detail,paymentId:pid,shipping:null});
   }
   if(!/^\d+$/.test(String(orderId)))return resposta({ok:false,error:"ID de pagamento inválido."},400);
@@ -966,7 +1037,7 @@ async function consultarPagamentoCore(orderId,env){
   const map={approved:"Pago",pending:"Aguardando pagamento",in_process:"Processando",rejected:"Pagamento recusado",cancelled:"Cancelado",expired:"Expirado",refunded:"Reembolsado"},label=map[result.status]||String(result.status||"Aguardando pagamento"),now=new Date().toISOString(),pid=String(result.id??orderId);
   await env.DB.batch([env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid),env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid)]);
   if(result.status==="approved"){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Consulta expedição legacy:",e)}await notifyPaidOrder(env,pid)}
-  else if(["cancelled","rejected","expired"].includes(result.status)){await releaseReservedStock(env,pid,now)}
+  else if(["cancelled","rejected","expired"].includes(result.status)){await releaseReservedStock(env,pid,now);await markOpportunityPaymentIssue(env,pid,result.status_detail||label)}
   return resposta({ok:true,orderId:pid,status:result.status??null,statusDetail:result.status_detail??null,paymentId:pid,shipping:null});
  }catch(e){console.error("Consultar pagamento:",e);return resposta({ok:false,error:"Erro ao consultar pagamento."},500)}
 }
