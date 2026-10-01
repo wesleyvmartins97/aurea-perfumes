@@ -1,5 +1,7 @@
 (()=>{'use strict';
-let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='';
+let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='',adminSalePollTimer=null,adminSaleTitleTimer=null,adminSalePollBusy=false,adminSaleWatcherPrimed=false,adminSaleSoundCtx=null;
+const ADMIN_SALE_POLL_MS=30000,ADMIN_SALE_SEEN_KEY='valenza_admin_seen_sales_v1',ADMIN_SALE_ALERTS_KEY='valenza_admin_sale_alerts_v1';
+const adminBaseTitle=document.title;
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[m]));
 function adminErrorMessage(err,fallback='Não foi possível concluir agora. Tente novamente.'){
@@ -26,6 +28,121 @@ async function status(){
 }
 window.valenzaAdminRefreshAccess=status;
 function main(){return document.getElementById('ccMain')}
+function adminSaleAlertCss(){
+ if(document.getElementById('valenzaSaleAlertCss'))return;
+ const st=document.createElement('style');st.id='valenzaSaleAlertCss';st.textContent='.vaSaleToastWrap{position:fixed;right:18px;bottom:18px;z-index:120000;display:grid;gap:9px;width:min(390px,calc(100vw - 28px))}.vaSaleToast{background:#171513;color:#fff;border:1px solid #463b31;box-shadow:0 18px 55px #0005;padding:15px}.vaSaleToast .eyebrow{color:#cdb69d}.vaSaleToast h4{font:20px Georgia,serif;margin:5px 0 6px}.vaSaleToast p{font-size:10px;line-height:1.55;color:#ddd;margin:0 0 10px}.vaSaleToast small{font-size:8px;color:#aaa}.vaSaleToastActions{display:flex;gap:7px;margin-top:11px}.vaSaleToastActions button{border:1px solid #6f5d4d;background:#fff;color:#171513;padding:8px 10px;font-size:8px;font-weight:bold}.vaSaleToastActions button:last-child{background:transparent;color:#ddd}.vaSaleAlertToggle{border:1px solid #d8d1ca;background:#fff;padding:9px 11px;font-size:8px;font-weight:bold;white-space:nowrap}.vaSaleAlertToggle.on{background:#e5f1e9;color:#326746;border-color:#bdd3c4}.vaSaleAlertToggle.partial{background:#f6eddc;color:#8a602b;border-color:#dfc99d}@media(max-width:700px){.vaSaleToastWrap{right:10px;bottom:10px;width:calc(100vw - 20px)}}';
+ document.head.appendChild(st)
+}
+function adminSeenSaleIds(){
+ try{const x=JSON.parse(localStorage.getItem(ADMIN_SALE_SEEN_KEY)||'[]');return Array.isArray(x)?x.map(String).slice(-80):[]}catch{return[]}
+}
+function rememberAdminSaleIds(ids){
+ const merged=[...new Set([...adminSeenSaleIds(),...(ids||[]).map(String).filter(Boolean)])].slice(-80);
+ try{localStorage.setItem(ADMIN_SALE_SEEN_KEY,JSON.stringify(merged))}catch{}
+}
+function adminSaleAlertsEnabled(){try{return localStorage.getItem(ADMIN_SALE_ALERTS_KEY)==='1'}catch{return false}}
+function ensureAdminSaleAudio(resume=false){
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
+  if(!adminSaleSoundCtx)adminSaleSoundCtx=new AC();
+  if(resume&&adminSaleSoundCtx.state==='suspended')adminSaleSoundCtx.resume().catch(()=>{});
+  return adminSaleSoundCtx
+ }catch{return null}
+}
+function playAdminSaleSound(){
+ if(!adminSaleAlertsEnabled())return;
+ try{
+  const ctx=ensureAdminSaleAudio(true);if(!ctx||ctx.state==='closed')return;
+  const now=ctx.currentTime,g=ctx.createGain();g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.12,now+.015);g.gain.exponentialRampToValueAtTime(.0001,now+.34);g.connect(ctx.destination);
+  const o1=ctx.createOscillator(),o2=ctx.createOscillator();o1.type='sine';o2.type='sine';o1.frequency.setValueAtTime(660,now);o2.frequency.setValueAtTime(880,now+.12);o1.connect(g);o2.connect(g);o1.start(now);o1.stop(now+.18);o2.start(now+.12);o2.stop(now+.34)
+ }catch{}
+}
+function stopAdminTitleAlert(){
+ if(adminSaleTitleTimer){clearInterval(adminSaleTitleTimer);adminSaleTitleTimer=null}
+ document.title=adminBaseTitle
+}
+function blinkAdminSaleTitle(){
+ stopAdminTitleAlert();if(!document.hidden)return;
+ let n=0;adminSaleTitleTimer=setInterval(()=>{document.title=n%2?'💰 NOVA VENDA | VALENZA':adminBaseTitle;n++;if(n>=12)stopAdminTitleAlert()},700)
+}
+function openAdminSaleOrder(){
+ try{if(typeof window.openAccount==='function')window.openAccount()}catch{}
+ adminView='orders';
+ setTimeout(()=>{if(adminStatusState?.authenticated)loadDashboard().catch(()=>{})},80)
+}
+function showAdminSaleToast(n){
+ adminSaleAlertCss();let wrap=document.getElementById('vaSaleToastWrap');
+ if(!wrap){wrap=document.createElement('div');wrap.id='vaSaleToastWrap';wrap.className='vaSaleToastWrap';document.body.appendChild(wrap)}
+ const card=document.createElement('div');card.className='vaSaleToast';card.innerHTML='<div class="eyebrow">NOVA VENDA VALENZA</div><h4>'+esc(n.title||'Nova compra confirmada')+'</h4><p>'+esc(n.message||'Pagamento confirmado.')+'</p><small>'+dt(n.created_at)+'</small><div class="vaSaleToastActions"><button type="button" class="vaSaleOpen">VER PEDIDO</button><button type="button" class="vaSaleClose">FECHAR</button></div>';
+ card.querySelector('.vaSaleOpen').onclick=()=>{card.remove();openAdminSaleOrder()};
+ card.querySelector('.vaSaleClose').onclick=()=>card.remove();
+ wrap.prepend(card);while(wrap.children.length>3)wrap.lastElementChild.remove();
+ setTimeout(()=>card.isConnected&&card.remove(),20000)
+}
+function showAdminBrowserNotification(n){
+ if(!adminSaleAlertsEnabled()||!('Notification'in window)||Notification.permission!=='granted')return;
+ try{
+  const note=new Notification('💰 Nova venda confirmada | VALENZA',{body:String(n.message||'Pagamento confirmado.'),tag:'valenza-sale-'+String(n.id||''),renotify:true});
+  note.onclick=()=>{try{window.focus()}catch{};openAdminSaleOrder();note.close()}
+ }catch{}
+}
+function handleAdminNewSale(n){
+ showAdminSaleToast(n);playAdminSaleSound();blinkAdminSaleTitle();showAdminBrowserNotification(n)
+}
+function updateAdminUnreadBadge(unread){
+ if(adminData?.metrics)adminData.metrics.unreadNotifications=Number(unread||0);
+ const b=document.querySelector('.vaTools button[data-v="alerts"]');if(!b)return;
+ let badge=b.querySelector('.vaBadge');const n=Number(unread||0);
+ if(n>0){if(!badge){badge=document.createElement('span');badge.className='vaBadge';b.appendChild(badge)}badge.textContent=String(n)}
+ else badge?.remove()
+}
+function updateSaleAlertButton(){
+ const b=document.getElementById('vaSaleAlertToggle');if(!b)return;
+ const enabled=adminSaleAlertsEnabled(),hasNotification='Notification'in window,perm=hasNotification?Notification.permission:'unsupported';
+ b.classList.toggle('on',enabled&&perm==='granted');b.classList.toggle('partial',enabled&&perm!=='granted');
+ b.textContent=!enabled?'ATIVAR AVISOS':(perm==='granted'?'AVISOS ATIVOS':'AVISOS LOCAIS ATIVOS')
+}
+async function enableAdminSaleAlerts(){
+ ensureAdminSaleAudio(true);
+ try{localStorage.setItem(ADMIN_SALE_ALERTS_KEY,'1')}catch{}
+ if('Notification'in window&&Notification.permission==='default')try{await Notification.requestPermission()}catch{}
+ updateSaleAlertButton();
+ const msg=('Notification'in window&&Notification.permission==='granted')?'Pop-up, som e notificações do navegador estão ativos.':'Pop-up, som e título da aba estão ativos. As notificações do navegador estão bloqueadas ou indisponíveis.';
+ if(typeof window.valenzaNotice==='function')window.valenzaNotice(msg)
+}
+async function pollAdminSaleNotifications(){
+ if(adminSalePollBusy||!adminStatusState?.authenticated)return;
+ adminSalePollBusy=true;
+ try{
+  const r=await fetch('/api/admin/notifications/poll?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
+  if(r.status===401){stopAdminSaleWatcher();if(adminStatusState)adminStatusState.authenticated=false;return}
+  if(!r.ok||!d.ok)return;
+  const incoming=Array.isArray(d.notifications)?d.notifications:[],seen=new Set(adminSeenSaleIds()),fresh=incoming.filter(x=>x?.id&&!seen.has(String(x.id))).sort((x,y)=>Date.parse(x.created_at||0)-Date.parse(y.created_at||0));
+  rememberAdminSaleIds(incoming.map(x=>x.id));
+  updateAdminUnreadBadge(d.unread);
+  if(adminData){
+   const byId=new Map((adminData.notifications||[]).map(x=>[String(x.id),x]));for(const n of incoming)byId.set(String(n.id),n);
+   adminData.notifications=[...byId.values()].sort((x,y)=>Date.parse(y.created_at||0)-Date.parse(x.created_at||0)).slice(0,40);
+   if(adminData.metrics)adminData.metrics.unreadNotifications=Number(d.unread||0)
+  }
+  fresh.forEach(handleAdminNewSale);
+  if(fresh.length&&['overview','alerts'].includes(adminView))renderAdminBody()
+ }catch(e){console.error('VALENZA poll de vendas:',e)}
+ finally{adminSalePollBusy=false}
+}
+function startAdminSaleWatcher(){
+ if(!adminStatusState?.authenticated)return;
+ if(!adminSaleWatcherPrimed){
+  const current=(adminData?.notifications||[]).filter(x=>String(x.type||'')==='sale').map(x=>x.id);rememberAdminSaleIds(current);adminSaleWatcherPrimed=true
+ }
+ if(!adminSalePollTimer)adminSalePollTimer=setInterval(pollAdminSaleNotifications,ADMIN_SALE_POLL_MS);
+ setTimeout(pollAdminSaleNotifications,1200)
+}
+function stopAdminSaleWatcher(){
+ if(adminSalePollTimer){clearInterval(adminSalePollTimer);adminSalePollTimer=null}
+ adminSalePollBusy=false;adminSaleWatcherPrimed=false;stopAdminTitleAlert()
+}
+
 function lockView(mode){
  css();const s=adminStatusState||{},setup=mode==='setup';
  main().innerHTML='<div class="vaLock"><div class="eyebrow">ACESSO RESTRITO</div><h2>'+(setup?'Criar acesso administrativo':'Administração VALENZA')+'</h2><p>'+(setup?'Você já está dentro da sua conta autorizada. Agora crie uma senha exclusiva para a área administrativa. Ela será diferente da senha normal da loja.':'Confirme a senha administrativa para visualizar os dados internos da loja.')+'</p><div class="vaField"><label>USUÁRIO</label><input id="vaUser" value="'+esc(s.username||'wesleymartins')+'" autocomplete="username"></div><div class="vaField"><label>'+(setup?'NOVA SENHA ADMINISTRATIVA':'SENHA ADMINISTRATIVA')+'</label><input id="vaPass" type="password" autocomplete="'+(setup?'new-password':'current-password')+'"></div>'+(setup?'<div class="vaField"><label>CONFIRMAR SENHA</label><input id="vaConfirm" type="password" autocomplete="new-password"></div><p>Use pelo menos 12 caracteres. Não use a mesma senha da sua conta comum.</p>':'')+'<button class="ccBtn" id="vaEnter">'+(setup?'CRIAR SENHA E ABRIR PAINEL':'ENTRAR NO PAINEL')+'</button><div class="vaError" id="vaError"></div></div>';
@@ -42,6 +159,7 @@ async function setupAdmin(){
  }catch(e){box.textContent=adminErrorMessage(e,'Não foi possível criar o acesso administrativo agora. Tente novamente.');box.style.display='block'}
 }
 async function loginAdmin(){
+ if(adminSaleAlertsEnabled())ensureAdminSaleAudio(true);
  const box=document.getElementById('vaError');box.style.display='none';
  try{
   const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:document.getElementById('vaUser').value,password:document.getElementById('vaPass').value})}),d=await r.json().catch(()=>({}));
@@ -49,7 +167,7 @@ async function loginAdmin(){
   adminStatusState={...(adminStatusState||{}),authenticated:true,configured:true};await loadDashboard();
  }catch(e){box.textContent=adminErrorMessage(e,'Não foi possível entrar no painel agora. Tente novamente.');box.style.display='block'}
 }
-async function logoutAdmin(){await fetch('/api/admin/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{});adminData=null;if(adminStatusState)adminStatusState.authenticated=false;lockView('login')}
+async function logoutAdmin(){stopAdminSaleWatcher();await fetch('/api/admin/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{});adminData=null;if(adminStatusState)adminStatusState.authenticated=false;lockView('login')}
 async function loadDashboard(){
  const m=main();m.innerHTML='<div class="ccEmpty">Carregando painel administrativo...</div>';
  try{
@@ -61,9 +179,10 @@ async function loadDashboard(){
 function chip(s){const v=String(s||'');let c='';if(v==='Pago')c='ok';else if(v==='Aguardando pagamento'||v==='Processando')c='warn';else if(['Pagamento recusado','Cancelado','Expirado'].includes(v))c='bad';return '<span class="vaChip '+c+'">'+esc(v||'—')+'</span>'}
 function renderDashboard(){
  css();const d=adminData,m=d.metrics||{};
- main().innerHTML='<div class="vaHead"><div><div class="eyebrow">PAINEL PRIVADO</div><h2>Administração VALENZA</h2><p>Atualizado em '+dt(d.generatedAt)+'</p></div><button class="ccBtn" id="vaLogout">SAIR DO ADMIN</button></div><div class="vaTools"><button data-v="overview">RESUMO</button><button data-v="alerts">ALERTAS'+(Number(m.unreadNotifications||0)?'<span class="vaBadge">'+Number(m.unreadNotifications||0)+'</span>':'')+'</button><button data-v="opportunities">OPORTUNIDADES'+(Number(m.opportunityCandidates||0)?'<span class="vaBadge">'+Number(m.opportunityCandidates||0)+'</span>':'')+'</button><button data-v="finance">FINANCEIRO</button><button data-v="shipping">ENVIOS</button><button data-v="orders">PEDIDOS</button><button data-v="customers">CLIENTES</button><button data-v="stock">ESTOQUE</button><button data-v="products">PRODUTOS</button><button data-v="promotions">PROMOÇÕES</button><button data-v="system">SISTEMA</button><button data-v="analytics">ANALYTICS</button></div><div id="vaBody"></div>';
+ main().innerHTML='<div class="vaHead"><div><div class="eyebrow">PAINEL PRIVADO</div><h2>Administração VALENZA</h2><p>Atualizado em '+dt(d.generatedAt)+'</p></div><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button class="vaSaleAlertToggle" id="vaSaleAlertToggle">ATIVAR AVISOS</button><button class="ccBtn" id="vaLogout">SAIR DO ADMIN</button></div></div><div class="vaTools"><button data-v="overview">RESUMO</button><button data-v="alerts">ALERTAS'+(Number(m.unreadNotifications||0)?'<span class="vaBadge">'+Number(m.unreadNotifications||0)+'</span>':'')+'</button><button data-v="opportunities">OPORTUNIDADES'+(Number(m.opportunityCandidates||0)?'<span class="vaBadge">'+Number(m.opportunityCandidates||0)+'</span>':'')+'</button><button data-v="finance">FINANCEIRO</button><button data-v="shipping">ENVIOS</button><button data-v="orders">PEDIDOS</button><button data-v="customers">CLIENTES</button><button data-v="stock">ESTOQUE</button><button data-v="products">PRODUTOS</button><button data-v="promotions">PROMOÇÕES</button><button data-v="system">SISTEMA</button><button data-v="analytics">ANALYTICS</button></div><div id="vaBody"></div>';
  document.getElementById('vaLogout').onclick=logoutAdmin;
- document.querySelectorAll('.vaTools button').forEach(b=>b.onclick=()=>{adminView=b.dataset.v;renderAdminBody()});renderAdminBody();
+ const saleToggle=document.getElementById('vaSaleAlertToggle');if(saleToggle)saleToggle.onclick=enableAdminSaleAlerts;updateSaleAlertButton();
+ document.querySelectorAll('.vaTools button').forEach(b=>b.onclick=()=>{adminView=b.dataset.v;renderAdminBody()});renderAdminBody();startAdminSaleWatcher();
 }
 function orderTable(rows,manage=false){
  const list=rows||[];
@@ -319,10 +438,11 @@ function renderAdminBody(){
  }
  body.innerHTML='<div class="vaPanel"><h3>Analytics</h3><p style="font-size:11px;color:#777">Aba indisponível.</p></div>';
 }
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)stopAdminTitleAlert()});
 window.valenzaAdminRender=async()=>{
- const s=await status();if(!s){main().innerHTML='<div class="ccEmpty">Área administrativa indisponível para esta conta.</div>';return}
- if(!s.configured){lockView('setup');return}
- if(!s.authenticated){lockView('login');return}
+ const s=await status();if(!s){stopAdminSaleWatcher();main().innerHTML='<div class="ccEmpty">Área administrativa indisponível para esta conta.</div>';return}
+ if(!s.configured){stopAdminSaleWatcher();lockView('setup');return}
+ if(!s.authenticated){stopAdminSaleWatcher();lockView('login');return}
  await loadDashboard();
 };
 })();
