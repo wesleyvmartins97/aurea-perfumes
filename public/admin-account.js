@@ -195,13 +195,31 @@ function renderAdminBody(){
    if(z.getFullYear()!==year||z.getMonth()!==month-1||z.getDate()!==day||z.getHours()!==hour||z.getMinutes()!==minute)return{ok:false,iso:null};
    return{ok:true,iso:z.toISOString()}
   };
+  const adminDateCaret=(masked,digitCount)=>{
+   if(digitCount<=0)return 0;let seen=0;
+   for(let i=0;i<masked.length;i++){if(/\d/.test(masked[i])){seen++;if(seen===digitCount)return i+1}}
+   return masked.length
+  };
   const bindAdminDateInput=el=>{
    if(!el||el.dataset.friendlyDate==='1')return;el.dataset.friendlyDate='1';
-   el.addEventListener('input',()=>{const next=maskAdminDate(el.value);if(el.value!==next)el.value=next});
+   el.addEventListener('input',()=>{
+    const raw=el.value,pos=el.selectionStart==null?raw.length:el.selectionStart,digitsBefore=(raw.slice(0,pos).match(/\d/g)||[]).length,next=maskAdminDate(raw);
+    if(raw!==next){el.value=next;const caret=adminDateCaret(next,digitsBefore);try{el.setSelectionRange(caret,caret)}catch{}}
+   });
    el.addEventListener('keydown',e=>{
-    if((e.key==='Delete'||e.key==='Backspace')&&el.value){
-     e.preventDefault();el.value='';el.dispatchEvent(new Event('input',{bubbles:true}));
-    }
+    if((e.key!=='Delete'&&e.key!=='Backspace')||!el.value)return;
+    const start=el.selectionStart==null?0:el.selectionStart,end=el.selectionEnd==null?start:el.selectionEnd;
+    if(start!==end)return;
+    const value=el.value,digits=value.replace(/\D/g,''),digitsBefore=(value.slice(0,start).match(/\d/g)||[]).length;
+    let removeIndex=-1,targetDigits=digitsBefore;
+    if(e.key==='Backspace'&&start>0&&!/\d/.test(value[start-1])){removeIndex=digitsBefore-1;targetDigits=Math.max(0,digitsBefore-1)}
+    else if(e.key==='Delete'&&start<value.length&&!/\d/.test(value[start])){removeIndex=digitsBefore;targetDigits=digitsBefore}
+    else return;
+    if(removeIndex<0||removeIndex>=digits.length)return;
+    e.preventDefault();
+    const nextDigits=digits.slice(0,removeIndex)+digits.slice(removeIndex+1),next=maskAdminDate(nextDigits);
+    el.value=next;const caret=adminDateCaret(next,targetDigits);try{el.setSelectionRange(caret,caret)}catch{}
+    el.dispatchEvent(new Event('input',{bubbles:true}));
    });
    el.addEventListener('blur',()=>{const p=parseAdminDate(el.value);if(p.ok&&p.iso)el.value=formatAdminDate(p.iso)});
   };
