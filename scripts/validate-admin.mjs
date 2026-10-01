@@ -88,6 +88,19 @@ if(!worker.includes('local_delivery')||!admin.includes('ENTREGA LOCAL'))fail.pus
 if(!worker.includes('const paidWithoutShipping=Number(sh.awaiting||0)'))fail.push('Alerta de envio não usa o total completo de pedidos aguardando postagem.');
 if(!(admin.includes('const localIso=id=>')||admin.includes('const parseAdminDate=v=>'))||!admin.includes('z.toISOString()'))fail.push('Promoções não converte a data local pelo fuso do navegador.');
 if(!worker.includes('Nova venda confirmada | VALENZA PARFUMS'))fail.push('Worker sem aviso de venda por e-mail.');
+if(!worker.includes('CREATE TABLE IF NOT EXISTS admin_whatsapp_deliveries'))fail.push('WhatsApp sem tabela de entrega idempotente.');
+if(!worker.includes('function whatsappSaleConfig(env)'))fail.push('WhatsApp sem configuração centralizada.');
+if(!worker.includes('WHATSAPP_ACCESS_TOKEN')||!worker.includes('WHATSAPP_PHONE_NUMBER_ID')||!worker.includes('WHATSAPP_ADMIN_RECIPIENTS'))fail.push('WhatsApp sem variáveis seguras de integração.');
+if(!worker.includes('async function sendAdminSaleWhatsApp'))fail.push('WhatsApp sem disparo automático de nova venda.');
+if(!worker.includes('async function retryPendingSaleWhatsApp'))fail.push('WhatsApp sem retry controlado.');
+if(!worker.includes('recipientHash=await sha256("wa-recipient:"+recipient)'))fail.push('WhatsApp armazena destinatário sem hash de privacidade.');
+if(worker.includes('admin_whatsapp_deliveries (notification_id TEXT NOT NULL, order_id TEXT NOT NULL, recipient TEXT'))fail.push('WhatsApp não deve persistir telefone cru no banco.');
+if(!worker.includes('templateName=String(env.WHATSAPP_SALE_TEMPLATE_NAME||"valenza_nova_venda")'))fail.push('WhatsApp sem template de venda configurável.');
+if(!worker.includes('apiVersion=/^v\\d+\\.\\d+$/.test'))fail.push('WhatsApp sem versão controlada da Graph API.');
+if(!worker.includes('Promise.all([sendAdminSaleEmail(env,row),sendAdminSaleWhatsApp(env,row,n.id)])'))fail.push('Venda paga não dispara e-mail e WhatsApp em paralelo.');
+if(!worker.includes('d.attempts<5')||!worker.includes("datetime('now','-24 hours')"))fail.push('Retry WhatsApp sem limite de tentativas/janela.');
+if(!admin.includes("['WhatsApp',!!s.whatsapp"))fail.push('Sistema administrativo não mostra saúde do WhatsApp.');
+
 if(!worker.includes('SELECT 1 ok FROM admin_credentials WHERE customer_id=?'))fail.push('Alerta de compra não exclui a conta administrativa/testes.');
 if(!worker.includes('/api/admin/notifications/read'))fail.push('Worker sem endpoint protegido de leitura dos alertas.');
 if(!worker.includes('/api/admin/notifications/poll')||!worker.includes('async function adminNotificationsPoll'))fail.push('Avisos ao vivo sem endpoint leve de polling protegido.');
