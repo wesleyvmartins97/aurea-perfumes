@@ -1,0 +1,37 @@
+name: Import Asad Bourbon image
+on:
+  push:
+    branches:
+      - feat-asad-bourbon-2026-10-01
+    paths:
+      - .github/workflows/import-asad-bourbon-image.yml
+permissions:
+  contents: write
+jobs:
+  import-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat-asad-bourbon-2026-10-01
+      - name: Download and optimize product image
+        run: |
+          set -euo pipefail
+          mkdir -p public/produtos
+          curl -fL --retry 3 --user-agent "Mozilla/5.0" "https://img.fragrancex.com/images/products/sku/large/latle0.jpg" -o /tmp/asad-bourbon.jpg
+          python -m pip install --quiet Pillow
+          python - <<'PY'
+          from PIL import Image
+          src=Image.open('/tmp/asad-bourbon.jpg').convert('RGB')
+          src.thumbnail((1000,1000), Image.Resampling.LANCZOS)
+          src.save('public/produtos/asad-bourbon.webp','WEBP',quality=92,method=6)
+          print(src.size)
+          PY
+          test -s public/produtos/asad-bourbon.webp
+      - name: Commit image to product branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/produtos/asad-bourbon.webp
+          git commit -m "Imagem: adiciona Asad Bourbon caixa e frasco"
+          git push origin HEAD:feat-asad-bourbon-2026-10-01
