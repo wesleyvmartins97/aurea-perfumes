@@ -276,6 +276,7 @@ body.checkout-open .aurea-wa{display:none}
 
 </head><body>
 <header class="header"><a class="logo" href="#top">VALENZA</a><nav class="nav"><a href="#catalogo">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a></nav><div class="actions"><div class="header-search" id="headerSearch"><div class="header-search-box" onclick="activateHeaderSearch(event)"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke-width="1.8"></circle><path d="M16 16l4 4" stroke-width="1.8" stroke-linecap="round"></path></svg><input id="headerSearchInput" class="header-search-input" type="search" autocomplete="off" placeholder="Busque sua fragrância..." aria-label="Buscar perfumes" oninput="renderHeaderSearch()" onfocus="renderHeaderSearch()" onkeydown="headerSearchKey(event)"></div><div class="header-search-results" id="headerSearchResults"></div></div><button class="account header-status" onclick="openAccount()"><span class="hs-main">MINHA CONTA</span><span class="hs-sub">Entrar / Cadastrar</span></button><button class="cart header-status" onclick="openCart()"><span class="hs-main">CARRINHO (<span id="count">0</span>)</span><span class="hs-sub" id="headerCartValue">R$ 0,00</span></button></div></header>
+<div id="valenzaPromoBar" role="status" style="display:none;background:#171513;color:#f6f0e9;text-align:center;padding:8px 16px;font:10px/1.45 Arial,sans-serif;letter-spacing:.6px;border-top:1px solid #403a35;border-bottom:1px solid #403a35"></div>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
   <div class="slides" id="slides">
     <div class="slide banner-product" data-product="musamam-white-intense"><img src="/banners/file_000000000724820ebc0b08dbb2f06341.png?v=20260926-valenza" alt="Musamam White Intense" loading="eager" decoding="async" fetchpriority="high"></div>
@@ -739,6 +740,18 @@ function bootAurea(){
  try{initAccount()}catch(e){console.error('AUREA conta',e)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAurea,{once:true});else bootAurea();
+</script>
+<script>
+(async()=>{
+ const el=document.getElementById('valenzaPromoBar');if(!el)return;
+ try{
+  const r=await fetch('/api/promotions/active?t='+Date.now(),{cache:'no-store'}),d=await r.json().catch(()=>({})),p=d&&d.promotion;
+  if(r.ok&&d.ok&&p){
+   el.textContent=[String(p.title||'').trim(),String(p.message||'').trim()].filter(Boolean).join(' · ');
+   if(el.textContent){el.style.display='block'}
+  }
+ }catch{}
+})();
 </script>
 <script src="/admin-account.js"></script>
 <script src="/google-commerce.js"></script>
