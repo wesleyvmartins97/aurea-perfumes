@@ -14,6 +14,15 @@ if(!admin.includes('/api/admin/status'))fail.push('Módulo admin sem consulta de
 if(!admin.includes('/api/admin/setup'))fail.push('Módulo admin sem criação segura de senha.');
 if(!admin.includes('/api/admin/login'))fail.push('Módulo admin sem login separado.');
 if(!admin.includes('/api/admin/dashboard'))fail.push('Módulo admin sem dashboard protegido.');
+if(!admin.includes('data-v="alerts"'))fail.push('Painel sem aba ALERTAS.');
+if(!admin.includes('Central de alertas'))fail.push('Aba ALERTAS sem conteúdo.');
+if(!admin.includes('/api/admin/notifications/read'))fail.push('Painel sem ação de marcar alertas como lidos.');
+if(!worker.includes('CREATE TABLE IF NOT EXISTS admin_notifications'))fail.push('Worker sem tabela de notificações administrativas.');
+if(!worker.includes('async function notifyPaidOrder(env,orderId)'))fail.push('Worker sem gerador de alerta de compra paga.');
+if(!worker.includes('Nova venda confirmada | VALENZA PARFUMS'))fail.push('Worker sem aviso de venda por e-mail.');
+if(!worker.includes('SELECT 1 ok FROM admin_credentials WHERE customer_id=?'))fail.push('Alerta de compra não exclui a conta administrativa/testes.');
+if(!worker.includes('/api/admin/notifications/read'))fail.push('Worker sem endpoint protegido de leitura dos alertas.');
+if(!worker.includes('unreadNotifications'))fail.push('Dashboard não entrega contador de alertas não lidos.');
 if(!admin.includes("if(adminView==='analytics')"))fail.push('Aba Analytics ainda não possui renderização real.');
 if(!admin.includes('Localização das visitas'))fail.push('Analytics sem painel de localização.');
 if(!admin.includes('Origem do tráfego'))fail.push('Analytics sem painel de origem do tráfego.');
