@@ -373,6 +373,13 @@ async function refreshProductPromotions({redraw=false}={}){
  }catch(e){console.error('VALENZA ofertas:',e);return false}
 }
 window.refreshProductPromotions=refreshProductPromotions;
+let valenzaOfferRefreshTimer=null;
+function startProductPromotionRefresh(){
+ if(valenzaOfferRefreshTimer)return;
+ valenzaOfferRefreshTimer=setInterval(()=>{if(!document.hidden)refreshProductPromotions({redraw:true}).catch(()=>{})},60000);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshProductPromotions({redraw:true}).catch(()=>{})});
+window.addEventListener('focus',()=>refreshProductPromotions({redraw:true}).catch(()=>{}));
 function openBannerProduct(id){const p=CATALOG.find(x=>x.id===id);if(!p)return;cat='todos';collection='todos';const search=document.getElementById('search');if(search)search.value='';render();requestAnimationFrame(()=>{const card=document.querySelector('#grid [data-product-id="'+CSS.escape(id)+'"]');(card||document.getElementById('catalogo'))?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>detail(id),500)})}
 
 function initBannerProductLinks(){document.querySelectorAll('.banner-product[data-product]').forEach(el=>el.addEventListener('click',()=>openBannerProduct(el.dataset.product)));document.querySelectorAll('.banner-zone[data-product]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();openBannerProduct(el.dataset.product)}))}
@@ -515,7 +522,7 @@ async function submitCardPayment(formData){
  try{
   const r=await fetch('/api/pagamento/cartao',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({...formData,deviceId:String(window.MP_DEVICE_SESSION_ID||''),name:buyer.name,email:buyer.email,cpf:buyer.cpf,phone:document.getElementById('phone').value.replace(/\D/g,''),birthDate:buyer.birthDate,items:cart.map(x=>({id:x.id,name:x.name,brand:x.brand,type:x.type,img:x.img,qty:x.qty,price:x.price})),shipping:{id:selectedShipping.id,name:selectedShipping.name,carrier:selectedShipping.carrier,price:selectedShipping.price,delivery_time:selectedShipping.delivery_time,cep:buyer.cep,street:document.getElementById('street').value,number:document.getElementById('number').value,complement:document.getElementById('complement')?.value||'',neighborhood:document.getElementById('neighborhood').value,cityState:document.getElementById('cityState').value}})});
   const raw=await r.text();let d;try{d=JSON.parse(raw)}catch{throw Error('Não foi possível obter a resposta do pagamento agora. Tente novamente.')}
-  if(!r.ok||!d.ok){if(d.priceChanged)await refreshProductPromotions({redraw:true});throw Error(d.error||'Não foi possível processar o cartão agora. Tente novamente.')}
+  if(!r.ok||!d.ok){if(d.priceChanged){await refreshProductPromotions({redraw:true});if(aureaCardBrick){try{aureaCardBrick.unmount()}catch{}aureaCardBrick=null}setTimeout(()=>{if(selectedPayment==='card'&&document.getElementById('cardPaymentArea')?.style.display!=='none')initCardBrick().catch(()=>{})},50)}throw Error(d.error||'Não foi possível processar o cartão agora. Tente novamente.')}
   const cardStatus=String(d.status||'').toLowerCase(),cardDetail=String(d.statusDetail||'').toLowerCase();
   const declined=['failed','rejected','canceled','cancelled'].includes(cardStatus)||cardDetail==='high_risk'||cardDetail.includes('rejected');
   if(declined){const reason=cardDetail==='high_risk'?'Por segurança, este pagamento não pôde ser aprovado pela análise da operadora. Tente outro cartão ou escolha outra forma de pagamento.':'Não foi possível aprovar este pagamento. Confira os dados ou tente outra forma de pagamento.';showError(reason);return d}
@@ -778,6 +785,7 @@ async function bootAurea(){
  try{initSlider()}catch(e){console.error('AUREA slider',e)}
  try{initBannerProductLinks()}catch(e){console.error('AUREA banners',e)}
  try{initAccount()}catch(e){console.error('AUREA conta',e)}
+ try{startProductPromotionRefresh()}catch(e){console.error('VALENZA atualização de ofertas',e)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAurea,{once:true});else bootAurea();
 </script>
