@@ -112,6 +112,13 @@ const homeH1Close=(home.match(/<\/h1>/gi)||[]).length;
 if(homeH1!==1||homeH1Close!==1)fail.push(`Home deve conter exatamente um H1 com abertura e fechamento válidos; aberturas e fechamentos de H1: ${homeH1}/${homeH1Close}.`);
 if(/<img\b(?=[^>]*src=)(?![^>]*\balt=)[^>]*>/i.test(home))fail.push('Home contém imagem sem atributo alt.');
 if(!fs.existsSync('public/favicon.png'))fail.push('favicon.png ausente.');
+if(!home.includes('class="photo catalog-photo"'))fail.push('Cards do catálogo sem wrapper catalog-photo isolado.');
+if(!home.includes('class="catalog-product-image"'))fail.push('Cards do catálogo sem classe exclusiva de imagem.');
+if(!home.includes('class="catalog-order-badge"'))fail.push('Cards do catálogo sem selo exclusivo SOB ENCOMENDA.');
+if(home.includes('<span class="tag">SOB ENCOMENDA</span>'))fail.push('Selo antigo genérico .tag voltou ao catálogo e pode quebrar o mobile.');
+if(!home.includes('#grid .card>.catalog-photo>.catalog-product-image'))fail.push('CSS autoritativo da imagem do catálogo ausente.');
+if(!home.includes('#grid .card>.catalog-photo>.catalog-order-badge'))fail.push('CSS autoritativo do selo do catálogo ausente.');
+
 
 if(fail.length){
  console.error(`\nCATÁLOGO REPROVADO — ${fail.length} erro(s):\n- ${fail.join('\n- ')}\n`);
