@@ -539,7 +539,7 @@ async function submitCardPayment(formData){
   if(!r.ok||!d.ok){if(d.priceChanged){await refreshProductPromotions({redraw:true});if(aureaCardBrick){try{aureaCardBrick.unmount()}catch{}aureaCardBrick=null}setTimeout(()=>{if(selectedPayment==='card'&&document.getElementById('cardPaymentArea')?.style.display!=='none')initCardBrick().catch(()=>{})},50)}throw Error(d.error||'Não foi possível processar o cartão agora. Tente novamente.')}
   const cardStatus=String(d.status||'').toLowerCase(),cardDetail=String(d.statusDetail||'').toLowerCase();
   const declined=['failed','rejected','canceled','cancelled'].includes(cardStatus)||cardDetail==='high_risk'||cardDetail.includes('rejected');
-  if(declined){const reason=cardDetail==='high_risk'?'Por segurança, este pagamento não pôde ser aprovado pela análise da operadora. Tente outro cartão ou escolha outra forma de pagamento.':'Não foi possível aprovar este pagamento. Confira os dados ou tente outra forma de pagamento.';showError(reason);return d}
+  if(declined){const reason=cardDetail==='high_risk'?'Por segurança, este pagamento não pôde ser aprovado pela análise da operadora. Tente outro cartão ou escolha outra forma de pagamento.':'Não foi possível aprovar este pagamento. Confira os dados ou tente outra forma de pagamento.';showError(reason);queueOpportunitySync('payment_error',{paymentMethod:'card',lastError:reason},0);return d}
   const approved=cardStatus==='approved'||cardStatus==='processed'||cardDetail==='accredited';
   window.valenzaRememberOrder?.({transactionId:String(d.orderId||d.paymentId||''),value:Number(d.amount||0),paymentType:'card'});
   if(approved)window.valenzaTrackPurchase?.({transactionId:String(d.orderId||d.paymentId||''),value:Number(d.amount||0),paymentType:'card'});
