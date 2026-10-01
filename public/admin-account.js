@@ -446,6 +446,7 @@ function renderAdminBody(){
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)stopAdminTitleAlert()});
 window.valenzaAdminRender=async()=>{
+ if(adminSaleAlertsEnabled())ensureAdminSaleAudio(true);
  const s=await status();if(!s){stopAdminSaleWatcher();main().innerHTML='<div class="ccEmpty">Área administrativa indisponível para esta conta.</div>';return}
  if(!s.configured){stopAdminSaleWatcher();lockView('setup');return}
  if(!s.authenticated){stopAdminSaleWatcher();lockView('login');return}
