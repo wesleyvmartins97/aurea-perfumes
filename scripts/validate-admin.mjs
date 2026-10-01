@@ -51,7 +51,7 @@ if(!admin.includes('Esta tela não cria nem altera postagens'))fail.push('Aba EN
 if(!admin.includes('vaCopyTrack'))fail.push('Aba ENVIOS sem ação de copiar rastreio.');
 if(!worker.includes('shippingSummary')||!worker.includes('shippingRows'))fail.push('Dashboard sem agregação operacional de envios.');
 if(!worker.includes('labelReady:Number(sh.label_ready||0)'))fail.push('Envios sem contador de etiqueta pronta.');
-if(!worker.includes('!x.is_test_account&&String(x.status)==="Pago"'))fail.push('Alerta de envio ainda considera pedidos da conta de teste.');
+if(!worker.includes('const paidWithoutShipping=Number(sh.awaiting||0)'))fail.push('Alerta de envio não usa o total de clientes reais aguardando postagem.');
 if(!admin.includes("if(adminView==='finance')"))fail.push('Aba FINANCEIRO sem renderização.');
 if(!admin.includes('Faturamento real')||!admin.includes('Pagos reais'))fail.push('Resumo não separa vendas reais de testes.');
 if(!worker.includes('const realOrdersCte='))fail.push('Worker sem separação de pedidos reais no Financeiro.');
@@ -129,7 +129,7 @@ if(!admin.includes('CLIENTE REAL'))fail.push('Painel não sinaliza venda real pr
 if(!admin.includes('PENDENTE · 24H'))fail.push('Painel não sinaliza validade de 24h dos cadastros pendentes.');
 if(!worker.includes('cleanupExpiredPendingCustomers'))fail.push('Limpeza automática de cadastros pendentes expirados ausente.');
 if(!worker.includes('cleanupExpiredPendingEmail'))fail.push('Recadastro não limpa pendência expirada do mesmo e-mail.');
-if(!worker.includes('Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env)])'))fail.push('Cron não executa limpeza periódica das pendências.');
+if(!worker.includes('Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env)])'))fail.push('Cron não executa reconciliação, limpeza de pendências e retry dos avisos de venda.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege pedidos vinculados.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM guest_orders g WHERE lower(g.email)=lower(customers.email))'))fail.push('Limpeza de pendência não protege pedidos legados pelo e-mail.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege conta administrativa.');
