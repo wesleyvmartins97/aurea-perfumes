@@ -41,4 +41,5 @@ for(const p of sellable){
 }
 out+='</channel>\n</rss>\n';
 fs.writeFileSync('public/merchant-feed.xml',out);
-console.log(`Merchant feed gerado: ${sellable.length} produtos, sem GTIN/MPN inventados.`);
+fs.writeFileSync('public/google-merchant.xml',out);
+console.log(`Merchant feeds gerados: ${sellable.length} produtos, sem GTIN/MPN inventados.`);
