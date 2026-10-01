@@ -1,5 +1,5 @@
 (()=>{'use strict';
-let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='',adminSalePollTimer=null,adminSaleTitleTimer=null,adminSalePollBusy=false,adminSaleWatcherPrimed=false,adminSaleSoundCtx=null,adminSaleCursorTime='';
+let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='',adminSalePollTimer=null,adminSaleTitleTimer=null,adminSalePollBusy=false,adminSaleWatcherPrimed=false,adminSaleSoundCtx=null;
 const ADMIN_SALE_POLL_MS=30000,ADMIN_SALE_SEEN_KEY='valenza_admin_seen_sales_v1',ADMIN_SALE_ALERTS_KEY='valenza_admin_sale_alerts_v1';
 const adminBaseTitle=document.title;
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -124,8 +124,8 @@ async function pollAdminSaleNotifications(){
   const r=await fetch('/api/admin/notifications/poll?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
   if(r.status===401){stopAdminSaleWatcher();if(adminStatusState)adminStatusState.authenticated=false;return}
   if(!r.ok||!d.ok)return;
-  const incoming=Array.isArray(d.notifications)?d.notifications:[],seen=new Set(adminSeenSaleIds()),cursorMs=Date.parse(adminSaleCursorTime||0)||0,fresh=incoming.filter(x=>x?.id&&!seen.has(String(x.id))&&Date.parse(x.created_at||0)>cursorMs).sort((x,y)=>Date.parse(x.created_at||0)-Date.parse(y.created_at||0));
-  rememberAdminSaleIds(incoming.map(x=>x.id));adminSaleCursorTime=String(d.generatedAt||adminSaleCursorTime||'');
+  const incoming=Array.isArray(d.notifications)?d.notifications:[],seen=new Set(adminSeenSaleIds()),fresh=incoming.filter(x=>x?.id&&!seen.has(String(x.id))).sort((x,y)=>Date.parse(x.created_at||0)-Date.parse(y.created_at||0));
+  rememberAdminSaleIds(incoming.map(x=>x.id));
   updateAdminUnreadBadge(d.unread);
   if(adminData){
    const byId=new Map((adminData.notifications||[]).map(x=>[String(x.id),x]));for(const n of incoming)byId.set(String(n.id),n);
@@ -140,13 +140,13 @@ async function pollAdminSaleNotifications(){
 function startAdminSaleWatcher(){
  if(!adminStatusState?.authenticated)return;
  if(!adminSaleWatcherPrimed){
-  const current=(adminData?.notifications||[]).filter(x=>String(x.type||'')==='sale').map(x=>x.id);rememberAdminSaleIds(current);adminSaleCursorTime=String(adminData?.generatedAt||new Date().toISOString());adminSaleWatcherPrimed=true
+  const current=(adminData?.notifications||[]).filter(x=>String(x.type||'')==='sale').map(x=>x.id);rememberAdminSaleIds(current);adminSaleWatcherPrimed=true
  }
  if(!adminSalePollTimer){adminSalePollTimer=setInterval(pollAdminSaleNotifications,ADMIN_SALE_POLL_MS);setTimeout(pollAdminSaleNotifications,1200)}
 }
 function stopAdminSaleWatcher(){
  if(adminSalePollTimer){clearInterval(adminSalePollTimer);adminSalePollTimer=null}
- adminSalePollBusy=false;adminSaleWatcherPrimed=false;adminSaleCursorTime='';stopAdminTitleAlert()
+ adminSalePollBusy=false;adminSaleWatcherPrimed=false;stopAdminTitleAlert()
 }
 
 function lockView(mode){
