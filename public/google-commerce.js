@@ -7,6 +7,7 @@ const VISITOR_KEY='valenza_analytics_visitor';
 const SESSION_KEY='valenza_analytics_session';
 const ATTR_KEY='valenza_analytics_attribution';
 let measurementId='',ready=false,loading=false,currentProductId='';
+let metaPixelId='',metaConfigLoaded=false,metaReady=false,metaPageViewed=false,metaQueue=[];
 
 function catalog(){
  try{return typeof CATALOG!=='undefined'&&Array.isArray(CATALOG)?CATALOG:[]}catch{return []}
@@ -91,11 +92,69 @@ function internalTrack(name,params={}){
  return true;
 }
 function trackInternalPageView(){return internalTrack('page_view',{})}
+
+const META_EVENT_MAP={page_view:'PageView',view_item:'ViewContent',add_to_cart:'AddToCart',begin_checkout:'InitiateCheckout',add_payment_info:'AddPaymentInfo',purchase:'Purchase'};
+function cookieValue(name){
+ try{const p=document.cookie.split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='));return p?decodeURIComponent(p.slice(name.length+1)):''}catch{return ''}
+}
+function metaData(params={}){
+ const items=Array.isArray(params.items)?params.items:[],data={currency:'BRL'};
+ const value=Math.max(0,Number(params.value)||0);if(value||items.length)data.value=value;
+ if(items.length){
+  data.content_ids=items.map(x=>String(x.item_id||'')).filter(Boolean);
+  data.contents=items.map(x=>({id:String(x.item_id||''),quantity:Math.max(1,Number(x.quantity||1)),item_price:Math.max(0,Number(x.price||0))})).filter(x=>x.id);
+  data.content_type='product';
+ }
+ if(params.transaction_id)data.order_id=String(params.transaction_id);
+ return data;
+}
+function ensureMetaPixel(){
+ if(metaReady||!consentGranted()||!/^\d{5,30}$/.test(metaPixelId))return metaReady;
+ if(!window.fbq){
+  const f=window.fbq=function(){f.callMethod?f.callMethod.apply(f,arguments):f.queue.push(arguments)};
+  if(!window._fbq)window._fbq=f;f.push=f;f.loaded=true;f.version='2.0';f.queue=[];
+  const s=document.createElement('script');s.async=true;s.src='https://connect.facebook.net/en_US/fbevents.js';document.head.appendChild(s);
+ }
+ window.fbq('init',metaPixelId);metaReady=true;return true;
+}
+function metaSendNow(name,params={}){
+ const eventName=META_EVENT_MAP[name];if(!eventName||!ensureMetaPixel())return false;
+ const eventId=(name==='purchase'&&params.transaction_id?'purchase:'+String(params.transaction_id):name+':'+uid()).replace(/[^A-Za-z0-9._:-]/g,'').slice(0,160);
+ const data=metaData(params);
+ try{window.fbq('track',eventName,data,{eventID:eventId})}catch{}
+ fetch('/api/meta/event',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',keepalive:true,body:JSON.stringify({
+  eventName,eventId,eventSourceUrl:location.href,value:Number(data.value||0),contentIds:data.content_ids||[],contents:data.contents||[],orderId:String(data.order_id||''),fbp:cookieValue('_fbp'),fbc:cookieValue('_fbc')
+ })}).catch(()=>{});
+ return true;
+}
+function startMeta(){
+ if(!consentGranted()||!metaConfigLoaded||!/^\d{5,30}$/.test(metaPixelId))return false;
+ ensureMetaPixel();
+ if(!metaPageViewed){metaPageViewed=true;metaSendNow('page_view',{})}
+ const q=metaQueue.splice(0);for(const [n,p] of q)metaSendNow(n,p);
+ return true;
+}
+function metaEmit(name,params={}){
+ if(!consentGranted()||!META_EVENT_MAP[name])return false;
+ if(!metaConfigLoaded){metaQueue.push([name,params]);return true}
+ if(!/^\d{5,30}$/.test(metaPixelId))return false;
+ return metaSendNow(name,params);
+}
+async function loadMetaConfig(){
+ try{
+  const r=await fetch('/api/meta/config?t='+Date.now(),{cache:'no-store'}),d=await r.json().catch(()=>({}));
+  if(r.ok&&d.ok&&d.enabled&&/^\d{5,30}$/.test(String(d.pixelId||'')))metaPixelId=String(d.pixelId);
+ }catch{}
+ metaConfigLoaded=true;
+ if(consentGranted())startMeta();
+}
+
 function emit(name,params={}){
  if(!consentGranted())return false;
  const internal=internalTrack(name,params);
  if(ready&&typeof window.gtag==='function')window.gtag('event',name,{currency:'BRL',...params});
- return internal||ready;
+ const meta=metaEmit(name,params);
+ return internal||ready||meta;
 }
 function loadGoogleTag(){
  if(ready||loading||!/^G-[A-Z0-9]+$/i.test(measurementId))return;
@@ -153,7 +212,7 @@ function consentBanner(){
  box.style.cssText='position:fixed;left:14px;right:14px;bottom:14px;z-index:5000;max-width:520px;margin:auto;background:#171513;color:#f4efe9;border:1px solid #4d453f;border-radius:8px;padding:13px 14px;font:10px/1.45 Arial,sans-serif;box-shadow:0 14px 38px rgba(0,0,0,.28)';
  box.innerHTML='<div style="font:9px Arial,sans-serif;letter-spacing:3px;color:#b7a99d;margin-bottom:5px">EXPERIÊNCIA VALENZA</div><div style="font:18px/1.15 Georgia,serif;margin-bottom:6px">Uma experiência mais personalizada</div><div style="color:#c9c1b8;max-width:430px">Ative recursos de personalização e medição. O navegador poderá solicitar sua localização; você pode negar e continuar normalmente.</div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px"><button id="valenzaConsentAccept" type="button" style="border:0;background:#f5f1ec;color:#171513;padding:10px 13px;font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer">ATIVAR EXPERIÊNCIA VALENZA</button><button id="valenzaConsentReject" type="button" style="border:0;background:transparent;color:#d8d0c8;padding:7px 0;font-size:9px;text-decoration:underline;cursor:pointer">CONTINUAR SEM PERSONALIZAÇÃO</button><a href="/privacidade/" style="color:#d8d0c8;margin-left:auto;font-size:9px">Privacidade</a></div>';
  document.body.appendChild(box);
- box.querySelector('#valenzaConsentAccept').onclick=()=>{localStorage.setItem(CONSENT_KEY,'granted');requestDeviceLocation();box.remove();trackInternalPageView();loadGoogleTag()};
+ box.querySelector('#valenzaConsentAccept').onclick=()=>{localStorage.setItem(CONSENT_KEY,'granted');requestDeviceLocation();box.remove();trackInternalPageView();loadGoogleTag();startMeta()};
  box.querySelector('#valenzaConsentReject').onclick=()=>{localStorage.setItem(CONSENT_KEY,'denied');box.remove()};
 }
 async function init(){
@@ -163,6 +222,7 @@ async function init(){
   if(r.ok&&d.ok&&d.enabled&&/^G-[A-Z0-9]+$/i.test(String(d.measurementId||'')))measurementId=String(d.measurementId);
  }catch{}
  let consent='';try{consent=localStorage.getItem(CONSENT_KEY)||''}catch{}
+ loadMetaConfig().catch(()=>{});
  if(consent==='granted'){trackInternalPageView();loadGoogleTag();refreshGrantedDeviceLocation()}
  else if(consent!=='denied')consentBanner();
 }

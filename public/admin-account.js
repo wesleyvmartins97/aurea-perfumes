@@ -425,6 +425,8 @@ function renderAdminBody(){
    ['Resend',!!s.resend,s.resend?'E-mail configurado':'Chave ausente'],
    ['WhatsApp',!!s.whatsapp,s.whatsapp?'Cloud API · '+Number(s.whatsappRecipients||0)+' destinatário(s) · '+String(s.whatsappTemplate||'template'):'Configurar Cloud API · token + Phone Number ID + destinatários'],
    ['Google Analytics',!!s.ga4,s.ga4?'GA4 configurado':'Measurement ID ausente'],
+   ['Meta Pixel',!!s.metaPixel,s.metaPixel?'Pixel configurado':'Pixel ID ausente'],
+   ['Meta CAPI',!!s.metaCapi,s.metaCapi?'Servidor configurado · '+String(s.metaGraphVersion||'API'):(s.metaPixel?'Token CAPI ausente':'Aguardando Pixel + token CAPI')],
    ['HTTPS',!!s.https,s.https?'HSTS + HTTPS':'Revisar segurança'],
    ['Domínio',s.canonicalHost==='www.valenzaparfums.com.br',s.canonicalHost||'—']
   ];

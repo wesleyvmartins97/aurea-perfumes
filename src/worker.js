@@ -7,6 +7,8 @@ export default{async fetch(request,env,ctx){
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
+ if(url.pathname==="/api/meta/config"&&request.method==="GET"){const cfg=metaConfig(env);return resposta({ok:true,enabled:cfg.enabled,pixelId:cfg.enabled?cfg.pixelId:"",capiEnabled:cfg.enabled&&!!cfg.token,apiVersion:cfg.apiVersion})}
+ if(url.pathname==="/api/meta/event"&&request.method==="POST")return metaEvent(request,env);
  if(url.pathname==="/api/promotions/active"&&request.method==="GET")return activePromotionPublic(env);
  if(url.pathname==="/api/product-promotions/active"&&request.method==="GET")return activeProductPromotionsPublic(env);
  if(url.pathname==="/api/catalog/runtime"&&request.method==="GET")return catalogRuntimePublic(env);
@@ -206,6 +208,40 @@ async function authLogout(request,env){try{await ensureAuthSchema(env);const db=
 
 async function currentCustomer(request,env){await ensureAuthSchema(env);const s=await validCustomerSession(request,env);return s.user||null}
 
+
+
+function metaConfig(env){
+ const pixelId=String(env.META_PIXEL_ID||"").trim(),token=String(env.META_CAPI_ACCESS_TOKEN||"").trim();
+ const rawVersion=String(env.META_GRAPH_VERSION||"v26.0").trim(),apiVersion=/^v\d+\.\d+$/.test(rawVersion)?rawVersion:"v26.0";
+ return {pixelId,token,apiVersion,testEventCode:String(env.META_TEST_EVENT_CODE||"").trim(),enabled:/^\d{5,30}$/.test(pixelId)};
+}
+function metaSafeText(v,max=300){return String(v||"").trim().slice(0,max)}
+function metaSafeList(v,max=50){return Array.isArray(v)?v.slice(0,max):[]}
+async function metaEvent(request,env){
+ try{
+  const cfg=metaConfig(env);if(!cfg.enabled||!cfg.token)return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
+  const origin=request.headers.get("Origin")||"";
+  if(origin){try{if(new URL(origin).hostname!==new URL(request.url).hostname)return resposta({ok:false},403)}catch{return resposta({ok:false},403)}}
+  const d=await request.json().catch(()=>({})),eventName=metaSafeText(d.eventName,40),eventId=metaSafeText(d.eventId,160);
+  const allowed=new Set(["PageView","ViewContent","AddToCart","InitiateCheckout","AddPaymentInfo","Purchase"]);
+  if(!allowed.has(eventName)||!/^[A-Za-z0-9._:-]{8,160}$/.test(eventId))return resposta({ok:false,error:"Evento Meta inválido."},400);
+  let eventSourceUrl="";try{const u=new URL(String(d.eventSourceUrl||request.url));if(u.hostname===new URL(request.url).hostname)eventSourceUrl=u.toString()}catch{}
+  if(!eventSourceUrl)eventSourceUrl=new URL("/",request.url).toString();
+  const userData={client_user_agent:metaSafeText(request.headers.get("User-Agent"),500)};
+  const ip=metaSafeText(request.headers.get("CF-Connecting-IP"),80);if(ip)userData.client_ip_address=ip;
+  const fbp=metaSafeText(d.fbp,200),fbc=metaSafeText(d.fbc,200);if(fbp)userData.fbp=fbp;if(fbc)userData.fbc=fbc;
+  const contentIds=metaSafeList(d.contentIds).map(x=>metaSafeText(x,120)).filter(Boolean);
+  const contents=metaSafeList(d.contents).map(x=>({id:metaSafeText(x?.id,120),quantity:Math.max(1,Math.min(99,Number(x?.quantity)||1)),item_price:Math.max(0,Math.min(1000000,Number(x?.item_price)||0))})).filter(x=>x.id);
+  const customData={currency:"BRL",value:Math.max(0,Math.min(1000000,Number(d.value)||0)),content_type:"product"};
+  if(contentIds.length)customData.content_ids=contentIds;if(contents.length)customData.contents=contents;
+  const orderId=metaSafeText(d.orderId,120);if(orderId)customData.order_id=orderId;
+  const payload={data:[{event_name:eventName,event_time:Math.floor(Date.now()/1000),event_id:eventId,action_source:"website",event_source_url:eventSourceUrl,user_data:userData,custom_data:customData}]};
+  if(cfg.testEventCode)payload.test_event_code=cfg.testEventCode;
+  const r=await fetch("https://graph.facebook.com/"+cfg.apiVersion+"/"+cfg.pixelId+"/events",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+cfg.token},body:JSON.stringify(payload)});
+  if(!r.ok){const msg=await r.text().catch(()=>"");console.error("Meta CAPI:",r.status,msg.slice(0,500));return resposta({ok:false,error:"Meta CAPI indisponível."},502)}
+  return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
+ }catch(e){console.error("Meta CAPI:",e);return resposta({ok:false},500)}
+}
 
 function analyticsText(v,max=120){return String(v||"").trim().slice(0,max)}
 async function analyticsEvent(request,env){
@@ -784,8 +820,8 @@ async function adminDashboard(request,env){
   const finance={paidToday:Number(fin.paid_today||0),revenueToday:Number(Number(fin.revenue_today||0).toFixed(2)),paid7d:Number(fin.paid_7d||0),revenue7d:Number(Number(fin.revenue_7d||0).toFixed(2)),paid30d:Number(fin.paid_30d||0),revenue30d:Number(Number(fin.revenue_30d||0).toFixed(2)),paidAll:paidOrders,revenueAll:Number(revenue.toFixed(2)),averageTicket30d:Number(fin.paid_30d||0)?Number((Number(fin.revenue_30d||0)/Number(fin.paid_30d||0)).toFixed(2)):0,pixOrders30d:Number(fin.pix_orders_30d||0),pixRevenue30d:Number(Number(fin.pix_revenue_30d||0).toFixed(2)),cardOrders30d:Number(fin.card_orders_30d||0),cardRevenue30d:Number(Number(fin.card_revenue_30d||0).toFixed(2)),freight30d:Number(Number(fin.freight_30d||0).toFixed(2)),testPaidIgnored:Math.max(0,allPaidOrders-paidOrders),pendingReal:Number(fin.pending_real||0),daily:financeDaily.results||[],profit:{knownRevenue30d:Number(knownRevenue30.toFixed(2)),knownCost30d:Number(knownCost30.toFixed(2)),grossProfit30d:Number((knownRevenue30-knownCost30).toFixed(2)),grossMargin30d:knownRevenue30?Number((((knownRevenue30-knownCost30)/knownRevenue30)*100).toFixed(2)):0,costCoverage30d:paidUnits30?Number((((paidUnits30-missingUnits30)/paidUnits30)*100).toFixed(1)):0,missingCostUnits30d:missingUnits30,knownRevenueAll:Number(knownRevenueAll.toFixed(2)),knownCostAll:Number(knownCostAll.toFixed(2)),grossProfitAll:Number((knownRevenueAll-knownCostAll).toFixed(2)),grossMarginAll:knownRevenueAll?Number((((knownRevenueAll-knownCostAll)/knownRevenueAll)*100).toFixed(2)):0,products:profitProducts.results||[]}};
   const sh=shippingSummary||{},shipping={localDelivery:Number(sh.local_delivery||0),awaiting:Number(sh.awaiting||0),preparing:Number(sh.preparing||0),created:Number(sh.created||0),labelReady:Number(sh.label_ready||0),tracking:Number(sh.tracking||0),rows:shippingRows.results||[]};
   const opportunityRows=(opportunities.results||[]).map(x=>{let items=[];try{const parsed=JSON.parse(x.cart_json||"[]");if(Array.isArray(parsed))items=parsed}catch{}const last=Date.parse(x.last_seen_at||x.updated_at||0),abandoned=String(x.status)==="active"&&!Number(x.pending_payment)&&(String(x.stage)==="payment_error"||(Number.isFinite(last)&&last<=Date.now()-15*60e3));return {...x,items,abandoned,pending_payment:!!Number(x.pending_payment)}}),opportunityCandidates=opportunityRows.filter(x=>x.abandoned),opportunityValue=opportunityCandidates.reduce((s,x)=>s+Number(x.subtotal||0),0),recoveredOpportunities=opportunityRows.reduce((s,x)=>s+Number(x.recoveries||0),0);
-  const mp=mpConfig(env),mpAccessToken=!!String(mp.accessToken||"").trim(),mpPublicKey=!!String(mp.publicKey||"").trim(),mpProduction=!mp.testMode,wa=whatsappSaleConfig(env);
-  const system={database:true,mercadoPago:mpAccessToken&&mpPublicKey&&mpProduction,mercadoPagoAccessToken:mpAccessToken,mercadoPagoPublicKey:mpPublicKey,mercadoPagoMode:mp.testMode?"TESTE":"PRODUÇÃO",envioEcom:!!env.ENVIOECOM_TOKEN,envioOriginCep:/^\d{8}$/.test(String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"")),resend:!!env.RESEND_API_KEY,whatsapp:wa.configured,whatsappRecipients:wa.recipients.length,whatsappTemplate:wa.templateName,whatsappApiVersion:wa.apiVersion,ga4:/^G-[A-Z0-9]+$/i.test(String(env.GA4_MEASUREMENT_ID||"").trim()),canonicalHost:"www.valenzaparfums.com.br",https:true};
+  const mp=mpConfig(env),mpAccessToken=!!String(mp.accessToken||"").trim(),mpPublicKey=!!String(mp.publicKey||"").trim(),mpProduction=!mp.testMode,wa=whatsappSaleConfig(env),meta=metaConfig(env);
+  const system={database:true,mercadoPago:mpAccessToken&&mpPublicKey&&mpProduction,mercadoPagoAccessToken:mpAccessToken,mercadoPagoPublicKey:mpPublicKey,mercadoPagoMode:mp.testMode?"TESTE":"PRODUÇÃO",envioEcom:!!env.ENVIOECOM_TOKEN,envioOriginCep:/^\d{8}$/.test(String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"")),resend:!!env.RESEND_API_KEY,whatsapp:wa.configured,whatsappRecipients:wa.recipients.length,whatsappTemplate:wa.templateName,whatsappApiVersion:wa.apiVersion,ga4:/^G-[A-Z0-9]+$/i.test(String(env.GA4_MEASUREMENT_ID||"").trim()),metaPixel:meta.enabled,metaCapi:meta.enabled&&!!meta.token,metaGraphVersion:meta.apiVersion,canonicalHost:"www.valenzaparfums.com.br",https:true};
   const operationalAlerts=[];
   const paidWithoutShipping=Number(sh.awaiting||0);
   const lowStock=stockRows.filter(x=>Number(x.stock||0)<=2).length;
