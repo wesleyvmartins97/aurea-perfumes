@@ -637,7 +637,7 @@ async function adminProductUpdate(request,env){
   await seedInventory(env);
   const d=await request.json().catch(()=>({})),productId=String(d.productId||"").trim(),source=AUREA_CATALOG[productId];
   if(!source)return resposta({ok:false,error:"Produto inválido."},400);
-  const price=Number(d.price),stock=Number(d.stock),costRaw=d.unitCost,unitCost=(costRaw===null||costRaw===""||typeof costRaw==="undefined")?null:Number(costRaw);
+  const price=Number(d.price),stock=Number(d.stock),costRaw=d.unitCost,unitCost=(costRaw===null||costRaw===""||typeof costRaw==="undefined")?null:Number(costRaw),expectedStockUpdatedAt=String(d.expectedStockUpdatedAt||"").trim();
   if(!Number.isFinite(price)||price<=0||price>50000)return resposta({ok:false,error:"Informe um preço válido."},400);
   if(!Number.isInteger(stock)||stock<0||stock>10000)return resposta({ok:false,error:"Informe um estoque inteiro entre 0 e 10.000."},400);
   if(unitCost!==null&&(!Number.isFinite(unitCost)||unitCost<0||unitCost>50000))return resposta({ok:false,error:"Informe um custo unitário válido ou deixe em branco."},400);
@@ -645,14 +645,16 @@ async function adminProductUpdate(request,env){
   if(activePromo&&Number(activePromo.promo_price)>=price)return resposta({ok:false,error:"Este produto tem uma oferta ativa ou agendada igual ou maior que o novo preço normal. Ajuste ou encerre a promoção primeiro."},409);
   const [oldSetting,oldInv,reservedRow]=await Promise.all([
    env.DB.prepare("SELECT price_override,unit_cost FROM product_settings WHERE product_id=?").bind(productId).first(),
-   env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(productId).first(),
+   env.DB.prepare("SELECT stock,updated_at FROM inventory WHERE product_id=?").bind(productId).first(),
    env.DB.prepare("SELECT COALESCE(SUM(oi.quantity),0) reserved FROM order_items oi WHERE oi.product_id=? AND oi.stock_deducted=0 AND (EXISTS(SELECT 1 FROM orders o WHERE o.id=oi.order_id AND o.status IN ('Aguardando pagamento','Processando')) OR EXISTS(SELECT 1 FROM guest_orders g WHERE g.id=oi.order_id AND g.status IN ('Aguardando pagamento','Processando')))").bind(productId).first()
-  ]),currentStock=Number(oldInv?.stock||0),reservedUnits=Number(reservedRow?.reserved||0);
-  if(stock!==currentStock&&reservedUnits>0)return resposta({ok:false,error:"Este produto tem "+reservedUnits+" unidade(s) reservada(s) em pagamento pendente. Aguarde, conclua ou cancele esses pedidos antes de alterar o estoque."},409);
-  await env.DB.batch([
-   env.DB.prepare("INSERT INTO product_settings(product_id,price_override,unit_cost,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET price_override=excluded.price_override,unit_cost=excluded.unit_cost,updated_at=excluded.updated_at").bind(productId,Number(price.toFixed(2)),unitCost===null?null:Number(unitCost.toFixed(2)),now),
-   env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(productId,stock,now)
-  ]);
+  ]),currentStock=Number(oldInv?.stock||0),reservedUnits=Number(reservedRow?.reserved||0),stockChanged=stock!==currentStock;
+  if(stockChanged&&reservedUnits>0)return resposta({ok:false,error:"Este produto tem "+reservedUnits+" unidade(s) reservada(s) em pagamento pendente. Aguarde, conclua ou cancele esses pedidos antes de alterar o estoque."},409);
+  if(stockChanged&&expectedStockUpdatedAt&&String(oldInv?.updated_at||"")!==expectedStockUpdatedAt)return resposta({ok:false,error:"O estoque mudou desde que você abriu esta tela. Atualize o painel e confira o valor antes de salvar novamente."},409);
+  if(stockChanged){
+   const inv=await env.DB.prepare("UPDATE inventory SET stock=?,updated_at=? WHERE product_id=? AND updated_at=?").bind(stock,now,productId,String(oldInv?.updated_at||"")).run();
+   if(Number(inv.meta?.changes||0)<1)return resposta({ok:false,error:"O estoque mudou enquanto você salvava. Atualize o painel e tente novamente."},409);
+  }
+  await env.DB.prepare("INSERT INTO product_settings(product_id,price_override,unit_cost,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET price_override=excluded.price_override,unit_cost=excluded.unit_cost,updated_at=excluded.updated_at").bind(productId,Number(price.toFixed(2)),unitCost===null?null:Number(unitCost.toFixed(2)),now).run();
   await recordAdminAudit(env,admin,"product_update",{productId,productName:source.name,oldPrice:Number(oldSetting?.price_override??source.price),price:Number(price.toFixed(2)),oldStock:Number(oldInv?.stock||0),stock,oldUnitCost:oldSetting?.unit_cost??null,unitCost:unitCost===null?null:Number(unitCost.toFixed(2))});
   return resposta({ok:true,message:"Produto atualizado com segurança.",product:{id:productId,price:Number(price.toFixed(2)),stock,unitCost:unitCost===null?null:Number(unitCost.toFixed(2))}});
  }catch(e){console.error("Atualizar produto:",e);return resposta({ok:false,error:"Não foi possível atualizar o produto agora."},500)}
