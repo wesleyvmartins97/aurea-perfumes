@@ -1,0 +1,80 @@
+name: One-shot local Asad product images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch-asad-product-images.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-images:
+    if: github.event.head_commit.message == 'chore: fetch Asad product images locally'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar conversor de imagem
+        run: pip install --disable-pip-version-check pillow
+      - name: Baixar fotos frasco + caixa
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/asad public/produtos
+          download() {
+            out="$1"; shift
+            for url in "$@"; do
+              echo "Tentando: $url"
+              if curl -fL --retry 2 --connect-timeout 15 --max-time 60 \
+                -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125 Safari/537.36" \
+                "$url" -o "$out"; then
+                test -s "$out" && return 0
+              fi
+            done
+            echo "Falha ao baixar $out" >&2
+            return 1
+          }
+          download /tmp/asad/zanzibar-source \
+            "https://yauras.cl/cdn/shop/files/LattafaAsadEDP12MLTravelSpay_17_c0365fbb-e8d9-48ff-aa2c-4acffd3a024d.jpg?v=1757083681" \
+            "https://cdn-shopkit.com/usercontent/arabiaperfumes/media/images/660bbd3-174337-asad-zanzibar-1-1080x1080.jpg"
+          download /tmp/asad/elixir-source \
+            "https://www.atlanticoshop.com.py/image/cache/catalog/lattafa-asad-elixir-100ml-edp-1-800x800.webp" \
+            "https://www.tressenza.com.br/media/catalog/product/cache/1/image/600x600/9df78eab33525d08d6e5fb8d27136e95/p/e/perfume-lattafa-asad-elixir-100ml-frasco-e-caixa.webp"
+      - name: Padronizar para o catálogo VALENZA
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageOps
+          from pathlib import Path
+
+          items = [
+              ("/tmp/asad/zanzibar-source", "public/produtos/asad-zanzibar.webp"),
+              ("/tmp/asad/elixir-source", "public/produtos/asad-elixir.webp"),
+          ]
+          for src, dst in items:
+              im = Image.open(src)
+              im = ImageOps.exif_transpose(im).convert("RGBA")
+              bg = Image.new("RGBA", im.size, "white")
+              bg.alpha_composite(im)
+              im = bg.convert("RGB")
+              im.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
+              canvas = Image.new("RGB", (1000, 1000), "white")
+              canvas.paste(im, ((1000-im.width)//2, (1000-im.height)//2))
+              canvas.save(dst, "WEBP", quality=90, method=6)
+              size = Path(dst).stat().st_size
+              print(dst, canvas.size, size)
+              if size < 25000:
+                  raise SystemExit(f"Imagem pequena/suspeita: {dst} ({size} bytes)")
+          PY
+      - name: Commitar arquivos locais
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/produtos/asad-zanzibar.webp public/produtos/asad-elixir.webp
+          git diff --cached --quiet && exit 0
+          git commit -m "Add local Asad Zanzibar and Elixir product photos"
+          git push
