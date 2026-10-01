@@ -9,6 +9,10 @@ const wrangler=read('wrangler.jsonc');
 const customerRawErrors=['accountMsg(e.message)','out.textContent=e.message','out.textContent=err.message','showError(err.message','valenzaNotice(e.message)','esc(e.message)','Load failed','Failed to fetch'];
 for(const raw of customerRawErrors)if(home.includes(raw))fail.push('Mensagem técnica crua visível ao cliente: '+raw);
 if(!home.includes('function clientErrorMessage('))fail.push('Site sem normalizador de mensagens amigáveis para o cliente.');
+const checkoutStart=home.indexOf('async function openCheckout(){');
+const closeCheckoutStart=home.indexOf('function closeCheckout',checkoutStart);
+if(checkoutStart<0||closeCheckoutStart<0||!home.slice(checkoutStart,closeCheckoutStart).trimEnd().endsWith('}'))fail.push('openCheckout não fecha antes de closeCheckout; isso derruba catálogo, conta e botões da loja.');
+
 if(!admin.includes('function adminErrorMessage('))fail.push('Admin sem normalizador de mensagens amigáveis.');
 if(/e\.message|err\.message/.test(admin))fail.push('Admin ainda exibe mensagem técnica crua.');
 if(worker.includes('error:"Não foi possível criar a conta agora.",detail:'))fail.push('Cadastro ainda expõe detalhe interno ao cliente.');
@@ -82,7 +86,7 @@ if(!worker.includes('productSales:productSales.results||[]'))fail.push('Produtos
 if(!admin.includes('(d.productSales||[])'))fail.push('Aba Produtos ainda usa apenas o top 10 para VENDIDOS.');
 if(!worker.includes('local_delivery')||!admin.includes('ENTREGA LOCAL'))fail.push('Envios não distingue entrega local de postagem EnvioEcom.');
 if(!worker.includes('const paidWithoutShipping=Number(sh.awaiting||0)'))fail.push('Alerta de envio não usa o total completo de pedidos aguardando postagem.');
-if(!admin.includes('const localIso=id=>')||!admin.includes('z.toISOString()'))fail.push('Promoções não converte datetime-local pelo fuso do navegador.');
+if(!(admin.includes('const localIso=id=>')||admin.includes('const parseAdminDate=v=>'))||!admin.includes('z.toISOString()'))fail.push('Promoções não converte a data local pelo fuso do navegador.');
 if(!worker.includes('Nova venda confirmada | VALENZA PARFUMS'))fail.push('Worker sem aviso de venda por e-mail.');
 if(!worker.includes('SELECT 1 ok FROM admin_credentials WHERE customer_id=?'))fail.push('Alerta de compra não exclui a conta administrativa/testes.');
 if(!worker.includes('/api/admin/notifications/read'))fail.push('Worker sem endpoint protegido de leitura dos alertas.');
