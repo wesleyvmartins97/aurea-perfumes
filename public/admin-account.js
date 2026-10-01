@@ -176,7 +176,7 @@ function renderAdminBody(){
   const services=[
    ['Banco D1',!!s.database,'Banco conectado'],
    ['Mercado Pago',!!s.mercadoPago,s.mercadoPago?'Modo '+String(s.mercadoPagoMode||'—'):'Credencial ausente'],
-   ['EnvioEcom',!!s.envioEcom,s.envioEcom?(s.envioOriginCep?'Token + CEP de origem':'Token presente · CEP de origem pendente'):'Token ausente'],
+   ['EnvioEcom',!!s.envioEcom&&!!s.envioOriginCep,(s.envioEcom&&s.envioOriginCep)?'Token + CEP de origem':(s.envioEcom?'Token presente · CEP de origem pendente':'Token ausente')],
    ['Resend',!!s.resend,s.resend?'E-mail configurado':'Chave ausente'],
    ['Google Analytics',!!s.ga4,s.ga4?'GA4 configurado':'Measurement ID ausente'],
    ['HTTPS',!!s.https,s.https?'HSTS + HTTPS':'Revisar segurança'],
