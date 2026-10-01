@@ -6,6 +6,18 @@ const home=read('public/index.html');
 const worker=read('src/worker.js');
 const wrangler=read('wrangler.jsonc');
 
+const customerRawErrors=['accountMsg(e.message)','out.textContent=e.message','out.textContent=err.message','showError(err.message','valenzaNotice(e.message)','esc(e.message)','Load failed','Failed to fetch'];
+for(const raw of customerRawErrors)if(home.includes(raw))fail.push('Mensagem técnica crua visível ao cliente: '+raw);
+if(!home.includes('function clientErrorMessage('))fail.push('Site sem normalizador de mensagens amigáveis para o cliente.');
+if(!admin.includes('function adminErrorMessage('))fail.push('Admin sem normalizador de mensagens amigáveis.');
+if(/e\.message|err\.message/.test(admin))fail.push('Admin ainda exibe mensagem técnica crua.');
+if(worker.includes('error:"Não foi possível criar a conta agora.",detail:'))fail.push('Cadastro ainda expõe detalhe interno ao cliente.');
+if(worker.includes('return resposta({ok:false,error:detail},502)'))fail.push('PIX ainda expõe detalhe técnico do provedor.');
+if(worker.includes('cause:Array.isArray(result?.errors)'))fail.push('Cartão ainda expõe erros internos do provedor.');
+if(worker.includes('Mercado Pago: ${result.message}'))fail.push('Cartão ainda expõe mensagem crua do Mercado Pago.');
+if(!worker.includes('function cardPublicError('))fail.push('Worker sem tradutor público de recusas do cartão.');
+if(!worker.includes('Mercado Pago PIX recusado:'))fail.push('Worker não preserva detalhe técnico do PIX somente em log.');
+if(!worker.includes('Mercado Pago cartão recusado:'))fail.push('Worker não preserva detalhe técnico do cartão somente em log.');
 if(fs.existsSync('public/admin/index.html'))fail.push('A rota pública /admin ainda existe.');
 if(!home.includes('id="ccAdminNav"'))fail.push('Minha Conta sem botão administrativo oculto.');
 if(!home.includes('src="/admin-account.js"'))fail.push('Minha Conta não carrega o módulo administrativo.');
