@@ -393,6 +393,7 @@ async function adminDeleteTestOrders(request,env){
    ops.push(env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=? AND state='admin_deleting'").bind(id));
    ops.push(env.DB.prepare("DELETE FROM order_shipping WHERE order_id=?").bind(id));
    ops.push(env.DB.prepare("DELETE FROM order_payments WHERE order_id=?").bind(id));
+   ops.push(env.DB.prepare("DELETE FROM order_item_costs WHERE order_id=?").bind(id));
    ops.push(env.DB.prepare("DELETE FROM order_items WHERE order_id=?").bind(id));
    ops.push(env.DB.prepare("DELETE FROM orders WHERE id=? AND customer_id=?").bind(id,admin.id));
    ops.push(env.DB.prepare("DELETE FROM guest_orders WHERE id=? AND lower(email)=lower(?)").bind(id,admin.email));
@@ -980,7 +981,7 @@ async function criarPagamentoCartao(request,env){
   const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
   await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
   let shipment=null;if(approved&&!mpConfig(env).testMode)try{shipment=await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Expedição cartão:",e)}
-  if(["failed","canceled"].includes(txStatus)||["failed","canceled"].includes(String(result.status||""))){await releaseReservation();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();}
+  if(approved)await markOpportunityRecovered(env,pid);else if(["failed","rejected","canceled","cancelled"].includes(txStatus)||["failed","rejected","canceled","cancelled"].includes(String(result.status||""))){await releaseReservation();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();await markOpportunityPaymentIssue(env,pid,txDetail||status)}
   const challengeUrl=String(tx?.payment_method?.transaction_security?.url||"");return resposta({ok:true,orderId:pid,paymentId:pid,status:txStatus||result.status||null,statusDetail:txDetail||result.status_detail||null,challengeUrl:challengeUrl||null,amount:total.toFixed(2),externalReference:referencia,shipping:shipment?{created:!!shipment.ok,barcode:shipment.barcode||null,labelReady:!!shipment.labelReady}:null});
  }catch(e){console.error("Criar cartão:",e);return resposta({ok:false,error:"Não foi possível processar o cartão agora. Tente novamente em alguns instantes."},500)}
 }
