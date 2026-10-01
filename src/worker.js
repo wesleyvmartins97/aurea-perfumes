@@ -640,8 +640,8 @@ async function adminProductUpdate(request,env){
   if(!Number.isFinite(price)||price<=0||price>50000)return resposta({ok:false,error:"Informe um preço válido."},400);
   if(!Number.isInteger(stock)||stock<0||stock>10000)return resposta({ok:false,error:"Informe um estoque inteiro entre 0 e 10.000."},400);
   if(unitCost!==null&&(!Number.isFinite(unitCost)||unitCost<0||unitCost>50000))return resposta({ok:false,error:"Informe um custo unitário válido ou deixe em branco."},400);
-  const now=new Date().toISOString(),activePromo=await env.DB.prepare("SELECT promo_price FROM product_promotions WHERE product_id=? AND active=1 AND (starts_at IS NULL OR starts_at<=?) AND (ends_at IS NULL OR ends_at>=?) LIMIT 1").bind(productId,now,now).first();
-  if(activePromo&&Number(activePromo.promo_price)>=price)return resposta({ok:false,error:"Este produto está com uma oferta ativa igual ou maior que o novo preço normal. Ajuste ou encerre a promoção primeiro."},409);
+  const now=new Date().toISOString(),activePromo=await env.DB.prepare("SELECT promo_price,starts_at,ends_at FROM product_promotions WHERE product_id=? AND active=1 AND (ends_at IS NULL OR ends_at>=?) LIMIT 1").bind(productId,now).first();
+  if(activePromo&&Number(activePromo.promo_price)>=price)return resposta({ok:false,error:"Este produto tem uma oferta ativa ou agendada igual ou maior que o novo preço normal. Ajuste ou encerre a promoção primeiro."},409);
   const [oldSetting,oldInv,reservedRow]=await Promise.all([
    env.DB.prepare("SELECT price_override,unit_cost FROM product_settings WHERE product_id=?").bind(productId).first(),
    env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(productId).first(),
