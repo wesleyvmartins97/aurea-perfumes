@@ -606,7 +606,7 @@ const AUREA_CATALOG={
 "delilah":{name:"Delilah Pour Femme",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.9,weight:.6,length:20,height:12,width:16},
 "fakhar-rose":{name:"Fakhar Rose",brand:"Lattafa",type:"EDP · 100ml",price:269.9,weight:.6,length:20,height:12,width:16},
 "sabah":{name:"Sabah Al Ward",brand:"Al Wataniah",type:"EDP · 100ml",price:249.9,weight:.6,length:20,height:12,width:16},
-"asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:259.9,weight:.6,length:20,height:12,width:16},
+"asad":{name:"Asad",brand:"Lattafa",type:"EDP · 100ml",price:269.9,weight:.6,length:20,height:12,width:16},
 "attar":{name:"Attar Al Wesal",brand:"Al Wataniah",type:"EDP · 100ml",price:229.9,weight:.6,length:20,height:12,width:16},
 "decant-sabah":{name:"Decant Sabah Al Ward",brand:"Al Wataniah",type:"Decant · 5ml",price:52,weight:.15,length:12,height:5,width:8},
 "ameerati":{name:"Ameerati",brand:"Al Wataniah",type:"EDP · 100ml",price:229.9,weight:.6,length:20,height:12,width:16},
