@@ -90,6 +90,20 @@ if(!(admin.includes('const localIso=id=>')||admin.includes('const parseAdminDate
 if(!worker.includes('Nova venda confirmada | VALENZA PARFUMS'))fail.push('Worker sem aviso de venda por e-mail.');
 if(!worker.includes('SELECT 1 ok FROM admin_credentials WHERE customer_id=?'))fail.push('Alerta de compra não exclui a conta administrativa/testes.');
 if(!worker.includes('/api/admin/notifications/read'))fail.push('Worker sem endpoint protegido de leitura dos alertas.');
+if(!worker.includes('/api/admin/notifications/poll')||!worker.includes('async function adminNotificationsPoll'))fail.push('Avisos ao vivo sem endpoint leve de polling protegido.');
+if(!admin.includes('ADMIN_SALE_POLL_MS=30000'))fail.push('Avisos ao vivo não estão configurados para consulta a cada 30 segundos.');
+if(!admin.includes("fetch('/api/admin/notifications/poll?t='"))fail.push('Painel não consulta o endpoint leve de novas vendas.');
+if(!admin.includes('function showAdminSaleToast'))fail.push('Painel sem pop-up visual de nova venda.');
+if(!admin.includes('function playAdminSaleSound'))fail.push('Painel sem som discreto de nova venda.');
+if(!admin.includes('function blinkAdminSaleTitle'))fail.push('Painel sem chamada de atenção no título da aba.');
+if(!admin.includes("new Notification('💰 Nova venda confirmada | VALENZA'"))fail.push('Painel sem notificação do navegador para nova venda.');
+if(!admin.includes('Notification.requestPermission()'))fail.push('Notificação do navegador sem solicitação explícita de permissão.');
+if(!admin.includes('id="vaSaleAlertToggle"'))fail.push('Painel sem controle explícito para ativar avisos.');
+if(admin.includes('setInterval(loadDashboard'))fail.push('Painel não deve recarregar o dashboard inteiro a cada 30 segundos e apagar formulários em edição.');
+if(!admin.includes('function refreshAdminDashboardQuietly'))fail.push('Painel sem atualização silenciosa de métricas após nova venda.');
+if(!worker.includes('if(approved){await markOpportunityRecovered(env,pid);await notifyPaidOrder(env,pid)}'))fail.push('Cartão aprovado não dispara aviso de venda imediatamente.');
+if(!worker.includes('Reconciliação PIX expedição:')||!worker.includes('await notifyPaidOrder(env,id);'))fail.push('Reconciliação PIX não dispara aviso de venda quando encontra pagamento aprovado.');
+
 if(!worker.includes('unreadNotifications'))fail.push('Dashboard não entrega contador de alertas não lidos.');
 if(!admin.includes("if(adminView==='analytics')"))fail.push('Aba Analytics ainda não possui renderização real.');
 if(!admin.includes('Localização das visitas'))fail.push('Analytics sem painel de localização.');
