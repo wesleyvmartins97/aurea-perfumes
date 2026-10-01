@@ -11,6 +11,13 @@ try{
 if(!Array.isArray(catalog)||!catalog.length)fail.push('CATALOG vazio ou inválido.');
 
 const ids=new Set();
+const asad=catalog.find(p=>p.id==='asad');
+if(!asad)fail.push('Asad ausente do catálogo.');
+else{
+ if(Number(asad.price)!==269.90)fail.push(`Asad: preço deve ser R$269,90; encontrado R${Number(asad.price).toFixed(2)}.`);
+ const asadPix=Math.floor((Math.round(Number(asad.price)*100)*95+50)/100)/100;
+ if(asadPix!==256.41)fail.push(`Asad: PIX esperado R$256,41; encontrado R${asadPix.toFixed(2)}.`);
+}
 const requiredText=['id','name','brand','collection','cat','type','img','desc','details'];
 const requiredNum=['price','weight','length','height','width'];
 
