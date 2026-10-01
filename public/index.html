@@ -257,25 +257,73 @@ body.checkout-open .aurea-wa{display:none}
  #catalogo .title{font-size:27px!important}
 }
 
-/* VALENZA: trava visual do selo SOB ENCOMENDA nos cards */
-#grid .card .photo>.tag,#topFemininos .top-product .photo>.tag{
+
+/* VALENZA: camada autoritativa do catálogo — evita conflito flex entre foto e selo */
+#grid .card>.catalog-photo{
+ position:relative!important;
+ display:block!important;
+ overflow:hidden!important;
+ flex:0 0 auto!important;
+ isolation:isolate!important;
+}
+#grid .card>.catalog-photo>.catalog-product-image{
  position:absolute!important;
- left:10px!important;top:10px!important;right:auto!important;bottom:auto!important;
- z-index:6!important;
- display:inline-flex!important;align-items:center!important;justify-content:center!important;
- width:auto!important;height:auto!important;max-width:calc(100% - 20px)!important;
- margin:0!important;padding:6px 8px!important;
- background:rgba(23,21,19,.92)!important;color:#fff!important;
- border:0!important;border-radius:2px!important;
- font-family:Arial,Helvetica,sans-serif!important;font-size:7px!important;font-weight:700!important;line-height:1!important;
- letter-spacing:.8px!important;white-space:nowrap!important;text-align:center!important;
- transform:none!important;opacity:1!important;visibility:visible!important;
+ inset:0!important;
+ z-index:1!important;
+ display:block!important;
+ width:100%!important;
+ height:100%!important;
+ max-width:none!important;
+ max-height:none!important;
+ margin:0!important;
+ padding:8px!important;
+ flex:none!important;
+ object-fit:contain!important;
+ object-position:center!important;
+ filter:drop-shadow(0 12px 14px rgba(62,43,25,.17))!important;
+ transform:none!important;
+ opacity:1!important;
+}
+#grid .card>.catalog-photo>.catalog-order-badge{
+ position:absolute!important;
+ left:10px!important;
+ top:10px!important;
+ right:auto!important;
+ bottom:auto!important;
+ z-index:4!important;
+ display:inline-flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ width:auto!important;
+ height:auto!important;
+ margin:0!important;
+ padding:6px 8px!important;
+ background:rgba(23,21,19,.92)!important;
+ color:#fff!important;
+ border:0!important;
+ border-radius:2px!important;
+ font-family:Arial,Helvetica,sans-serif!important;
+ font-size:7px!important;
+ font-weight:700!important;
+ line-height:1!important;
+ letter-spacing:.8px!important;
+ white-space:nowrap!important;
+ text-align:center!important;
  pointer-events:none!important;
 }
+#grid .card>.catalog-photo>.catalog-image-error{
+ display:none!important;
+}
 @media(max-width:700px){
- #grid .card .photo>.tag,#topFemininos .top-product .photo>.tag{
-  left:8px!important;top:8px!important;padding:5px 6px!important;
-  font-size:6.5px!important;letter-spacing:.65px!important;
+ #grid .card>.catalog-photo>.catalog-product-image{
+  padding:4px!important;
+ }
+ #grid .card>.catalog-photo>.catalog-order-badge{
+  left:8px!important;
+  top:8px!important;
+  padding:5px 6px!important;
+  font-size:6.5px!important;
+  letter-spacing:.65px!important;
  }
 }
 </style>
@@ -425,7 +473,7 @@ function productPriceHtml(p){
  if(p.promoActive)return '<div style="display:inline-block;margin:7px 0 5px;padding:4px 7px;background:#171513;color:#fff;font-size:8px;font-weight:700;letter-spacing:1.2px">OFERTA VALENZA</div><div style="font-size:11px;color:#999;text-decoration:line-through;margin-bottom:2px">'+money(p.regularPrice)+'</div><div class="price">'+money(p.price)+'</div><div class="pix">ou '+money(p.pix)+' no Pix</div>';
  return '<div class="price">'+money(p.price)+'</div><div class="pix">ou '+money(p.pix)+' no Pix</div>';
 }
-function render(){const q=(document.getElementById('search').value||'').trim().toLocaleLowerCase('pt-BR');const list=CATALOG.filter(p=>(collection==='todos'||p.collection===collection)&&(cat==='todos'||p.cat===cat||(p.cat==='unissex'&&(cat==='feminino'||cat==='masculino')))&&(!q||[p.name,p.brand,p.type,p.collection,p.cat,p.ml,p.id].join(' ').toLocaleLowerCase('pt-BR').includes(q)));document.getElementById('grid').innerHTML=list.map(p=>`<article class="card" data-product-id="${esc(p.id)}"><div class="photo" onclick="detail('${p.id}')" style="cursor:pointer"><img loading="lazy" src="${esc(p.img)}" alt="${esc(p.brand+' '+p.name)}" onerror="this.onerror=null;this.src='/banners/Imagem%20do%20ChatGPT%2025%20de%20set.%20de%202026%2C%2016_43_14-4.png'>${'<span class="tag">SOB ENCOMENDA</span>'}</div><div class="info"><div class="brand">${esc(p.brand)}</div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.type)}</div>${productPriceHtml(p)}<div class="product-actions"><button class="buy" onclick="buyNow('${p.id}')">COMPRAR</button><div class="secondary-actions"><a class="details" href="/perfume/${esc(p.id)}/" onclick="event.preventDefault();detail('${p.id}')">VER DETALHES</a><button class="add" onclick="add('${p.id}')">ADICIONAR AO CARRINHO</button></div></div></div></article>`).join('')||'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">Nenhum produto encontrado.</div>'}
+function render(){const q=(document.getElementById('search').value||'').trim().toLocaleLowerCase('pt-BR');const list=CATALOG.filter(p=>(collection==='todos'||p.collection===collection)&&(cat==='todos'||p.cat===cat||(p.cat==='unissex'&&(cat==='feminino'||cat==='masculino')))&&(!q||[p.name,p.brand,p.type,p.collection,p.cat,p.ml,p.id].join(' ').toLocaleLowerCase('pt-BR').includes(q)));document.getElementById('grid').innerHTML=list.map(p=>`<article class="card" data-product-id="${esc(p.id)}"><div class="photo catalog-photo" onclick="detail('${p.id}')" style="cursor:pointer"><img class="catalog-product-image" loading="lazy" src="${esc(p.img)}" alt="${esc(p.brand+' '+p.name)}" onerror="this.onerror=null;this.classList.add('catalog-image-error');this.removeAttribute('src')"><span class="catalog-order-badge">SOB ENCOMENDA</span></div><div class="info"><div class="brand">${esc(p.brand)}</div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.type)}</div>${productPriceHtml(p)}<div class="product-actions"><button class="buy" onclick="buyNow('${p.id}')">COMPRAR</button><div class="secondary-actions"><a class="details" href="/perfume/${esc(p.id)}/" onclick="event.preventDefault();detail('${p.id}')">VER DETALHES</a><button class="add" onclick="add('${p.id}')">ADICIONAR AO CARRINHO</button></div></div></div></article>`).join('')||'<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">Nenhum produto encontrado.</div>'}
 let valenzaOpportunityTimer=null;
 async function syncOpportunity(stage='cart',extra={}){
  try{
