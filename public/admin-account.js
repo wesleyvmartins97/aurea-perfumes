@@ -423,6 +423,7 @@ function renderAdminBody(){
    ['Mercado Pago',!!s.mercadoPago,s.mercadoPago?'Modo '+String(s.mercadoPagoMode||'—')+' · token + chave pública':(!s.mercadoPagoAccessToken?'Access Token ausente':(!s.mercadoPagoPublicKey?'Chave pública ausente':(String(s.mercadoPagoMode||'')!=='PRODUÇÃO'?'Modo de teste ativo':'Configuração incompleta')))],
    ['EnvioEcom',!!s.envioEcom&&!!s.envioOriginCep,(s.envioEcom&&s.envioOriginCep)?'Token + CEP de origem':(s.envioEcom?'Token presente · CEP de origem pendente':'Token ausente')],
    ['Resend',!!s.resend,s.resend?'E-mail configurado':'Chave ausente'],
+   ['WhatsApp',!!s.whatsapp,s.whatsapp?'Cloud API · '+Number(s.whatsappRecipients||0)+' destinatário(s) · '+String(s.whatsappTemplate||'template'):'Configurar Cloud API · token + Phone Number ID + destinatários'],
    ['Google Analytics',!!s.ga4,s.ga4?'GA4 configurado':'Measurement ID ausente'],
    ['HTTPS',!!s.https,s.https?'HSTS + HTTPS':'Revisar segurança'],
    ['Domínio',s.canonicalHost==='www.valenzaparfums.com.br',s.canonicalHost||'—']
