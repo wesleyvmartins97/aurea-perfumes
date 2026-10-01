@@ -9,6 +9,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
  if(url.pathname==="/api/promotions/active"&&request.method==="GET")return activePromotionPublic(env);
  if(url.pathname==="/api/product-promotions/active"&&request.method==="GET")return activeProductPromotionsPublic(env);
+ if(url.pathname==="/api/catalog/runtime"&&request.method==="GET")return catalogRuntimePublic(env);
  if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env);
  if(url.pathname==="/api/analytics/location"&&request.method==="POST")return analyticsLocation(request,env);
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
@@ -26,6 +27,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/promotions/toggle"&&request.method==="POST")return adminPromotionToggle(request,env);
  if(url.pathname==="/api/admin/product-promotions/save"&&request.method==="POST")return adminProductPromotionSave(request,env);
  if(url.pathname==="/api/admin/product-promotions/toggle"&&request.method==="POST")return adminProductPromotionToggle(request,env);
+ if(url.pathname==="/api/admin/products/update"&&request.method==="POST")return adminProductUpdate(request,env);
  if(url.pathname==="/api/admin/notifications/read"&&request.method==="POST")return adminNotificationsRead(request,env);
  if(url.pathname==="/api/admin/orders/delete-tests"&&request.method==="POST")return adminDeleteTestOrders(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
@@ -81,6 +83,7 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS product_promotions (id TEXT PRIMARY KEY, product_id TEXT NOT NULL UNIQUE, promo_price REAL NOT NULL, starts_at TEXT, ends_at TEXT, active INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_product_promotions_active ON product_promotions(active,starts_at,ends_at,updated_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_product_promotions_product ON product_promotions(product_id)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS product_settings (product_id TEXT PRIMARY KEY, price_override REAL, unit_cost REAL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_audit_log (id TEXT PRIMARY KEY, admin_customer_id TEXT NOT NULL, action TEXT NOT NULL, detail_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_events (id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, visitor_id TEXT NOT NULL, session_id TEXT NOT NULL, event_name TEXT NOT NULL, page_path TEXT, product_id TEXT, product_name TEXT, value REAL NOT NULL DEFAULT 0, transaction_id TEXT, source TEXT, medium TEXT, campaign TEXT, referrer_host TEXT, country TEXT, region TEXT, region_code TEXT, city TEXT, created_at TEXT NOT NULL)"),
@@ -548,6 +551,27 @@ async function adminNotificationsRead(request,env){
   return resposta({ok:true});
  }catch(e){console.error("Ler notificações:",e);return resposta({ok:false,error:"Não foi possível atualizar os alertas."},500)}
 }
+async function adminProductUpdate(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  await seedInventory(env);
+  const d=await request.json().catch(()=>({})),productId=String(d.productId||"").trim(),source=AUREA_CATALOG[productId];
+  if(!source)return resposta({ok:false,error:"Produto inválido."},400);
+  const price=Number(d.price),stock=Number(d.stock),costRaw=d.unitCost,unitCost=(costRaw===null||costRaw===""||typeof costRaw==="undefined")?null:Number(costRaw);
+  if(!Number.isFinite(price)||price<=0||price>50000)return resposta({ok:false,error:"Informe um preço válido."},400);
+  if(!Number.isInteger(stock)||stock<0||stock>10000)return resposta({ok:false,error:"Informe um estoque inteiro entre 0 e 10.000."},400);
+  if(unitCost!==null&&(!Number.isFinite(unitCost)||unitCost<0||unitCost>50000))return resposta({ok:false,error:"Informe um custo unitário válido ou deixe em branco."},400);
+  const now=new Date().toISOString(),activePromo=await env.DB.prepare("SELECT promo_price FROM product_promotions WHERE product_id=? AND active=1 AND (starts_at IS NULL OR starts_at<=?) AND (ends_at IS NULL OR ends_at>=?) LIMIT 1").bind(productId,now,now).first();
+  if(activePromo&&Number(activePromo.promo_price)>=price)return resposta({ok:false,error:"Este produto está com uma oferta ativa igual ou maior que o novo preço normal. Ajuste ou encerre a promoção primeiro."},409);
+  const oldSetting=await env.DB.prepare("SELECT price_override,unit_cost FROM product_settings WHERE product_id=?").bind(productId).first(),oldInv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(productId).first();
+  await env.DB.batch([
+   env.DB.prepare("INSERT INTO product_settings(product_id,price_override,unit_cost,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET price_override=excluded.price_override,unit_cost=excluded.unit_cost,updated_at=excluded.updated_at").bind(productId,Number(price.toFixed(2)),unitCost===null?null:Number(unitCost.toFixed(2)),now),
+   env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(productId,stock,now)
+  ]);
+  await recordAdminAudit(env,admin,"product_update",{productId,productName:source.name,oldPrice:Number(oldSetting?.price_override??source.price),price:Number(price.toFixed(2)),oldStock:Number(oldInv?.stock||0),stock,oldUnitCost:oldSetting?.unit_cost??null,unitCost:unitCost===null?null:Number(unitCost.toFixed(2))});
+  return resposta({ok:true,message:"Produto atualizado com segurança.",product:{id:productId,price:Number(price.toFixed(2)),stock,unitCost:unitCost===null?null:Number(unitCost.toFixed(2))}});
+ }catch(e){console.error("Atualizar produto:",e);return resposta({ok:false,error:"Não foi possível atualizar o produto agora."},500)}
+}
 async function adminDashboard(request,env){
  try{
   await ensureAuthSchema(env);
@@ -717,7 +741,23 @@ const AUREA_CATALOG={
 "designer-linterdit":{name:"L'Interdit",brand:"Givenchy",type:"EDP · 80ml",price:849.9,weight:.6,length:20,height:12,width:16},
 "armaf-club-de-nuit-maleka":{name:"Club de Nuit Maleka",brand:"Armaf",type:"EDP · 105ml",price:449.90,weight:.6,length:20,height:12,width:16}
 };
-async function officialCatalog(env){return AUREA_CATALOG}
+async function officialCatalog(env){
+ await ensureAuthSchema(env);
+ const out={};for(const [id,p] of Object.entries(AUREA_CATALOG))out[id]={...p};
+ try{
+  const q=await env.DB.prepare("SELECT product_id,price_override FROM product_settings WHERE price_override IS NOT NULL").all();
+  for(const row of (q.results||[])){const id=String(row.product_id||""),price=Number(row.price_override);if(out[id]&&Number.isFinite(price)&&price>0)out[id].price=Number(price.toFixed(2))}
+ }catch(e){console.error("Catálogo dinâmico:",e)}
+ return out
+}
+async function catalogRuntimePublic(env){
+ try{
+  await ensureAuthSchema(env);await seedInventory(env);
+  const catalog=await officialCatalog(env),stock=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();
+  const stockMap=Object.fromEntries((stock.results||[]).map(x=>[String(x.product_id),Number(x.stock||0)]));
+  return resposta({ok:true,products:Object.entries(catalog).map(([id,p])=>({id,price:Number(Number(p.price||0).toFixed(2)),stock:Number(stockMap[id]||0)}))});
+ }catch(e){console.error("Catálogo runtime:",e);return resposta({ok:false,error:"Não foi possível atualizar preços e estoque agora."},500)}
+}
 async function seedInventory(env){const now=new Date().toISOString();await env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)").run();const doneV1=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v1'").first();if(!doneV1){const catalog=await officialCatalog(env);const q=Object.keys(catalog).map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,10,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v1','10',?)").bind(now));await env.DB.batch(q)}const doneV2=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v2-new10'").first();if(!doneV2){const ids=["khamrah","khamrah-qahwa","eclaire","liquid-brun","spectre-ghost","afnan-9pm","hawas-ice","yara-candy","tiramisu-coco","fatima-pink"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v2-new10','100',?)").bind(now));await env.DB.batch(q)}const doneV4=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v4-new5'").first();if(!doneV4){const ids=["supremacy-not-only-intense","club-de-nuit-milestone","club-de-nuit-untold","badee-al-oud-amethyst","raghba-wood-intense"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v4-new5','100',?)").bind(now));await env.DB.batch(q)}const doneV5=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v5-designer16'").first();if(!doneV5){const ids=["designer-la-vie-est-belle","designer-good-girl","designer-libre","designer-jadore","designer-sauvage","designer-212-vip-rose","designer-1-million","designer-versace-eros","designer-acqua-di-gio","designer-my-way","designer-scandal","designer-invictus","designer-black-opium","designer-light-blue","designer-miss-dior","designer-linterdit"];const q=ids.map(id=>env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind(id,100,now));q.push(env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v5-designer16','100',?)").bind(now));await env.DB.batch(q)}const doneV6=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v6-maleka'").first();if(!doneV6){await env.DB.batch([env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("armaf-club-de-nuit-maleka",100,now),env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v6-maleka','100',?)").bind(now)])}const doneV7=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v7-asad-bourbon'").first();if(!doneV7){await env.DB.batch([env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("asad-bourbon",100,now),env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v7-asad-bourbon','100',?)").bind(now)])}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
 async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-price)>0.009;return {id,qty:n,...p,price,regularPrice,promotionId:offer?.id||null,priceChanged,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
