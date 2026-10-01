@@ -48,7 +48,7 @@ async function loadDashboard(){
 function chip(s){const v=String(s||'');let c='';if(v==='Pago')c='ok';else if(v==='Aguardando pagamento'||v==='Processando')c='warn';else if(['Pagamento recusado','Cancelado','Expirado'].includes(v))c='bad';return '<span class="vaChip '+c+'">'+esc(v||'—')+'</span>'}
 function renderDashboard(){
  css();const d=adminData,m=d.metrics||{};
- main().innerHTML='<div class="vaHead"><div><div class="eyebrow">PAINEL PRIVADO</div><h2>Administração VALENZA</h2><p>Atualizado em '+dt(d.generatedAt)+'</p></div><button class="ccBtn" id="vaLogout">SAIR DO ADMIN</button></div><div class="vaTools"><button data-v="overview">RESUMO</button><button data-v="alerts">ALERTAS'+(Number(m.unreadNotifications||0)?'<span class="vaBadge">'+Number(m.unreadNotifications||0)+'</span>':'')+'</button><button data-v="finance">FINANCEIRO</button><button data-v="shipping">ENVIOS</button><button data-v="orders">PEDIDOS</button><button data-v="customers">CLIENTES</button><button data-v="stock">ESTOQUE</button><button data-v="products">PRODUTOS</button><button data-v="promotions">PROMOÇÕES</button><button data-v="analytics">ANALYTICS</button></div><div id="vaBody"></div>';
+ main().innerHTML='<div class="vaHead"><div><div class="eyebrow">PAINEL PRIVADO</div><h2>Administração VALENZA</h2><p>Atualizado em '+dt(d.generatedAt)+'</p></div><button class="ccBtn" id="vaLogout">SAIR DO ADMIN</button></div><div class="vaTools"><button data-v="overview">RESUMO</button><button data-v="alerts">ALERTAS'+(Number(m.unreadNotifications||0)?'<span class="vaBadge">'+Number(m.unreadNotifications||0)+'</span>':'')+'</button><button data-v="finance">FINANCEIRO</button><button data-v="shipping">ENVIOS</button><button data-v="orders">PEDIDOS</button><button data-v="customers">CLIENTES</button><button data-v="stock">ESTOQUE</button><button data-v="products">PRODUTOS</button><button data-v="promotions">PROMOÇÕES</button><button data-v="system">SISTEMA</button><button data-v="analytics">ANALYTICS</button></div><div id="vaBody"></div>';
  document.getElementById('vaLogout').onclick=logoutAdmin;
  document.querySelectorAll('.vaTools button').forEach(b=>b.onclick=()=>{adminView=b.dataset.v;renderAdminBody()});renderAdminBody();
 }
@@ -168,6 +168,23 @@ function renderAdminBody(){
   document.querySelectorAll('.vaPromoEdit').forEach(b=>b.onclick=()=>{const x=rows.find(r=>String(r.id)===b.dataset.id);if(!x)return;adminPromoEditId=String(x.id);document.getElementById('vaPromoTitle').value=x.title||'';document.getElementById('vaPromoMessage').value=x.message||'';document.getElementById('vaPromoStart').value=toLocal(x.starts_at);document.getElementById('vaPromoEnd').value=toLocal(x.ends_at);document.getElementById('vaPromoActive').checked=!!Number(x.active);if(cancel)cancel.style.display='inline-block';document.getElementById('vaPromoTitle').scrollIntoView({behavior:'smooth',block:'center'})});
   document.querySelectorAll('.vaPromoToggle').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await fetch('/api/admin/promotions/toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:b.dataset.id,active:b.dataset.active==='1'})}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível atualizar.');await loadDashboard();adminView='promotions';renderAdminBody()}catch(e){b.disabled=false;alert(e.message)}});
   if(cancel)cancel.onclick=clear;
+  return
+ }
+ if(adminView==='system'){
+  const s=d.system||{},logs=d.auditLog||[];
+  const state=(ok,detail='')=>'<span class="vaChip '+(ok?'ok':'bad')+'">'+(ok?'OK':'ATENÇÃO')+'</span>'+(detail?'<br><small>'+esc(detail)+'</small>':'');
+  const services=[
+   ['Banco D1',!!s.database,'Banco conectado'],
+   ['Mercado Pago',!!s.mercadoPago,s.mercadoPago?'Modo '+String(s.mercadoPagoMode||'—'):'Credencial ausente'],
+   ['EnvioEcom',!!s.envioEcom,s.envioEcom?(s.envioOriginCep?'Token + CEP de origem':'Token presente · CEP de origem pendente'):'Token ausente'],
+   ['Resend',!!s.resend,s.resend?'E-mail configurado':'Chave ausente'],
+   ['Google Analytics',!!s.ga4,s.ga4?'GA4 configurado':'Measurement ID ausente'],
+   ['HTTPS',!!s.https,s.https?'HSTS + HTTPS':'Revisar segurança'],
+   ['Domínio',s.canonicalHost==='www.valenzaparfums.com.br',s.canonicalHost||'—']
+  ];
+  const actionLabel=a=>({test_orders_deleted:'Pedidos de teste apagados',promotion_save:'Campanha salva',promotion_toggle:'Campanha ativada/desativada',notifications_read:'Alertas marcados como lidos'}[a]||String(a||'Ação administrativa'));
+  const detailText=x=>{try{const q=JSON.parse(x.detail_json||'{}');if(x.action==='test_orders_deleted')return Number(q.count||0)+' pedido(s) · '+Number(q.restoredUnits||0)+' un. devolvida(s)';if(x.action==='promotion_save')return (q.title||'Campanha')+(q.active?' · ativa':' · inativa');if(x.action==='promotion_toggle')return q.active?'Campanha ativada':'Campanha desativada';if(x.action==='notifications_read')return Number(q.count||0)+' alerta(s)';return''}catch{return''}};
+  body.innerHTML='<div class="vaPanel" style="margin-bottom:12px"><h3>Sistema & auditoria</h3><p style="font-size:9px;color:#777;line-height:1.6;margin:0">Este painel mostra se as integrações essenciais estão configuradas. Ele não exibe tokens, senhas ou chaves e não faz cobranças nem cria postagens para testar os serviços.</p></div><div class="vaPanel" style="margin-bottom:12px"><h3>Saúde da configuração</h3><div style="overflow:auto"><table class="vaTable"><thead><tr><th>SERVIÇO</th><th>STATUS</th></tr></thead><tbody>'+services.map(x=>'<tr><td><b>'+esc(x[0])+'</b></td><td>'+state(x[1],x[2])+'</td></tr>').join('')+'</tbody></table></div></div><div class="vaPanel"><h3>Histórico administrativo</h3>'+(logs.length?'<div class="vaList">'+logs.map(x=>'<div class="vaRow"><div><b>'+esc(actionLabel(x.action))+'</b><br><small>'+esc(detailText(x))+'</small></div><div style="text-align:right"><small>'+dt(x.created_at)+'</small></div></div>').join('')+'</div>':'<div class="vaEmpty">O histórico começa a ser registrado a partir desta atualização.</div>')+'</div>';
   return
  }
  if(adminView==='analytics'){
