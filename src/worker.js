@@ -84,6 +84,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_notifications (id TEXT PRIMARY KEY, unique_key TEXT NOT NULL UNIQUE, type TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'info', title TEXT NOT NULL, message TEXT NOT NULL, order_id TEXT, email_sent INTEGER NOT NULL DEFAULT 0, read_at TEXT, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON admin_notifications(created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_notifications_unread ON admin_notifications(read_at,created_at)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_whatsapp_deliveries (notification_id TEXT NOT NULL, order_id TEXT NOT NULL, recipient_hash TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, provider_message_id TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(notification_id,recipient_hash))"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_whatsapp_delivery_status ON admin_whatsapp_deliveries(status,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_promotions (id TEXT PRIMARY KEY, title TEXT NOT NULL, message TEXT NOT NULL, starts_at TEXT, ends_at TEXT, active INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_promotions_active ON admin_promotions(active,starts_at,ends_at,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS product_promotions (id TEXT PRIMARY KEY, product_id TEXT NOT NULL UNIQUE, promo_price REAL NOT NULL, starts_at TEXT, ends_at TEXT, active INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
@@ -519,6 +521,78 @@ async function sendAdminSaleEmail(env,row){
   return {ok:true}
  }catch(e){console.error("Aviso venda e-mail:",e);return {ok:false,error:String(e&&e.message||e)}}
 }
+
+function whatsappSaleConfig(env){
+ const apiVersion=/^v\d+\.\d+$/.test(String(env.WHATSAPP_API_VERSION||"").trim())?String(env.WHATSAPP_API_VERSION).trim():"v26.0";
+ const phoneNumberId=String(env.WHATSAPP_PHONE_NUMBER_ID||"").trim();
+ const accessToken=String(env.WHATSAPP_ACCESS_TOKEN||"").trim();
+ const templateName=String(env.WHATSAPP_SALE_TEMPLATE_NAME||"valenza_nova_venda").trim();
+ const language=String(env.WHATSAPP_SALE_TEMPLATE_LANG||"pt_BR").trim();
+ const recipients=[...new Set(String(env.WHATSAPP_ADMIN_RECIPIENTS||"").split(",").map(x=>x.replace(/\D/g,"")).filter(x=>/^\d{8,15}$/.test(x)))].slice(0,5);
+ return {apiVersion,phoneNumberId,accessToken,templateName,language,recipients,configured:!!(phoneNumberId&&accessToken&&templateName&&language&&recipients.length)};
+}
+function whatsappSaleTime(row){
+ const d=new Date(String(row?.paid_at||row?.updated_at||row?.created_at||Date.now()));
+ try{return new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(isNaN(d)?new Date():d)}catch{return new Date().toISOString()}
+}
+function whatsappSaleTemplateBody(cfg,row,recipient){
+ const total=Number(row.total||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+ return {
+  messaging_product:"whatsapp",
+  to:recipient,
+  type:"template",
+  template:{
+   name:cfg.templateName,
+   language:{code:cfg.language},
+   components:[{type:"body",parameters:[
+    {type:"text",text:String(row.order_number||row.id||"Pedido")},
+    {type:"text",text:String(row.customer_name||"Cliente").slice(0,120)},
+    {type:"text",text:total},
+    {type:"text",text:String(row.method||"").toUpperCase().slice(0,80)||"PAGAMENTO CONFIRMADO"},
+    {type:"text",text:whatsappSaleTime(row)}
+   ]}]
+  }
+ };
+}
+async function sendAdminSaleWhatsApp(env,row,notificationId){
+ const cfg=whatsappSaleConfig(env);
+ if(!cfg.configured)return {ok:false,configured:false,sent:0,failed:0};
+ let sent=0,failed=0;
+ for(const recipient of cfg.recipients){
+  const recipientHash=await sha256("wa-recipient:"+recipient),now=new Date().toISOString();
+  const existing=await env.DB.prepare("SELECT status,attempts FROM admin_whatsapp_deliveries WHERE notification_id=? AND recipient_hash=?").bind(notificationId,recipientHash).first();
+  if(String(existing?.status||"")==="sent"){sent++;continue}
+  await env.DB.prepare("INSERT OR IGNORE INTO admin_whatsapp_deliveries(notification_id,order_id,recipient_hash,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(notificationId,String(row.id||""),recipientHash,"pending",0,now,now).run();
+  try{
+   const r=await fetch("https://graph.facebook.com/"+encodeURIComponent(cfg.apiVersion)+"/"+encodeURIComponent(cfg.phoneNumberId)+"/messages",{method:"POST",headers:{Authorization:"Bearer "+cfg.accessToken,"Content-Type":"application/json"},body:JSON.stringify(whatsappSaleTemplateBody(cfg,row,recipient))});
+   const raw=await r.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{}
+   if(!r.ok){
+    const detail=String(data?.error?.message||("HTTP "+r.status)).slice(0,300);
+    await env.DB.prepare("UPDATE admin_whatsapp_deliveries SET status='failed',attempts=attempts+1,last_error=?,updated_at=? WHERE notification_id=? AND recipient_hash=?").bind(detail,now,notificationId,recipientHash).run();
+    console.error("WhatsApp aviso venda:",r.status,detail);failed++;continue
+   }
+   const messageId=String(data?.messages?.[0]?.id||"").slice(0,220);
+   await env.DB.prepare("UPDATE admin_whatsapp_deliveries SET status='sent',attempts=attempts+1,provider_message_id=?,last_error=NULL,updated_at=? WHERE notification_id=? AND recipient_hash=?").bind(messageId||null,now,notificationId,recipientHash).run();
+   sent++;
+  }catch(e){
+   const detail=String(e&&e.message||e||"Falha de rede").slice(0,300);
+   await env.DB.prepare("UPDATE admin_whatsapp_deliveries SET status='failed',attempts=attempts+1,last_error=?,updated_at=? WHERE notification_id=? AND recipient_hash=?").bind(detail,now,notificationId,recipientHash).run();
+   console.error("WhatsApp aviso venda:",detail);failed++
+  }
+ }
+ return {ok:failed===0&&sent===cfg.recipients.length,configured:true,sent,failed};
+}
+async function retryPendingSaleWhatsApp(env){
+ try{
+  const cfg=whatsappSaleConfig(env);if(!cfg.configured)return;
+  const q=await env.DB.prepare("SELECT DISTINCT d.notification_id,d.order_id FROM admin_whatsapp_deliveries d JOIN admin_notifications n ON n.id=d.notification_id WHERE n.type='sale' AND d.status<>'sent' AND d.attempts<5 AND d.updated_at>=datetime('now','-24 hours') ORDER BY d.updated_at ASC LIMIT 10").all();
+  for(const x of (q.results||[])){
+   const row=await saleNotificationRow(env,x.order_id);
+   if(!row||String(row.status)!=="Pago"||await orderBelongsToAdmin(env,row))continue;
+   await sendAdminSaleWhatsApp(env,row,String(x.notification_id));
+  }
+ }catch(e){console.error("Retry aviso WhatsApp:",e)}
+}
 async function saleNotificationRow(env,orderId){
  const id=String(orderId||"");if(!id)return null;
  return env.DB.prepare("SELECT o.id,o.customer_id,o.order_number,o.status,o.total,c.name customer_name,c.email,p.method FROM orders o LEFT JOIN customers c ON c.id=o.customer_id LEFT JOIN order_payments p ON p.order_id=o.id WHERE o.id=? UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.customer_name,g.email,p.method FROM guest_orders g LEFT JOIN order_payments p ON p.order_id=g.id WHERE g.id=? AND NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) LIMIT 1").bind(id,id).first()
@@ -539,8 +613,9 @@ async function notifyPaidOrder(env,orderId){
   if(Number(ins.meta?.changes||0)<1)return;
   const n=await env.DB.prepare("SELECT id FROM admin_notifications WHERE unique_key=?").bind(key).first();
   if(!n)return;
-  const sent=await sendAdminSaleEmail(env,row);
-  if(sent.ok)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
+  const [sentEmail,sentWhatsApp]=await Promise.all([sendAdminSaleEmail(env,row),sendAdminSaleWhatsApp(env,row,n.id)]);
+  if(sentEmail.ok)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
+  if(sentWhatsApp.configured&&!sentWhatsApp.ok)console.error("WhatsApp de venda ficou pendente para retry:",id,sentWhatsApp.failed);
  }catch(e){console.error("Notificação compra:",e)}
 }
 async function retryPendingSaleNotifications(env){
@@ -553,6 +628,7 @@ async function retryPendingSaleNotifications(env){
    const sent=await sendAdminSaleEmail(env,row);
    if(sent.ok)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
   }
+  await retryPendingSaleWhatsApp(env);
  }catch(e){console.error("Retry aviso venda:",e)}
 }
 async function adminNotificationsPoll(request,env){
@@ -708,8 +784,8 @@ async function adminDashboard(request,env){
   const finance={paidToday:Number(fin.paid_today||0),revenueToday:Number(Number(fin.revenue_today||0).toFixed(2)),paid7d:Number(fin.paid_7d||0),revenue7d:Number(Number(fin.revenue_7d||0).toFixed(2)),paid30d:Number(fin.paid_30d||0),revenue30d:Number(Number(fin.revenue_30d||0).toFixed(2)),paidAll:paidOrders,revenueAll:Number(revenue.toFixed(2)),averageTicket30d:Number(fin.paid_30d||0)?Number((Number(fin.revenue_30d||0)/Number(fin.paid_30d||0)).toFixed(2)):0,pixOrders30d:Number(fin.pix_orders_30d||0),pixRevenue30d:Number(Number(fin.pix_revenue_30d||0).toFixed(2)),cardOrders30d:Number(fin.card_orders_30d||0),cardRevenue30d:Number(Number(fin.card_revenue_30d||0).toFixed(2)),freight30d:Number(Number(fin.freight_30d||0).toFixed(2)),testPaidIgnored:Math.max(0,allPaidOrders-paidOrders),pendingReal:Number(fin.pending_real||0),daily:financeDaily.results||[],profit:{knownRevenue30d:Number(knownRevenue30.toFixed(2)),knownCost30d:Number(knownCost30.toFixed(2)),grossProfit30d:Number((knownRevenue30-knownCost30).toFixed(2)),grossMargin30d:knownRevenue30?Number((((knownRevenue30-knownCost30)/knownRevenue30)*100).toFixed(2)):0,costCoverage30d:paidUnits30?Number((((paidUnits30-missingUnits30)/paidUnits30)*100).toFixed(1)):0,missingCostUnits30d:missingUnits30,knownRevenueAll:Number(knownRevenueAll.toFixed(2)),knownCostAll:Number(knownCostAll.toFixed(2)),grossProfitAll:Number((knownRevenueAll-knownCostAll).toFixed(2)),grossMarginAll:knownRevenueAll?Number((((knownRevenueAll-knownCostAll)/knownRevenueAll)*100).toFixed(2)):0,products:profitProducts.results||[]}};
   const sh=shippingSummary||{},shipping={localDelivery:Number(sh.local_delivery||0),awaiting:Number(sh.awaiting||0),preparing:Number(sh.preparing||0),created:Number(sh.created||0),labelReady:Number(sh.label_ready||0),tracking:Number(sh.tracking||0),rows:shippingRows.results||[]};
   const opportunityRows=(opportunities.results||[]).map(x=>{let items=[];try{const parsed=JSON.parse(x.cart_json||"[]");if(Array.isArray(parsed))items=parsed}catch{}const last=Date.parse(x.last_seen_at||x.updated_at||0),abandoned=String(x.status)==="active"&&!Number(x.pending_payment)&&(String(x.stage)==="payment_error"||(Number.isFinite(last)&&last<=Date.now()-15*60e3));return {...x,items,abandoned,pending_payment:!!Number(x.pending_payment)}}),opportunityCandidates=opportunityRows.filter(x=>x.abandoned),opportunityValue=opportunityCandidates.reduce((s,x)=>s+Number(x.subtotal||0),0),recoveredOpportunities=opportunityRows.reduce((s,x)=>s+Number(x.recoveries||0),0);
-  const mp=mpConfig(env),mpAccessToken=!!String(mp.accessToken||"").trim(),mpPublicKey=!!String(mp.publicKey||"").trim(),mpProduction=!mp.testMode;
-  const system={database:true,mercadoPago:mpAccessToken&&mpPublicKey&&mpProduction,mercadoPagoAccessToken:mpAccessToken,mercadoPagoPublicKey:mpPublicKey,mercadoPagoMode:mp.testMode?"TESTE":"PRODUÇÃO",envioEcom:!!env.ENVIOECOM_TOKEN,envioOriginCep:/^\d{8}$/.test(String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"")),resend:!!env.RESEND_API_KEY,ga4:/^G-[A-Z0-9]+$/i.test(String(env.GA4_MEASUREMENT_ID||"").trim()),canonicalHost:"www.valenzaparfums.com.br",https:true};
+  const mp=mpConfig(env),mpAccessToken=!!String(mp.accessToken||"").trim(),mpPublicKey=!!String(mp.publicKey||"").trim(),mpProduction=!mp.testMode,wa=whatsappSaleConfig(env);
+  const system={database:true,mercadoPago:mpAccessToken&&mpPublicKey&&mpProduction,mercadoPagoAccessToken:mpAccessToken,mercadoPagoPublicKey:mpPublicKey,mercadoPagoMode:mp.testMode?"TESTE":"PRODUÇÃO",envioEcom:!!env.ENVIOECOM_TOKEN,envioOriginCep:/^\d{8}$/.test(String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"")),resend:!!env.RESEND_API_KEY,whatsapp:wa.configured,whatsappRecipients:wa.recipients.length,whatsappTemplate:wa.templateName,whatsappApiVersion:wa.apiVersion,ga4:/^G-[A-Z0-9]+$/i.test(String(env.GA4_MEASUREMENT_ID||"").trim()),canonicalHost:"www.valenzaparfums.com.br",https:true};
   const operationalAlerts=[];
   const paidWithoutShipping=Number(sh.awaiting||0);
   const lowStock=stockRows.filter(x=>Number(x.stock||0)<=2).length;
