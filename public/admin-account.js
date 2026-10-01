@@ -188,7 +188,7 @@ function renderAdminBody(){
   const state=(ok,detail='')=>'<span class="vaChip '+(ok?'ok':'bad')+'">'+(ok?'OK':'ATENÇÃO')+'</span>'+(detail?'<br><small>'+esc(detail)+'</small>':'');
   const services=[
    ['Banco D1',!!s.database,'Banco conectado'],
-   ['Mercado Pago',!!s.mercadoPago,s.mercadoPago?'Modo '+String(s.mercadoPagoMode||'—'):'Credencial ausente'],
+   ['Mercado Pago',!!s.mercadoPago,s.mercadoPago?'Modo '+String(s.mercadoPagoMode||'—')+' · token + chave pública':(!s.mercadoPagoAccessToken?'Access Token ausente':(!s.mercadoPagoPublicKey?'Chave pública ausente':(String(s.mercadoPagoMode||'')!=='PRODUÇÃO'?'Modo de teste ativo':'Configuração incompleta')))],
    ['EnvioEcom',!!s.envioEcom&&!!s.envioOriginCep,(s.envioEcom&&s.envioOriginCep)?'Token + CEP de origem':(s.envioEcom?'Token presente · CEP de origem pendente':'Token ausente')],
    ['Resend',!!s.resend,s.resend?'E-mail configurado':'Chave ausente'],
    ['Google Analytics',!!s.ga4,s.ga4?'GA4 configurado':'Measurement ID ausente'],
