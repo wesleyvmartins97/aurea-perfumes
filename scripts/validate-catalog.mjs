@@ -41,8 +41,9 @@ for(const p of catalog){
  ids.add(p.id);
  if(/undefined|null/i.test(`${p.name} ${p.brand} ${p.type} ${p.desc} ${p.details}`))fail.push(`${tag}: texto contém undefined/null.`);
  for(const label of ['Topo:','Corpo:','Fundo:'])if(!String(p.details||'').includes(label))fail.push(`${tag}: details sem ${label}`);
- const imagePath='public/'+String(p.img||'').replace(/^\//,'');
- if(p.img&&!fs.existsSync(imagePath))fail.push(`${tag}: imagem não existe (${p.img}).`);
+ const imagePath='public/'+String(p.img||'').replace(/^\//,''),dynamicImage=String(p.img||'').startsWith('/produto-img/');
+ if(p.img&&!dynamicImage&&!fs.existsSync(imagePath))fail.push(`${tag}: imagem não existe (${p.img}).`);
+ if(dynamicImage&&!['/produto-img/asad-zanzibar.jpg','/produto-img/asad-elixir.png'].includes(String(p.img)))fail.push(`${tag}: rota dinâmica de imagem não reconhecida (${p.img}).`);
  const page=`public/perfume/${p.id}/index.html`;
  if(!fs.existsSync(page))fail.push(`${tag}: página SEO ausente (${page}).`);
  else{
@@ -66,6 +67,9 @@ for(const p of catalog){
 
 const worker=read('src/worker.js');
 if(!worker.includes("catalog-stock-v7-asad-bourbon")||!worker.includes('bind("asad-bourbon",100,now)'))fail.push('Asad Bourbon sem seed seguro de estoque no D1.');
+if(!worker.includes("catalog-stock-v8-asad-zanzibar-elixir")||!worker.includes('bind("asad-zanzibar",100,now)')||!worker.includes('bind("asad-elixir",100,now)'))fail.push('Asad Zanzibar/Elixir sem seed seguro de estoque 100 no D1.');
+if(!worker.includes('bind("asad-zanzibar",161,now)')||!worker.includes('bind("asad-elixir",187.5,now)'))fail.push('Asad Zanzibar/Elixir sem custo unitário auditado no painel.');
+if(!worker.includes('/produto-img/asad-zanzibar.jpg')||!worker.includes('/produto-img/asad-elixir.png')||!worker.includes('productCatalogImage'))fail.push('Asad Zanzibar/Elixir sem proxy estável de imagem no Worker.');
 const match=worker.match(/const AUREA_CATALOG=(\{[\s\S]*?\n\});\nasync function officialCatalog/);
 let official={};
 if(!match)fail.push('AUREA_CATALOG não encontrado no Worker.');
