@@ -7,6 +7,7 @@ export default{async fetch(request,env){
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
+ if(url.pathname==="/api/promotions/active"&&request.method==="GET")return activePromotionPublic(env);
  if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env);
  if(url.pathname==="/api/analytics/location"&&request.method==="POST")return analyticsLocation(request,env);
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
@@ -20,6 +21,8 @@ export default{async fetch(request,env){
  if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
  if(url.pathname==="/api/admin/logout"&&request.method==="POST")return adminLogout(request,env);
  if(url.pathname==="/api/admin/dashboard"&&request.method==="GET")return adminDashboard(request,env);
+ if(url.pathname==="/api/admin/promotions/save"&&request.method==="POST")return adminPromotionSave(request,env);
+ if(url.pathname==="/api/admin/promotions/toggle"&&request.method==="POST")return adminPromotionToggle(request,env);
  if(url.pathname==="/api/admin/notifications/read"&&request.method==="POST")return adminNotificationsRead(request,env);
  if(url.pathname==="/api/admin/orders/delete-tests"&&request.method==="POST")return adminDeleteTestOrders(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
@@ -70,6 +73,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_notifications (id TEXT PRIMARY KEY, unique_key TEXT NOT NULL UNIQUE, type TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'info', title TEXT NOT NULL, message TEXT NOT NULL, order_id TEXT, email_sent INTEGER NOT NULL DEFAULT 0, read_at TEXT, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON admin_notifications(created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_notifications_unread ON admin_notifications(read_at,created_at)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_promotions (id TEXT PRIMARY KEY, title TEXT NOT NULL, message TEXT NOT NULL, starts_at TEXT, ends_at TEXT, active INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_promotions_active ON admin_promotions(active,starts_at,ends_at,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_events (id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, visitor_id TEXT NOT NULL, session_id TEXT NOT NULL, event_name TEXT NOT NULL, page_path TEXT, product_id TEXT, product_name TEXT, value REAL NOT NULL DEFAULT 0, transaction_id TEXT, source TEXT, medium TEXT, campaign TEXT, referrer_host TEXT, country TEXT, region TEXT, region_code TEXT, city TEXT, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name,created_at)"),
@@ -380,6 +385,39 @@ async function adminDeleteTestOrders(request,env){
  }
 }
 
+
+function promotionText(v,max=180){return String(v||"").trim().slice(0,max)}
+function promotionDate(v){const s=String(v||"").trim();if(!s)return null;const d=new Date(s);return Number.isFinite(d.getTime())?d.toISOString():null}
+async function activePromotionPublic(env){
+ try{
+  await ensureAuthSchema(env);const now=new Date().toISOString();
+  const row=await env.DB.prepare("SELECT id,title,message,starts_at,ends_at FROM admin_promotions WHERE active=1 AND (starts_at IS NULL OR starts_at<=?) AND (ends_at IS NULL OR ends_at>=?) ORDER BY updated_at DESC LIMIT 1").bind(now,now).first();
+  return resposta({ok:true,promotion:row||null});
+ }catch(e){console.error("Promoção pública:",e);return resposta({ok:true,promotion:null})}
+}
+async function adminPromotionSave(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const d=await request.json().catch(()=>({})),id=promotionText(d.id,80)||crypto.randomUUID(),title=promotionText(d.title,70),message=promotionText(d.message,220),startsAt=promotionDate(d.startsAt),endsAt=promotionDate(d.endsAt),active=d.active?1:0;
+  if(title.length<3)return resposta({ok:false,error:"Informe um título para a campanha."},400);
+  if(message.length<5)return resposta({ok:false,error:"Informe a mensagem da campanha."},400);
+  if(String(d.startsAt||"").trim()&&!startsAt)return resposta({ok:false,error:"Data inicial inválida."},400);
+  if(String(d.endsAt||"").trim()&&!endsAt)return resposta({ok:false,error:"Data final inválida."},400);
+  if(startsAt&&endsAt&&Date.parse(endsAt)<=Date.parse(startsAt))return resposta({ok:false,error:"A data final deve ser posterior ao início."},400);
+  const now=new Date().toISOString();
+  await env.DB.prepare("INSERT INTO admin_promotions(id,title,message,starts_at,ends_at,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,message=excluded.message,starts_at=excluded.starts_at,ends_at=excluded.ends_at,active=excluded.active,updated_at=excluded.updated_at").bind(id,title,message,startsAt,endsAt,active,now,now).run();
+  return resposta({ok:true,id,message:"Campanha salva."});
+ }catch(e){console.error("Salvar promoção:",e);return resposta({ok:false,error:"Não foi possível salvar a campanha."},500)}
+}
+async function adminPromotionToggle(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const d=await request.json().catch(()=>({})),id=promotionText(d.id,80);if(!id)return resposta({ok:false,error:"Campanha inválida."},400);
+  const now=new Date().toISOString(),r=await env.DB.prepare("UPDATE admin_promotions SET active=?,updated_at=? WHERE id=?").bind(d.active?1:0,now,id).run();
+  if(!(r.meta?.changes||0))return resposta({ok:false,error:"Campanha não encontrada."},404);
+  return resposta({ok:true});
+ }catch(e){console.error("Alternar promoção:",e);return resposta({ok:false,error:"Não foi possível atualizar a campanha."},500)}
+}
 async function sendAdminSaleEmail(env,row){
  try{
   if(!env.RESEND_API_KEY)return {ok:false,error:"missing_api_key"};
@@ -426,7 +464,7 @@ async function adminDashboard(request,env){
   await cleanupExpiredPendingCustomers(env);
   const allOrdersCte="WITH all_orders AS (SELECT id,order_number,status,total,created_at FROM orders UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) ";
   const realOrdersCte="WITH real_orders AS (SELECT o.id,o.status,o.total,o.created_at FROM orders o WHERE NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=o.customer_id) UNION ALL SELECT g.id,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) AND NOT EXISTS(SELECT 1 FROM admin_credentials a JOIN customers c ON c.id=a.customer_id WHERE lower(c.email)=lower(g.email))) ";
-  const [customers,orders,recentOrders,recentCustomers,inventory,topProducts,deletedTests,notifications,financeSummary,financeDaily,shippingSummary,shippingRows]=await Promise.all([
+  const [customers,orders,recentOrders,recentCustomers,inventory,topProducts,deletedTests,notifications,financeSummary,financeDaily,shippingSummary,shippingRows,promotions]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN email_verified=1 THEN 1 ELSE 0 END) verified FROM customers").first(),
    env.DB.prepare(allOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN status='Pago' THEN total ELSE 0 END),0) revenue,SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN status IN ('Cancelado','Expirado','Reembolsado') THEN 1 ELSE 0 END) closed_orders FROM all_orders").first(),
    env.DB.prepare("WITH all_orders AS (SELECT o.id,o.customer_id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.customer_id,a.order_number,a.status,a.total,a.tracking_code,a.tracking_url,a.carrier,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.barcode,s.shipping_id,s.label_ready,l.state lock_state FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id LEFT JOIN shipment_locks l ON l.order_id=a.id ORDER BY a.created_at DESC LIMIT 50").all(),
@@ -438,7 +476,8 @@ async function adminDashboard(request,env){
    env.DB.prepare(realOrdersCte+"SELECT COUNT(CASE WHEN r.status='Pago' THEN 1 END) paid_all,COALESCE(SUM(CASE WHEN r.status='Pago' THEN r.total ELSE 0 END),0) revenue_all,COUNT(CASE WHEN r.status='Pago' AND date(r.created_at,'-3 hours')=date('now','-3 hours') THEN 1 END) paid_today,COALESCE(SUM(CASE WHEN r.status='Pago' AND date(r.created_at,'-3 hours')=date('now','-3 hours') THEN r.total ELSE 0 END),0) revenue_today,COUNT(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-7 days') THEN 1 END) paid_7d,COALESCE(SUM(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-7 days') THEN r.total ELSE 0 END),0) revenue_7d,COUNT(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-30 days') THEN 1 END) paid_30d,COALESCE(SUM(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-30 days') THEN r.total ELSE 0 END),0) revenue_30d,COUNT(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-30 days') AND lower(COALESCE(p.method,''))='pix' THEN 1 END) pix_orders_30d,COALESCE(SUM(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-30 days') AND lower(COALESCE(p.method,''))='pix' THEN r.total ELSE 0 END),0) pix_revenue_30d,COUNT(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-30 days') AND lower(COALESCE(p.method,''))<>'pix' THEN 1 END) card_orders_30d,COALESCE(SUM(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-30 days') AND lower(COALESCE(p.method,''))<>'pix' THEN r.total ELSE 0 END),0) card_revenue_30d,COALESCE(SUM(CASE WHEN r.status='Pago' AND r.created_at>=datetime('now','-30 days') THEN COALESCE(s.freight_cost,0) ELSE 0 END),0) freight_30d FROM real_orders r LEFT JOIN order_payments p ON p.order_id=r.id LEFT JOIN order_shipping s ON s.order_id=r.id").first(),
    env.DB.prepare(realOrdersCte+"SELECT date(r.created_at,'-3 hours') day,COUNT(*) paid_orders,ROUND(SUM(r.total),2) revenue FROM real_orders r WHERE r.status='Pago' AND r.created_at>=datetime('now','-7 days') GROUP BY date(r.created_at,'-3 hours') ORDER BY day DESC").all(),
    env.DB.prepare(realOrdersCte+"SELECT SUM(CASE WHEN r.status='Pago' AND COALESCE(s.shipping_id,'')='' AND COALESCE(s.barcode,'')='' AND COALESCE(l.state,'')='' THEN 1 ELSE 0 END) awaiting,SUM(CASE WHEN COALESCE(l.state,'')<>'' AND COALESCE(s.shipping_id,'')='' AND COALESCE(s.barcode,'')='' THEN 1 ELSE 0 END) preparing,SUM(CASE WHEN COALESCE(s.shipping_id,'')<>'' OR COALESCE(s.barcode,'')<>'' THEN 1 ELSE 0 END) created,SUM(CASE WHEN COALESCE(s.label_ready,0)=1 THEN 1 ELSE 0 END) label_ready,SUM(CASE WHEN COALESCE(s.barcode,'')<>'' THEN 1 ELSE 0 END) tracking FROM real_orders r LEFT JOIN order_shipping s ON s.order_id=r.id LEFT JOIN shipment_locks l ON l.order_id=r.id").first(),
-   env.DB.prepare("WITH real_orders AS (SELECT o.id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=o.customer_id) UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) AND NOT EXISTS(SELECT 1 FROM admin_credentials a JOIN customers c ON c.id=a.customer_id WHERE lower(c.email)=lower(g.email))) SELECT r.id,r.order_number,r.status,r.total,r.tracking_code,r.tracking_url,r.carrier,r.created_at,r.customer_name,r.email,s.shipping_id,s.barcode,s.label_ready,s.city,s.state,s.cep,s.freight_cost,s.delivery_time,s.carrier shipping_carrier,l.state lock_state FROM real_orders r LEFT JOIN order_shipping s ON s.order_id=r.id LEFT JOIN shipment_locks l ON l.order_id=r.id WHERE r.status='Pago' OR COALESCE(s.shipping_id,'')<>'' OR COALESCE(s.barcode,'')<>'' OR COALESCE(l.state,'')<>'' ORDER BY r.created_at DESC LIMIT 100").all()
+   env.DB.prepare("WITH real_orders AS (SELECT o.id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=o.customer_id) UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) AND NOT EXISTS(SELECT 1 FROM admin_credentials a JOIN customers c ON c.id=a.customer_id WHERE lower(c.email)=lower(g.email))) SELECT r.id,r.order_number,r.status,r.total,r.tracking_code,r.tracking_url,r.carrier,r.created_at,r.customer_name,r.email,s.shipping_id,s.barcode,s.label_ready,s.city,s.state,s.cep,s.freight_cost,s.delivery_time,s.carrier shipping_carrier,l.state lock_state FROM real_orders r LEFT JOIN order_shipping s ON s.order_id=r.id LEFT JOIN shipment_locks l ON l.order_id=r.id WHERE r.status='Pago' OR COALESCE(s.shipping_id,'')<>'' OR COALESCE(s.barcode,'')<>'' OR COALESCE(l.state,'')<>'' ORDER BY r.created_at DESC LIMIT 100").all(),
+   env.DB.prepare("SELECT id,title,message,starts_at,ends_at,active,created_at,updated_at FROM admin_promotions ORDER BY updated_at DESC LIMIT 50").all()
   ]);
   const recent=(recentOrders.results||[]).map(row=>{const policy=adminOrderDeletePolicy(row,admin);return {...row,is_test_account:policy.reason!=="Venda de cliente protegida",delete_allowed:policy.allowed,delete_reason:policy.reason}});
   for(const row of recent)delete row.customer_id;
@@ -451,7 +490,7 @@ async function adminDashboard(request,env){
   if(paidWithoutShipping)operationalAlerts.push({type:"shipping",severity:"warning",title:"Venda paga aguardando envio",message:paidWithoutShipping+" pedido(s) pago(s) ainda sem postagem criada."});
   if(lowStock)operationalAlerts.push({type:"stock",severity:"warning",title:"Estoque baixo",message:lowStock+" produto(s) com 2 unidades ou menos."});
   if(Number(orders?.pending_orders||0))operationalAlerts.push({type:"payment",severity:"info",title:"Pagamentos pendentes",message:Number(orders.pending_orders)+" pedido(s) aguardando pagamento ou processando."});
-  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),analytics,finance,shipping,notifications:notificationRows,operationalAlerts,metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:lowStock,deletedTestOrders:Number(deletedTests?.total||0),unreadNotifications},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
+  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),analytics,finance,shipping,promotions:promotions.results||[],notifications:notificationRows,operationalAlerts,metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(orders?.pending_orders||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:stockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:lowStock,deletedTestOrders:Number(deletedTests?.total||0),unreadNotifications},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[]});
  }catch(e){console.error("Admin dashboard:",e);return resposta({ok:false,error:"Não foi possível carregar o painel administrativo."},500)}
 }
 async function accountData(request,env){try{
