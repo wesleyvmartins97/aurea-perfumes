@@ -114,6 +114,13 @@ if(!worker.includes('if(url.protocol!=="https:")'))fail.push('Worker não força
 if(!worker.includes('target.protocol="https:"'))fail.push('Redirecionamento canônico não força HTTPS.');
 if(!worker.includes('Strict-Transport-Security'))fail.push('Worker não envia HSTS para manter a loja em HTTPS.');
 if(!home.includes("credentials:'include'"))fail.push('Fluxo de conta não envia credenciais explicitamente.');
+if(!worker.includes('/api/account/password'))fail.push('Conta do cliente sem endpoint protegido para troca de senha.');
+if(!worker.includes('async function accountPasswordChange'))fail.push('Troca de senha sem implementação no servidor.');
+if(!worker.includes('A senha atual está incorreta.'))fail.push('Troca de senha não valida a senha atual.');
+if(!worker.includes('DELETE FROM customer_sessions WHERE customer_id=? AND token_hash<>?'))fail.push('Troca de senha não encerra outras sessões.');
+if(!home.includes('SEGURANÇA DA CONTA')||!home.includes('saveClientPassword()'))fail.push('Minha Conta sem interface de alteração de senha.');
+if(!home.includes('autocomplete="current-password"')||!home.includes('autocomplete="new-password"'))fail.push('Campos de senha sem autocomplete seguro adequado.');
+
 if(!worker.includes('Seu cadastro pendente expirou após 24 horas'))fail.push('Reenvio não informa corretamente cadastro expirado.');
 if(!home.includes("if(d.expired||d.notPending)"))fail.push('Front não direciona cadastro expirado para CRIAR CONTA.');
 if(!worker.includes('allowedAdminEmail'))fail.push('Conta administrativa não está vinculada à conta autorizada.');
