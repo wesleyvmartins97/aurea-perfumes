@@ -15,6 +15,13 @@ if(!admin.includes('/api/admin/setup'))fail.push('Módulo admin sem criação se
 if(!admin.includes('/api/admin/login'))fail.push('Módulo admin sem login separado.');
 if(!admin.includes('/api/admin/dashboard'))fail.push('Módulo admin sem dashboard protegido.');
 if(!admin.includes('data-v="alerts"'))fail.push('Painel sem aba ALERTAS.');
+if(!admin.includes('data-v="finance"'))fail.push('Painel sem aba FINANCEIRO.');
+if(!admin.includes("if(adminView==='finance')"))fail.push('Aba FINANCEIRO sem renderização.');
+if(!admin.includes('Faturamento real')||!admin.includes('Pagos reais'))fail.push('Resumo não separa vendas reais de testes.');
+if(!worker.includes('const realOrdersCte='))fail.push('Worker sem separação de pedidos reais no Financeiro.');
+if(!worker.includes('testPaidIgnored'))fail.push('Financeiro não contabiliza testes ignorados.');
+if(!worker.includes('pix_revenue_30d')||!worker.includes('card_revenue_30d'))fail.push('Financeiro sem divisão PIX/cartão.');
+if(!worker.includes('freight_30d'))fail.push('Financeiro sem total de frete dos últimos 30 dias.');
 if(!admin.includes('Central de alertas'))fail.push('Aba ALERTAS sem conteúdo.');
 if(!admin.includes('/api/admin/notifications/read'))fail.push('Painel sem ação de marcar alertas como lidos.');
 if(!worker.includes('CREATE TABLE IF NOT EXISTS admin_notifications'))fail.push('Worker sem tabela de notificações administrativas.');
