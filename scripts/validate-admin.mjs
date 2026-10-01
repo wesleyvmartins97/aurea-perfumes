@@ -16,6 +16,13 @@ if(!admin.includes('/api/admin/login'))fail.push('Módulo admin sem login separa
 if(!admin.includes('/api/admin/dashboard'))fail.push('Módulo admin sem dashboard protegido.');
 if(!admin.includes('data-v="alerts"'))fail.push('Painel sem aba ALERTAS.');
 if(!admin.includes('data-v="finance"'))fail.push('Painel sem aba FINANCEIRO.');
+if(!admin.includes('data-v="shipping"'))fail.push('Painel sem aba ENVIOS.');
+if(!admin.includes("if(adminView==='shipping')"))fail.push('Aba ENVIOS sem renderização.');
+if(!admin.includes('Esta tela não cria nem altera postagens'))fail.push('Aba ENVIOS não declara modo somente leitura.');
+if(!admin.includes('vaCopyTrack'))fail.push('Aba ENVIOS sem ação de copiar rastreio.');
+if(!worker.includes('shippingSummary')||!worker.includes('shippingRows'))fail.push('Dashboard sem agregação operacional de envios.');
+if(!worker.includes('labelReady:Number(sh.label_ready||0)'))fail.push('Envios sem contador de etiqueta pronta.');
+if(!worker.includes('!x.is_test_account&&String(x.status)==="Pago"'))fail.push('Alerta de envio ainda considera pedidos da conta de teste.');
 if(!admin.includes("if(adminView==='finance')"))fail.push('Aba FINANCEIRO sem renderização.');
 if(!admin.includes('Faturamento real')||!admin.includes('Pagos reais'))fail.push('Resumo não separa vendas reais de testes.');
 if(!worker.includes('const realOrdersCte='))fail.push('Worker sem separação de pedidos reais no Financeiro.');
