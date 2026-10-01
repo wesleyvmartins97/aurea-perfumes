@@ -17,7 +17,7 @@ if(!worker.includes('/api/analytics/location'))fail.push('Worker sem endpoint pa
 if(!worker.includes('/api/meta/config')||!worker.includes('/api/meta/event'))fail.push('Worker sem endpoints Meta Pixel/CAPI.');
 if(!worker.includes('META_PIXEL_ID')||!worker.includes('META_CAPI_ACCESS_TOKEN'))fail.push('Worker não lê configuração Meta pelo ambiente.');
 if(!worker.includes('event_id:eventId')||!worker.includes('action_source:"website"'))fail.push('Meta CAPI sem event_id/action_source para deduplicação.');
-if(!worker.includes('graph.facebook.com/')||!worker.includes('Authorization:"Bearer "+cfg.token'))fail.push('Meta CAPI sem envio seguro para Graph API.');
+if(!worker.includes('graph.facebook.com/')||!worker.includes('"Authorization":"Bearer "+cfg.token'))fail.push('Meta CAPI sem envio seguro para Graph API.');
 if(!js.includes('connect.facebook.net/en_US/fbevents.js'))fail.push('Meta Pixel não carrega biblioteca oficial após consentimento.');
 if(!js.includes("window.fbq('track',eventName,data,{eventID:eventId})"))fail.push('Meta Pixel sem eventID compartilhado para deduplicação.');
 if(!js.includes("fetch('/api/meta/event'"))fail.push('Meta CAPI não recebe os eventos do navegador.');
