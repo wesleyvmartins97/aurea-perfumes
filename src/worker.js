@@ -32,6 +32,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/opportunities/email"&&request.method==="POST")return adminOpportunityEmail(request,env);
  if(url.pathname==="/api/admin/opportunities/contacted"&&request.method==="POST")return adminOpportunityContacted(request,env);
  if(url.pathname==="/api/admin/opportunities/archive"&&request.method==="POST")return adminOpportunityArchive(request,env);
+ if(url.pathname==="/api/admin/notifications/poll"&&request.method==="GET")return adminNotificationsPoll(request,env);
  if(url.pathname==="/api/admin/notifications/read"&&request.method==="POST")return adminNotificationsRead(request,env);
  if(url.pathname==="/api/admin/orders/delete-tests"&&request.method==="POST")return adminDeleteTestOrders(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
@@ -554,6 +555,16 @@ async function retryPendingSaleNotifications(env){
   }
  }catch(e){console.error("Retry aviso venda:",e)}
 }
+async function adminNotificationsPoll(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const [count,rows]=await Promise.all([
+   env.DB.prepare("SELECT COUNT(*) total FROM admin_notifications WHERE read_at IS NULL").first(),
+   env.DB.prepare("SELECT id,type,severity,title,message,order_id,email_sent,read_at,created_at FROM admin_notifications WHERE type='sale' ORDER BY created_at DESC LIMIT 20").all()
+  ]);
+  return resposta({ok:true,generatedAt:new Date().toISOString(),unread:Number(count?.total||0),notifications:rows.results||[]});
+ }catch(e){console.error("Poll de notificações:",e);return resposta({ok:false,error:"Não foi possível atualizar as notificações agora."},500)}
+}
 async function adminNotificationsRead(request,env){
  try{
   await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
@@ -1005,7 +1016,7 @@ async function criarPagamentoCartao(request,env){
   const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
   await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
   let shipment=null;if(approved&&!mpConfig(env).testMode)try{shipment=await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Expedição cartão:",e)}
-  if(approved)await markOpportunityRecovered(env,pid);else if(["failed","rejected","canceled","cancelled"].includes(txStatus)||["failed","rejected","canceled","cancelled"].includes(String(result.status||""))){await releaseReservation();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();await markOpportunityPaymentIssue(env,pid,txDetail||status)}
+  if(approved){await markOpportunityRecovered(env,pid);await notifyPaidOrder(env,pid)}else if(["failed","rejected","canceled","cancelled"].includes(txStatus)||["failed","rejected","canceled","cancelled"].includes(String(result.status||""))){await releaseReservation();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();await markOpportunityPaymentIssue(env,pid,txDetail||status)}
   const challengeUrl=String(tx?.payment_method?.transaction_security?.url||"");return resposta({ok:true,orderId:pid,paymentId:pid,status:txStatus||result.status||null,statusDetail:txDetail||result.status_detail||null,challengeUrl:challengeUrl||null,amount:total.toFixed(2),externalReference:referencia,shipping:shipment?{created:!!shipment.ok,barcode:shipment.barcode||null,labelReady:!!shipment.labelReady}:null});
  }catch(e){console.error("Criar cartão:",e);return resposta({ok:false,error:"Não foi possível processar o cartão agora. Tente novamente em alguns instantes."},500)}
 }
@@ -1032,6 +1043,7 @@ async function reconcileStalePixReservations(env){
     if(approved){
      await env.DB.batch([env.DB.prepare("UPDATE orders SET status='Pago',updated_at=? WHERE id=?").bind(now,id),env.DB.prepare("UPDATE guest_orders SET status='Pago',updated_at=? WHERE id=?").bind(now,id),env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st||"approved",detail,now,id),env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(id)]);
      if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,id)}catch(e){console.error("Reconciliação PIX expedição:",e)}
+     await notifyPaidOrder(env,id);
     }else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){
      await releaseReservedStock(env,id,now);
      const label=st==="expired"?"Expirado":(["canceled","cancelled"].includes(st)?"Cancelado":"Pagamento recusado");
