@@ -36,6 +36,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/orders/delete-tests"&&request.method==="POST")return adminDeleteTestOrders(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
  if(url.pathname==="/api/account/profile"&&request.method==="POST")return accountProfile(request,env);
+ if(url.pathname==="/api/account/password"&&request.method==="POST")return accountPasswordChange(request,env);
  if(url.pathname==="/api/account/order/cancel"&&request.method==="POST")return accountCancelOrder(request,env);
  if(url.pathname==="/api/account/order/pix"&&request.method==="POST")return accountOrderPix(request,env);
  if(url.pathname==="/api/account/addresses"&&request.method==="POST")return accountAddressSave(request,env);
@@ -774,6 +775,27 @@ async function accountCancelOrder(request,env){
   await env.DB.batch([env.DB.prepare("UPDATE orders SET status='Cancelado',updated_at=? WHERE id=? AND customer_id=?").bind(now,id,u.id),env.DB.prepare("UPDATE order_payments SET status='cancelled',status_detail='cancelled_by_customer',updated_at=? WHERE order_id=?").bind(now,id),env.DB.prepare("UPDATE checkout_opportunities SET status='dismissed',last_error='Pedido cancelado pelo cliente',updated_at=? WHERE customer_id=? AND status='active'").bind(now,u.id)]);
   return resposta({ok:true,message:"Pedido cancelado."});
  }catch(e){console.error("Cancelar pedido:",e);return resposta({ok:false,error:"Não foi possível cancelar o pedido agora."},500)}
+}
+async function accountPasswordChange(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const session=await validCustomerSession(request,env);
+  if(!session.user)return resposta({ok:false,error:"Sua sessão expirou. Entre novamente para alterar a senha."},401);
+  const d=await request.json().catch(()=>({})),currentPassword=String(d.currentPassword||""),newPassword=String(d.newPassword||"");
+  if(!currentPassword)return resposta({ok:false,error:"Informe sua senha atual."},400);
+  if(newPassword.length<8)return resposta({ok:false,error:"A nova senha precisa ter pelo menos 8 caracteres."},400);
+  const db=primaryDb(env),u=await db.prepare("SELECT password_hash,password_salt FROM customers WHERE id=?").bind(session.user.id).first();
+  if(!u)return resposta({ok:false,error:"Não foi possível localizar sua conta."},404);
+  let currentHash;try{currentHash=(await hashPassword(currentPassword,u.password_salt)).hash}catch{currentHash=await sha256(u.password_salt+":"+currentPassword)}
+  if(currentHash!==u.password_hash)return resposta({ok:false,error:"A senha atual está incorreta."},401);
+  let sameHash;try{sameHash=(await hashPassword(newPassword,u.password_salt)).hash}catch{sameHash=await sha256(u.password_salt+":"+newPassword)}
+  if(sameHash===u.password_hash)return resposta({ok:false,error:"Escolha uma senha nova, diferente da atual."},400);
+  let hp;try{hp=await hashPassword(newPassword)}catch(e){console.error("PBKDF2 troca de senha indisponível:",e);const salt=randomToken();hp={salt,hash:await sha256(salt+":"+newPassword)}}
+  const now=new Date().toISOString(),currentTokenHash=await sha256(session.token);
+  await db.prepare("UPDATE customers SET password_hash=?,password_salt=?,updated_at=? WHERE id=?").bind(hp.hash,hp.salt,now,session.user.id).run();
+  await db.prepare("DELETE FROM customer_sessions WHERE customer_id=? AND token_hash<>?").bind(session.user.id,currentTokenHash).run();
+  return resposta({ok:true,message:"Senha alterada com sucesso. Os outros acessos da sua conta foram encerrados."});
+ }catch(e){console.error("Troca de senha:",e);return resposta({ok:false,error:"Não foi possível alterar sua senha agora. Tente novamente."},500)}
 }
 async function accountProfile(request,env){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);const d=await request.json(),name=String(d.name||"").trim(),phone=String(d.phone||"").replace(/\D/g,"").slice(0,11),cpf=String(d.cpf||"").replace(/\D/g,"").slice(0,11),birth=String(d.birthDate||"").trim();if(name.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);const now=new Date().toISOString();await env.DB.batch([env.DB.prepare("UPDATE customers SET name=?,updated_at=? WHERE id=?").bind(name,now,u.id),env.DB.prepare("INSERT INTO customer_profiles(customer_id,phone,cpf,birth_date,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(customer_id) DO UPDATE SET phone=excluded.phone,cpf=excluded.cpf,birth_date=excluded.birth_date,updated_at=excluded.updated_at").bind(u.id,phone,cpf,birth,now)]);return resposta({ok:true,message:"Dados salvos."})}catch(e){return resposta({ok:false,error:"Não foi possível salvar seus dados."},500)}}
 async function accountAddressSave(request,env){try{const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login novamente."},401);const d=await request.json();const v={label:String(d.label||"Principal").trim(),recipient:String(d.recipient||u.name).trim(),cep:String(d.cep||"").replace(/\D/g,""),street:String(d.street||"").trim(),number:String(d.number||"").trim(),complement:String(d.complement||"").trim(),neighborhood:String(d.neighborhood||"").trim(),city:String(d.city||"").trim(),state:String(d.state||"").trim().toUpperCase().slice(0,2)};if(v.cep.length!==8||!v.street||!v.number||!v.neighborhood||!v.city||v.state.length!==2)return resposta({ok:false,error:"Preencha o endereço completo."},400);const now=new Date().toISOString(),id=String(d.id||"").trim()||crypto.randomUUID(),def=d.isDefault?1:0;if(def)await env.DB.prepare("UPDATE customer_addresses SET is_default=0 WHERE customer_id=?").bind(u.id).run();const own=await env.DB.prepare("SELECT id FROM customer_addresses WHERE id=? AND customer_id=?").bind(id,u.id).first();if(own)await env.DB.prepare("UPDATE customer_addresses SET label=?,recipient=?,cep=?,street=?,number=?,complement=?,neighborhood=?,city=?,state=?,is_default=?,updated_at=? WHERE id=? AND customer_id=?").bind(v.label,v.recipient,v.cep,v.street,v.number,v.complement,v.neighborhood,v.city,v.state,def,now,id,u.id).run();else await env.DB.prepare("INSERT INTO customer_addresses(id,customer_id,label,recipient,cep,street,number,complement,neighborhood,city,state,is_default,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,u.id,v.label,v.recipient,v.cep,v.street,v.number,v.complement,v.neighborhood,v.city,v.state,def,now,now).run();return resposta({ok:true,message:"Endereço salvo."})}catch(e){console.error("Endereco:",e);return resposta({ok:false,error:"Não foi possível salvar o endereço."},500)}}
