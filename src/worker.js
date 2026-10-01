@@ -135,8 +135,8 @@ async function authRegister(request,env){
  const id=crypto.randomUUID(),now=new Date().toISOString();let hp;try{hp=await hashPassword(pass)}catch(e){console.error("PBKDF2 indisponível, usando SHA-256 com salt:",e);const salt=randomToken();hp={salt,hash:await sha256(salt+":"+pass)}}await env.DB.prepare("INSERT INTO customers(id,name,email,password_hash,password_salt,email_verified,created_at,updated_at) VALUES(?,?,?,?,?,0,?,?)").bind(id,name,email,hp.hash,hp.salt,now,now).run();
  const token=randomToken(),th=await sha256(token),exp=new Date(Date.now()+24*3600e3).toISOString();await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),id,th,exp,now).run();
  const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);const mail=await sendVerification(env,email,name,verifyUrl.toString());
- return resposta({ok:true,needsVerification:true,emailSent:mail.ok,message:mail.ok?"Conta criada. Enviamos um e-mail para confirmar seu cadastro.":"Conta criada, mas o e-mail de confirmação ainda não pôde ser enviado. O remetente do Resend precisa ser configurado."});
- }catch(e){console.error("Registro:",e);const m=String(e&&e.message||e||"erro desconhecido");return resposta({ok:false,error:"Não foi possível criar a conta agora.",detail:m.slice(0,300)},500)}
+ return resposta({ok:true,needsVerification:true,emailSent:mail.ok,message:mail.ok?"Conta criada. Enviamos um e-mail para confirmar seu cadastro.":"Conta criada, mas não conseguimos enviar o e-mail de confirmação agora. Use REENVIAR E-MAIL DE CONFIRMAÇÃO em alguns minutos."});
+ }catch(e){console.error("Registro:",e);return resposta({ok:false,error:"Não foi possível criar a conta agora. Tente novamente em alguns instantes."},500)}
 }
 async function sendVerification(env,email,name,url){
  if(!env.RESEND_API_KEY){console.error("Resend: RESEND_API_KEY ausente");return {ok:false,error:"missing_api_key"}};
@@ -164,7 +164,7 @@ async function authResendVerification(request,env){
   await env.DB.prepare("INSERT INTO email_verifications(id,customer_id,token_hash,expires_at,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),u.id,th,exp,now).run();
   const verifyUrl=new URL("/api/auth/verify",request.url);verifyUrl.searchParams.set("token",token);
   const mail=await sendVerification(env,u.email,u.name,verifyUrl.toString());
-  if(!mail.ok)return resposta({ok:false,error:"Não conseguimos enviar a confirmação agora. O e-mail da VALENZA ainda precisa estar habilitado para envio aos clientes."},503);
+  if(!mail.ok)return resposta({ok:false,error:"Não foi possível enviar o e-mail de confirmação agora. Tente novamente em alguns minutos."},503);
   return resposta({ok:true,message:"Novo e-mail de confirmação enviado. Confira também Spam e Lixo eletrônico."});
  }catch(e){console.error("Reenvio confirmação:",e);return resposta({ok:false,error:"Não foi possível reenviar a confirmação agora."},500)}
 }
@@ -689,9 +689,18 @@ async function calcularFrete(request,env){
  }catch(e){console.error("Frete:",e);return resposta({ok:false,error:e.message==="Carrinho vazio"?"Carrinho vazio.":"Não foi possível calcular o frete."},500)}
 }
 function mpConfig(env){const production=String(env.MERCADOPAGO_MODE||"test").toLowerCase()==="production";return {testMode:!production,publicKey:production?(env.MERCADOPAGO_PUBLIC_KEY||""):(env.MERCADOPAGO_TEST_PUBLIC_KEY||""),accessToken:production?(env.MERCADOPAGO_ACCESS_TOKEN||""):(env.MERCADOPAGO_TEST_ACCESS_TOKEN||"")}}
+function cardPublicError(detail,httpStatus=0){
+ const d=String(detail||"").toLowerCase();
+ if(d.includes("high_risk"))return "Por segurança, este pagamento não pôde ser aprovado. Tente outro cartão ou escolha PIX.";
+ if(d.includes("insufficient"))return "O pagamento não foi aprovado por limite ou saldo disponível. Tente outro cartão ou PIX.";
+ if(d.includes("bad_filled")||d.includes("invalid"))return "Alguns dados do cartão não puderam ser validados. Confira as informações e tente novamente.";
+ if(Number(httpStatus)===429)return "Muitas tentativas foram feitas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+ if([401,403].includes(Number(httpStatus))||Number(httpStatus)>=500)return "O pagamento por cartão está temporariamente indisponível. Tente novamente em alguns instantes ou escolha PIX.";
+ return "Não foi possível aprovar este cartão. Confira os dados ou tente outra forma de pagamento.";
+}
 async function statusMercadoPago(env){
  const cfg=mpConfig(env);
- if(!mpConfig(env).accessToken)return resposta({ok:false,error:"Token do Mercado Pago ausente."},503);
+ if(!mpConfig(env).accessToken)return resposta({ok:false,error:"Pagamento por cartão temporariamente indisponível."},503);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
  try{const r=await fetch("https://api.mercadopago.com/users/me",{headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,Accept:"application/json"},signal:controller.signal});const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{};if(!r.ok)return resposta({ok:false,provider:"mercadopago",status:r.status,error:d.message||d.error||"Credencial recusada pelo Mercado Pago."},502);const accountId=String(d?.id||"");return resposta({ok:true,provider:"mercadopago",status:r.status,credentials:"accepted",accountIdLast4:accountId?accountId.slice(-4):null});}catch(e){return resposta({ok:false,provider:"mercadopago",error:e?.name==="AbortError"?"Tempo esgotado ao conectar ao Mercado Pago.":"Falha de conexão com o Mercado Pago."},504)}finally{clearTimeout(timer)}
 }
@@ -718,8 +727,8 @@ async function criarPagamentoPix(request,env){
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
   const payload={type:"online",total_amount:total.toFixed(2),external_reference:referencia,processing_mode:"automatic",transactions:{payments:[{amount:total.toFixed(2),payment_method:{id:"pix",type:"bank_transfer"},expiration_time:"PT30M"}]},payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
   const mp=await fetch("https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
-  const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok){await releaseReservation();const mpMessage=String(result?.message||result?.error||"Solicitação recusada.");const mpCause=Array.isArray(result?.cause)?result.cause.map(x=>[x?.code,x?.description].filter(Boolean).join(": ")).filter(Boolean):[];const mpData=String(result?.data?.message||result?.data?.error||"");const detail=[`Mercado Pago HTTP ${mp.status}: ${mpMessage}`,mpData,mpCause.length?`Detalhes: ${mpCause.join(" | ")}`:""].filter(Boolean).join(" — ");return resposta({ok:false,error:detail},502)}
-  if(!result.id){await releaseReservation();return resposta({ok:false,error:"Mercado Pago não retornou o identificador do pedido."},502)}
+  const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok){await releaseReservation();console.error("Mercado Pago PIX recusado:",{status:mp.status,message:result?.message||result?.error||null,data:result?.data||null,cause:result?.cause||null});const msg=(mp.status===429)?"Muitas tentativas foram feitas em pouco tempo. Aguarde alguns minutos e gere o Pix novamente.":([401,403].includes(mp.status)||mp.status>=500)?"O Pix está temporariamente indisponível. Tente novamente em alguns instantes.":"Não foi possível gerar o Pix agora. Confira seus dados e tente novamente.";return resposta({ok:false,error:msg},mp.status>=400&&mp.status<500?400:502)}
+  if(!result.id){await releaseReservation();console.error("Mercado Pago PIX sem identificador:",result);return resposta({ok:false,error:"Não foi possível gerar o Pix agora. Tente novamente."},502)}
   const pay=result?.transactions?.payments?.[0]||{},pix=pay?.payment_method||{},orderId=String(result.id),paymentId=String(pay.id||result.id);let savedToAccount=true;
   if(result.id){const now=new Date().toISOString(),pid=orderId;
    await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,"Aguardando pagamento",total,now,now).run();
@@ -729,7 +738,7 @@ async function criarPagamentoPix(request,env){
    await env.DB.prepare("INSERT OR REPLACE INTO order_payments(order_id,method,installments,installment_amount,total_paid,status,status_detail,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,"pix",1,total,total,String(pay.status||result.status||"created"),String(pay.status_detail||result.status_detail||""),now,now).run();
   }
   return resposta({ok:true,orderId,paymentId,status:pay.status??result.status??"pending",statusDetail:pay.status_detail??result.status_detail??null,amount:total.toFixed(2),qrCode:pix.qr_code||"",qrCodeBase64:pix.qr_code_base64||"",ticketUrl:pix.ticket_url||"",externalReference:referencia,savedToAccount});
- }catch(e){console.error("Criar PIX:",e);return resposta({ok:false,error:"Erro interno ao criar o pagamento."},500)}
+ }catch(e){console.error("Criar PIX:",e);return resposta({ok:false,error:"Não foi possível gerar o Pix agora. Tente novamente em alguns instantes."},500)}
 }
 async function criarPagamentoCartao(request,env){
  try{
@@ -761,7 +770,7 @@ async function criarPagamentoCartao(request,env){
   const mp=await fetch("https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
   const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}};
   const tx=result?.transactions?.payments?.[0]||{};
-  if(!mp.ok||!result.id){await releaseReservation();const detail=result?.status_detail||tx?.status_detail||result?.error||null;return resposta({ok:false,error:result?.message?`Mercado Pago: ${result.message}`:"Não foi possível processar o cartão.",statusDetail:detail,cause:Array.isArray(result?.errors)?result.errors.slice(0,3):null},mp.status>=400&&mp.status<500?400:502)}
+  if(!mp.ok||!result.id){await releaseReservation();const detail=result?.status_detail||tx?.status_detail||result?.error||null;console.error("Mercado Pago cartão recusado:",{status:mp.status,message:result?.message||null,statusDetail:detail,errors:result?.errors||null});return resposta({ok:false,error:cardPublicError(detail,mp.status),statusDetail:detail},mp.status>=400&&mp.status<500?400:502)}
   const now=new Date().toISOString(),pid=String(result.id),txStatus=String(tx.status||result.status||""),txDetail=String(tx.status_detail||result.status_detail||""),approved=txStatus==="processed"||txStatus==="approved"||txDetail==="accredited",statusMap={processed:"Pago",processing:"Processando",created:"Processando",action_required:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado"},status=approved?"Pago":(statusMap[txStatus]||statusMap[result.status]||String(txStatus||result.status||"Processando"));
   await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,status,total,now,now).run();
   for(const it of items)await env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),pid,it.id,it.name,it.brand,it.type,it.img,it.qty,it.price,approved?1:0,now).run();
@@ -771,7 +780,7 @@ async function criarPagamentoCartao(request,env){
   let shipment=null;if(approved&&!mpConfig(env).testMode)try{shipment=await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Expedição cartão:",e)}
   if(["failed","canceled"].includes(txStatus)||["failed","canceled"].includes(String(result.status||""))){await releaseReservation();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();}
   const challengeUrl=String(tx?.payment_method?.transaction_security?.url||"");return resposta({ok:true,orderId:pid,paymentId:pid,status:txStatus||result.status||null,statusDetail:txDetail||result.status_detail||null,challengeUrl:challengeUrl||null,amount:total.toFixed(2),externalReference:referencia,shipping:shipment?{created:!!shipment.ok,barcode:shipment.barcode||null,labelReady:!!shipment.labelReady}:null});
- }catch(e){console.error("Criar cartão:",e);return resposta({ok:false,error:"Erro interno ao processar o cartão."},500)}
+ }catch(e){console.error("Criar cartão:",e);return resposta({ok:false,error:"Não foi possível processar o cartão agora. Tente novamente em alguns instantes."},500)}
 }
 async function tentarGerarEtiqueta(env,orderId,shippingId,barcode){
  try{

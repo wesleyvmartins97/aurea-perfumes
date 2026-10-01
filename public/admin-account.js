@@ -2,6 +2,13 @@
 let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='';
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#039;'}[m]));
+function adminErrorMessage(err,fallback='Não foi possível concluir agora. Tente novamente.'){
+ const raw=String(err?.message||err||'').trim();
+ if(!raw)return fallback;
+ if(/load failed|failed to fetch|networkerror|network request failed|fetch failed|connection failed/i.test(raw))return 'Não foi possível conectar ao painel VALENZA. Confira sua internet e tente novamente.';
+ if(/unexpected token|json|resposta inv[aá]lida|response invalid|stack|internal server/i.test(raw))return fallback;
+ return raw.length>220?fallback:raw;
+}
 const dt=s=>{if(!s)return'—';const d=new Date(String(s).replace(' ','T'));return isNaN(d)?'—':d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})};
 function css(){
  if(document.getElementById('valenzaAdminCss'))return;
@@ -28,22 +35,28 @@ function lockView(mode){
 async function setupAdmin(){
  const box=document.getElementById('vaError');box.style.display='none';
  const body={username:document.getElementById('vaUser').value,password:document.getElementById('vaPass').value,confirmPassword:document.getElementById('vaConfirm').value};
- const r=await fetch('/api/admin/setup',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}),d=await r.json().catch(()=>({}));
- if(!r.ok||!d.ok){box.textContent=d.error||'Não foi possível criar o acesso.';box.style.display='block';return}
- adminStatusState=d;await loadDashboard();
+ try{
+  const r=await fetch('/api/admin/setup',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível criar o acesso administrativo.');
+  adminStatusState=d;await loadDashboard();
+ }catch(e){box.textContent=adminErrorMessage(e,'Não foi possível criar o acesso administrativo agora. Tente novamente.');box.style.display='block'}
 }
 async function loginAdmin(){
  const box=document.getElementById('vaError');box.style.display='none';
- const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:document.getElementById('vaUser').value,password:document.getElementById('vaPass').value})}),d=await r.json().catch(()=>({}));
- if(!r.ok||!d.ok){box.textContent=d.error||'Não foi possível entrar.';box.style.display='block';return}
- adminStatusState={...(adminStatusState||{}),authenticated:true,configured:true};await loadDashboard();
+ try{
+  const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:document.getElementById('vaUser').value,password:document.getElementById('vaPass').value})}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível entrar no painel.');
+  adminStatusState={...(adminStatusState||{}),authenticated:true,configured:true};await loadDashboard();
+ }catch(e){box.textContent=adminErrorMessage(e,'Não foi possível entrar no painel agora. Tente novamente.');box.style.display='block'}
 }
 async function logoutAdmin(){await fetch('/api/admin/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{});adminData=null;if(adminStatusState)adminStatusState.authenticated=false;lockView('login')}
 async function loadDashboard(){
  const m=main();m.innerHTML='<div class="ccEmpty">Carregando painel administrativo...</div>';
- const r=await fetch('/api/admin/dashboard?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
- if(!r.ok||!d.ok){if(r.status===401){if(adminStatusState)adminStatusState.authenticated=false;lockView('login');return}m.innerHTML='<div class="ccEmpty">'+esc(d.error||'Não foi possível carregar o painel.')+'</div>';return}
- adminData=d;renderDashboard();
+ try{
+  const r=await fetch('/api/admin/dashboard?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok){if(r.status===401){if(adminStatusState)adminStatusState.authenticated=false;lockView('login');return}throw Error(d.error||'Não foi possível carregar o painel.')}
+  adminData=d;renderDashboard();
+ }catch(e){m.innerHTML='<div class="ccEmpty">'+esc(adminErrorMessage(e,'Não foi possível carregar o painel administrativo agora. Tente novamente.'))+'<br><br><button class="ccBtn" onclick="loadDashboard()">TENTAR NOVAMENTE</button></div>'}
 }
 function chip(s){const v=String(s||'');let c='';if(v==='Pago')c='ok';else if(v==='Aguardando pagamento'||v==='Processando')c='warn';else if(['Pagamento recusado','Cancelado','Expirado'].includes(v))c='bad';return '<span class="vaChip '+c+'">'+esc(v||'—')+'</span>'}
 function renderDashboard(){
@@ -98,7 +111,7 @@ async function deleteTestOrders(ids){
   const notice=(d.message||'Pedidos removidos.')+(Number(d.restoredUnits||0)>0?' Estoque devolvido: '+Number(d.restoredUnits)+' unidade(s).':'');
   if(typeof window.valenzaNotice==='function')window.valenzaNotice(notice);else alert(notice);
  }catch(e){
-  if(msg)msg.textContent=e.message||'Não foi possível apagar os pedidos.';
+  if(msg)msg.textContent=adminErrorMessage(e,'Não foi possível apagar os pedidos agora. Tente novamente.');
   if(btn){btn.disabled=false;btn.textContent='APAGAR TESTES'}
  }
 }
@@ -112,7 +125,7 @@ function renderAdminBody(){
  if(adminView==='alerts'){
   const saved=d.notifications||[],ops=d.operationalAlerts||[],items=[...ops.map(x=>({...x,created_at:null,read_at:null,operational:true})),...saved];
   body.innerHTML='<div class="vaPanel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h3 style="margin-bottom:4px">Central de alertas</h3><p style="font-size:9px;color:#777;margin:0">Compras confirmadas, envio, estoque e pagamentos que precisam da sua atenção.</p></div>'+(Number(m.unreadNotifications||0)?'<button class="ccBtn" id="vaReadAlerts">MARCAR COMO LIDOS</button>':'')+'</div><div class="vaAlertList" style="margin-top:14px">'+(items.length?items.map(x=>'<div class="vaAlert '+esc(x.severity||'info')+'"><div><b>'+esc(x.title||'Alerta')+(x.read_at?'':' · NOVO')+'</b><p>'+esc(x.message||'')+'</p></div><time>'+(!x.operational&&x.created_at?dt(x.created_at):'AGORA')+'</time></div>').join(''):'<div class="vaEmpty">Tudo certo. Nenhum alerta no momento.</div>')+'</div></div>';
-  const read=document.getElementById('vaReadAlerts');if(read)read.onclick=async()=>{read.disabled=true;try{const r=await fetch('/api/admin/notifications/read',{method:'POST',credentials:'same-origin'}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível atualizar os alertas.');await loadDashboard()}catch(e){read.disabled=false;alert(e.message)}};
+  const read=document.getElementById('vaReadAlerts');if(read)read.onclick=async()=>{read.disabled=true;try{const r=await fetch('/api/admin/notifications/read',{method:'POST',credentials:'same-origin'}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível atualizar os alertas.');await loadDashboard()}catch(e){read.disabled=false;alert(adminErrorMessage(e,'Não foi possível atualizar os alertas agora. Tente novamente.'))}};
   return
  }
  if(adminView==='finance'){
@@ -164,9 +177,9 @@ function renderAdminBody(){
   body.innerHTML='<div class="vaMetrics"><div class="vaMetric"><span>PIX</span><b>5%</b><small>Desconto atual</small></div><div class="vaMetric"><span>COLATINA</span><b>GRÁTIS</b><small>Frete local atual</small></div><div class="vaMetric"><span>CAMPANHAS</span><b>'+rows.length+'</b><small>Cadastradas</small></div><div class="vaMetric"><span>ATIVAS</span><b>'+active+'</b><small>Comunicados ativos</small></div></div><div class="vaGrid"><div class="vaPanel"><h3>Nova campanha</h3><p style="font-size:9px;color:#777;line-height:1.6">Esta área cria apenas um comunicado visual no site. Não altera preço, desconto, frete, PIX ou Mercado Pago. Se duas campanhas habilitadas coincidirem no mesmo período, a atualização mais recente é exibida.</p><div class="vaField"><label>TÍTULO</label><input id="vaPromoTitle" maxlength="70" placeholder="Ex.: Semana VALENZA"></div><div class="vaField"><label>MENSAGEM</label><textarea id="vaPromoMessage" maxlength="220" rows="4" style="width:100%;padding:12px;border:1px solid #d8d1ca;resize:vertical" placeholder="Mensagem curta da campanha"></textarea></div><div class="vaField"><label>INÍCIO</label><input id="vaPromoStart" type="datetime-local"></div><div class="vaField"><label>FIM</label><input id="vaPromoEnd" type="datetime-local"></div><label style="display:flex;gap:8px;align-items:center;font-size:9px;margin:12px 0"><input id="vaPromoActive" type="checkbox"> ATIVAR AO SALVAR</label><button class="ccBtn" id="vaPromoSave">SALVAR CAMPANHA</button><button class="ccBtn" id="vaPromoCancel" style="display:none;margin-left:6px;background:#fff;color:#171513;border:1px solid #d8d1ca">CANCELAR EDIÇÃO</button><div id="vaPromoMsg" style="font-size:9px;color:#777;margin-top:8px"></div></div><div class="vaPanel"><h3>Campanhas</h3><div class="vaList">'+(rows.length?rows.map(x=>'<div class="vaRow" style="align-items:flex-start"><div><b>'+esc(x.title)+'</b><br><small>'+esc(x.message)+'</small><br><small>'+dt(x.starts_at)+' → '+dt(x.ends_at)+'</small></div><div style="display:grid;gap:6px;text-align:right">'+(Number(x.active)?'<span class="vaChip ok">ATIVA</span>':'<span class="vaChip">INATIVA</span>')+'<button class="vaDeleteOne vaPromoEdit" data-id="'+esc(x.id)+'">EDITAR</button><button class="vaDeleteOne vaPromoToggle" data-id="'+esc(x.id)+'" data-active="'+(Number(x.active)?'0':'1')+'">'+(Number(x.active)?'DESATIVAR':'ATIVAR')+'</button></div></div>').join(''):'<div class="vaEmpty">Nenhuma campanha cadastrada.</div>')+'</div></div></div>';
   const msg=document.getElementById('vaPromoMsg'),cancel=document.getElementById('vaPromoCancel');
   const clear=()=>{adminPromoEditId='';['vaPromoTitle','vaPromoMessage','vaPromoStart','vaPromoEnd'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});const a=document.getElementById('vaPromoActive');if(a)a.checked=false;if(cancel)cancel.style.display='none'};
-  document.getElementById('vaPromoSave').onclick=async()=>{const btn=document.getElementById('vaPromoSave');btn.disabled=true;if(msg)msg.textContent='Salvando...';try{const localIso=id=>{const v=document.getElementById(id).value;if(!v)return null;const z=new Date(v);return isNaN(z)?null:z.toISOString()};const payload={id:adminPromoEditId||undefined,title:document.getElementById('vaPromoTitle').value,message:document.getElementById('vaPromoMessage').value,startsAt:localIso('vaPromoStart'),endsAt:localIso('vaPromoEnd'),active:document.getElementById('vaPromoActive').checked};const r=await fetch('/api/admin/promotions/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível salvar.');adminPromoEditId='';await loadDashboard();adminView='promotions';renderAdminBody()}catch(e){btn.disabled=false;if(msg)msg.textContent=e.message}};
+  document.getElementById('vaPromoSave').onclick=async()=>{const btn=document.getElementById('vaPromoSave');btn.disabled=true;if(msg)msg.textContent='Salvando...';try{const localIso=id=>{const v=document.getElementById(id).value;if(!v)return null;const z=new Date(v);return isNaN(z)?null:z.toISOString()};const payload={id:adminPromoEditId||undefined,title:document.getElementById('vaPromoTitle').value,message:document.getElementById('vaPromoMessage').value,startsAt:localIso('vaPromoStart'),endsAt:localIso('vaPromoEnd'),active:document.getElementById('vaPromoActive').checked};const r=await fetch('/api/admin/promotions/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível salvar.');adminPromoEditId='';await loadDashboard();adminView='promotions';renderAdminBody()}catch(e){btn.disabled=false;if(msg)msg.textContent=adminErrorMessage(e,'Não foi possível salvar a campanha agora. Tente novamente.')}};
   document.querySelectorAll('.vaPromoEdit').forEach(b=>b.onclick=()=>{const x=rows.find(r=>String(r.id)===b.dataset.id);if(!x)return;adminPromoEditId=String(x.id);document.getElementById('vaPromoTitle').value=x.title||'';document.getElementById('vaPromoMessage').value=x.message||'';document.getElementById('vaPromoStart').value=toLocal(x.starts_at);document.getElementById('vaPromoEnd').value=toLocal(x.ends_at);document.getElementById('vaPromoActive').checked=!!Number(x.active);if(cancel)cancel.style.display='inline-block';document.getElementById('vaPromoTitle').scrollIntoView({behavior:'smooth',block:'center'})});
-  document.querySelectorAll('.vaPromoToggle').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await fetch('/api/admin/promotions/toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:b.dataset.id,active:b.dataset.active==='1'})}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível atualizar.');await loadDashboard();adminView='promotions';renderAdminBody()}catch(e){b.disabled=false;alert(e.message)}});
+  document.querySelectorAll('.vaPromoToggle').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await fetch('/api/admin/promotions/toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:b.dataset.id,active:b.dataset.active==='1'})}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível atualizar.');await loadDashboard();adminView='promotions';renderAdminBody()}catch(e){b.disabled=false;alert(adminErrorMessage(e,'Não foi possível atualizar a campanha agora. Tente novamente.'))}});
   if(cancel)cancel.onclick=clear;
   return
  }
