@@ -314,6 +314,12 @@ body.checkout-open .aurea-wa{display:none}
 #grid .card>.catalog-photo>.catalog-image-error{
  display:none!important;
 }
+/* Ajuste específico: a foto original do Yara Tous tem muito espaço em branco interno.
+   Aproxima somente essa imagem, sem trocar nem recriar o arquivo do produto. */
+#grid .card[data-product-id="yara-tous"]>.catalog-photo>.catalog-product-image{
+ transform:scale(1.48)!important;
+ transform-origin:center center!important;
+}
 @media(max-width:700px){
  #grid .card>.catalog-photo>.catalog-product-image{
   padding:4px!important;
