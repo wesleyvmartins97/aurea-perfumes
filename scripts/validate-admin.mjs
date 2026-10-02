@@ -61,7 +61,7 @@ if(admin.includes('ALTERAR PREÇO AUTOMATICAMENTE'))fail.push('Promoções não 
 if(!admin.includes("if(adminView==='products')"))fail.push('Aba PRODUTOS sem renderização.');
 if(!admin.includes('Math.floor((cents*95+50)/100)/100'))fail.push('Aba PRODUTOS não replica a fórmula PIX do servidor.');
 if(!admin.includes('vaProductSearch'))fail.push('Aba PRODUTOS sem busca.');
-if(!admin.includes('ESTOQUE BAIXO')||!admin.includes('ESGOTADOS'))fail.push('Aba PRODUTOS sem estados de estoque.');
+if(!admin.includes('CRÍTICO')||!admin.includes('REPOR')||!admin.includes('ESGOTADO'))fail.push('Aba PRODUTOS sem estados de estoque inteligente.');
 if(!admin.includes("if(adminView==='shipping')"))fail.push('Aba ENVIOS sem renderização.');
 if(!admin.includes('Esta tela não cria nem altera postagens'))fail.push('Aba ENVIOS não declara modo somente leitura.');
 if(!admin.includes('vaCopyTrack'))fail.push('Aba ENVIOS sem ação de copiar rastreio.');
