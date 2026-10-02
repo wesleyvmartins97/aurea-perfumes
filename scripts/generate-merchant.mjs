@@ -33,6 +33,7 @@ for(const p of sellable){
  out+='    <g:availability>in_stock</g:availability>\n';
  out+=`    <g:price>${Number(p.price).toFixed(2)} BRL</g:price>\n`;
  out+=`    <g:brand>${xml(p.brand)}</g:brand>\n`;
+ if(/^\d{8}$|^\d{12,14}$/.test(String(p.gtin||'')))out+=`    <g:gtin>${xml(p.gtin)}</g:gtin>\n`;
  out+=`    <g:product_type>${xml(productType)}</g:product_type>\n`;
  out+=`    <g:custom_label_0>${xml(label(p.collection))}</g:custom_label_0>\n`;
  out+=`    <g:custom_label_1>${xml(label(p.cat))}</g:custom_label_1>\n`;
@@ -42,4 +43,4 @@ for(const p of sellable){
 out+='</channel>\n</rss>\n';
 fs.writeFileSync('public/merchant-feed.xml',out);
 fs.writeFileSync('public/google-merchant.xml',out);
-console.log(`Merchant feeds gerados: ${sellable.length} produtos, sem GTIN/MPN inventados.`);
+console.log(`Merchant feeds gerados: ${sellable.length} produtos; GTIN somente quando verificado no catálogo.`);

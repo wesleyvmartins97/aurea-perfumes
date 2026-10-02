@@ -14,7 +14,8 @@ if(!feed.includes('<rss')||!feed.includes('<channel>'))fail.push('Feed não est�
 const items=(feed.match(/<item>/g)||[]).length;
 if(items!==sellable.length)fail.push(`Feed tem ${items} itens, mas catálogo vendável tem ${sellable.length}.`);
 if(/<g:availability>(preorder|backorder)<\/g:availability>/i.test(feed))fail.push('Feed usa preorder/backorder indevidamente.');
-if(/<g:gtin>|<g:mpn>|<g:identifier_exists>/i.test(feed))fail.push('Feed contém identificadores não cadastrados no catálogo.');
+const validGtin=v=>/^\d{8}$|^\d{12,14}$/.test(String(v||''));
+for(const p of sellable){if(p.gtin&&!validGtin(p.gtin))fail.push(`${p.id}: GTIN inválido no catálogo.`);}
 
 for(const p of sellable){
  const tag=p.id;
@@ -27,6 +28,8 @@ for(const p of sellable){
  if(!block.includes(`/perfume/${encodeURIComponent(p.id)}/`))fail.push(`${tag}: link divergente.`);
  if(!block.includes('https://www.valenzaparfums.com.br'+p.img))fail.push(`${tag}: imagem divergente.`);
  if(!block.includes('<g:product_type>'))fail.push(`${tag}: product_type ausente.`);
+ if(p.gtin&&!block.includes(`<g:gtin>${p.gtin}</g:gtin>`))fail.push(`${tag}: GTIN verificado ausente ou divergente no feed.`);
+ if(!p.gtin&&/<g:gtin>/.test(block))fail.push(`${tag}: feed contém GTIN sem cadastro verificado.`);
 }
 if(fail.length){
  console.error(`\nMERCHANT REPROVADO — ${fail.length} erro(s):\n- ${fail.join('\n- ')}\n`);
