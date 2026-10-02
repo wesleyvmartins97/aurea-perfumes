@@ -564,6 +564,15 @@ async function recordOperationalEvent(env,{orderId=null,eventType,category="syst
   return {ok:true,inserted:Number(r.meta?.changes||0)>0,id};
  }catch(e){console.error("Central de Eventos:",e);return {ok:false,error:"event_log_failed"}}
 }
+async function recordPaymentStatusEvent(env,{orderId,rawStatus="",label="",method="",source="payment"}={}){
+ const raw=String(rawStatus||"").toLowerCase(),name=String(label||"");
+ let state="pending",eventType="payment.pending",severity="info",message="Pagamento aguardando confirmação.";
+ if(name==="Pago"||["approved","processed"].includes(raw)){state="approved";eventType="payment.approved";severity="success";message="Pagamento aprovado."}
+ else if(name==="Expirado"||raw==="expired"){state="expired";eventType="payment.expired";severity="warning";message="Pagamento expirado."}
+ else if(name==="Cancelado"||["canceled","cancelled"].includes(raw)){state="cancelled";eventType="payment.cancelled";severity="warning";message="Pagamento cancelado."}
+ else if(name==="Pagamento recusado"||["failed","rejected"].includes(raw)){state="failed";eventType="payment.failed";severity="error";message="Pagamento recusado ou não concluído."}
+ return recordOperationalEvent(env,{orderId,eventType,category:"payment",status:state,severity,source,message,metadata:{rawStatus:raw||name,method},uniqueKey:"payment:"+String(orderId||"")+":"+state});
+}
 async function adminOperationalEvents(request,env){
  try{
   await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
@@ -1078,8 +1087,9 @@ async function sendOrderOperationalEmail(env,orderId,eventKey){
   if(Number(lock.meta?.changes||0)<1)return {ok:true,skipped:true,reason:"in_progress"};
   const content=operationalOrderEmailContent(event,row);if(!content)return {ok:false,error:"Modelo de e-mail não encontrado"};
   const sent=await sendResendMessage(env,{to:row.email,subject:content.subject,html:content.html,text:content.text});
-  if(!sent.ok){const err=String(sent.error||("HTTP "+(sent.status||""))).slice(0,400);await env.DB.prepare("UPDATE customer_email_deliveries SET status='failed',subject=?,last_error=?,updated_at=? WHERE order_id=? AND event_key=?").bind(content.subject,err,new Date().toISOString(),id,event).run();return {ok:false,error:err}}
+  if(!sent.ok){const err=String(sent.error||("HTTP "+(sent.status||""))).slice(0,400);await env.DB.prepare("UPDATE customer_email_deliveries SET status='failed',subject=?,last_error=?,updated_at=? WHERE order_id=? AND event_key=?").bind(content.subject,err,new Date().toISOString(),id,event).run();await recordOperationalEvent(env,{orderId:id,eventType:"email.failed",category:"email",status:"failed",severity:"error",source:"resend",message:"Falha no envio do e-mail operacional.",metadata:{emailEvent:event,attempt:Number(delivery?.attempts||0)+1},uniqueKey:"email:"+id+":"+event+":failed:"+(Number(delivery?.attempts||0)+1)});return {ok:false,error:err}}
   const done=new Date().toISOString();await env.DB.prepare("UPDATE customer_email_deliveries SET status='sent',subject=?,provider_id=?,last_error=NULL,updated_at=?,sent_at=? WHERE order_id=? AND event_key=?").bind(content.subject,sent.id||null,done,done,id,event).run();
+  await recordOperationalEvent(env,{orderId:id,eventType:"email.sent",category:"email",status:"sent",severity:"success",source:"resend",message:"E-mail operacional enviado.",metadata:{emailEvent:event},uniqueKey:"email:"+id+":"+event+":sent"});
   return {ok:true,sent:true,eventKey:event,orderId:id};
  }catch(e){console.error("E-mail operacional pedido:",e);return {ok:false,error:String(e&&e.message||e)}}
 }
@@ -1568,6 +1578,8 @@ async function criarPagamentoPix(request,env){
    const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
    await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
    await env.DB.prepare("INSERT OR REPLACE INTO order_payments(order_id,method,installments,installment_amount,total_paid,status,status_detail,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,"pix",1,total,total,String(pay.status||result.status||"created"),String(pay.status_detail||result.status_detail||""),now,now).run();
+   await recordOperationalEvent(env,{orderId:pid,eventType:"order.created",category:"order",status:"created",severity:"info",source:"checkout-pix",message:"Pedido criado com pagamento PIX.",metadata:{orderNumber:referencia,total,itemCount:items.length,carrier},uniqueKey:"order:"+pid+":created"});
+   await recordPaymentStatusEvent(env,{orderId:pid,rawStatus:String(pay.status||result.status||"created"),label:"Aguardando pagamento",method:"pix",source:"checkout-pix"});
    try{await sendOrderOperationalEmail(env,pid,"order_received")}catch(e){console.error("E-mail pedido PIX:",e)}
   }
   return resposta({ok:true,orderId,paymentId,status:pay.status??result.status??"pending",statusDetail:pay.status_detail??result.status_detail??null,amount:total.toFixed(2),qrCode:pix.qr_code||"",qrCodeBase64:pix.qr_code_base64||"",ticketUrl:pix.ticket_url||"",externalReference:referencia,savedToAccount});
@@ -1614,6 +1626,8 @@ async function criarPagamentoCartao(request,env){
   const chargedTotal=Number(tx?.amount||total),installmentAmount=installments>0?Number((chargedTotal/installments).toFixed(2)):chargedTotal;await env.DB.prepare("INSERT OR REPLACE INTO order_payments(order_id,method,installments,installment_amount,total_paid,status,status_detail,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,"Cartão de crédito",installments,installmentAmount,chargedTotal,txStatus||String(result.status||""),txDetail||String(result.status_detail||""),now,now).run();
   const cs=String(shipping.cityState||""),parts=cs.split(/\s*-\s*/),city=String(shipping.city||parts[0]||""),state=String(shipping.state||parts[1]||"").toUpperCase().slice(0,2);
   await env.DB.prepare("INSERT OR REPLACE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,email,nome,cpf,telefone,cep,String(shipping.street||""),String(shipping.number||""),String(shipping.complement||""),String(shipping.neighborhood||""),city,state,carrier,freight,Number(chosen.delivery_time??chosen.delivery_days??0),now,now).run();
+  await recordOperationalEvent(env,{orderId:pid,eventType:"order.created",category:"order",status:"created",severity:"info",source:"checkout-card",message:"Pedido criado com pagamento por cartão.",metadata:{orderNumber:referencia,total,itemCount:items.length,installments,carrier},uniqueKey:"order:"+pid+":created"});
+  await recordPaymentStatusEvent(env,{orderId:pid,rawStatus:txStatus||String(result.status||""),label:status,method:"credit",source:"checkout-card"});
   let shipment=null;
   if(approved){
    await markOpportunityRecovered(env,pid);
