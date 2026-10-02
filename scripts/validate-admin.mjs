@@ -158,6 +158,18 @@ for(const event of ['payment.gateway_error','shipping.integration_failed','shipp
  if(!worker.includes(event))fail.push('Central de Erros sem cobertura para '+event+'.');
 }
 if(!worker.includes('event.severity==="error"||event.status==="failed"'))fail.push('Central de Erros não está acoplada aos eventos operacionais críticos.');
+if(!worker.includes('CREATE TABLE IF NOT EXISTS shipment_tracking_state'))fail.push('Rastreio automático sem estado persistente.');
+if(!worker.includes('async function syncShipmentTracking(env)'))fail.push('Rastreio automático sem sincronização com EnvioEcom.');
+if(!worker.includes('/api/v1/whitelabel/shipments/')||!worker.includes('X-Partner-Token'))fail.push('Rastreio automático sem consulta autenticada ao EnvioEcom.');
+if(!worker.includes('syncShipmentTracking(env)'))fail.push('Rastreio automático não está ligado ao cron.');
+for(const event of ['shipping.in_transit','shipping.out_for_delivery','shipping.delivered','shipping.problem','shipping.delay']){
+ if(!worker.includes(event))fail.push('Rastreio automático sem cobertura para '+event+'.');
+}
+for(const mailEvent of ['in_transit','out_for_delivery','delivered']){
+ if(!worker.includes('sendOrderOperationalEmail(env,row.order_id,"'+mailEvent+'")'))fail.push('Rastreio automático sem e-mail de '+mailEvent+'.');
+}
+if(!home.includes('tracking_status_label')||!home.includes('ACOMPANHAR RASTREIO'))fail.push('Minha Conta não exibe status/link do rastreio automático.');
+
 
 
 if(!worker.includes('status=\'sent\'')&&!worker.includes('status="sent"'))fail.push('E-mails operacionais sem trava de envio concluído.');
