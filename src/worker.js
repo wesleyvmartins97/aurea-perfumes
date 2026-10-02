@@ -224,7 +224,12 @@ async function authLogin(request,env){
  }catch(e){console.error("Login:",e);return resposta({ok:false,error:"Não foi possível entrar agora."},500)}
 }
 async function authMe(request,env){
- try{await ensureAuthSchema(env);const s=await validCustomerSession(request,env);if(!s.user)return resposta({ok:false,user:null,reason:s.reason},401);const u=s.user;return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified}});
+ try{
+  await ensureAuthSchema(env);
+  const s=await validCustomerSession(request,env);if(!s.user)return resposta({ok:false,user:null,reason:s.reason},401);
+  const u=s.user,adminMember=await primaryDb(env).prepare("SELECT role,active FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(u.id).first();
+  const adminAccess=!!u.email_verified&&(allowedAdminEmail(env,u.email)||!!adminMember);
+  return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified,adminAccess,adminRole:allowedAdminEmail(env,u.email)?"owner":(adminMember?.role||null)}});
  }catch(e){console.error("Auth me:",e);return resposta({ok:false,user:null,reason:"server_error"},500)}
 }
 async function authLogout(request,env){try{await ensureAuthSchema(env);const db=primaryDb(env);for(const t of cookieTokens(request))await db.prepare("DELETE FROM customer_sessions WHERE token_hash=?").bind(await sha256(t)).run();const h=new Headers(jsonHeaders);h.append("Set-Cookie",sessionCookie("",0));for(const c of legacySessionClearCookies())h.append("Set-Cookie",c);return new Response(JSON.stringify({ok:true}),{headers:h})}catch(e){console.error("Logout:",e);return resposta({ok:true})}}
