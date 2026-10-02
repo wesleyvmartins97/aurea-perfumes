@@ -52,6 +52,8 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/dashboard"&&request.method==="GET")return adminDashboard(request,env);
  if(url.pathname==="/api/admin/report/daily"&&request.method==="GET")return adminDailyReport(request,env);
  if(url.pathname==="/api/admin/report/daily/send"&&request.method==="POST")return adminDailyReportSend(request,env);
+ if(url.pathname==="/api/admin/emails/status"&&request.method==="GET")return adminOperationalEmailsStatus(request,env);
+ if(url.pathname==="/api/admin/emails/test"&&request.method==="POST")return adminOperationalEmailTest(request,env);
  if(url.pathname==="/api/admin/members/grant"&&request.method==="POST")return adminMemberGrant(request,env);
  if(url.pathname==="/api/admin/promotions/save"&&request.method==="POST")return adminPromotionSave(request,env);
  if(url.pathname==="/api/admin/promotions/toggle"&&request.method==="POST")return adminPromotionToggle(request,env);
@@ -85,7 +87,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),maybeSendDailyReport(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -121,6 +123,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_inventory_alert_state_state ON inventory_alert_state(state,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS daily_report_runs (report_date TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', source TEXT, recipients_json TEXT, summary_json TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, sent_at TEXT)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_daily_report_runs_status ON daily_report_runs(status,updated_at)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS customer_email_deliveries (order_id TEXT NOT NULL, event_key TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, recipient TEXT, subject TEXT, provider_id TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, sent_at TEXT, PRIMARY KEY(order_id,event_key))"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_customer_email_deliveries_status ON customer_email_deliveries(status,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_whatsapp_deliveries (notification_id TEXT NOT NULL, order_id TEXT NOT NULL, recipient_hash TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, provider_message_id TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(notification_id,recipient_hash))"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_whatsapp_delivery_status ON admin_whatsapp_deliveries(status,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_promotions (id TEXT PRIMARY KEY, title TEXT NOT NULL, message TEXT NOT NULL, starts_at TEXT, ends_at TEXT, active INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
@@ -977,6 +981,90 @@ async function syncInventorySmartAlerts(env){
  }catch(e){console.error("Estoque inteligente:",e);return[]}
 }
 
+
+
+async function sendResendMessage(env,{to,subject,html,text}){
+ if(!env.RESEND_API_KEY)return {ok:false,error:"Resend não configurado"};
+ const recipients=(Array.isArray(to)?to:[to]).map(x=>String(x||"").trim().toLowerCase()).filter(validEmail);
+ if(!recipients.length)return {ok:false,error:"Destinatário inválido"};
+ try{
+  const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.AUREA_EMAIL_FROM||"VALENZA PARFUMS <contato@valenzaparfums.com.br>",to:recipients,subject:String(subject||"VALENZA PARFUMS"),html:String(html||""),text:String(text||"")})});
+  const raw=await r.text();let data={};try{data=JSON.parse(raw)}catch{}
+  if(!r.ok){console.error("Resend operacional:",r.status,raw.slice(0,500));return {ok:false,status:r.status,error:"Resend recusou o envio"}}
+  return {ok:true,id:String(data?.id||"")};
+ }catch(e){console.error("Resend operacional:",e);return {ok:false,error:String(e&&e.message||e)}}
+}
+async function operationalOrderRow(env,orderId){
+ const id=String(orderId||"");if(!id)return null;
+ const row=await env.DB.prepare("SELECT o.id,o.customer_id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email,p.method,p.installments,p.status payment_status,p.status_detail,s.shipping_id,s.barcode,s.label_ready,s.delivery_time,s.city,s.state,s.carrier shipping_carrier FROM orders o LEFT JOIN customers c ON c.id=o.customer_id LEFT JOIN order_payments p ON p.order_id=o.id LEFT JOIN order_shipping s ON s.order_id=o.id WHERE o.id=? UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email,p.method,p.installments,p.status payment_status,p.status_detail,s.shipping_id,s.barcode,s.label_ready,s.delivery_time,s.city,s.state,s.carrier shipping_carrier FROM guest_orders g LEFT JOIN order_payments p ON p.order_id=g.id LEFT JOIN order_shipping s ON s.order_id=g.id WHERE g.id=? AND NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) LIMIT 1").bind(id,id).first();
+ if(!row)return null;
+ const items=await env.DB.prepare("SELECT name,brand,type,quantity,unit_price FROM order_items WHERE order_id=? ORDER BY created_at ASC").bind(id).all();
+ return {...row,items:items.results||[]};
+}
+function operationalEmailEvent(eventKey,row){
+ const code=String(row?.barcode||row?.tracking_code||"").trim(),carrier=String(row?.shipping_carrier||row?.carrier||"").trim(),status=String(row?.status||"");
+ const map={
+  order_received:{tag:"PEDIDO RECEBIDO",title:"Recebemos seu pedido",subject:"Pedido recebido | VALENZA PARFUMS",message:String(row?.method||"").toLowerCase()==="pix"?"Seu pedido foi criado e o pagamento via PIX está aguardando confirmação. O PIX expira em aproximadamente 30 minutos.":"Seu pedido foi recebido e o pagamento está sendo processado."},
+  payment_confirmed:{tag:"PAGAMENTO CONFIRMADO",title:"Pagamento confirmado",subject:"Pagamento confirmado | VALENZA PARFUMS",message:"O pagamento foi confirmado. Seu pedido entrou na etapa de preparação, que pode levar até 10 dias úteis antes do prazo da transportadora."},
+  payment_failed:{tag:"PAGAMENTO",title:status==="Expirado"?"Seu PIX expirou":"Pagamento não concluído",subject:(status==="Expirado"?"PIX expirado":"Pagamento não concluído")+" | VALENZA PARFUMS",message:status==="Expirado"?"O prazo deste PIX terminou. Você pode acessar Meus Pedidos e iniciar uma nova tentativa de pagamento.":"Não foi possível concluir este pagamento. Acesse sua conta VALENZA para verificar o pedido ou tentar novamente."},
+  shipment_prepared:{tag:"POSTAGEM PREPARADA",title:"A postagem do seu pedido foi preparada",subject:"Postagem preparada | VALENZA PARFUMS",message:"A etiqueta/postagem foi criada. Isso ainda não significa que o pacote já está em trânsito; após a preparação do pedido, a transportadora começará a atualizar o rastreamento."},
+  in_transit:{tag:"PEDIDO ENVIADO",title:"Seu pedido está em trânsito",subject:"Seu pedido foi enviado | VALENZA PARFUMS",message:"A transportadora registrou o envio e seu pedido está a caminho."},
+  out_for_delivery:{tag:"SAIU PARA ENTREGA",title:"Seu pedido saiu para entrega",subject:"Saiu para entrega | VALENZA PARFUMS",message:"A transportadora informou que seu pedido saiu para entrega. Acompanhe o rastreamento e mantenha alguém disponível no endereço."},
+  delivered:{tag:"PEDIDO ENTREGUE",title:"Seu pedido foi entregue",subject:"Pedido entregue | VALENZA PARFUMS",message:"A transportadora registrou a entrega do seu pedido. Obrigado por comprar com a VALENZA PARFUMS."}
+ };
+ const e=map[String(eventKey||"")];if(!e)return null;return {...e,code,carrier};
+}
+function operationalOrderEmailContent(eventKey,row){
+ const e=operationalEmailEvent(eventKey,row);if(!e)return null;
+ const safe=escapeHtml,money=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}),order=safe(String(row.order_number||row.id||"")),customer=safe(String(row.customer_name||"Cliente")),items=row.items||[];
+ const itemRows=items.length?items.map(x=>'<tr><td style="padding:8px;border-bottom:1px solid #eee">'+safe(String(x.name||"Produto"))+'</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">'+Number(x.quantity||0)+'</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">'+money(Number(x.unit_price||0)*Number(x.quantity||0))+'</td></tr>').join(""):'<tr><td colspan="3" style="padding:10px;color:#777">Itens disponíveis em Meus Pedidos.</td></tr>';
+ const tracking=e.code?'<p style="font-size:14px;line-height:1.6"><b>Rastreio:</b> '+safe(e.code)+(e.carrier?' · '+safe(e.carrier):'')+'</p>':'';
+ const html='<!doctype html><html><body style="margin:0;background:#f5f1ec;font-family:Arial;color:#201d1a"><table width="100%" cellspacing="0" cellpadding="0" style="padding:26px 10px"><tr><td align="center"><table width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border:1px solid #e7e0d8"><tr><td style="padding:28px;text-align:center;border-bottom:1px solid #eee7df"><div style="font-family:Georgia,serif;font-size:26px;letter-spacing:7px">VALENZA</div><div style="margin-top:6px;font-size:10px;letter-spacing:3px;color:#8b7a68">'+safe(e.tag)+'</div></td></tr><tr><td style="padding:28px"><h1 style="font:27px Georgia,serif;margin:0 0 16px">'+safe(e.title)+'</h1><p style="font-size:14px;line-height:1.7">Olá, '+customer+'. '+safe(e.message)+'</p><p style="font-size:14px"><b>Pedido:</b> '+order+'<br><b>Valor:</b> '+money(row.total)+'</p>'+tracking+'<table width="100%" cellspacing="0" cellpadding="0" style="font-size:13px;border:1px solid #eee;margin-top:18px"><tr><th style="padding:8px;text-align:left">Produto</th><th style="padding:8px">Un.</th><th style="padding:8px;text-align:right">Valor</th></tr>'+itemRows+'</table><p style="margin:22px 0 0;font-size:12px;line-height:1.6;color:#777">Acompanhe o pedido em <b>Meus Pedidos</b> no site da VALENZA. Produtos sob encomenda têm preparação de até 10 dias úteis antes do prazo da transportadora.</p></td></tr></table></td></tr></table></body></html>';
+ const text=['VALENZA PARFUMS — '+e.tag,'',e.title,'',e.message,'Pedido: '+String(row.order_number||row.id||''),'Valor: '+money(row.total),e.code?'Rastreio: '+e.code+(e.carrier?' · '+e.carrier:''):'','',...items.map(x=>'- '+String(x.name||'Produto')+' × '+Number(x.quantity||0)),'','Acompanhe em Meus Pedidos: https://www.valenzaparfums.com.br/'].filter(Boolean).join('\n');
+ return {subject:e.subject,html,text};
+}
+async function sendOrderOperationalEmail(env,orderId,eventKey){
+ try{
+  await ensureAuthSchema(env);const id=String(orderId||""),event=String(eventKey||"");if(!id||!operationalEmailEvent(event,{}))return {ok:false,error:"Evento de e-mail inválido"};
+  const row=await operationalOrderRow(env,id);if(!row||!validEmail(row.email))return {ok:false,error:"Pedido ou e-mail não encontrado"};
+  if(await orderBelongsToAdmin(env,row))return {ok:true,skipped:true,reason:"admin_test"};
+  const now=new Date().toISOString();await env.DB.prepare("INSERT OR IGNORE INTO customer_email_deliveries(order_id,event_key,status,attempts,recipient,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(id,event,"pending",0,String(row.email).toLowerCase(),now,now).run();
+  const delivery=await env.DB.prepare("SELECT status,attempts,updated_at FROM customer_email_deliveries WHERE order_id=? AND event_key=?").bind(id,event).first();
+  if(String(delivery?.status||"")==="sent")return {ok:true,skipped:true,reason:"already_sent"};
+  if(Number(delivery?.attempts||0)>=5)return {ok:false,error:"Limite de tentativas atingido"};
+  const stale=new Date(Date.now()-5*60e3).toISOString(),lock=await env.DB.prepare("UPDATE customer_email_deliveries SET status='sending',attempts=attempts+1,updated_at=? WHERE order_id=? AND event_key=? AND status<>'sent' AND (status<>'sending' OR updated_at<?)").bind(now,id,event,stale).run();
+  if(Number(lock.meta?.changes||0)<1)return {ok:true,skipped:true,reason:"in_progress"};
+  const content=operationalOrderEmailContent(event,row);if(!content)return {ok:false,error:"Modelo de e-mail não encontrado"};
+  const sent=await sendResendMessage(env,{to:row.email,subject:content.subject,html:content.html,text:content.text});
+  if(!sent.ok){const err=String(sent.error||("HTTP "+(sent.status||""))).slice(0,400);await env.DB.prepare("UPDATE customer_email_deliveries SET status='failed',subject=?,last_error=?,updated_at=? WHERE order_id=? AND event_key=?").bind(content.subject,err,new Date().toISOString(),id,event).run();return {ok:false,error:err}}
+  const done=new Date().toISOString();await env.DB.prepare("UPDATE customer_email_deliveries SET status='sent',subject=?,provider_id=?,last_error=NULL,updated_at=?,sent_at=? WHERE order_id=? AND event_key=?").bind(content.subject,sent.id||null,done,done,id,event).run();
+  return {ok:true,sent:true,eventKey:event,orderId:id};
+ }catch(e){console.error("E-mail operacional pedido:",e);return {ok:false,error:String(e&&e.message||e)}}
+}
+async function retryPendingOperationalEmails(env){
+ try{
+  await ensureAuthSchema(env);const q=await env.DB.prepare("SELECT order_id,event_key FROM customer_email_deliveries WHERE status IN ('pending','failed','sending') AND attempts<5 AND updated_at>=datetime('now','-7 days') ORDER BY updated_at ASC LIMIT 20").all();
+  for(const x of (q.results||[]))await sendOrderOperationalEmail(env,x.order_id,x.event_key);
+ }catch(e){console.error("Retry e-mails operacionais:",e)}
+}
+async function adminOperationalEmailsStatus(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const [counts,rows]=await Promise.all([env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) sent,SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed,SUM(CASE WHEN status IN ('pending','sending') THEN 1 ELSE 0 END) pending FROM customer_email_deliveries").first(),env.DB.prepare("SELECT d.order_id,d.event_key,d.status,d.attempts,d.recipient,d.subject,d.last_error,d.created_at,d.updated_at,d.sent_at,COALESCE(o.order_number,g.order_number,d.order_id) order_number FROM customer_email_deliveries d LEFT JOIN orders o ON o.id=d.order_id LEFT JOIN guest_orders g ON g.id=d.order_id ORDER BY d.updated_at DESC LIMIT 60").all()]);
+  return resposta({ok:true,resend:!!env.RESEND_API_KEY,counts:{total:Number(counts?.total||0),sent:Number(counts?.sent||0),failed:Number(counts?.failed||0),pending:Number(counts?.pending||0)},rows:rows.results||[]});
+ }catch(e){console.error("Status e-mails operacionais:",e);return resposta({ok:false,error:"Não foi possível carregar os e-mails operacionais."},500)}
+}
+async function adminOperationalEmailTest(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  if(!validEmail(admin.email))return resposta({ok:false,error:"E-mail do administrador inválido."},400);
+  const html='<!doctype html><html><body style="font-family:Arial;background:#f5f1ec;padding:30px"><div style="max-width:560px;margin:auto;background:white;border:1px solid #e7e0d8;padding:30px"><div style="font:26px Georgia,serif;letter-spacing:6px;text-align:center">VALENZA</div><h1 style="font:25px Georgia,serif">E-mails operacionais ativos</h1><p style="line-height:1.7">Este é um teste do sistema automático de e-mails da VALENZA. O Resend respondeu ao disparo e a comunicação operacional está disponível.</p><p style="color:#777;font-size:12px">Pedido recebido · pagamento confirmado · falha/expiração · postagem preparada · rastreio e entrega.</p></div></body></html>';
+  const sent=await sendResendMessage(env,{to:admin.email,subject:"Teste de e-mails operacionais | VALENZA PARFUMS",html,text:"VALENZA PARFUMS\n\nTeste do sistema de e-mails operacionais concluído."});
+  if(!sent.ok)return resposta({ok:false,error:sent.error||"Não foi possível enviar o teste."},503);
+  await recordAdminAudit(env,admin,"operational_email_test",{email:admin.email,providerId:sent.id||null});
+  return resposta({ok:true,message:"E-mail de teste enviado.",recipient:admin.email});
+ }catch(e){console.error("Teste e-mail operacional:",e);return resposta({ok:false,error:"Não foi possível enviar o e-mail de teste."},500)}
+}
 
 function saoPauloNowParts(date=new Date()){
  const parts=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date).filter(x=>x.type!=="literal").map(x=>[x.type,x.value]));
