@@ -207,6 +207,7 @@ if(!worker.includes('Produto não disponível.')||!worker.includes('X-Robots-Tag
 if(!worker.includes('const catalog=AUREA_CATALOG;let weight=0,height=0,width=0,length=0;'))fail.push('Envio histórico depende do catálogo ativo e pode quebrar após exclusão.');
 if(!admin.includes('vaProductRemove')||!admin.includes('SIM, EXCLUIR')||!admin.includes('vaProductRestore'))fail.push('Produtos sem confirmação visual de exclusão/restauração.');
 if(!worker.includes('product_remove')||!worker.includes('product_restore'))fail.push('Exclusão/restauração sem trilha de auditoria.');
+if(!home.includes('function syncBannerAvailability')||!home.includes('slide.remove()'))fail.push('Banner ainda pode divulgar produto removido.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
 console.log('ADMIN APROVADO — deny-by-default para pagamentos, action_required protegido, lock anti-corrida do EnvioEcom e exclusões de teste arquivadas.');
