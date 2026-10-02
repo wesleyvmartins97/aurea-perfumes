@@ -80,7 +80,7 @@ else{
  if(!String(yaraTous.details||'').includes('Coco, Manga e Maracujá'))fail.push('Yara Tous: pirâmide oficial divergente.');
 }
 if(!fs.existsSync('public/produtos/yara-moi.webp')||!fs.existsSync('public/produtos/yara-tous.webp'))fail.push('Yara Moi/Tous sem imagens locais do catálogo.');
-const match=worker.match(/const AUREA_CATALOG=(\{[\s\S]*?\n\});\nasync function officialCatalog/);
+const match=worker.match(/const AUREA_CATALOG=(\{[\s\S]*?\n\});/);
 let official={};
 if(!match)fail.push('AUREA_CATALOG não encontrado no Worker.');
 else try{official=vm.runInNewContext(`(${match[1]})`)}catch(e){fail.push(`AUREA_CATALOG inválido: ${e.message}`)}
