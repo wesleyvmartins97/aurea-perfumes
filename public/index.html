@@ -720,8 +720,9 @@ async function fetchClientData(){
  if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível carregar sua conta agora. Tente novamente.');
  clientData=d;
  document.getElementById('ccUser').innerHTML='<strong>Olá, '+esc(d.user.name.split(' ')[0])+'!</strong><div style="font-size:10px;color:#777;margin-top:6px">'+esc(d.user.email)+'</div>';
- const adminNav=document.getElementById('ccAdminNav');if(adminNav&&d.user?.adminAccess)adminNav.style.display='block';
+ const adminNav=document.getElementById('ccAdminNav');
  if(window.valenzaAdminRefreshAccess)await window.valenzaAdminRefreshAccess();
+ if(adminNav)adminNav.style.display=d.user?.adminAccess?'block':'none';
  return d;
 }
 async function openPaidOrders(){
