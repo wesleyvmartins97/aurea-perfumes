@@ -88,7 +88,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),processCheckoutRecovery(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -929,6 +929,22 @@ async function adminMemberGrant(request,env){
   await recordAdminAudit(env,admin,"admin_member_grant",{customerId:target.id,role:String(verify.role||"admin")});
   return resposta({ok:true,message:"Acesso administrativo ativado.",member:{name:target.name,role:String(verify.role||"admin")},persisted:true,changes:Number(wr.meta?.changes||0)});
  }catch(e){console.error("Ativar administrador:",e);return resposta({ok:false,error:"Não foi possível ativar o acesso administrativo agora."},500)}
+}
+async function processCheckoutRecovery(env){
+ try{
+  await ensureAuthSchema(env);
+  if(!env.RESEND_API_KEY)return;
+  const cutoff=new Date(Date.now()-15*60e3).toISOString();
+  const rows=await env.DB.prepare("SELECT co.*,c.name customer_name,c.email FROM checkout_opportunities co JOIN customers c ON c.id=co.customer_id WHERE co.status='active' AND co.email_sent_at IS NULL AND co.subtotal>0 AND co.cart_json<>'[]' AND NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=co.customer_id) AND NOT EXISTS(SELECT 1 FROM admin_members m WHERE m.customer_id=co.customer_id AND m.active=1) AND (co.stage='payment_error' OR co.last_seen_at<=?) AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=co.customer_id AND o.status IN ('Aguardando pagamento','Processando')) ORDER BY CASE WHEN co.stage='payment_error' THEN 0 ELSE 1 END,co.last_seen_at ASC LIMIT 10").bind(cutoff).all();
+  for(const row of (rows.results||[])){
+   try{
+    const sent=await sendOpportunityRecoveryEmail(env,row);if(!sent.ok){console.error("Recuperação automática:",sent.error||"falha no envio");continue}
+    const now=new Date().toISOString();
+    const r=await env.DB.prepare("UPDATE checkout_opportunities SET email_sent_at=?,contacted_at=?,updated_at=? WHERE id=? AND status='active' AND email_sent_at IS NULL").bind(now,now,now,row.id).run();
+    if(Number(r.meta?.changes||0)>0)await recordOperationalEvent(env,{eventType:"checkout.recovery_email",category:"checkout",status:"sent",severity:"info",source:"scheduled",message:"E-mail automático de recuperação de checkout enviado.",metadata:{opportunityId:row.id,customerId:row.customer_id,stage:row.stage,subtotal:Number(row.subtotal||0)},uniqueKey:"checkout-recovery:"+row.id});
+   }catch(e){console.error("Recuperação automática de oportunidade:",row?.id,e)}
+  }
+ }catch(e){console.error("Processar recuperação automática:",e)}
 }
 async function adminOpportunityEmail(request,env){
  try{
