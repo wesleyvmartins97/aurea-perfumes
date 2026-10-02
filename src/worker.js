@@ -1758,7 +1758,7 @@ function classifyShipmentStatus(text){
  if(/atras|extravi|avaria|devolu|destinatario ausente|endereco incorreto|nao entregue|não entregue|retid|falha|ocorrencia|ocorrência|cancelad|sinistro/.test(s))return {key:"problem",label:text||"Problema no transporte"};
  if(/a caminho|em transito|em trânsito|transit|postad|coletad|saiu de uma base|chegou em uma base|transferencia|transferência|encaminhad|transportadora/.test(s))return {key:"in_transit",label:text||"Em trânsito"};
  if(/aguardando|etiqueta|prepar|criad|created|payment|pagamento/.test(s))return {key:"prepared",label:text||"Preparando envio"};
- return {key:"in_transit",label:text||"Em trânsito"};
+ return {key:"unknown",label:text||"Status em atualização"};
 }
 function shipmentLatest(root){
  const history=shipmentHistory(root),sorted=[...history].sort((a,b)=>Date.parse(shipmentEventTime(b)||0)-Date.parse(shipmentEventTime(a)||0)),latest=sorted[0]||null;
