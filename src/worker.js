@@ -115,6 +115,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_notifications (id TEXT PRIMARY KEY, unique_key TEXT NOT NULL UNIQUE, type TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'info', title TEXT NOT NULL, message TEXT NOT NULL, order_id TEXT, email_sent INTEGER NOT NULL DEFAULT 0, read_at TEXT, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON admin_notifications(created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_notifications_unread ON admin_notifications(read_at,created_at)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_alert_state (product_id TEXT PRIMARY KEY, state TEXT NOT NULL, stock INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_inventory_alert_state_state ON inventory_alert_state(state,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_whatsapp_deliveries (notification_id TEXT NOT NULL, order_id TEXT NOT NULL, recipient_hash TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, provider_message_id TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(notification_id,recipient_hash))"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_whatsapp_delivery_status ON admin_whatsapp_deliveries(status,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_promotions (id TEXT PRIMARY KEY, title TEXT NOT NULL, message TEXT NOT NULL, starts_at TEXT, ends_at TEXT, active INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
@@ -748,9 +750,10 @@ async function retryPendingSaleNotifications(env){
 async function adminNotificationsPoll(request,env){
  try{
   await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  await seedInventory(env);await syncInventorySmartAlerts(env);
   const [count,rows]=await Promise.all([
    env.DB.prepare("SELECT COUNT(*) total FROM admin_notifications WHERE read_at IS NULL").first(),
-   env.DB.prepare("SELECT id,type,severity,title,message,order_id,email_sent,read_at,created_at FROM admin_notifications WHERE type='sale' ORDER BY created_at DESC LIMIT 20").all()
+   env.DB.prepare("SELECT id,type,severity,title,message,order_id,email_sent,read_at,created_at FROM admin_notifications ORDER BY created_at DESC LIMIT 40").all()
   ]);
   return resposta({ok:true,generatedAt:new Date().toISOString(),unread:Number(count?.total||0),notifications:rows.results||[]});
  }catch(e){console.error("Poll de notificações:",e);return resposta({ok:false,error:"Não foi possível atualizar as notificações agora."},500)}
@@ -914,14 +917,68 @@ async function adminProductUpdate(request,env){
   }
   await env.DB.prepare("INSERT INTO product_settings(product_id,price_override,unit_cost,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET price_override=excluded.price_override,unit_cost=excluded.unit_cost,updated_at=excluded.updated_at").bind(productId,Number(price.toFixed(2)),unitCost===null?null:Number(unitCost.toFixed(2)),now).run();
   await recordAdminAudit(env,admin,"product_update",{productId,productName:source.name,oldPrice:Number(oldSetting?.price_override??source.price),price:Number(price.toFixed(2)),oldStock:Number(oldInv?.stock||0),stock,oldUnitCost:oldSetting?.unit_cost??null,unitCost:unitCost===null?null:Number(unitCost.toFixed(2))});
+  await syncInventorySmartAlerts(env);
   return resposta({ok:true,message:"Produto atualizado com segurança.",product:{id:productId,price:Number(price.toFixed(2)),stock,unitCost:unitCost===null?null:Number(unitCost.toFixed(2))}});
  }catch(e){console.error("Atualizar produto:",e);return resposta({ok:false,error:"Não foi possível atualizar o produto agora."},500)}
 }
+
+const STOCK_REORDER_THRESHOLD=10;
+const STOCK_CRITICAL_THRESHOLD=2;
+function inventorySmartState(stock){
+ const n=Math.max(0,Number(stock||0));
+ if(n<=0)return "out";
+ if(n<=STOCK_CRITICAL_THRESHOLD)return "critical";
+ if(n<=STOCK_REORDER_THRESHOLD)return "reorder";
+ return "healthy";
+}
+async function syncInventorySmartAlerts(env){
+ try{
+  const [inventoryRows,disabledRows,stateRows]=await Promise.all([
+   env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory").all(),
+   env.DB.prepare("SELECT product_id FROM disabled_products").all(),
+   env.DB.prepare("SELECT product_id,state,stock,updated_at FROM inventory_alert_state").all()
+  ]);
+  const disabled=new Set((disabledRows.results||[]).map(x=>String(x.product_id))),previous=new Map((stateRows.results||[]).map(x=>[String(x.product_id),x])),now=new Date().toISOString(),ops=[],attention=[];
+  for(const row of (inventoryRows.results||[])){
+   const id=String(row.product_id||"");if(!id)continue;
+   const stock=Math.max(0,Number(row.stock||0)),prev=previous.get(id),prevState=String(prev?.state||"");
+   if(disabled.has(id)){
+    if(prevState!=="disabled"){
+     ops.push(env.DB.prepare("UPDATE admin_notifications SET read_at=COALESCE(read_at,?) WHERE type='stock' AND read_at IS NULL AND unique_key LIKE ?").bind(now,"stock:"+id+":%"));
+     ops.push(env.DB.prepare("INSERT INTO inventory_alert_state(product_id,state,stock,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET state=excluded.state,stock=excluded.stock,updated_at=excluded.updated_at").bind(id,"disabled",stock,now));
+    }
+    continue;
+   }
+   const state=inventorySmartState(stock),product=AUREA_CATALOG[id]||{},name=String(product.name||id);
+   if(state!=="healthy"){
+    attention.push({product_id:id,name,brand:String(product.brand||""),stock,state,updated_at:String(row.updated_at||now)});
+   }
+   if(prevState!==state){
+    if(state==="healthy"){
+     ops.push(env.DB.prepare("UPDATE admin_notifications SET read_at=COALESCE(read_at,?) WHERE type='stock' AND read_at IS NULL AND unique_key LIKE ?").bind(now,"stock:"+id+":%"));
+    }else{
+     const title=state==="out"?"Produto esgotado":state==="critical"?"Estoque crítico":"Reposição recomendada";
+     const message=state==="out"?name+" está esgotado. Reponha antes de novas vendas.":state==="critical"?name+" está com apenas "+stock+" unidade(s). Reposição urgente recomendada.":name+" está com "+stock+" unidade(s). Considere repor o estoque.";
+     const uniqueKey="stock:"+id+":"+state+":"+String(row.updated_at||now);
+     ops.push(env.DB.prepare("INSERT OR IGNORE INTO admin_notifications(id,unique_key,type,severity,title,message,order_id,email_sent,created_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),uniqueKey,"stock","warning",title,message,null,1,now));
+    }
+   }
+   if(prevState!==state||Number(prev?.stock)!==stock){
+    ops.push(env.DB.prepare("INSERT INTO inventory_alert_state(product_id,state,stock,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET state=excluded.state,stock=excluded.stock,updated_at=excluded.updated_at").bind(id,state,stock,now));
+   }
+  }
+  if(ops.length)await env.DB.batch(ops);
+  const priority={out:0,critical:1,reorder:2};
+  return attention.sort((a,b)=>(priority[a.state]??9)-(priority[b.state]??9)||a.stock-b.stock||a.name.localeCompare(b.name,"pt-BR"));
+ }catch(e){console.error("Estoque inteligente:",e);return[]}
+}
+
 async function adminDashboard(request,env){
  try{
   await ensureAuthSchema(env);
   const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
   await seedInventory(env);
+  const stockIntelligence=await syncInventorySmartAlerts(env);
   await cleanupExpiredPendingCustomers(env);
   const allOrdersCte="WITH all_orders AS (SELECT id,order_number,status,total,created_at FROM orders UNION ALL SELECT g.id,g.order_number,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o WHERE o.id=g.id)) ";
   const realOrdersCte="WITH real_orders AS (SELECT o.id,o.status,o.total,o.created_at FROM orders o WHERE NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=o.customer_id) AND NOT EXISTS(SELECT 1 FROM admin_members m WHERE m.customer_id=o.customer_id AND m.active=1) UNION ALL SELECT g.id,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) AND NOT EXISTS(SELECT 1 FROM admin_credentials a JOIN customers c ON c.id=a.customer_id WHERE lower(c.email)=lower(g.email)) AND NOT EXISTS(SELECT 1 FROM admin_members m JOIN customers c2 ON c2.id=m.customer_id WHERE m.active=1 AND lower(c2.email)=lower(g.email))) ";
@@ -960,12 +1017,14 @@ async function adminDashboard(request,env){
   const system={database:true,mercadoPago:mpAccessToken&&mpPublicKey&&mpProduction,mercadoPagoAccessToken:mpAccessToken,mercadoPagoPublicKey:mpPublicKey,mercadoPagoMode:mp.testMode?"TESTE":"PRODUÇÃO",envioEcom:!!env.ENVIOECOM_TOKEN,envioOriginCep:/^\d{8}$/.test(String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"")),resend:!!env.RESEND_API_KEY,whatsapp:wa.configured,whatsappRecipients:wa.recipients.length,whatsappTemplate:wa.templateName,whatsappApiVersion:wa.apiVersion,ga4:/^G-[A-Z0-9]+$/i.test(String(env.GA4_MEASUREMENT_ID||"").trim()),metaPixel:meta.enabled,metaCapi:meta.enabled&&!!meta.token,metaGraphVersion:meta.apiVersion,canonicalHost:"www.valenzaparfums.com.br",https:true};
   const operationalAlerts=[];
   const paidWithoutShipping=Number(sh.awaiting||0);
-  const lowStock=activeStockRows.filter(x=>Number(x.stock||0)<=2).length;
+  const outStock=stockIntelligence.filter(x=>x.state==="out").length,criticalStock=stockIntelligence.filter(x=>x.state==="critical").length,reorderStock=stockIntelligence.filter(x=>x.state==="reorder").length,lowStock=criticalStock+reorderStock;
   if(paidWithoutShipping)operationalAlerts.push({type:"shipping",severity:"warning",title:"Venda paga aguardando envio",message:paidWithoutShipping+" pedido(s) pago(s) ainda sem postagem criada."});
-  if(lowStock)operationalAlerts.push({type:"stock",severity:"warning",title:"Estoque baixo",message:lowStock+" produto(s) com 2 unidades ou menos."});
+  if(outStock)operationalAlerts.push({type:"stock",severity:"warning",title:"Produto esgotado",message:outStock+" produto(s) sem estoque. Reposição necessária."});
+  if(criticalStock)operationalAlerts.push({type:"stock",severity:"warning",title:"Estoque crítico",message:criticalStock+" produto(s) com 1–"+STOCK_CRITICAL_THRESHOLD+" unidade(s)."});
+  if(reorderStock)operationalAlerts.push({type:"stock",severity:"info",title:"Reposição recomendada",message:reorderStock+" produto(s) com até "+STOCK_REORDER_THRESHOLD+" unidades."});
   if(Number(fin.pending_real||0))operationalAlerts.push({type:"payment",severity:"info",title:"Pagamentos pendentes",message:Number(fin.pending_real)+" pedido(s) de clientes aguardando pagamento ou processando."});
   if(opportunityCandidates.length)operationalAlerts.push({type:"opportunity",severity:"info",title:"Oportunidades de recuperação",message:opportunityCandidates.length+" carrinho(s) recuperável(is) · "+Number(opportunityValue).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})+" em potencial."});
-  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),analytics,finance,shipping,system,auditLog:auditRows.results||[],promotions:promotions.results||[],productPromotions:productPromotions.results||[],productSettings:productSettings.results||[],disabledProducts:disabledProducts.results||[],opportunities:opportunityRows,notifications:notificationRows,operationalAlerts,metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(fin.pending_real||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:activeStockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:lowStock,deletedTestOrders:Number(deletedTests?.total||0),unreadNotifications,opportunityCandidates:opportunityCandidates.length,opportunityValue:Number(opportunityValue.toFixed(2)),recoveredOpportunities},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[],productSales:productSales.results||[]});
+  return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),analytics,finance,shipping,system,auditLog:auditRows.results||[],promotions:promotions.results||[],productPromotions:productPromotions.results||[],productSettings:productSettings.results||[],disabledProducts:disabledProducts.results||[],opportunities:opportunityRows,notifications:notificationRows,operationalAlerts,stockIntelligence:{reorderThreshold:STOCK_REORDER_THRESHOLD,criticalThreshold:STOCK_CRITICAL_THRESHOLD,items:stockIntelligence},metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(fin.pending_real||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:activeStockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:lowStock,outOfStockProducts:outStock,criticalStockProducts:criticalStock,reorderStockProducts:reorderStock,restockProducts:stockIntelligence.length,deletedTestOrders:Number(deletedTests?.total||0),unreadNotifications,opportunityCandidates:opportunityCandidates.length,opportunityValue:Number(opportunityValue.toFixed(2)),recoveredOpportunities},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[],productSales:productSales.results||[]});
  }catch(e){console.error("Admin dashboard:",e);return resposta({ok:false,error:"Não foi possível carregar o painel administrativo."},500)}
 }
 async function accountData(request,env){try{
