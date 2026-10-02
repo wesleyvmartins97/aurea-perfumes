@@ -882,6 +882,8 @@ async function adminDashboard(request,env){
 }
 async function accountData(request,env){try{
  const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login para acessar sua conta."},401);
+ const adminMember=await env.DB.prepare("SELECT role,active FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(u.id).first();
+ const adminAccess=!!u.email_verified&&(allowedAdminEmail(env,u.email)||!!adminMember);
  const [p,a,o]=await Promise.all([
   env.DB.prepare("SELECT phone,cpf,birth_date FROM customer_profiles WHERE customer_id=?").bind(u.id).first(),
   env.DB.prepare("SELECT id,label,recipient,cep,street,number,complement,neighborhood,city,state,is_default FROM customer_addresses WHERE customer_id=? ORDER BY is_default DESC,created_at DESC").bind(u.id).all(),
@@ -905,7 +907,7 @@ async function accountData(request,env){try{
    const pay=payMap.get(ord.id);if(pay){const {order_id,...payment}=pay;ord.payment=payment}
   }
  }
- return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified,phone:p?.phone||"",cpf:p?.cpf||"",birthDate:p?.birth_date||""},addresses:a.results||[],orders});
+ return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified,phone:p?.phone||"",cpf:p?.cpf||"",birthDate:p?.birth_date||"",adminAccess,adminRole:allowedAdminEmail(env,u.email)?"owner":(adminMember?.role||null)},addresses:a.results||[],orders});
 }catch(e){console.error("Conta:",e);return resposta({ok:false,error:"Não foi possível carregar sua conta."},500)}}
 async function accountOrderPix(request,env){
  try{
