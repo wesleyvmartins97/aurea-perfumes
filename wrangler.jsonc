@@ -13,7 +13,10 @@
       "/api/*",
       "/oauth/*",
       "/admin",
-      "/admin/*"
+      "/admin/*",
+      "/merchant-feed.xml",
+      "/google-merchant.xml",
+      "/perfume/*"
     ]
   },
   "d1_databases": [

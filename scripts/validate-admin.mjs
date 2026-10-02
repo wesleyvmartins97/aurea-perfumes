@@ -188,6 +188,13 @@ if(!worker.includes('WHERE customer_id=? AND username=? LIMIT 1'))fail.push('Log
 if(!worker.includes('SELECT username FROM admin_credentials WHERE customer_id=? LIMIT 1'))fail.push('Status admin não verifica credencial individual por conta.');
 if(!admin.includes('ALTERAR SENHA ADMIN')||!admin.includes('vaAdminSecurity'))fail.push('Painel admin sem interface para troca da senha administrativa.');
 if(!admin.includes('mostra todos os perfumes da linha Asad')||!admin.includes('vaProductSearchCount'))fail.push('Busca de produtos não evidencia resultados por linha/nome.');
+if(!admin.includes('data-v="prices"')||!admin.includes("if(adminView==='prices')"))fail.push('Painel sem aba PREÇOS para alteração permanente.');
+if(!admin.includes('/api/admin/prices/update')||!worker.includes('/api/admin/prices/update'))fail.push('Preço rápido sem endpoint protegido.');
+if(!worker.includes('async function adminPriceUpdate'))fail.push('Worker sem alteração isolada do preço normal.');
+if(!worker.includes('price_override=excluded.price_override'))fail.push('Preço normal não persiste no D1.');
+if(!worker.includes('pix:pixPrice(rounded)')||!admin.includes('PIX -5%'))fail.push('Preço rápido não confirma cálculo PIX de 5%.');
+if(!worker.includes('dynamicMerchantFeed')||!wrangler.includes('"/merchant-feed.xml"')||!wrangler.includes('"/google-merchant.xml"'))fail.push('Merchant não acompanha alteração dinâmica de preço.');
+if(!worker.includes('VALENZA preço dinâmico da página individual')||!wrangler.includes('"/perfume/*"'))fail.push('Página individual não acompanha preço normal do D1.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
 console.log('ADMIN APROVADO — deny-by-default para pagamentos, action_required protegido, lock anti-corrida do EnvioEcom e exclusões de teste arquivadas.');
