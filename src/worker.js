@@ -50,6 +50,8 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/password"&&request.method==="POST")return adminPasswordChange(request,env);
  if(url.pathname==="/api/admin/logout"&&request.method==="POST")return adminLogout(request,env);
  if(url.pathname==="/api/admin/dashboard"&&request.method==="GET")return adminDashboard(request,env);
+ if(url.pathname==="/api/admin/report/daily"&&request.method==="GET")return adminDailyReport(request,env);
+ if(url.pathname==="/api/admin/report/daily/send"&&request.method==="POST")return adminDailyReportSend(request,env);
  if(url.pathname==="/api/admin/members/grant"&&request.method==="POST")return adminMemberGrant(request,env);
  if(url.pathname==="/api/admin/promotions/save"&&request.method==="POST")return adminPromotionSave(request,env);
  if(url.pathname==="/api/admin/promotions/toggle"&&request.method==="POST")return adminPromotionToggle(request,env);
@@ -83,7 +85,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -117,6 +119,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_notifications_unread ON admin_notifications(read_at,created_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory_alert_state (product_id TEXT PRIMARY KEY, state TEXT NOT NULL, stock INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_inventory_alert_state_state ON inventory_alert_state(state,updated_at)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS daily_report_runs (report_date TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', source TEXT, recipients_json TEXT, summary_json TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, sent_at TEXT)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_daily_report_runs_status ON daily_report_runs(status,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_whatsapp_deliveries (notification_id TEXT NOT NULL, order_id TEXT NOT NULL, recipient_hash TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, provider_message_id TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(notification_id,recipient_hash))"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_whatsapp_delivery_status ON admin_whatsapp_deliveries(status,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_promotions (id TEXT PRIMARY KEY, title TEXT NOT NULL, message TEXT NOT NULL, starts_at TEXT, ends_at TEXT, active INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
@@ -971,6 +975,84 @@ async function syncInventorySmartAlerts(env){
   const priority={out:0,critical:1,reorder:2};
   return attention.sort((a,b)=>(priority[a.state]??9)-(priority[b.state]??9)||a.stock-b.stock||a.name.localeCompare(b.name,"pt-BR"));
  }catch(e){console.error("Estoque inteligente:",e);return[]}
+}
+
+
+function saoPauloNowParts(date=new Date()){
+ const parts=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date).filter(x=>x.type!=="literal").map(x=>[x.type,x.value]));
+ return {date:parts.year+"-"+parts.month+"-"+parts.day,hour:Number(parts.hour||0),minute:Number(parts.minute||0)};
+}
+function dailyReportRecipients(env){
+ const list=String(env.ADMIN_EMAILS||"").split(",").map(x=>x.trim().toLowerCase()).filter(validEmail);
+ return [...new Set(list)].slice(0,10);
+}
+function dailyReportDateBr(iso){
+ const [y,m,d]=String(iso||"").split("-");return y&&m&&d?d+"/"+m+"/"+y:String(iso||"");
+}
+async function buildDailyReport(env,reportDate){
+ await ensureAuthSchema(env);await seedInventory(env);
+ const date=String(reportDate||saoPauloNowParts().date),stockItems=await syncInventorySmartAlerts(env);
+ const realOrdersCte="WITH real_orders AS (SELECT o.id,o.status,o.total,o.created_at FROM orders o WHERE NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=o.customer_id) AND NOT EXISTS(SELECT 1 FROM admin_members m WHERE m.customer_id=o.customer_id AND m.active=1) UNION ALL SELECT g.id,g.status,g.total,g.created_at FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id) AND NOT EXISTS(SELECT 1 FROM admin_credentials a JOIN customers c ON c.id=a.customer_id WHERE lower(c.email)=lower(g.email)) AND NOT EXISTS(SELECT 1 FROM admin_members m JOIN customers c2 ON c2.id=m.customer_id WHERE m.active=1 AND lower(c2.email)=lower(g.email))) ";
+ const [day,pending,products,inventory,disabled,alerts,shipping]=await Promise.all([
+  env.DB.prepare(realOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN r.status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN r.status='Pago' THEN r.total ELSE 0 END),0) revenue,SUM(CASE WHEN r.status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN r.status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))='pix' THEN 1 ELSE 0 END) pix_orders,COALESCE(SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))='pix' THEN r.total ELSE 0 END),0) pix_revenue,SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))<>'pix' THEN 1 ELSE 0 END) card_orders,COALESCE(SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))<>'pix' THEN r.total ELSE 0 END),0) card_revenue FROM real_orders r LEFT JOIN order_payments p ON p.order_id=r.id WHERE date(r.created_at,'-3 hours')=?").bind(date).first(),
+  env.DB.prepare(realOrdersCte+"SELECT SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_now,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_all FROM real_orders").first(),
+  env.DB.prepare(realOrdersCte+"SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN real_orders r ON r.id=oi.order_id WHERE r.status='Pago' AND date(r.created_at,'-3 hours')=? GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").bind(date).all(),
+  env.DB.prepare("SELECT product_id,stock FROM inventory").all(),
+  env.DB.prepare("SELECT product_id FROM disabled_products").all(),
+  env.DB.prepare("SELECT id,type,severity,title,message,created_at,read_at FROM admin_notifications WHERE date(created_at,'-3 hours')=? AND type<>'sale' ORDER BY created_at DESC LIMIT 20").bind(date).all(),
+  env.DB.prepare(realOrdersCte+"SELECT SUM(CASE WHEN r.status='Pago' AND COALESCE(s.carrier,'')<>'Entrega local Valenza' AND COALESCE(s.shipping_id,'')='' AND COALESCE(s.barcode,'')='' AND COALESCE(l.state,'')='' THEN 1 ELSE 0 END) awaiting_shipping FROM real_orders r LEFT JOIN order_shipping s ON s.order_id=r.id LEFT JOIN shipment_locks l ON l.order_id=r.id").first()
+ ]);
+ const disabledSet=new Set((disabled.results||[]).map(x=>String(x.product_id))),activeInv=(inventory.results||[]).filter(x=>!disabledSet.has(String(x.product_id))),out=stockItems.filter(x=>x.state==="out"),critical=stockItems.filter(x=>x.state==="critical"),reorder=stockItems.filter(x=>x.state==="reorder");
+ const paid=Number(day?.paid_orders||0),revenue=Number(day?.revenue||0),alertRows=alerts.results||[];
+ return {date,generatedAt:new Date().toISOString(),sales:{orders:Number(day?.total_orders||0),paid,revenue:Number(revenue.toFixed(2)),averageTicket:paid?Number((revenue/paid).toFixed(2)):0,pendingCreatedToday:Number(day?.pending_orders||0),rejectedToday:Number(day?.rejected_orders||0)},payments:{pixOrders:Number(day?.pix_orders||0),pixRevenue:Number(Number(day?.pix_revenue||0).toFixed(2)),cardOrders:Number(day?.card_orders||0),cardRevenue:Number(Number(day?.card_revenue||0).toFixed(2))},pending:{ordersNow:Number(pending?.pending_now||0),awaitingShipping:Number(shipping?.awaiting_shipping||0)},stock:{units:activeInv.reduce((a,x)=>a+Number(x.stock||0),0),products:activeInv.length,out:out.length,critical:critical.length,reorder:reorder.length,attention:stockItems.slice(0,10)},topProducts:products.results||[],alerts:{count:alertRows.length,unread:alertRows.filter(x=>!x.read_at).length,items:alertRows}};
+}
+function dailyReportEmailContent(report){
+ const money=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}),safe=escapeHtml,date=dailyReportDateBr(report.date),top=(report.topProducts||[]),alerts=report.alerts?.items||[],stock=report.stock||{},sales=report.sales||{},pay=report.payments||{},pending=report.pending||{};
+ const productRows=top.length?top.map(x=>'<tr><td style="padding:8px;border-bottom:1px solid #eee">'+safe(String(x.name||x.product_id))+'</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">'+Number(x.units||0)+'</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">'+money(x.value)+'</td></tr>').join(""):'<tr><td colspan="3" style="padding:12px;color:#777">Nenhum produto vendido hoje.</td></tr>';
+ const alertRows=alerts.length?alerts.slice(0,8).map(x=>'<li style="margin:0 0 8px"><b>'+safe(String(x.title||"Alerta"))+'</b> — '+safe(String(x.message||""))+'</li>').join(""):'<li>Nenhum alerta operacional registrado hoje.</li>';
+ const html='<!doctype html><html><body style="margin:0;background:#f5f1ec;font-family:Arial;color:#201d1a"><table width="100%" cellspacing="0" cellpadding="0" style="padding:24px 10px"><tr><td align="center"><table width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#fff;border:1px solid #e7e0d8"><tr><td style="padding:28px;text-align:center;border-bottom:1px solid #eee7df"><div style="font-family:Georgia,serif;font-size:26px;letter-spacing:7px">VALENZA</div><div style="margin-top:6px;font-size:10px;letter-spacing:3px;color:#8b7a68">RELATÓRIO DIÁRIO · '+safe(date)+'</div></td></tr><tr><td style="padding:26px"><h1 style="font:26px Georgia,serif;margin:0 0 18px">Resumo do dia</h1><table width="100%" cellspacing="0" cellpadding="8" style="font-size:14px"><tr><td><b>Vendas pagas</b><br>'+Number(sales.paid||0)+'</td><td><b>Faturamento</b><br>'+money(sales.revenue)+'</td><td><b>Ticket médio</b><br>'+money(sales.averageTicket)+'</td></tr><tr><td><b>PIX</b><br>'+Number(pay.pixOrders||0)+' · '+money(pay.pixRevenue)+'</td><td><b>Cartão</b><br>'+Number(pay.cardOrders||0)+' · '+money(pay.cardRevenue)+'</td><td><b>Pendentes agora</b><br>'+Number(pending.ordersNow||0)+'</td></tr><tr><td><b>Aguardando envio</b><br>'+Number(pending.awaitingShipping||0)+'</td><td><b>Estoque crítico/esgotado</b><br>'+Number(stock.critical||0)+' / '+Number(stock.out||0)+'</td><td><b>Reposição</b><br>'+Number(stock.reorder||0)+'</td></tr></table><h2 style="font:20px Georgia,serif;margin:26px 0 10px">Produtos vendidos</h2><table width="100%" cellspacing="0" cellpadding="0" style="font-size:13px;border:1px solid #eee"><tr><th style="padding:8px;text-align:left">Produto</th><th style="padding:8px">Un.</th><th style="padding:8px;text-align:right">Valor</th></tr>'+productRows+'</table><h2 style="font:20px Georgia,serif;margin:26px 0 10px">Alertas do dia</h2><ul style="font-size:13px;line-height:1.55;padding-left:18px">'+alertRows+'</ul><p style="margin:24px 0 0;color:#777;font-size:11px">Relatório automático da operação VALENZA. Vendas de contas administrativas/testes são excluídas dos indicadores comerciais.</p></td></tr></table></td></tr></table></body></html>';
+ const text=['VALENZA PARFUMS — RELATÓRIO DIÁRIO '+date,'','Vendas pagas: '+Number(sales.paid||0),'Faturamento: '+money(sales.revenue),'Ticket médio: '+money(sales.averageTicket),'PIX: '+Number(pay.pixOrders||0)+' · '+money(pay.pixRevenue),'Cartão: '+Number(pay.cardOrders||0)+' · '+money(pay.cardRevenue),'Pedidos pendentes agora: '+Number(pending.ordersNow||0),'Aguardando envio: '+Number(pending.awaitingShipping||0),'Estoque: '+Number(stock.out||0)+' esgotado(s), '+Number(stock.critical||0)+' crítico(s), '+Number(stock.reorder||0)+' para repor','','Produtos vendidos:',...(top.length?top.map(x=>'- '+String(x.name||x.product_id)+' · '+Number(x.units||0)+' un. · '+money(x.value)):['- Nenhum']),'', 'Alertas: '+Number(report.alerts?.count||0)].join('\n');
+ return {html,text};
+}
+async function sendDailyReport(env,{force=false,source="scheduled",reportDate}={}){
+ await ensureAuthSchema(env);const date=String(reportDate||saoPauloNowParts().date),now=new Date().toISOString(),existing=await env.DB.prepare("SELECT status,updated_at,sent_at FROM daily_report_runs WHERE report_date=?").bind(date).first();
+ if(!force&&String(existing?.status||"")==="sent")return {ok:true,skipped:true,reason:"already_sent",date,sentAt:existing.sent_at||null};
+ if(!force&&String(existing?.status||"")==="sending"&&Date.parse(existing?.updated_at||0)>Date.now()-30*60e3)return {ok:true,skipped:true,reason:"in_progress",date};
+ const recipients=dailyReportRecipients(env);if(!recipients.length)return {ok:false,error:"Nenhum e-mail administrativo configurado.",date};
+ if(!env.RESEND_API_KEY)return {ok:false,error:"Resend não configurado.",date};
+ await env.DB.prepare("INSERT INTO daily_report_runs(report_date,status,source,recipients_json,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(report_date) DO UPDATE SET status='sending',source=excluded.source,recipients_json=excluded.recipients_json,last_error=NULL,updated_at=excluded.updated_at").bind(date,"sending",source,JSON.stringify(recipients),now,now).run();
+ try{
+  const report=await buildDailyReport(env,date),content=dailyReportEmailContent(report),r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.AUREA_EMAIL_FROM||"VALENZA PARFUMS <contato@valenzaparfums.com.br>",to:recipients,subject:"Relatório diário VALENZA · "+dailyReportDateBr(date),html:content.html,text:content.text})});
+  if(!r.ok){const detail=(await r.text()).slice(0,500);throw new Error("Resend "+r.status+": "+detail)}
+  const sentAt=new Date().toISOString();await env.DB.prepare("UPDATE daily_report_runs SET status='sent',summary_json=?,last_error=NULL,updated_at=?,sent_at=? WHERE report_date=?").bind(JSON.stringify(report),sentAt,sentAt,date).run();
+  await env.DB.prepare("INSERT OR IGNORE INTO admin_notifications(id,unique_key,type,severity,title,message,email_sent,created_at) VALUES(?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),"daily-report:"+date,"report","success","Relatório diário enviado","Resumo de "+dailyReportDateBr(date)+" enviado para "+recipients.length+" administrador(es).",1,sentAt).run();
+  return {ok:true,date,sentAt,recipients,report};
+ }catch(e){
+  const err=String(e&&e.message||e).slice(0,500),failedAt=new Date().toISOString();await env.DB.prepare("UPDATE daily_report_runs SET status='failed',last_error=?,updated_at=? WHERE report_date=?").bind(err,failedAt,date).run();console.error("Relatório diário:",e);return {ok:false,error:"Não foi possível enviar o relatório diário.",detail:err,date}
+ }
+}
+async function maybeSendDailyReport(env){
+ try{
+  const now=saoPauloNowParts(),hourRaw=Number(env.DAILY_REPORT_HOUR||20),hour=Number.isInteger(hourRaw)&&hourRaw>=0&&hourRaw<=23?hourRaw:20;
+  if(now.hour<hour)return {ok:true,skipped:true,reason:"before_hour",date:now.date};
+  return await sendDailyReport(env,{force:false,source:"scheduled",reportDate:now.date});
+ }catch(e){console.error("Agendamento relatório diário:",e);return {ok:false,error:String(e&&e.message||e)}}
+}
+async function adminDailyReport(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const date=saoPauloNowParts().date,[report,delivery]=await Promise.all([buildDailyReport(env,date),env.DB.prepare("SELECT report_date,status,source,recipients_json,last_error,updated_at,sent_at FROM daily_report_runs WHERE report_date=?").bind(date).first()]);
+  return resposta({ok:true,report,delivery:delivery||null,schedule:{hour:Number(env.DAILY_REPORT_HOUR||20),timezone:"America/Sao_Paulo",recipients:dailyReportRecipients(env)}});
+ }catch(e){console.error("Prévia relatório diário:",e);return resposta({ok:false,error:"Não foi possível montar o relatório diário."},500)}
+}
+async function adminDailyReportSend(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const result=await sendDailyReport(env,{force:true,source:"manual",reportDate:saoPauloNowParts().date});
+  if(!result.ok)return resposta({ok:false,error:result.error||"Não foi possível enviar o relatório."},502);
+  await recordAdminAudit(env,admin,"daily_report_send",{date:result.date,recipients:result.recipients||[],sentAt:result.sentAt||null});
+  return resposta({ok:true,message:"Relatório diário enviado.",date:result.date,sentAt:result.sentAt,recipients:result.recipients||[]});
+ }catch(e){console.error("Enviar relatório diário:",e);return resposta({ok:false,error:"Não foi possível enviar o relatório diário."},500)}
 }
 
 async function adminDashboard(request,env){
