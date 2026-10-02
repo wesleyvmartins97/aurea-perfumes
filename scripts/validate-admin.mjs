@@ -151,6 +151,14 @@ for(const event of ['order.created','order.cancelled','payment.approved','paymen
  if(!worker.includes(event))fail.push('Central de Eventos sem cobertura para '+event+'.');
 }
 if(!admin.includes('APLICAR FILTROS')||!admin.includes('Histórico operacional'))fail.push('Central de Eventos sem filtros/histórico visível no admin.');
+if(!worker.includes('async function notifyOperationalError')||!worker.includes('type="error"')&&!worker.includes('"error","error"'))fail.push('Central de Erros sem criação de alerta administrativo.');
+if(!worker.includes('async function sendOperationalAlertEmail')||!worker.includes('ALERTA OPERACIONAL'))fail.push('Central de Erros sem aviso imediato por e-mail.');
+if(!worker.includes('retryPendingOperationalErrorAlerts(env)'))fail.push('Central de Erros sem retry automático de alertas pendentes.');
+for(const event of ['payment.gateway_error','shipping.integration_failed','shipping.network_failed','freight.integration_failed','freight.quote_failed']){
+ if(!worker.includes(event))fail.push('Central de Erros sem cobertura para '+event+'.');
+}
+if(!worker.includes('event.severity==="error"||event.status==="failed"'))fail.push('Central de Erros não está acoplada aos eventos operacionais críticos.');
+
 
 if(!worker.includes('status=\'sent\'')&&!worker.includes('status="sent"'))fail.push('E-mails operacionais sem trava de envio concluído.');
 
