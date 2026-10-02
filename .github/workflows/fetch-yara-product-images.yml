@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   fetch-images:
-    if: github.event.head_commit.message == 'chore: add Yara Moi and Yara Tous'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
