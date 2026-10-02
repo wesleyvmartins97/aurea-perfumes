@@ -127,6 +127,21 @@ if(!admin.includes('Origem do tráfego'))fail.push('Analytics sem painel de orig
 if(!admin.includes('Funil · últimos 30 dias'))fail.push('Analytics sem funil de conversão.');
 if(!worker.includes('async function analyticsDashboard(env)'))fail.push('Worker sem agregador Analytics administrativo.');
 if(!worker.includes('analytics=await analyticsDashboard(env)'))fail.push('Dashboard não entrega métricas Analytics.');
+
+if(!admin.includes('data-v="report"')||!admin.includes("if(adminView==='report')"))fail.push('Painel sem aba RELATÓRIO DIÁRIO.');
+if(!worker.includes('/api/admin/report/daily')||!worker.includes('/api/admin/report/daily/send'))fail.push('Relatório diário sem endpoints administrativos protegidos.');
+if(!worker.includes('daily_report_runs')||!worker.includes('async function buildDailyReport')||!worker.includes('async function sendDailyReport'))fail.push('Relatório diário sem persistência/idempotência ou agregador.');
+if(!worker.includes('maybeSendDailyReport(env)'))fail.push('Relatório diário não está ligado ao agendamento automático.');
+if(!admin.includes('data-v="emails"')||!admin.includes("if(adminView==='emails')"))fail.push('Painel sem aba E-MAILS operacionais.');
+if(!worker.includes('/api/admin/emails/status')||!worker.includes('/api/admin/emails/test'))fail.push('E-mails operacionais sem endpoints de status/teste.');
+if(!worker.includes('customer_email_deliveries')||!worker.includes('async function sendOrderOperationalEmail'))fail.push('E-mails operacionais sem persistência/idempotência.');
+if(!worker.includes('retryPendingOperationalEmails(env)'))fail.push('E-mails operacionais sem retry no cron.');
+for(const event of ['order_received','payment_confirmed','payment_failed','shipment_prepared','in_transit','out_for_delivery','delivered']){
+ if(!worker.includes(event))fail.push('Fluxo de e-mail operacional sem evento '+event+'.');
+}
+if(!worker.includes('attempts<5'))fail.push('E-mails operacionais sem limite de tentativas.');
+if(!worker.includes('status=\'sent\'')&&!worker.includes('status="sent"'))fail.push('E-mails operacionais sem trava de envio concluído.');
+
 if(!admin.includes("credentials:'same-origin'"))fail.push('Módulo admin não usa sessão same-origin.');
 for(const route of ['status','setup','login','logout','dashboard']){
  if(!worker.includes('/api/admin/'+route))fail.push('Rota /api/admin/'+route+' ausente.');
@@ -184,7 +199,7 @@ if(!worker.includes('cleanupExpiredPendingCustomers'))fail.push('Limpeza automá
 if(!worker.includes('cleanupExpiredPendingEmail'))fail.push('Recadastro não limpa pendência expirada do mesmo e-mail.');
 {
  const start=worker.indexOf('async scheduled(controller,env,ctx)'),end=worker.indexOf('\n};',start),block=start>=0&&end>start?worker.slice(start,end):'';
- for(const required of ['reconcileStalePixReservations(env)','cleanupExpiredPendingCustomers(env)','retryPendingSaleNotifications(env)']){
+ for(const required of ['reconcileStalePixReservations(env)','cleanupExpiredPendingCustomers(env)','retryPendingSaleNotifications(env)','retryPendingOperationalEmails(env)','maybeSendDailyReport(env)']){
   if(!block.includes(required))fail.push('Cron não executa reconciliação, limpeza de pendências e retry dos avisos de venda.');
  }
 }
