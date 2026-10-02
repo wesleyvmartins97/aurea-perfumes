@@ -70,6 +70,8 @@ if(!worker.includes("catalog-stock-v7-asad-bourbon")||!worker.includes('bind("as
 if(!worker.includes("catalog-stock-v8-asad-zanzibar-elixir")||!worker.includes('bind("asad-zanzibar",100,now)')||!worker.includes('bind("asad-elixir",100,now)'))fail.push('Asad Zanzibar/Elixir sem seed seguro de estoque 100 no D1.');
 if(!worker.includes('bind("asad-zanzibar",161,now)')||!worker.includes('bind("asad-elixir",187.5,now)'))fail.push('Asad Zanzibar/Elixir sem custo unitário auditado no painel.');
 if(!worker.includes('/produto-img/asad-zanzibar.jpg')||!worker.includes('/produto-img/asad-elixir.png')||!worker.includes('productCatalogImage'))fail.push('Asad Zanzibar/Elixir sem proxy estável de imagem no Worker.');
+if(!worker.includes("catalog-stock-v9-yara-moi-tous")||!worker.includes('bind("yara-moi",100,now)')||!worker.includes('bind("yara-tous",100,now)'))fail.push('Yara Moi/Tous sem seed seguro de estoque 100 no D1.');
+if(!worker.includes('bind("yara-moi",161,now)')||!worker.includes('bind("yara-tous",161,now)'))fail.push('Yara Moi/Tous sem custo unitário auditado no painel.');
 const match=worker.match(/const AUREA_CATALOG=(\{[\s\S]*?\n\});\nasync function officialCatalog/);
 let official={};
 if(!match)fail.push('AUREA_CATALOG não encontrado no Worker.');

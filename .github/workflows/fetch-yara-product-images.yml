@@ -1,0 +1,95 @@
+name: One-shot local Yara product images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch-yara-product-images.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-images:
+    if: github.event.head_commit.message == 'chore: add Yara Moi and Yara Tous'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar conversor de imagem
+        run: pip install --disable-pip-version-check pillow
+      - name: Baixar fotos frasco + caixa
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/yara public/produtos
+          download() {
+            out="$1"; shift
+            for url in "$@"; do
+              echo "Tentando: $url"
+              if curl -fL --retry 2 --connect-timeout 15 --max-time 60 \
+                -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125 Safari/537.36" \
+                "$url" -o "$out"; then
+                test -s "$out" && return 0
+              fi
+            done
+            echo "Falha ao baixar $out" >&2
+            return 1
+          }
+          download /tmp/yara/moi-source \
+            "https://res.cloudinary.com/beleza-na-web/image/upload/w_1500,f_auto,fl_progressive,q_auto:best,w_800/v1/imagens/product/MP209695/259eaf32-fc1e-4ce0-9338-23b9f039c6a3-yara-moi-lattafa-perfumes-eau-de-parfum-perfume-feminino-100ml.png" \
+            "https://res.cloudinary.com/beleza-na-web/image/upload/w_1500,f_auto,fl_progressive,q_auto:best,w_800/v1/imagens/product/MP209695/9a52d950-981b-4e66-82b9-91e6fe27998c-yara-moi-lattafa-perfumes-eau-de-parfum-perfume-feminino-100ml.png"
+          download /tmp/yara/tous-source \
+            "https://cdn.awsli.com.br/600x450/45/45205/produto/314634248/yara-tous-jn8sw5sav0.png" \
+            "https://ifperfumes.com.br/wp-content/uploads/2024/08/Yara-Tous-Lattafa-Eau-de-Parfum-Feminino-4-600x600.jpg"
+      - name: Padronizar imagens para a VALENZA
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageOps
+          from pathlib import Path
+
+          items = [
+              ("/tmp/yara/moi-source", "public/produtos/yara-moi.webp"),
+              ("/tmp/yara/tous-source", "public/produtos/yara-tous.webp"),
+          ]
+          for src, dst in items:
+              im = Image.open(src)
+              im = ImageOps.exif_transpose(im).convert("RGBA")
+              bg = Image.new("RGBA", im.size, "white")
+              bg.alpha_composite(im)
+              im = bg.convert("RGB")
+              im.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
+              canvas = Image.new("RGB", (1000, 1000), "white")
+              canvas.paste(im, ((1000-im.width)//2, (1000-im.height)//2))
+              canvas.save(dst, "WEBP", quality=90, method=6)
+              size = Path(dst).stat().st_size
+              print(dst, canvas.size, size)
+              if size < 25000:
+                  raise SystemExit(f"Imagem pequena/suspeita: {dst} ({size} bytes)")
+          PY
+      - name: Regenerar SEO e Merchant
+        run: |
+          node scripts/generate-seo.mjs
+          node scripts/generate-merchant.mjs
+      - name: Auditar catálogo e integrações
+        run: |
+          node --check public/products.js
+          node --check src/worker.js
+          node scripts/validate-catalog.mjs
+          node scripts/validate-merchant.mjs
+          node scripts/validate-google-commerce.mjs
+          node scripts/validate-admin.mjs
+      - name: Commitar imagens e arquivos gerados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/produtos/yara-moi.webp public/produtos/yara-tous.webp public/perfume public/sitemap.xml public/merchant-feed.xml public/google-merchant.xml
+          git diff --cached --quiet && exit 0
+          git commit -m "Add Yara Moi and Yara Tous images SEO and Merchant"
+          git push
