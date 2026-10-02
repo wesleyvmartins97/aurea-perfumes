@@ -140,6 +140,18 @@ for(const event of ['order_received','payment_confirmed','payment_failed','shipm
  if(!worker.includes(event))fail.push('Fluxo de e-mail operacional sem evento '+event+'.');
 }
 if(!worker.includes('attempts<5'))fail.push('E-mails operacionais sem limite de tentativas.');
+
+if(!admin.includes('data-v="events"')||!admin.includes("if(adminView==='events')"))fail.push('Painel sem Central de Eventos.');
+if(!worker.includes('/api/admin/events')||!worker.includes('async function adminOperationalEvents'))fail.push('Central de Eventos sem endpoint administrativo protegido.');
+if(!worker.includes('CREATE TABLE IF NOT EXISTS operational_events')||!worker.includes('idx_operational_events_order'))fail.push('Central de Eventos sem persistência/indexação.');
+if(!worker.includes('async function recordOperationalEvent')||!worker.includes('INSERT OR IGNORE INTO operational_events'))fail.push('Central de Eventos sem gravação idempotente.');
+if(!worker.includes('catch(e){console.error("Central de Eventos:",e);return {ok:false,error:"event_log_failed"}}'))fail.push('Falha da Central de Eventos pode escapar para o fluxo operacional.');
+if(!worker.includes('blocked=/email|cpf|phone|telefone|address|endereco|street|cep|password|token|secret|card|document/i'))fail.push('Central de Eventos sem filtro explícito de dados sensíveis.');
+for(const event of ['order.created','order.cancelled','payment.approved','payment.failed','payment.expired','shipping.created','shipping.failed','email.sent','email.failed']){
+ if(!worker.includes(event))fail.push('Central de Eventos sem cobertura para '+event+'.');
+}
+if(!admin.includes('APLICAR FILTROS')||!admin.includes('Histórico operacional'))fail.push('Central de Eventos sem filtros/histórico visível no admin.');
+
 if(!worker.includes('status=\'sent\'')&&!worker.includes('status="sent"'))fail.push('E-mails operacionais sem trava de envio concluído.');
 
 if(!admin.includes("credentials:'same-origin'"))fail.push('Módulo admin não usa sessão same-origin.');
