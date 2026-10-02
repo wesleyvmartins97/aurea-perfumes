@@ -195,6 +195,18 @@ if(!worker.includes('price_override=excluded.price_override'))fail.push('Preço 
 if(!worker.includes('pix:pixPrice(rounded)')||!admin.includes('PIX -5%'))fail.push('Preço rápido não confirma cálculo PIX de 5%.');
 if(!worker.includes('dynamicMerchantFeed')||!wrangler.includes('"/merchant-feed.xml"')||!wrangler.includes('"/google-merchant.xml"'))fail.push('Merchant não acompanha alteração dinâmica de preço.');
 if(!worker.includes('VALENZA preço dinâmico da página individual')||!wrangler.includes('"/perfume/*"'))fail.push('Página individual não acompanha preço normal do D1.');
+if(!worker.includes('CREATE TABLE IF NOT EXISTS disabled_products'))fail.push('Produtos removidos sem tabela segura de estado.');
+if(!worker.includes('/api/admin/products/availability')||!worker.includes('async function adminProductAvailability'))fail.push('Admin sem exclusão/restauração protegida de produto.');
+if(!worker.includes('for(const id of disabled)delete out[id]'))fail.push('Checkout ainda reconhece produto removido.');
+if(!worker.includes('active=!disabled.has(id)'))fail.push('Runtime público não informa produto removido.');
+if(!home.includes('p.active=rt?rt.active!==false')||!home.includes('p.active!==false&&(collection'))fail.push('Vitrine não oculta produto removido.');
+if(!home.includes('cart.flatMap')||!home.includes('p.active===false'))fail.push('Carrinho não remove produto excluído.');
+if(!worker.includes('if(!p)return "";'))fail.push('Merchant ainda publica produto removido.');
+if(!worker.includes('async function dynamicSitemap')||!wrangler.includes('"/sitemap.xml"'))fail.push('Sitemap ainda publica produto removido.');
+if(!worker.includes('Produto não disponível.')||!worker.includes('X-Robots-Tag":"noindex, nofollow'))fail.push('Página pública removida não retorna 404/noindex.');
+if(!worker.includes('const catalog=AUREA_CATALOG;let weight=0,height=0,width=0,length=0;'))fail.push('Envio histórico depende do catálogo ativo e pode quebrar após exclusão.');
+if(!admin.includes('vaProductRemove')||!admin.includes('SIM, EXCLUIR')||!admin.includes('vaProductRestore'))fail.push('Produtos sem confirmação visual de exclusão/restauração.');
+if(!worker.includes('product_remove')||!worker.includes('product_restore'))fail.push('Exclusão/restauração sem trilha de auditoria.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
 console.log('ADMIN APROVADO — deny-by-default para pagamentos, action_required protegido, lock anti-corrida do EnvioEcom e exclusões de teste arquivadas.');

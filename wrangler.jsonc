@@ -16,6 +16,7 @@
       "/admin/*",
       "/merchant-feed.xml",
       "/google-merchant.xml",
+      "/sitemap.xml",
       "/perfume/*"
     ]
   },
