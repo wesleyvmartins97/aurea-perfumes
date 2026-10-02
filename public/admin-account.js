@@ -240,6 +240,17 @@ async function deleteTestOrders(ids){
   if(btn){btn.disabled=false;btn.textContent='APAGAR TESTES'}
  }
 }
+async function grantAdminMember(email,name){
+ if(!confirm('Ativar acesso administrativo para '+String(name||'este cliente')+'?'))return;
+ try{
+  const r=await fetch('/api/admin/members/grant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({email})}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível ativar o administrador.');
+  await loadDashboard();
+  if(typeof window.valenzaNotice==='function')window.valenzaNotice(d.message||'Acesso administrativo ativado.');
+ }catch(e){
+  if(typeof window.valenzaNotice==='function')window.valenzaNotice(adminErrorMessage(e,'Não foi possível ativar o administrador agora.'));else alert(adminErrorMessage(e))
+ }
+}
 function renderAdminBody(){
  const d=adminData||{},m=d.metrics||{},body=document.getElementById('vaBody');document.querySelectorAll('.vaTools button').forEach(b=>b.classList.toggle('active',b.dataset.v===adminView));
  if(adminView==='overview'){
@@ -307,7 +318,12 @@ function renderAdminBody(){
   document.querySelectorAll('[data-delete-one]').forEach(b=>b.onclick=()=>openAdminDeleteConfirm([b.dataset.deleteOne]));
   return
  }
- if(adminView==='customers'){const rows=d.recentCustomers||[];body.innerHTML='<div class="vaPanel"><h3>Clientes cadastrados</h3><p style="font-size:10px;color:#777;line-height:1.6;margin:0 0 12px">Cadastros ainda não confirmados aparecem como PENDENTE por até 24 horas. Se o e-mail não for confirmado nesse prazo, o cadastro pendente é removido automaticamente, desde que não tenha pedido vinculado. Um novo envio de confirmação renova esse prazo.</p>'+(rows.length?'<div style="overflow:auto"><table class="vaTable"><thead><tr><th>NOME</th><th>E-MAIL</th><th>CONFIRMAÇÃO</th><th>CADASTRO</th></tr></thead><tbody>'+rows.map(x=>'<tr><td><b>'+esc(x.name)+'</b></td><td>'+esc(x.email)+'</td><td>'+(Number(x.email_verified)?'<span class="vaChip ok">CONFIRMADO</span>':'<span class="vaChip warn">PENDENTE · 24H</span>')+'</td><td>'+dt(x.created_at)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="vaEmpty">Nenhum cliente.</div>')+'</div>';return}
+ if(adminView==='customers'){
+  const rows=d.recentCustomers||[];
+  body.innerHTML='<div class="vaPanel"><h3>Clientes cadastrados</h3><p style="font-size:10px;color:#777;line-height:1.6;margin:0 0 12px">Cadastros ainda não confirmados aparecem como PENDENTE por até 24 horas. Se o e-mail não for confirmado nesse prazo, o cadastro pendente é removido automaticamente, desde que não tenha pedido vinculado. Um novo envio de confirmação renova esse prazo.</p>'+(rows.length?'<div style="overflow:auto"><table class="vaTable"><thead><tr><th>NOME</th><th>E-MAIL</th><th>CONFIRMAÇÃO</th><th>ACESSO</th><th>CADASTRO</th></tr></thead><tbody>'+rows.map(x=>'<tr><td><b>'+esc(x.name)+'</b></td><td>'+esc(x.email)+'</td><td>'+(Number(x.email_verified)?'<span class="vaChip ok">CONFIRMADO</span>':'<span class="vaChip warn">PENDENTE · 24H</span>')+'</td><td>'+(Number(x.is_admin)?'<span class="vaChip ok">ADMIN</span>':(Number(x.email_verified)?'<button class="ccBtn vaGrantAdmin" data-email="'+esc(x.email)+'" data-name="'+esc(x.name)+'">ATIVAR ADMIN</button>':'—'))+'</td><td>'+dt(x.created_at)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="vaEmpty">Nenhum cliente.</div>')+'</div>';
+  document.querySelectorAll('.vaGrantAdmin').forEach(b=>b.onclick=()=>grantAdminMember(b.dataset.email,b.dataset.name));
+  return
+}
  if(adminView==='stock'){const p=(()=>{try{return Object.fromEntries((Array.isArray(CATALOG)?CATALOG:[]).map(x=>[x.id,x]))}catch{return{}}})(),rows=d.inventory||[];body.innerHTML='<div class="vaPanel"><h3>Estoque</h3>'+(rows.length?'<div style="overflow:auto"><table class="vaTable"><thead><tr><th>PRODUTO</th><th>MARCA</th><th>ESTOQUE</th><th>ATUALIZADO</th></tr></thead><tbody>'+rows.map(x=>{const q=p[x.product_id]||{};return '<tr><td><b>'+esc(q.name||x.product_id)+'</b></td><td>'+esc(q.brand||'—')+'</td><td><b>'+Number(x.stock||0)+' un.</b></td><td>'+dt(x.updated_at)+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="vaEmpty">Sem dados de estoque.</div>')+'</div>';return}
  if(adminView==='products'){
   const catalog=(()=>{try{return Array.isArray(CATALOG)?CATALOG:[]}catch{return[]}})(),inventoryMap=Object.fromEntries((d.inventory||[]).map(x=>[String(x.product_id),x])),salesMap=Object.fromEntries((d.productSales||[]).map(x=>[String(x.product_id),Number(x.units||0)])),settingsMap=Object.fromEntries((d.productSettings||[]).map(x=>[String(x.product_id),x]));
