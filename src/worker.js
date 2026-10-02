@@ -759,14 +759,17 @@ async function adminMemberGrant(request,env){
   const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
   const d=await request.json().catch(()=>({})),email=String(d.email||"").trim().toLowerCase();
   if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);
-  const target=await env.DB.prepare("SELECT id,name,email,email_verified FROM customers WHERE lower(email)=lower(?) LIMIT 1").bind(email).first();
+  const db=primaryDb(env);
+  const target=await db.prepare("SELECT id,name,email,email_verified FROM customers WHERE lower(email)=lower(?) LIMIT 1").bind(email).first();
   if(!target)return resposta({ok:false,error:"Cliente não encontrado."},404);
   if(!Number(target.email_verified))return resposta({ok:false,error:"O cliente precisa confirmar o e-mail antes de receber acesso administrativo."},409);
   if(allowedAdminEmail(env,target.email))return resposta({ok:true,alreadyAdmin:true,message:"Esta conta já é administradora principal."});
   const now=new Date().toISOString();
-  await primaryDb(env).prepare("INSERT INTO admin_members(customer_id,role,active,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(customer_id) DO UPDATE SET role='admin',active=1,created_by=excluded.created_by,updated_at=excluded.updated_at").bind(target.id,"admin",1,admin.id,now,now).run();
-  await recordAdminAudit(env,admin,"admin_member_grant",{customerId:target.id});
-  return resposta({ok:true,message:"Acesso administrativo ativado.",member:{name:target.name}});
+  const wr=await db.prepare("INSERT INTO admin_members(customer_id,role,active,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(customer_id) DO UPDATE SET role='admin',active=1,created_by=excluded.created_by,updated_at=excluded.updated_at").bind(target.id,"admin",1,admin.id,now,now).run();
+  const verify=await db.prepare("SELECT role,active FROM admin_members WHERE customer_id=? LIMIT 1").bind(target.id).first();
+  if(!verify||!Number(verify.active))return resposta({ok:false,error:"O acesso não foi gravado no banco. Tente novamente."},500);
+  await recordAdminAudit(env,admin,"admin_member_grant",{customerId:target.id,role:String(verify.role||"admin")});
+  return resposta({ok:true,message:"Acesso administrativo ativado.",member:{name:target.name,role:String(verify.role||"admin")},persisted:true,changes:Number(wr.meta?.changes||0)});
  }catch(e){console.error("Ativar administrador:",e);return resposta({ok:false,error:"Não foi possível ativar o acesso administrativo agora."},500)}
 }
 async function adminOpportunityEmail(request,env){
@@ -843,7 +846,7 @@ async function adminDashboard(request,env){
    env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN email_verified=1 THEN 1 ELSE 0 END) verified FROM customers").first(),
    env.DB.prepare(allOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN status='Pago' THEN total ELSE 0 END),0) revenue,SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN status IN ('Cancelado','Expirado','Reembolsado') THEN 1 ELSE 0 END) closed_orders FROM all_orders").first(),
    env.DB.prepare("WITH all_orders AS (SELECT o.id,o.customer_id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.customer_id,a.order_number,a.status,a.total,a.tracking_code,a.tracking_url,a.carrier,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.barcode,s.shipping_id,s.label_ready,l.state lock_state FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id LEFT JOIN shipment_locks l ON l.order_id=a.id ORDER BY a.created_at DESC LIMIT 50").all(),
-   env.DB.prepare("SELECT c.name,c.email,c.email_verified,c.created_at,CASE WHEN EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=c.id) OR EXISTS(SELECT 1 FROM admin_members am WHERE am.customer_id=c.id AND am.active=1) THEN 1 ELSE 0 END is_admin FROM customers c WHERE c.email_verified=1 OR EXISTS(SELECT 1 FROM email_verifications ev WHERE ev.customer_id=c.id AND ev.expires_at>?) ORDER BY c.created_at DESC LIMIT 50").bind(new Date().toISOString()).all(),
+   primaryDb(env).prepare("SELECT c.name,c.email,c.email_verified,c.created_at,CASE WHEN EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=c.id) OR EXISTS(SELECT 1 FROM admin_members am WHERE am.customer_id=c.id AND am.active=1) THEN 1 ELSE 0 END is_admin FROM customers c WHERE c.email_verified=1 OR EXISTS(SELECT 1 FROM email_verifications ev WHERE ev.customer_id=c.id AND ev.expires_at>?) ORDER BY c.created_at DESC LIMIT 50").bind(new Date().toISOString()).all(),
    env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory ORDER BY stock ASC,product_id ASC").all(),
    env.DB.prepare(realOrdersCte+"SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN real_orders r ON r.id=oi.order_id WHERE r.status='Pago' GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").all(),
    env.DB.prepare(realOrdersCte+"SELECT oi.product_id,SUM(oi.quantity) units FROM order_items oi JOIN real_orders r ON r.id=oi.order_id WHERE r.status='Pago' GROUP BY oi.product_id").all(),
