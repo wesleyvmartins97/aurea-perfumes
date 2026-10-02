@@ -1045,7 +1045,7 @@ const AUREA_CATALOG={
 "yara-moi":{name:"Yara Moi",brand:"Lattafa",type:"EDP · 100ml",price:249.9,weight:.6,length:20,height:12,width:16},
 "yara-tous":{name:"Yara Tous",brand:"Lattafa",type:"EDP · 100ml",price:249.9,weight:.6,length:20,height:12,width:16},
 "tharwah-gold":{name:"Tharwah Gold",brand:"Lattafa",type:"EDP · 100ml",price:449.9,weight:.6,length:20,height:12,width:16},
-"vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:429.9,weight:.6,length:20,height:12,width:16},
+"vulcan-feu":{name:"Vulcan Feu",brand:"French Avenue",type:"EDP · 100ml",price:389.9,weight:.6,length:20,height:12,width:16},
 "khamrah":{name:"Khamrah",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:249.9,weight:.6,length:20,height:12,width:16},
 "khamrah-qahwa":{name:"Khamrah Qahwa",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:269.9,weight:.6,length:20,height:12,width:16},
 "eclaire":{name:"Eclaire",brand:"Lattafa",type:"EDP · 100ml",price:319.9,weight:.6,length:20,height:12,width:16},
@@ -1108,7 +1108,10 @@ async function seedInventory(env){const now=new Date().toISOString();await env.D
  env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("yara-moi",161,now),
  env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("yara-tous",161,now),
  env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v9-yara-moi-tous','100',?)").bind(now)
-])}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
+])}const doneV10=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-price-v10-vulcan-feu-38990'").first();if(!doneV10){await env.DB.batch([
+ env.DB.prepare("INSERT INTO product_settings(product_id,price_override,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET price_override=excluded.price_override,updated_at=excluded.updated_at").bind("vulcan-feu",389.9,now),
+ env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-price-v10-vulcan-feu-38990','ok',?)").bind(now)
+ ])}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
 async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-price)>0.009;return {id,qty:n,...p,price,regularPrice,promotionId:offer?.id||null,priceChanged,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
