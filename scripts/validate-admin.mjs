@@ -183,6 +183,11 @@ if(!worker.includes('Promise.all([reconcileStalePixReservations(env),cleanupExpi
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege pedidos vinculados.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM guest_orders g WHERE lower(g.email)=lower(customers.email))'))fail.push('Limpeza de pendência não protege pedidos legados pelo e-mail.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege conta administrativa.');
+if(!worker.includes('/api/admin/password'))fail.push('Painel admin sem endpoint para troca da senha administrativa.');
+if(!worker.includes('WHERE customer_id=? AND username=? LIMIT 1'))fail.push('Login admin não está isolado por conta administrativa.');
+if(!worker.includes('SELECT username FROM admin_credentials WHERE customer_id=? LIMIT 1'))fail.push('Status admin não verifica credencial individual por conta.');
+if(!admin.includes('ALTERAR SENHA ADMIN')||!admin.includes('vaAdminSecurity'))fail.push('Painel admin sem interface para troca da senha administrativa.');
+if(!admin.includes('mostra todos os perfumes da linha Asad')||!admin.includes('vaProductSearchCount'))fail.push('Busca de produtos não evidencia resultados por linha/nome.');
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
 console.log('ADMIN APROVADO — deny-by-default para pagamentos, action_required protegido, lock anti-corrida do EnvioEcom e exclusões de teste arquivadas.');

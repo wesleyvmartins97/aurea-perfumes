@@ -45,6 +45,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/status"&&request.method==="GET")return adminStatus(request,env);
  if(url.pathname==="/api/admin/setup"&&request.method==="POST")return adminSetup(request,env);
  if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
+ if(url.pathname==="/api/admin/password"&&request.method==="POST")return adminPasswordChange(request,env);
  if(url.pathname==="/api/admin/logout"&&request.method==="POST")return adminLogout(request,env);
  if(url.pathname==="/api/admin/dashboard"&&request.method==="GET")return adminDashboard(request,env);
  if(url.pathname==="/api/admin/members/grant"&&request.method==="POST")return adminMemberGrant(request,env);
@@ -319,6 +320,14 @@ async function analyticsDashboard(env){
  return {periodDays:30,sessions24h:Number(m.sessions24h||0),sessions7d:Number(m.sessions7d||0),sessions30d:sessions30,visitors30d:Number(m.visitors30d||0),pageViews30d:Number(m.page_views30d||0),productViews30d:Number(m.product_views30d||0),addToCart30d:Number(m.add_to_cart30d||0),beginCheckout30d:Number(m.begin_checkout30d||0),purchases30d:purchases30,conversion30d:sessions30?Number((purchases30*100/sessions30).toFixed(2)):0,firstEventAt:m.first_event_at||null,locations:locations.results||[],sources:sources.results||[],products:products.results||[],daily:daily.results||[]};
 }
 function adminUsername(env){return String(env.ADMIN_USERNAME||"wesleymartins").trim().toLowerCase()}
+function adminSuggestedUsername(user,env){
+ const email=String(user?.email||"").trim().toLowerCase();
+ if(email==="wesleyvmartins97@gmail.com")return adminUsername(env);
+ let base=String(user?.name||email.split("@")[0]||"admin").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"").slice(0,28);
+ if(base.length<4)base=("admin"+base).slice(0,28);
+ return base||"adminvalenza"
+}
+function validAdminUsername(v){return /^[a-z0-9._-]{4,32}$/.test(String(v||""))}
 function adminCookieToken(request){const c=request.headers.get("Cookie")||"";const m=c.match(/(?:^|;\s*)valenza_admin=([^;]+)/);return m?decodeURIComponent(m[1]):""}
 function adminSessionCookie(token,maxAge=14400){return "valenza_admin="+encodeURIComponent(token)+"; Path=/api/admin; HttpOnly; Secure; SameSite=Strict; Max-Age="+maxAge}
 function allowedAdminEmail(env,email){const allowed=new Set(String(env.ADMIN_EMAILS||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean));allowed.add("wesleyvmartins97@gmail.com");allowed.add("jjessitrindade@gmail.com");return allowed.has(String(email||"").toLowerCase())}
@@ -360,24 +369,28 @@ async function adminStatus(request,env){
  try{
   await ensureAuthSchema(env);
   const u=await eligibleAdminCustomer(request,env);if(!u)return resposta({ok:false},404);
-  const username=adminUsername(env),cred=await env.DB.prepare("SELECT username FROM admin_credentials WHERE username=?").bind(username).first(),active=await currentAdmin(request,env);
+  const cred=await env.DB.prepare("SELECT username FROM admin_credentials WHERE customer_id=? LIMIT 1").bind(u.id).first(),active=await currentAdmin(request,env);
+  const username=cred?.username||adminSuggestedUsername(u,env);
   return resposta({ok:true,eligible:true,configured:!!cred,authenticated:!!active,username});
  }catch(e){console.error("Admin status:",e);return resposta({ok:false},500)}
 }
 async function adminSetup(request,env){
  try{
   await ensureAuthSchema(env);
-  const u=await currentCustomer(request,env);if(!u||!u.email_verified||!allowedAdminEmail(env,u.email))return resposta({ok:false,error:"Acesso não autorizado."},404);
-  const username=adminUsername(env),existing=await env.DB.prepare("SELECT username FROM admin_credentials WHERE username=?").bind(username).first();
-  if(existing)return resposta({ok:false,error:"A senha administrativa já foi criada. Use ENTRAR."},409);
-  const d=await request.json().catch(()=>({})),user=String(d.username||"").trim().toLowerCase(),pass=String(d.password||""),confirm=String(d.confirmPassword||"");
-  if(user!==username)return resposta({ok:false,error:"Usuário administrativo inválido."},400);
+  const u=await eligibleAdminCustomer(request,env);if(!u)return resposta({ok:false,error:"Acesso não autorizado."},404);
+  const existing=await env.DB.prepare("SELECT username FROM admin_credentials WHERE customer_id=? LIMIT 1").bind(u.id).first();
+  if(existing)return resposta({ok:false,error:"Seu acesso administrativo já foi criado. Use ENTRAR."},409);
+  const d=await request.json().catch(()=>({})),username=String(d.username||"").trim().toLowerCase(),pass=String(d.password||""),confirm=String(d.confirmPassword||"");
+  if(!validAdminUsername(username))return resposta({ok:false,error:"Use um usuário de 4 a 32 caracteres, apenas letras minúsculas, números, ponto, hífen ou sublinhado."},400);
+  const taken=await env.DB.prepare("SELECT customer_id FROM admin_credentials WHERE username=? LIMIT 1").bind(username).first();
+  if(taken)return resposta({ok:false,error:"Esse usuário administrativo já está em uso. Escolha outro."},409);
   if(pass.length<12)return resposta({ok:false,error:"Crie uma senha administrativa com pelo menos 12 caracteres."},400);
   if(pass!==confirm)return resposta({ok:false,error:"As senhas não coincidem."},400);
   const hp=await hashPassword(pass),now=new Date().toISOString();
   await env.DB.prepare("INSERT INTO admin_credentials(username,customer_id,password_hash,password_salt,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind(username,u.id,hp.hash,hp.salt,now,now).run();
+  await recordAdminAudit(env,u,"admin_credential_created",{username});
   const sess=await createAdminSession(u,env),h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie(sess.token));
-  return new Response(JSON.stringify({ok:true,configured:true,authenticated:true,username}),{status:200,headers:h});
+  return new Response(JSON.stringify({ok:true,eligible:true,configured:true,authenticated:true,username}),{status:200,headers:h});
  }catch(e){console.error("Admin setup:",e);return resposta({ok:false,error:"Não foi possível criar a senha administrativa."},500)}
 }
 async function adminLogin(request,env){
@@ -385,15 +398,38 @@ async function adminLogin(request,env){
   await ensureAuthSchema(env);
   const u=await eligibleAdminCustomer(request,env);if(!u)return resposta({ok:false,error:"Acesso não autorizado."},404);
   const rate=await adminRateState(request,env);if(rate.blocked)return resposta({ok:false,error:"Muitas tentativas. Aguarde alguns minutos e tente novamente.",retryAfter:rate.retryAfter},429);
-  const d=await request.json().catch(()=>({})),user=String(d.username||"").trim().toLowerCase(),pass=String(d.password||""),username=adminUsername(env);
-  const cred=user===username?await env.DB.prepare("SELECT password_hash,password_salt FROM admin_credentials WHERE username=?").bind(username).first():null;
+  const d=await request.json().catch(()=>({})),username=String(d.username||"").trim().toLowerCase(),pass=String(d.password||"");
+  const cred=await env.DB.prepare("SELECT username,password_hash,password_salt FROM admin_credentials WHERE customer_id=? AND username=? LIMIT 1").bind(u.id,username).first();
   let valid=false;if(cred&&pass){const hp=await hashPassword(pass,cred.password_salt);valid=hp.hash===cred.password_hash}
   if(!valid){await adminRegisterFailure(rate.key,rate.failures,env);return resposta({ok:false,error:"Usuário ou senha administrativa incorretos."},401)}
   await env.DB.prepare("DELETE FROM admin_login_attempts WHERE key=?").bind(rate.key).run();
   const sess=await createAdminSession(u,env),h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie(sess.token));
-  return new Response(JSON.stringify({ok:true,authenticated:true,username}),{status:200,headers:h});
+  return new Response(JSON.stringify({ok:true,eligible:true,configured:true,authenticated:true,username:cred.username}),{status:200,headers:h});
  }catch(e){console.error("Admin login:",e);return resposta({ok:false,error:"Não foi possível entrar no painel agora."},500)}
 }
+async function adminPasswordChange(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const d=await request.json().catch(()=>({})),currentPassword=String(d.currentPassword||""),newPassword=String(d.newPassword||""),confirmPassword=String(d.confirmPassword||"");
+  if(!currentPassword)return resposta({ok:false,error:"Informe a senha administrativa atual."},400);
+  if(newPassword.length<12)return resposta({ok:false,error:"A nova senha administrativa precisa ter pelo menos 12 caracteres."},400);
+  if(newPassword!==confirmPassword)return resposta({ok:false,error:"A confirmação da nova senha não confere."},400);
+  const cred=await env.DB.prepare("SELECT username,password_hash,password_salt FROM admin_credentials WHERE customer_id=? LIMIT 1").bind(admin.id).first();
+  if(!cred)return resposta({ok:false,error:"Credencial administrativa não encontrada para esta conta."},404);
+  const currentHash=(await hashPassword(currentPassword,cred.password_salt)).hash;
+  if(currentHash!==cred.password_hash)return resposta({ok:false,error:"A senha administrativa atual está incorreta."},401);
+  const sameHash=(await hashPassword(newPassword,cred.password_salt)).hash;
+  if(sameHash===cred.password_hash)return resposta({ok:false,error:"Escolha uma senha administrativa diferente da atual."},400);
+  const hp=await hashPassword(newPassword),now=new Date().toISOString();
+  await env.DB.prepare("UPDATE admin_credentials SET password_hash=?,password_salt=?,updated_at=? WHERE customer_id=?").bind(hp.hash,hp.salt,now,admin.id).run();
+  await env.DB.prepare("DELETE FROM admin_sessions WHERE customer_id=?").bind(admin.id).run();
+  await recordAdminAudit(env,admin,"admin_password_changed",{username:cred.username});
+  const sess=await createAdminSession(admin,env),h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie(sess.token));
+  return new Response(JSON.stringify({ok:true,authenticated:true,username:cred.username,message:"Senha administrativa alterada com sucesso."}),{status:200,headers:h});
+ }catch(e){console.error("Troca de senha admin:",e);return resposta({ok:false,error:"Não foi possível alterar a senha administrativa agora."},500)}
+}
+
 async function adminLogout(request,env){
  try{await ensureAuthSchema(env);const token=adminCookieToken(request);if(token)await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(await sha256(token)).run();const h=new Headers(jsonHeaders);h.set("Set-Cookie",adminSessionCookie("",0));return new Response(JSON.stringify({ok:true}),{headers:h})}catch(e){return resposta({ok:true})}
 }
