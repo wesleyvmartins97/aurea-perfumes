@@ -321,7 +321,7 @@ async function eligibleAdminCustomer(request,env){
  const u=await currentCustomer(request,env);
  if(!u||!u.email_verified)return null;
  if(allowedAdminEmail(env,u.email))return u;
- const member=await env.DB.prepare("SELECT 1 ok FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(u.id).first();
+ const member=await primaryDb(env).prepare("SELECT 1 ok FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(u.id).first();
  return member?u:null;
 }
 async function currentAdmin(request,env){
@@ -764,7 +764,7 @@ async function adminMemberGrant(request,env){
   if(!Number(target.email_verified))return resposta({ok:false,error:"O cliente precisa confirmar o e-mail antes de receber acesso administrativo."},409);
   if(allowedAdminEmail(env,target.email))return resposta({ok:true,alreadyAdmin:true,message:"Esta conta já é administradora principal."});
   const now=new Date().toISOString();
-  await env.DB.prepare("INSERT INTO admin_members(customer_id,role,active,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(customer_id) DO UPDATE SET role='admin',active=1,created_by=excluded.created_by,updated_at=excluded.updated_at").bind(target.id,"admin",1,admin.id,now,now).run();
+  await primaryDb(env).prepare("INSERT INTO admin_members(customer_id,role,active,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(customer_id) DO UPDATE SET role='admin',active=1,created_by=excluded.created_by,updated_at=excluded.updated_at").bind(target.id,"admin",1,admin.id,now,now).run();
   await recordAdminAudit(env,admin,"admin_member_grant",{customerId:target.id});
   return resposta({ok:true,message:"Acesso administrativo ativado.",member:{name:target.name}});
  }catch(e){console.error("Ativar administrador:",e);return resposta({ok:false,error:"Não foi possível ativar o acesso administrativo agora."},500)}
@@ -882,7 +882,7 @@ async function adminDashboard(request,env){
 }
 async function accountData(request,env){try{
  const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login para acessar sua conta."},401);
- const adminMember=await env.DB.prepare("SELECT role,active FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(u.id).first();
+ const adminMember=await primaryDb(env).prepare("SELECT role,active FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(u.id).first();
  const adminAccess=!!u.email_verified&&(allowedAdminEmail(env,u.email)||!!adminMember);
  const [p,a,o]=await Promise.all([
   env.DB.prepare("SELECT phone,cpf,birth_date FROM customer_profiles WHERE customer_id=?").bind(u.id).first(),
