@@ -88,7 +88,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),maybeSendDailyReport(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -110,6 +110,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, name TEXT NOT NULL, brand TEXT, type TEXT, image TEXT, quantity INTEGER NOT NULL, unit_price REAL NOT NULL, stock_deducted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS order_payments (order_id TEXT PRIMARY KEY, method TEXT NOT NULL, installments INTEGER NOT NULL DEFAULT 1, installment_amount REAL NOT NULL DEFAULT 0, total_paid REAL NOT NULL DEFAULT 0, status TEXT, status_detail TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS shipment_locks (order_id TEXT PRIMARY KEY, state TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS order_shipping (order_id TEXT PRIMARY KEY, email TEXT, customer_name TEXT, cpf TEXT, phone TEXT, cep TEXT, street TEXT, number TEXT, complement TEXT, neighborhood TEXT, city TEXT, state TEXT, carrier TEXT, freight_cost REAL NOT NULL DEFAULT 0, delivery_time INTEGER NOT NULL DEFAULT 0, shipping_id TEXT, barcode TEXT, label_ready INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS shipment_tracking_state (order_id TEXT PRIMARY KEY, shipping_id TEXT, barcode TEXT, carrier TEXT, status TEXT NOT NULL DEFAULT 'prepared', status_label TEXT, status_at TEXT, last_event_key TEXT, last_checked_at TEXT, delivered_at TEXT, issue_code TEXT, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_shipment_tracking_status ON shipment_tracking_state(status,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_credentials (username TEXT PRIMARY KEY, customer_id TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_members (customer_id TEXT PRIMARY KEY, role TEXT NOT NULL DEFAULT 'admin', active INTEGER NOT NULL DEFAULT 1, created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_members_active ON admin_members(active,customer_id)"),
@@ -1309,19 +1311,22 @@ async function accountData(request,env){try{
  const orders=o.results||[];
  if(orders.length){
   const ids=orders.map(x=>x.id),marks=ids.map(()=>"?").join(",");
-  const [its,ships,pays]=await Promise.all([
+  const [its,ships,pays,tracking]=await Promise.all([
    env.DB.prepare("SELECT order_id,product_id,name,brand,type,image,quantity,unit_price FROM order_items WHERE order_id IN ("+marks+")").bind(...ids).all(),
    env.DB.prepare("SELECT order_id,carrier,shipping_id,barcode,label_ready FROM order_shipping WHERE order_id IN ("+marks+")").bind(...ids).all(),
-   env.DB.prepare("SELECT order_id,method,installments,installment_amount,total_paid,status,status_detail FROM order_payments WHERE order_id IN ("+marks+")").bind(...ids).all()
+   env.DB.prepare("SELECT order_id,method,installments,installment_amount,total_paid,status,status_detail FROM order_payments WHERE order_id IN ("+marks+")").bind(...ids).all(),
+   env.DB.prepare("SELECT order_id,status,status_label,status_at,last_checked_at,delivered_at,issue_code FROM shipment_tracking_state WHERE order_id IN ("+marks+")").bind(...ids).all()
   ]);
-  const itemMap=new Map(),shipMap=new Map(),payMap=new Map();
+  const itemMap=new Map(),shipMap=new Map(),payMap=new Map(),trackingMap=new Map();
   for(const x of (its.results||[])){if(!itemMap.has(x.order_id))itemMap.set(x.order_id,[]);const {order_id,...item}=x;itemMap.get(x.order_id).push(item)}
   for(const x of (ships.results||[]))shipMap.set(x.order_id,x);
   for(const x of (pays.results||[]))payMap.set(x.order_id,x);
+  for(const x of (tracking.results||[]))trackingMap.set(x.order_id,x);
   for(const ord of orders){
    ord.items=itemMap.get(ord.id)||[];
    const sh=shipMap.get(ord.id);if(sh){ord.carrier=sh.carrier||ord.carrier;ord.tracking_code=sh.barcode||ord.tracking_code;ord.shipping_id=sh.shipping_id||null;ord.label_ready=!!sh.label_ready}
    const pay=payMap.get(ord.id);if(pay){const {order_id,...payment}=pay;ord.payment=payment}
+   const tr=trackingMap.get(ord.id);if(tr){ord.tracking_status=tr.status;ord.tracking_status_label=tr.status_label;ord.tracking_status_at=tr.status_at;ord.tracking_last_checked_at=tr.last_checked_at;ord.delivered_at=tr.delivered_at;ord.tracking_issue=tr.issue_code}
   }
  }
  return resposta({ok:true,user:{name:u.name,email:u.email,emailVerified:!!u.email_verified,phone:p?.phone||"",cpf:p?.cpf||"",birthDate:p?.birth_date||"",adminAccess,adminRole:allowedAdminEmail(env,u.email)?"owner":(adminMember?.role||null)},addresses:a.results||[],orders});
@@ -1728,6 +1733,89 @@ async function reconcileStalePixReservations(env){
  }catch(e){console.error("Reconciliação PIX:",e)}
 }
 async function webhookMercadoPago(request,env,ctx){try{const body=await request.json().catch(()=>({}));const id=String(body?.data?.id||body?.id||"");if(!id)return resposta({ok:true});await ensureAuthSchema(env);const local=await env.DB.prepare("SELECT id FROM orders WHERE id=? UNION SELECT id FROM guest_orders WHERE id=? LIMIT 1").bind(id,id).first();if(!local)return resposta({ok:true});const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Mercado Pago não configurado."},503);const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)return resposta({ok:true});const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||""),detail=String(tx.status_detail||d.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",pid=String(d.id||id),now=new Date().toISOString();const label=approved?"Pago":({processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado",expired:"Expirado"}[st]||"Processando");await env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid).run();await env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid).run();await env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid).run();await recordPaymentStatusEvent(env,{orderId:pid,rawStatus:st,label,method:"mercadopago",source:"mercadopago-webhook"});if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();await sendOrderOperationalEmail(env,pid,"payment_confirmed").catch(e=>console.error("E-mail webhook aprovado:",e));if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Webhook expedição:",e)}const task=notifyPaidOrder(env,pid);if(ctx?.waitUntil)ctx.waitUntil(task);else await task}else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now);await markOpportunityPaymentIssue(env,pid,detail||label);const mail=sendOrderOperationalEmail(env,pid,"payment_failed");if(ctx?.waitUntil)ctx.waitUntil(mail);else await mail}return resposta({ok:true})}catch(e){console.error("Webhook Mercado Pago:",e);return resposta({ok:true})}}
+
+function shippingText(v){return String(v??"").trim()}
+function shippingNorm(v){return shippingText(v).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")}
+function shippingDate(v){const d=new Date(String(v||""));return Number.isFinite(d.getTime())?d.toISOString():null}
+function shipmentRoot(data){return data?.data?.shipment||data?.data||data?.shipment||data?.result||data||{}}
+function shipmentHistory(root){
+ const pools=[root?.tracking_history,root?.status_history,root?.history,root?.events,root?.movements,root?.occurrences,root?.tracking?.history,root?.tracking?.events];
+ for(const x of pools)if(Array.isArray(x))return x;
+ return [];
+}
+function shipmentEventTime(x){return shippingDate(x?.date||x?.datetime||x?.timestamp||x?.created_at||x?.updated_at||x?.event_date||x?.occurrence_date||x?.status_at)}
+function shipmentStatusText(root){
+ const raw=root?.current_status??root?.tracking_status??root?.status??root?.status_name??root?.status_description??root?.state??"";
+ if(raw&&typeof raw==="object")return shippingText(raw.label||raw.name||raw.status||raw.description||raw.title||raw.value);
+ return shippingText(raw);
+}
+function shipmentEventText(x){return shippingText(x?.status||x?.status_name||x?.title||x?.event||x?.description||x?.message||x?.detail||x?.label)}
+function classifyShipmentStatus(text){
+ const s=shippingNorm(text);
+ if(!s)return {key:"unknown",label:"Sem atualização"};
+ if(/entregue|delivered|delivery complete|finalizada/.test(s))return {key:"delivered",label:"Entregue"};
+ if(/saiu para entrega|em rota para entrega|out for delivery|rota de entrega/.test(s))return {key:"out_for_delivery",label:"Saiu para entrega"};
+ if(/atras|extravi|avaria|devolu|destinatario ausente|endereco incorreto|nao entregue|não entregue|retid|falha|ocorrencia|ocorrência|cancelad|sinistro/.test(s))return {key:"problem",label:text||"Problema no transporte"};
+ if(/a caminho|em transito|em trânsito|transit|postad|coletad|saiu de uma base|chegou em uma base|transferencia|transferência|encaminhad|transportadora/.test(s))return {key:"in_transit",label:text||"Em trânsito"};
+ if(/aguardando|etiqueta|prepar|criad|created|payment|pagamento/.test(s))return {key:"prepared",label:text||"Preparando envio"};
+ return {key:"in_transit",label:text||"Em trânsito"};
+}
+function shipmentLatest(root){
+ const history=shipmentHistory(root),sorted=[...history].sort((a,b)=>Date.parse(shipmentEventTime(b)||0)-Date.parse(shipmentEventTime(a)||0)),latest=sorted[0]||null;
+ const statusText=shipmentEventText(latest)||shipmentStatusText(root),status=classifyShipmentStatus(statusText),statusAt=shipmentEventTime(latest)||shippingDate(root?.updated_at||root?.status_at||root?.last_update);
+ return {statusText,status,statusAt,latest,historyCount:history.length};
+}
+async function shipmentStateRow(env,orderId){return env.DB.prepare("SELECT * FROM shipment_tracking_state WHERE order_id=?").bind(String(orderId)).first()}
+async function persistShipmentTracking(env,row,parsed,root){
+ const now=new Date().toISOString(),old=await shipmentStateRow(env,row.order_id),status=parsed.status.key,label=shippingText(parsed.status.label||parsed.statusText).slice(0,240),statusAt=parsed.statusAt||now,eventKey=await sha256([row.order_id,status,label,statusAt].join("|"));
+ await env.DB.prepare("INSERT INTO shipment_tracking_state(order_id,shipping_id,barcode,carrier,status,status_label,status_at,last_event_key,last_checked_at,delivered_at,issue_code,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(order_id) DO UPDATE SET shipping_id=excluded.shipping_id,barcode=excluded.barcode,carrier=excluded.carrier,status=excluded.status,status_label=excluded.status_label,status_at=excluded.status_at,last_event_key=excluded.last_event_key,last_checked_at=excluded.last_checked_at,delivered_at=COALESCE(shipment_tracking_state.delivered_at,excluded.delivered_at),issue_code=excluded.issue_code,updated_at=excluded.updated_at")
+  .bind(String(row.order_id),String(row.shipping_id||""),String(row.barcode||""),String(row.carrier||""),status,label,statusAt,eventKey,now,status==="delivered"?statusAt:null,status==="problem"?shippingNorm(label).slice(0,120):null,now).run();
+ const changed=!old||String(old.last_event_key||"")!==eventKey||String(old.status||"")!==status;
+ if(!changed)return {changed:false,status};
+ const baseMeta={carrier:String(row.carrier||""),barcode:String(row.barcode||""),statusLabel:label,statusAt,historyCount:Number(parsed.historyCount||0)};
+ if(status==="in_transit"){
+  await recordOperationalEvent(env,{orderId:row.order_id,eventType:"shipping.in_transit",category:"shipping",status:"in_transit",severity:"info",source:"envioecom-tracking",message:"Pedido em trânsito.",metadata:baseMeta,uniqueKey:"tracking:"+row.order_id+":"+eventKey});
+  await sendOrderOperationalEmail(env,row.order_id,"in_transit").catch(e=>console.error("E-mail em trânsito:",e));
+ }else if(status==="out_for_delivery"){
+  await recordOperationalEvent(env,{orderId:row.order_id,eventType:"shipping.out_for_delivery",category:"shipping",status:"out_for_delivery",severity:"info",source:"envioecom-tracking",message:"Pedido saiu para entrega.",metadata:baseMeta,uniqueKey:"tracking:"+row.order_id+":"+eventKey});
+  await sendOrderOperationalEmail(env,row.order_id,"out_for_delivery").catch(e=>console.error("E-mail saiu para entrega:",e));
+ }else if(status==="delivered"){
+  await recordOperationalEvent(env,{orderId:row.order_id,eventType:"shipping.delivered",category:"shipping",status:"delivered",severity:"success",source:"envioecom-tracking",message:"Pedido entregue.",metadata:baseMeta,uniqueKey:"tracking:"+row.order_id+":"+eventKey});
+  await sendOrderOperationalEmail(env,row.order_id,"delivered").catch(e=>console.error("E-mail entregue:",e));
+ }else if(status==="problem"){
+  await recordOperationalEvent(env,{orderId:row.order_id,eventType:"shipping.problem",category:"shipping",status:"failed",severity:"error",source:"envioecom-tracking",message:"Problema detectado no rastreamento: "+label,metadata:baseMeta,uniqueKey:"tracking:"+row.order_id+":"+eventKey});
+ }
+ return {changed:true,status};
+}
+async function checkShipmentDelay(env,row,state){
+ try{
+  if(!state||["delivered","problem"].includes(String(state.status||"")))return;
+  const start=Date.parse(row.shipping_updated_at||row.shipping_created_at||row.created_at||"");
+  if(!Number.isFinite(start))return;
+  const days=Math.max(5,Number(row.delivery_time||0)+3),late=Date.now()>start+days*86400000;
+  if(!late)return;
+  const key="shipping:"+String(row.order_id)+":delay:"+new Date(start).toISOString().slice(0,10);
+  await recordOperationalEvent(env,{orderId:row.order_id,eventType:"shipping.delay",category:"shipping",status:"failed",severity:"error",source:"tracking-watch",message:"Envio sem confirmação de entrega além do prazo operacional esperado.",metadata:{carrier:String(row.carrier||""),barcode:String(row.barcode||""),deliveryTime:Number(row.delivery_time||0),graceDays:3},uniqueKey:key});
+ }catch(e){console.error("Verificação de atraso:",e)}
+}
+async function syncShipmentTracking(env){
+ try{
+  await ensureAuthSchema(env);if(!env.ENVIOECOM_TOKEN)return;
+  const q=await env.DB.prepare("SELECT s.order_id,s.shipping_id,s.barcode,s.carrier,s.delivery_time,s.created_at shipping_created_at,s.updated_at shipping_updated_at,COALESCE(o.created_at,g.created_at) created_at FROM order_shipping s LEFT JOIN orders o ON o.id=s.order_id LEFT JOIN guest_orders g ON g.id=s.order_id LEFT JOIN shipment_tracking_state t ON t.order_id=s.order_id WHERE s.carrier<>'Entrega local Valenza' AND (COALESCE(s.barcode,'')<>'' OR COALESCE(s.shipping_id,'')<>'') AND COALESCE(t.status,'')<>'delivered' ORDER BY COALESCE(t.last_checked_at,'1970-01-01') ASC LIMIT 20").all();
+  for(const row of (q.results||[])){
+   const ref=shippingText(row.barcode||row.shipping_id);if(!ref)continue;
+   try{
+    const r=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipments/"+encodeURIComponent(ref),{headers:{"Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN}});
+    const raw=await r.text();let data={};try{data=JSON.parse(raw)}catch{}
+    if(!r.ok){
+     if(r.status>=500||r.status===429)await recordOperationalEvent(env,{orderId:row.order_id,eventType:"shipping.tracking_api_failed",category:"shipping",status:"failed",severity:"error",source:"envioecom-tracking",message:"Falha ao consultar rastreamento no EnvioEcom.",metadata:{httpStatus:r.status},uniqueKey:"tracking-api:"+row.order_id+":"+String(r.status)+":"+new Date().toISOString().slice(0,10)});
+     continue;
+    }
+    const root=shipmentRoot(data),parsed=shipmentLatest(root);await persistShipmentTracking(env,row,parsed,root);const state=await shipmentStateRow(env,row.order_id);await checkShipmentDelay(env,row,state);
+   }catch(e){console.error("Rastreio automático item:",row.order_id,e)}
+  }
+ }catch(e){console.error("Rastreio automático:",e)}
+}
 async function criarEnvioEnvioEcom(env,orderId){
  await ensureAuthSchema(env);
  if(!env.ENVIOECOM_TOKEN){await recordOperationalEvent(env,{orderId,eventType:"shipping.integration_failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"Token do EnvioEcom ausente; postagem não pode ser criada.",uniqueKey:"shipping:missing-token"});return {ok:false,error:"Token EnvioEcom ausente"}}const originCep=String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"");if(originCep.length!==8){await recordOperationalEvent(env,{orderId,eventType:"shipping.config_failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"CEP de origem da postagem não configurado.",uniqueKey:"shipping:missing-origin-cep"});return {ok:false,error:"CEP de origem da postagem não configurado"}};
@@ -1743,7 +1831,7 @@ async function criarEnvioEnvioEcom(env,orderId){
  let r,raw;try{r=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/create",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(payload)});raw=await r.text()}catch(e){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();await recordOperationalEvent(env,{orderId,eventType:"shipping.network_failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"Falha de conexão ao criar a postagem no EnvioEcom.",metadata:{name:String(e?.name||""),message:String(e?.message||"").slice(0,200)},uniqueKey:"shipping:"+String(orderId)+":network-failed"});throw e}let d;try{d=JSON.parse(raw)}catch{d=null}
  if(!r.ok){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();await recordOperationalEvent(env,{orderId,eventType:"shipping.failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"EnvioEcom recusou a criação da postagem.",metadata:{httpStatus:r.status,carrier:String(sh.carrier||"")},uniqueKey:"shipping:"+String(orderId)+":failed:"+String(r.status)});console.error("EnvioEcom create:",r.status,raw.slice(0,1000));return {ok:false,error:"EnvioEcom recusou a criação do envio",status:r.status}}
  const x=Array.isArray(d)?d[0]:(Array.isArray(d?.shipments)?d.shipments[0]:(d?.data?.[0]||d?.shipment||d)),sid=x?.shipping_id??x?.id??null,barcode=x?.barcode??x?.tracking_code??null;if(!sid){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();await recordOperationalEvent(env,{orderId,eventType:"shipping.failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"EnvioEcom respondeu sem identificador da postagem.",metadata:{carrier:String(sh.carrier||"")},uniqueKey:"shipping:"+String(orderId)+":missing-id"});return {ok:false,error:"Envio criado sem identificador"}};
- const now=new Date().toISOString();await env.DB.batch([env.DB.prepare("UPDATE order_shipping SET shipping_id=?,barcode=?,updated_at=? WHERE order_id=? AND shipping_id IS NULL").bind(String(sid),barcode?String(barcode):null,now,orderId),env.DB.prepare("UPDATE orders SET tracking_code=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,String(sh.carrier),now,orderId),env.DB.prepare("UPDATE guest_orders SET tracking_code=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,String(sh.carrier),now,orderId)]);
+ const now=new Date().toISOString(),trackingUrl=barcode?"https://envioecom.com.br/tracker?barcode="+encodeURIComponent(String(barcode)):null;await env.DB.batch([env.DB.prepare("UPDATE order_shipping SET shipping_id=?,barcode=?,updated_at=? WHERE order_id=? AND shipping_id IS NULL").bind(String(sid),barcode?String(barcode):null,now,orderId),env.DB.prepare("UPDATE orders SET tracking_code=?,tracking_url=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,trackingUrl,String(sh.carrier),now,orderId),env.DB.prepare("UPDATE guest_orders SET tracking_code=?,tracking_url=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,trackingUrl,String(sh.carrier),now,orderId),env.DB.prepare("INSERT INTO shipment_tracking_state(order_id,shipping_id,barcode,carrier,status,status_label,status_at,last_checked_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(order_id) DO UPDATE SET shipping_id=excluded.shipping_id,barcode=excluded.barcode,carrier=excluded.carrier,updated_at=excluded.updated_at").bind(String(orderId),String(sid),barcode?String(barcode):null,String(sh.carrier),"prepared","Postagem criada",now,null,now)]);
  await env.DB.prepare("UPDATE shipment_locks SET state=?,updated_at=? WHERE order_id=?").bind("created",new Date().toISOString(),orderId).run();const labelReady=await tentarGerarEtiqueta(env,orderId,sid,barcode);await recordOperationalEvent(env,{orderId,eventType:"shipping.created",category:"shipping",status:"created",severity:"success",source:"envioecom",message:"Postagem criada no EnvioEcom.",metadata:{shippingId:String(sid),hasTracking:!!barcode,labelReady:!!labelReady,carrier:String(sh.carrier||"")},uniqueKey:"shipping:"+String(orderId)+":"+String(sid)});await sendOrderOperationalEmail(env,orderId,"shipment_prepared").catch(e=>console.error("E-mail postagem preparada:",e));return {ok:true,shippingId:String(sid),barcode:barcode?String(barcode):null,labelReady};
 }
 async function consultarPagamento(request,orderId,env){
