@@ -88,7 +88,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),maybeSendDailyReport(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -554,14 +554,62 @@ function operationalEventMetadata(meta){
  }
  return safe;
 }
-async function recordOperationalEvent(env,{orderId=null,eventType,category="system",status="info",severity="info",source="worker",message="",metadata={},uniqueKey=null}={}){
+async function operationalAlertRecipients(env){
+ try{
+  const configured=String(env.ADMIN_EMAILS||"").split(",").map(x=>x.trim().toLowerCase()).filter(validEmail);
+  const q=await env.DB.prepare("SELECT c.email FROM admin_credentials a JOIN customers c ON c.id=a.customer_id WHERE c.email_verified=1 UNION SELECT c.email FROM admin_members m JOIN customers c ON c.id=m.customer_id WHERE m.active=1 AND c.email_verified=1").all();
+  return [...new Set([...configured,...(q.results||[]).map(x=>String(x.email||"").trim().toLowerCase()).filter(validEmail)])].slice(0,10);
+ }catch(e){console.error("Destinatários de alerta:",e);return [...new Set(String(env.ADMIN_EMAILS||"").split(",").map(x=>x.trim().toLowerCase()).filter(validEmail))].slice(0,10)}
+}
+function operationalAlertHeading(eventType,category){
+ const type=String(eventType||""),cat=String(category||"");
+ if(cat==="payment")return "Problema no pagamento";
+ if(cat==="shipping")return "Problema no envio/postagem";
+ if(cat==="email")return "Problema no e-mail";
+ if(cat==="freight")return "Problema no frete";
+ if(type.includes("integration"))return "Falha de integração";
+ return "Alerta operacional";
+}
+async function sendOperationalAlertEmail(env,{title,message,orderId,eventType,source}={}){
+ const recipients=await operationalAlertRecipients(env);if(!recipients.length)return {ok:false,error:"admin_email_missing"};
+ const safe=escapeHtml,subject="ALERTA | "+String(title||"VALENZA PARFUMS");
+ const html='<!doctype html><html><body style="margin:0;background:#f5f1ec;font-family:Arial;color:#201d1a"><table width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px"><tr><td align="center"><table width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border:1px solid #e7e0d8"><tr><td style="padding:28px;text-align:center;border-bottom:1px solid #eee7df"><div style="font-family:Georgia,serif;font-size:26px;letter-spacing:7px">VALENZA</div><div style="margin-top:6px;font-size:10px;letter-spacing:4px;color:#9b2c2c">ALERTA OPERACIONAL</div></td></tr><tr><td style="padding:30px"><h1 style="font:26px Georgia,serif;margin:0 0 16px">'+safe(String(title||"Alerta operacional"))+'</h1><p style="font-size:15px;line-height:1.6">'+safe(String(message||"Foi detectado um problema que precisa de atenção."))+'</p>'+(orderId?'<p style="font-size:14px"><b>Pedido:</b> '+safe(String(orderId))+'</p>':'')+'<p style="font-size:12px;color:#777;margin-top:22px">Evento: '+safe(String(eventType||"system.error"))+' · Origem: '+safe(String(source||"worker"))+'</p></td></tr></table></td></tr></table></body></html>';
+ const textBody='VALENZA PARFUMS - ALERTA OPERACIONAL\n\n'+String(title||"Alerta operacional")+'\n'+String(message||"")+(orderId?'\nPedido: '+String(orderId):'')+'\nEvento: '+String(eventType||"system.error")+'\nOrigem: '+String(source||"worker");
+ return sendResendMessage(env,{to:recipients,subject,html,text:textBody});
+}
+async function notifyOperationalError(env,{eventId,uniqueKey,orderId,eventType,category,status,severity,source,message}={}){
+ try{
+  if(String(severity)!=="error"&&String(status)!=="failed")return {ok:true,skipped:true};
+  const now=new Date().toISOString(),key="ops-error:"+operationalEventText(uniqueKey||eventId||crypto.randomUUID(),150),title=operationalAlertHeading(eventType,category),msg=operationalEventText(message||"Falha operacional detectada.",500);
+  const ins=await env.DB.prepare("INSERT OR IGNORE INTO admin_notifications(id,unique_key,type,severity,title,message,order_id,email_sent,created_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),key,"error","error",title,msg,orderId?String(orderId):null,0,now).run();
+  if(Number(ins.meta?.changes||0)<1)return {ok:true,duplicate:true};
+  const n=await env.DB.prepare("SELECT id FROM admin_notifications WHERE unique_key=?").bind(key).first();
+  const sent=await sendOperationalAlertEmail(env,{title,message:msg,orderId,eventType,source});
+  if(sent.ok&&n?.id)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
+  return {ok:true,notified:true,emailSent:!!sent.ok};
+ }catch(e){console.error("Alerta operacional:",e);return {ok:false,error:"operational_alert_failed"}}
+}
+async function retryPendingOperationalErrorAlerts(env){
+ try{
+  await ensureAuthSchema(env);
+  const q=await env.DB.prepare("SELECT id,title,message,order_id,created_at FROM admin_notifications WHERE type='error' AND email_sent=0 ORDER BY created_at ASC LIMIT 10").all();
+  for(const n of (q.results||[])){
+   const sent=await sendOperationalAlertEmail(env,{title:n.title,message:n.message,orderId:n.order_id,eventType:"retry.operational_alert",source:"scheduled-retry"});
+   if(sent.ok)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
+  }
+ }catch(e){console.error("Retry alertas operacionais:",e)}
+}
+async function recordOperationalEvent(env,{orderId=null,eventType="",category="system",status="info",severity="info",source="worker",message="",metadata={},uniqueKey=null}={}){
  try{
   if(!env?.DB||!eventType)return {ok:false,skipped:true};
   const id=crypto.randomUUID(),key=operationalEventText(uniqueKey||("event:"+id),180),now=new Date().toISOString();
   const payload=JSON.stringify(operationalEventMetadata(metadata)).slice(0,2500);
+  const event={eventId:id,uniqueKey:key,orderId:orderId?operationalEventText(orderId,160):null,eventType:operationalEventText(eventType,100),category:operationalEventText(category,50),status:operationalEventText(status,50),severity:operationalEventText(severity,30),source:operationalEventText(source,60),message:operationalEventText(message,500)};
   const r=await env.DB.prepare("INSERT OR IGNORE INTO operational_events(id,unique_key,order_id,event_type,category,status,severity,source,message,metadata_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
-   .bind(id,key,orderId?operationalEventText(orderId,160):null,operationalEventText(eventType,100),operationalEventText(category,50),operationalEventText(status,50),operationalEventText(severity,30),operationalEventText(source,60),operationalEventText(message,500),payload,now).run();
-  return {ok:true,inserted:Number(r.meta?.changes||0)>0,id};
+   .bind(id,key,event.orderId,event.eventType,event.category,event.status,event.severity,event.source,event.message,payload,now).run();
+  const inserted=Number(r.meta?.changes||0)>0;
+  if(inserted&&(event.severity==="error"||event.status==="failed"))await notifyOperationalError(env,event);
+  return {ok:true,inserted,id};
  }catch(e){console.error("Central de Eventos:",e);return {ok:false,error:"event_log_failed"}}
 }
 async function recordPaymentStatusEvent(env,{orderId,rawStatus="",label="",method="",source="payment"}={}){
@@ -1514,18 +1562,18 @@ async function calcularFrete(request,env){
   if(!/^\d{8}$/.test(cep))return resposta({ok:false,error:"CEP inválido."},400);
   const items=await canonicalItems(dados.produtos,env);
   if(destinoColatina(cep))return resposta({ok:true,fretes:[LOCAL_COLATINA]});
-  if(!env.ENVIOECOM_TOKEN)return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503);
+  if(!env.ENVIOECOM_TOKEN){await recordOperationalEvent(env,{eventType:"freight.integration_failed",category:"freight",status:"failed",severity:"error",source:"envioecom",message:"Token do EnvioEcom ausente; cálculo de frete indisponível.",uniqueKey:"freight:missing-token"});return resposta({ok:false,error:"Serviço de frete temporariamente indisponível."},503)}
   await ensureAuthSchema(env);await seedInventory(env);
   const stockChecks=await env.DB.batch(items.map(it=>env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id)));
   for(let i=0;i<items.length;i++){const inv=stockChecks[i]?.results?.[0];if(Number(inv?.stock||0)<items[i].qty)return resposta({ok:false,error:items[i].name+" está sem estoque suficiente."},409)}
   const produtos=items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}));
   const upstream=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify({postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:produtos})});
   const raw=await upstream.text();let data;try{data=JSON.parse(raw)}catch{data=null}
-  if(!upstream.ok)return resposta({ok:false,error:"Não foi possível calcular o frete agora."},502);
+  if(!upstream.ok){await recordOperationalEvent(env,{eventType:"freight.quote_failed",category:"freight",status:"failed",severity:"error",source:"envioecom",message:"EnvioEcom recusou a cotação de frete.",metadata:{httpStatus:upstream.status},uniqueKey:"freight:quote:"+String(upstream.status)+":"+new Date().toISOString().slice(0,10)});return resposta({ok:false,error:"Não foi possível calcular o frete agora."},502)}
   const quotes=Array.isArray(data?.quotes)?data.quotes:(Array.isArray(data)?data:[]);
   const fretes=quotes.map(x=>({id:quoteKey(x),company:String(x.carrier||x.company||"Envio Ecom"),name:String(x.carrier||x.name||x.service||"Frete"),carrier:String(x.carrier||x.company||""),price:Number(x.price??x.freight_cost??0),delivery_time:Number(x.delivery_time??x.delivery_days??0),dropoff_points:x.dropoff_points||[]})).filter(x=>x.id&&x.carrier&&Number.isFinite(x.price)&&x.price>=0);
   return resposta({ok:true,fretes});
- }catch(e){console.error("Frete:",e);return resposta({ok:false,error:e.message==="Carrinho vazio"?"Carrinho vazio.":"Não foi possível calcular o frete."},500)}
+ }catch(e){console.error("Frete:",e);await recordOperationalEvent(env,{eventType:"freight.error",category:"freight",status:"failed",severity:"error",source:"worker",message:"Falha inesperada ao calcular o frete.",metadata:{name:String(e?.name||""),message:String(e?.message||"").slice(0,200)},uniqueKey:"freight:error:"+new Date().toISOString().slice(0,10)});return resposta({ok:false,error:e.message==="Carrinho vazio"?"Carrinho vazio.":"Não foi possível calcular o frete."},500)}
 }
 function mpConfig(env){const production=String(env.MERCADOPAGO_MODE||"test").toLowerCase()==="production";return {testMode:!production,publicKey:production?(env.MERCADOPAGO_PUBLIC_KEY||""):(env.MERCADOPAGO_TEST_PUBLIC_KEY||""),accessToken:production?(env.MERCADOPAGO_ACCESS_TOKEN||""):(env.MERCADOPAGO_TEST_ACCESS_TOKEN||"")}}
 function cardPublicError(detail,httpStatus=0){
@@ -1682,17 +1730,17 @@ async function reconcileStalePixReservations(env){
 async function webhookMercadoPago(request,env,ctx){try{const body=await request.json().catch(()=>({}));const id=String(body?.data?.id||body?.id||"");if(!id)return resposta({ok:true});await ensureAuthSchema(env);const local=await env.DB.prepare("SELECT id FROM orders WHERE id=? UNION SELECT id FROM guest_orders WHERE id=? LIMIT 1").bind(id,id).first();if(!local)return resposta({ok:true});const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Mercado Pago não configurado."},503);const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)return resposta({ok:true});const d=await r.json(),tx=d?.transactions?.payments?.[0]||{},st=String(tx.status||d.status||""),detail=String(tx.status_detail||d.status_detail||""),approved=st==="processed"||st==="approved"||detail==="accredited",pid=String(d.id||id),now=new Date().toISOString();const label=approved?"Pago":({processing:"Processando",created:"Aguardando pagamento",action_required:"Aguardando pagamento",pending:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado",expired:"Expirado"}[st]||"Processando");await env.DB.prepare("UPDATE orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid).run();await env.DB.prepare("UPDATE guest_orders SET status=?,updated_at=? WHERE id=?").bind(label,now,pid).run();await env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(st,detail,now,pid).run();await recordPaymentStatusEvent(env,{orderId:pid,rawStatus:st,label,method:"mercadopago",source:"mercadopago-webhook"});if(approved){await env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(pid).run();await sendOrderOperationalEmail(env,pid,"payment_confirmed").catch(e=>console.error("E-mail webhook aprovado:",e));if(!cfg.testMode)try{await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Webhook expedição:",e)}const task=notifyPaidOrder(env,pid);if(ctx?.waitUntil)ctx.waitUntil(task);else await task}else if(["failed","rejected","canceled","cancelled","expired"].includes(st)){await releaseReservedStock(env,pid,now);await markOpportunityPaymentIssue(env,pid,detail||label);const mail=sendOrderOperationalEmail(env,pid,"payment_failed");if(ctx?.waitUntil)ctx.waitUntil(mail);else await mail}return resposta({ok:true})}catch(e){console.error("Webhook Mercado Pago:",e);return resposta({ok:true})}}
 async function criarEnvioEnvioEcom(env,orderId){
  await ensureAuthSchema(env);
- if(!env.ENVIOECOM_TOKEN)return {ok:false,error:"Token EnvioEcom ausente"};const originCep=String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"");if(originCep.length!==8)return {ok:false,error:"CEP de origem da postagem não configurado"};
- await ensureAuthSchema(env);const sh=await env.DB.prepare("SELECT * FROM order_shipping WHERE order_id=?").bind(orderId).first();if(!sh)return {ok:false,error:"Dados de envio não encontrados"};
+ if(!env.ENVIOECOM_TOKEN){await recordOperationalEvent(env,{orderId,eventType:"shipping.integration_failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"Token do EnvioEcom ausente; postagem não pode ser criada.",uniqueKey:"shipping:missing-token"});return {ok:false,error:"Token EnvioEcom ausente"}}const originCep=String(env.ENVIOECOM_ORIGIN_CEP||"").replace(/\D/g,"");if(originCep.length!==8){await recordOperationalEvent(env,{orderId,eventType:"shipping.config_failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"CEP de origem da postagem não configurado.",uniqueKey:"shipping:missing-origin-cep"});return {ok:false,error:"CEP de origem da postagem não configurado"}};
+ await ensureAuthSchema(env);const sh=await env.DB.prepare("SELECT * FROM order_shipping WHERE order_id=?").bind(orderId).first();if(!sh){await recordOperationalEvent(env,{orderId,eventType:"shipping.data_missing",category:"shipping",status:"failed",severity:"error",source:"worker",message:"Dados de envio não encontrados para o pedido.",uniqueKey:"shipping:"+String(orderId)+":data-missing"});return {ok:false,error:"Dados de envio não encontrados"}};
  if(sh.shipping_id){const ready=Number(sh.label_ready)||await tentarGerarEtiqueta(env,orderId,sh.shipping_id,sh.barcode);return {ok:true,shippingId:sh.shipping_id,barcode:sh.barcode,existing:true,labelReady:!!ready}}
  if(String(sh.carrier||"")==="Entrega local Valenza"){await recordOperationalEvent(env,{orderId,eventType:"shipping.local_delivery",category:"shipping",status:"prepared",severity:"info",source:"valenza-local",message:"Pedido configurado para entrega local em Colatina.",metadata:{carrier:"Entrega local Valenza"},uniqueKey:"shipping:"+String(orderId)+":local"});return {ok:true,localDelivery:true}};
- if(!sh.carrier||!sh.cep||!sh.street||!sh.number||!sh.city||!sh.state)return {ok:false,error:"Dados de entrega incompletos"};
+ if(!sh.carrier||!sh.cep||!sh.street||!sh.number||!sh.city||!sh.state){await recordOperationalEvent(env,{orderId,eventType:"shipping.data_incomplete",category:"shipping",status:"failed",severity:"error",source:"worker",message:"Dados de entrega incompletos; postagem não iniciada.",uniqueKey:"shipping:"+String(orderId)+":data-incomplete"});return {ok:false,error:"Dados de entrega incompletos"}};
  const oldLock=await env.DB.prepare("SELECT state,updated_at FROM shipment_locks WHERE order_id=?").bind(String(orderId)).first();if(oldLock?.state==="creating"&&Date.parse(oldLock.updated_at||"0")<Date.now()-10*60e3)await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(String(orderId)).run();const lockNow=new Date().toISOString();const lk=await env.DB.prepare("INSERT OR IGNORE INTO shipment_locks(order_id,state,created_at,updated_at) VALUES(?,?,?,?)").bind(String(orderId),"creating",lockNow,lockNow).run();if((lk.meta?.changes||0)<1){const again=await env.DB.prepare("SELECT shipping_id,barcode,label_ready FROM order_shipping WHERE order_id=?").bind(orderId).first();if(again?.shipping_id)return {ok:true,shippingId:again.shipping_id,barcode:again.barcode,existing:true,labelReady:!!again.label_ready};return {ok:false,pending:true,error:"Postagem já está sendo preparada"}}
  const oi=await env.DB.prepare("SELECT product_id,name,quantity,unit_price FROM order_items WHERE order_id=?").bind(orderId).all(),items=oi.results||[];if(!items.length)return {ok:false,error:"Itens do pedido não encontrados"};
  const ord=await env.DB.prepare("SELECT order_number,total FROM orders WHERE id=? UNION SELECT order_number,total FROM guest_orders WHERE id=? LIMIT 1").bind(orderId,orderId).first();if(!ord)return {ok:false,error:"Pedido não encontrado"};
  const catalog=AUREA_CATALOG;let weight=0,height=0,width=0,length=0;for(const x of items){const p=catalog[x.product_id];if(!p)continue;weight+=p.weight*Number(x.quantity);height+=p.height*Number(x.quantity);width=Math.max(width,p.width);length=Math.max(length,p.length)}height=Math.max(5,Math.min(height,100));
  const payload={shipments:[{orderId:String(ord.order_number||orderId),shipping_company:String(sh.carrier),cep_origem:originCep,cep_destino:String(sh.cep),freight_cost:Number(sh.freight_cost||0).toFixed(2),delivery_time:String(Number(sh.delivery_time)||0),height:String(height),width:String(width||16),length:String(length||20),weight:Number(weight||.6).toFixed(3),cost:Number(ord.total||0).toFixed(2),name:String(sh.customer_name||""),document_number:String(sh.cpf||""),phone_number:String(sh.phone||""),email:String(sh.email||""),logradouro:String(sh.street||""),number:String(sh.number||""),complemento:String(sh.complement||""),bairro:String(sh.neighborhood||""),localidade:String(sh.city||""),uf:String(sh.state||""),items:items.map(x=>({name:String(x.name),quantity:Number(x.quantity)||1,unit_cost:Number(x.unit_price)||0}))}]};
- let r,raw;try{r=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/create",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(payload)});raw=await r.text()}catch(e){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();throw e}let d;try{d=JSON.parse(raw)}catch{d=null}
+ let r,raw;try{r=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/create",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(payload)});raw=await r.text()}catch(e){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();await recordOperationalEvent(env,{orderId,eventType:"shipping.network_failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"Falha de conexão ao criar a postagem no EnvioEcom.",metadata:{name:String(e?.name||""),message:String(e?.message||"").slice(0,200)},uniqueKey:"shipping:"+String(orderId)+":network-failed"});throw e}let d;try{d=JSON.parse(raw)}catch{d=null}
  if(!r.ok){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();await recordOperationalEvent(env,{orderId,eventType:"shipping.failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"EnvioEcom recusou a criação da postagem.",metadata:{httpStatus:r.status,carrier:String(sh.carrier||"")},uniqueKey:"shipping:"+String(orderId)+":failed:"+String(r.status)});console.error("EnvioEcom create:",r.status,raw.slice(0,1000));return {ok:false,error:"EnvioEcom recusou a criação do envio",status:r.status}}
  const x=Array.isArray(d)?d[0]:(Array.isArray(d?.shipments)?d.shipments[0]:(d?.data?.[0]||d?.shipment||d)),sid=x?.shipping_id??x?.id??null,barcode=x?.barcode??x?.tracking_code??null;if(!sid){await env.DB.prepare("DELETE FROM shipment_locks WHERE order_id=?").bind(orderId).run();await recordOperationalEvent(env,{orderId,eventType:"shipping.failed",category:"shipping",status:"failed",severity:"error",source:"envioecom",message:"EnvioEcom respondeu sem identificador da postagem.",metadata:{carrier:String(sh.carrier||"")},uniqueKey:"shipping:"+String(orderId)+":missing-id"});return {ok:false,error:"Envio criado sem identificador"}};
  const now=new Date().toISOString();await env.DB.batch([env.DB.prepare("UPDATE order_shipping SET shipping_id=?,barcode=?,updated_at=? WHERE order_id=? AND shipping_id IS NULL").bind(String(sid),barcode?String(barcode):null,now,orderId),env.DB.prepare("UPDATE orders SET tracking_code=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,String(sh.carrier),now,orderId),env.DB.prepare("UPDATE guest_orders SET tracking_code=?,carrier=?,updated_at=? WHERE id=?").bind(barcode?String(barcode):null,String(sh.carrier),now,orderId)]);
