@@ -661,8 +661,14 @@ async function saleNotificationRow(env,orderId){
 }
 async function orderBelongsToAdmin(env,row){
  if(!row)return false;
- if(row.customer_id){const own=await env.DB.prepare("SELECT 1 ok WHERE EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=?) OR EXISTS(SELECT 1 FROM admin_members m WHERE m.customer_id=? AND m.active=1)").bind(row.customer_id,row.customer_id).first();if(own)return true}
- if(row.email){const ownEmail=await env.DB.prepare("SELECT 1 ok FROM customers c WHERE lower(c.email)=lower(?) AND (EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=c.id) OR EXISTS(SELECT 1 FROM admin_members m WHERE m.customer_id=c.id AND m.active=1)) LIMIT 1").bind(String(row.email)).first();if(ownEmail)return true}
+ if(row.customer_id){
+  const own=await env.DB.prepare("SELECT 1 ok FROM admin_credentials WHERE customer_id=? LIMIT 1").bind(row.customer_id).first();if(own)return true;
+  const member=await env.DB.prepare("SELECT 1 ok FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(row.customer_id).first();if(member)return true;
+ }
+ if(row.email){
+  const ownEmail=await env.DB.prepare("SELECT 1 ok FROM admin_credentials a JOIN customers c ON c.id=a.customer_id WHERE lower(c.email)=lower(?) LIMIT 1").bind(String(row.email)).first();if(ownEmail)return true;
+  const memberEmail=await env.DB.prepare("SELECT 1 ok FROM admin_members m JOIN customers c ON c.id=m.customer_id WHERE m.active=1 AND lower(c.email)=lower(?) LIMIT 1").bind(String(row.email)).first();if(memberEmail)return true;
+ }
  return false
 }
 async function notifyPaidOrder(env,orderId){
