@@ -721,8 +721,9 @@ async function fetchClientData(){
  clientData=d;
  document.getElementById('ccUser').innerHTML='<strong>Olá, '+esc(d.user.name.split(' ')[0])+'!</strong><div style="font-size:10px;color:#777;margin-top:6px">'+esc(d.user.email)+'</div>';
  const adminNav=document.getElementById('ccAdminNav');
- if(window.valenzaAdminRefreshAccess)await window.valenzaAdminRefreshAccess();
- if(adminNav)adminNav.style.display=d.user?.adminAccess?'block':'none';
+ const adminStatus=window.valenzaAdminRefreshAccess?await window.valenzaAdminRefreshAccess():null;
+ const adminAllowed=Boolean(d.user?.adminAccess||adminStatus?.eligible);
+ if(adminNav)adminNav.style.display=adminAllowed?'block':'none';
  return d;
 }
 async function openPaidOrders(){
