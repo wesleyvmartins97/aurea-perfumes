@@ -28,7 +28,7 @@
   },
   "vars": {
     "MERCADOPAGO_MODE": "production",
-    "ADMIN_EMAILS": "wesleyvmartins97@gmail.com",
+    "ADMIN_EMAILS": "wesleyvmartins97@gmail.com,jjessitrindade@gmail.com",
     "ADMIN_USERNAME": "wesleymartins",
     // Valores não secretos necessários em produção. Segredos continuam somente no painel da Cloudflare.
     "ENVIOECOM_ORIGIN_CEP": "29703131",
