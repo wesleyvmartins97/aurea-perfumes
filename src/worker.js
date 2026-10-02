@@ -54,6 +54,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/report/daily/send"&&request.method==="POST")return adminDailyReportSend(request,env);
  if(url.pathname==="/api/admin/emails/status"&&request.method==="GET")return adminOperationalEmailsStatus(request,env);
  if(url.pathname==="/api/admin/emails/test"&&request.method==="POST")return adminOperationalEmailTest(request,env);
+ if(url.pathname==="/api/admin/events"&&request.method==="GET")return adminOperationalEvents(request,env);
  if(url.pathname==="/api/admin/members/grant"&&request.method==="POST")return adminMemberGrant(request,env);
  if(url.pathname==="/api/admin/promotions/save"&&request.method==="POST")return adminPromotionSave(request,env);
  if(url.pathname==="/api/admin/promotions/toggle"&&request.method==="POST")return adminPromotionToggle(request,env);
@@ -141,6 +142,11 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_checkout_opportunities_status ON checkout_opportunities(status,last_seen_at,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS admin_audit_log (id TEXT PRIMARY KEY, admin_customer_id TEXT NOT NULL, action TEXT NOT NULL, detail_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS operational_events (id TEXT PRIMARY KEY, unique_key TEXT NOT NULL UNIQUE, order_id TEXT, event_type TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'info', severity TEXT NOT NULL DEFAULT 'info', source TEXT NOT NULL DEFAULT 'worker', message TEXT, metadata_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_operational_events_created ON operational_events(created_at)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_operational_events_order ON operational_events(order_id,created_at)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_operational_events_type ON operational_events(event_type,created_at)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_operational_events_category ON operational_events(category,status,created_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_events (id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, visitor_id TEXT NOT NULL, session_id TEXT NOT NULL, event_name TEXT NOT NULL, page_path TEXT, product_id TEXT, product_name TEXT, value REAL NOT NULL DEFAULT 0, transaction_id TEXT, source TEXT, medium TEXT, campaign TEXT, referrer_host TEXT, country TEXT, region TEXT, region_code TEXT, city TEXT, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name,created_at)"),
@@ -537,6 +543,42 @@ async function recordAdminAudit(env,admin,action,detail={}){
   await env.DB.prepare("INSERT INTO admin_audit_log(id,admin_customer_id,action,detail_json,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),String(admin.id),String(action||"admin_action").slice(0,80),payload,new Date().toISOString()).run();
  }catch(e){console.error("Admin audit:",e)}
 }
+
+function operationalEventText(v,max=180){return String(v??"").replace(/[\u0000-\u001F\u007F]/g," ").trim().slice(0,max)}
+function operationalEventMetadata(meta){
+ const safe={};if(!meta||typeof meta!=="object")return safe;
+ const blocked=/email|cpf|phone|telefone|address|endereco|street|cep|password|token|secret|card|document/i;
+ for(const [k,v] of Object.entries(meta)){
+  if(blocked.test(String(k)))continue;
+  if(v===null||["string","number","boolean"].includes(typeof v))safe[operationalEventText(k,60)]=typeof v==="string"?operationalEventText(v,240):v;
+ }
+ return safe;
+}
+async function recordOperationalEvent(env,{orderId=null,eventType,category="system",status="info",severity="info",source="worker",message="",metadata={},uniqueKey=null}={}){
+ try{
+  if(!env?.DB||!eventType)return {ok:false,skipped:true};
+  const id=crypto.randomUUID(),key=operationalEventText(uniqueKey||("event:"+id),180),now=new Date().toISOString();
+  const payload=JSON.stringify(operationalEventMetadata(metadata)).slice(0,2500);
+  const r=await env.DB.prepare("INSERT OR IGNORE INTO operational_events(id,unique_key,order_id,event_type,category,status,severity,source,message,metadata_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+   .bind(id,key,orderId?operationalEventText(orderId,160):null,operationalEventText(eventType,100),operationalEventText(category,50),operationalEventText(status,50),operationalEventText(severity,30),operationalEventText(source,60),operationalEventText(message,500),payload,now).run();
+  return {ok:true,inserted:Number(r.meta?.changes||0)>0,id};
+ }catch(e){console.error("Central de Eventos:",e);return {ok:false,error:"event_log_failed"}}
+}
+async function adminOperationalEvents(request,env){
+ try{
+  await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const url=new URL(request.url),orderId=operationalEventText(url.searchParams.get("orderId"),120),eventType=operationalEventText(url.searchParams.get("eventType"),80),category=operationalEventText(url.searchParams.get("category"),40),status=operationalEventText(url.searchParams.get("status"),40),date=operationalEventText(url.searchParams.get("date"),10);
+  const where=[],bind=[];if(orderId){where.push("order_id LIKE ?");bind.push("%"+orderId+"%")}if(eventType){where.push("event_type=?");bind.push(eventType)}if(category){where.push("category=?");bind.push(category)}if(status){where.push("status=?");bind.push(status)}if(/^\d{4}-\d{2}-\d{2}$/.test(date)){where.push("date(created_at,'-3 hours')=?");bind.push(date)}
+  const clause=where.length?" WHERE "+where.join(" AND "):"";
+  const [rows,summary,types]=await Promise.all([
+   env.DB.prepare("SELECT id,order_id,event_type,category,status,severity,source,message,metadata_json,created_at FROM operational_events"+clause+" ORDER BY created_at DESC LIMIT 250").bind(...bind).all(),
+   env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN created_at>=datetime('now','-24 hours') THEN 1 ELSE 0 END) last24h,SUM(CASE WHEN severity='error' OR status='failed' THEN 1 ELSE 0 END) errors,SUM(CASE WHEN category='payment' THEN 1 ELSE 0 END) payments,SUM(CASE WHEN category='shipping' THEN 1 ELSE 0 END) shipping,SUM(CASE WHEN category='email' THEN 1 ELSE 0 END) emails FROM operational_events").first(),
+   env.DB.prepare("SELECT event_type,category,COUNT(*) total FROM operational_events GROUP BY event_type,category ORDER BY event_type ASC").all()
+  ]);
+  return resposta({ok:true,generatedAt:new Date().toISOString(),filters:{orderId,eventType,category,status,date},summary:{total:Number(summary?.total||0),last24h:Number(summary?.last24h||0),errors:Number(summary?.errors||0),payments:Number(summary?.payments||0),shipping:Number(summary?.shipping||0),emails:Number(summary?.emails||0)},types:types.results||[],events:(rows.results||[]).map(x=>({...x,metadata:(()=>{try{return JSON.parse(x.metadata_json||"{}")}catch{return{}}})()}))});
+ }catch(e){console.error("Central de Eventos admin:",e);return resposta({ok:false,error:"Não foi possível carregar a Central de Eventos."},500)}
+}
+
 function promotionText(v,max=180){return String(v||"").trim().slice(0,max)}
 function promotionDate(v){const s=String(v||"").trim();if(!s)return null;const d=new Date(s);return Number.isFinite(d.getTime())?d.toISOString():null}
 async function activePromotionPublic(env){
