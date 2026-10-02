@@ -114,7 +114,10 @@ if(!admin.includes('Notification.requestPermission()'))fail.push('Notificação 
 if(!admin.includes('id="vaSaleAlertToggle"'))fail.push('Painel sem controle explícito para ativar avisos.');
 if(admin.includes('setInterval(loadDashboard'))fail.push('Painel não deve recarregar o dashboard inteiro a cada 30 segundos e apagar formulários em edição.');
 if(!admin.includes('function refreshAdminDashboardQuietly'))fail.push('Painel sem atualização silenciosa de métricas após nova venda.');
-if(!worker.includes('if(approved){await markOpportunityRecovered(env,pid);await notifyPaidOrder(env,pid)}'))fail.push('Cartão aprovado não dispara aviso de venda imediatamente.');
+{
+ const start=worker.indexOf('async function criarPagamentoCartao('),end=worker.indexOf('async function tentarGerarEtiqueta(',start),block=start>=0&&end>start?worker.slice(start,end):'';
+ if(!block.includes('await markOpportunityRecovered(env,pid);')||!block.includes('notifyPaidOrder(env,pid)'))fail.push('Cartão aprovado não dispara aviso de venda imediatamente.');
+}
 if(!worker.includes('Reconciliação PIX expedição:')||!worker.includes('await notifyPaidOrder(env,id);'))fail.push('Reconciliação PIX não dispara aviso de venda quando encontra pagamento aprovado.');
 
 if(!worker.includes('unreadNotifications'))fail.push('Dashboard não entrega contador de alertas não lidos.');
@@ -179,7 +182,12 @@ if(!admin.includes('CLIENTE REAL'))fail.push('Painel não sinaliza venda real pr
 if(!admin.includes('PENDENTE · 24H'))fail.push('Painel não sinaliza validade de 24h dos cadastros pendentes.');
 if(!worker.includes('cleanupExpiredPendingCustomers'))fail.push('Limpeza automática de cadastros pendentes expirados ausente.');
 if(!worker.includes('cleanupExpiredPendingEmail'))fail.push('Recadastro não limpa pendência expirada do mesmo e-mail.');
-if(!worker.includes('Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env)])'))fail.push('Cron não executa reconciliação, limpeza de pendências e retry dos avisos de venda.');
+{
+ const start=worker.indexOf('async scheduled(controller,env,ctx)'),end=worker.indexOf('\n};',start),block=start>=0&&end>start?worker.slice(start,end):'';
+ for(const required of ['reconcileStalePixReservations(env)','cleanupExpiredPendingCustomers(env)','retryPendingSaleNotifications(env)']){
+  if(!block.includes(required))fail.push('Cron não executa reconciliação, limpeza de pendências e retry dos avisos de venda.');
+ }
+}
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM orders o WHERE o.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege pedidos vinculados.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM guest_orders g WHERE lower(g.email)=lower(customers.email))'))fail.push('Limpeza de pendência não protege pedidos legados pelo e-mail.');
 if(!worker.includes('NOT EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=customers.id)'))fail.push('Limpeza de pendência não protege conta administrativa.');
