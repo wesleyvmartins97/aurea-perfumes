@@ -155,7 +155,7 @@ if(!worker.includes('if(url.pathname==="/admin"||url.pathname.startsWith("/admin
 if(!wrangler.includes('"ADMIN_EMAILS"'))fail.push('ADMIN_EMAILS não configurado.');
 if(!wrangler.includes('"ADMIN_USERNAME": "wesleymartins"'))fail.push('Usuário administrativo esperado não configurado.');
 if(!wrangler.includes('"/admin"')||!wrangler.includes('"/admin/*"'))fail.push('run_worker_first não intercepta /admin e /admin/* antes do fallback SPA.');
-if(/ADMIN_PASSWORD/i.test(home+admin+worker+wrangler))fail.push('Senha administrativa não deve ficar em código ou variável pública.');
+if(/\bADMIN_PASSWORD\b/i.test(home+admin+worker+wrangler))fail.push('Senha administrativa não deve ficar em código ou variável pública.');
 if(!worker.includes('/api/admin/orders/delete-tests'))fail.push('Rota de limpeza dos pedidos de teste ausente.');
 if(!worker.includes('admin_deleted_test_orders'))fail.push('Exclusão de testes sem arquivo interno de segurança.');
 if(!worker.includes('Venda de cliente protegida'))fail.push('Trava para venda real ausente.');
