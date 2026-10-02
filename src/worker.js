@@ -1421,6 +1421,7 @@ async function dynamicSitemap(request,env){
  }catch(e){console.error("Sitemap dinâmico:",e);return env.ASSETS.fetch(request)}
 }
 
+// Deploy marker: republica os assets do Merchant sem alterar a lógica de produção.
 async function dynamicMerchantFeed(request,env){
  try{
   const response=await env.ASSETS.fetch(request);if(!response.ok)return response;
