@@ -7,6 +7,7 @@ const VISITOR_KEY='valenza_analytics_visitor';
 const SESSION_KEY='valenza_analytics_session';
 const ATTR_KEY='valenza_analytics_attribution';
 let measurementId='',ready=false,loading=false,currentProductId='';
+let googleQueue=[];
 let metaPixelId='',metaConfigLoaded=false,metaReady=false,metaPageViewed=false,metaQueue=[];
 
 function catalog(){
@@ -152,12 +153,18 @@ async function loadMetaConfig(){
 function emit(name,params={}){
  if(!consentGranted())return false;
  const internal=internalTrack(name,params);
+ // Preserve events while configuration and the Google library load.
  if(ready&&typeof window.gtag==='function')window.gtag('event',name,{currency:'BRL',...params});
+ else{
+  googleQueue.push({name,params:JSON.parse(JSON.stringify(params))});
+  if(googleQueue.length>100)googleQueue.shift();
+  loadGoogleTag();
+ }
  const meta=metaEmit(name,params);
  return internal||ready||meta;
 }
 function loadGoogleTag(){
- if(ready||loading||!/^G-[A-Z0-9]+$/i.test(measurementId))return;
+ if(!consentGranted()||ready||loading||!/^G-[A-Z0-9]+$/i.test(measurementId))return;
  loading=true;
  window.dataLayer=window.dataLayer||[];
  window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};
@@ -166,10 +173,13 @@ function loadGoogleTag(){
  const s=document.createElement('script');
  s.async=true;
  s.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(measurementId);
- s.onload=()=>{ready=true;loading=false};
+ s.onload=()=>{
+  ready=true;loading=false;
+  const pending=googleQueue;googleQueue=[];
+  if(consentGranted())for(const event of pending)window.gtag('event',event.name,{currency:'BRL',...event.params});
+ };
  s.onerror=()=>{loading=false;ready=false};
  document.head.appendChild(s);
- ready=true;
  if(currentProductId)trackCurrentProduct();
 }
 
