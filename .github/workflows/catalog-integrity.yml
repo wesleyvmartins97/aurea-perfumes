@@ -18,6 +18,7 @@ on:
       - 'public/admin/**'
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
+      - 'scripts/test-checkout-recovery.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -41,6 +42,7 @@ on:
       - 'public/admin/**'
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
+      - 'scripts/test-checkout-recovery.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -86,6 +88,8 @@ jobs:
         run: node --check public/admin-account.js
       - name: Validar painel administrativo
         run: node scripts/validate-admin.mjs
+      - name: Testar histórico e atribuição da recuperação de checkout
+        run: node scripts/test-checkout-recovery.mjs
       - name: Validar sintaxe do Worker
         run: node --check src/worker.js
       - name: Validar sintaxe do catálogo
