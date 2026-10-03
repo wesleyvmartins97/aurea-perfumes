@@ -7,7 +7,7 @@ async function run(consent){
  let resolveMeta;const metaConfig=new Promise(resolve=>resolveMeta=resolve);
  const window={fbq:(...args)=>calls.push(args)};
  const context={window,console,URL,Date,Math,JSON,setTimeout,clearTimeout,crypto:{randomUUID:()=> '12345678-1234-1234-1234-123456789012'},navigator:{},
- location:{href:'https://www.valenzaparfums.com.br/',hostname:'www.valenzaparfums.com.br',pathname:'/'},
+ location:{href:'https://www.valenzaparfums.com.br/',origin:'https://www.valenzaparfums.com.br',hostname:'www.valenzaparfums.com.br',pathname:'/'},
  localStorage:{getItem:k=>saved.get(k)||null,setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)},
  document:{cookie:'',referrer:'',getElementById:()=>({}),createElement:()=>({}),head:{appendChild:s=>scripts.push(s)}},
  fetch:async(url,options)=>{if(String(url).startsWith('/api/meta/config'))return metaConfig;if(String(url).startsWith('/api/google/config'))return {ok:true,json:async()=>({ok:true,enabled:false})};if(String(url)==='/api/meta/event')posts.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true})}}
@@ -25,6 +25,7 @@ async function run(consent){
  const add=calls.find(x=>x[1]==='AddToCart'),post=posts.find(x=>x.eventName==='AddToCart');
  assert.equal(add[3].eventID,post.eventId,'Pixel and server share the same occurrence ID');
  assert.equal(post.value,239.90);assert.equal(post.contentIds[0],'athena');
+ assert.equal(post.consent,'granted');assert.equal(post.eventSourceUrl,'https://www.valenzaparfums.com.br/');
  window.valenzaTrackEvent('begin_checkout',{value:239.90});
  assert.equal(calls.filter(x=>x[1]==='InitiateCheckout').length,1);
  assert.equal(window.valenzaTrackPurchase({transactionId:'simulation-only',value:239.90}),true);

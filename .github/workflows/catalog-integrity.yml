@@ -20,6 +20,7 @@ on:
       - 'scripts/validate-admin.mjs'
       - 'scripts/test-checkout-recovery.mjs'
       - 'scripts/test-meta-tracking.mjs'
+      - 'scripts/test-meta-capi.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -45,6 +46,7 @@ on:
       - 'scripts/validate-admin.mjs'
       - 'scripts/test-checkout-recovery.mjs'
       - 'scripts/test-meta-tracking.mjs'
+      - 'scripts/test-meta-capi.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -88,6 +90,8 @@ jobs:
         run: node scripts/test-google-loading.mjs
       - name: Testar Pixel Meta e consentimento
         run: node scripts/test-meta-tracking.mjs
+      - name: Testar validação de compras na API de Conversões
+        run: node scripts/test-meta-capi.mjs
       - name: Validar sintaxe do painel administrativo
         run: node --check public/admin-account.js
       - name: Validar painel administrativo

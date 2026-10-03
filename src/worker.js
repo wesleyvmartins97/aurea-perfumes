@@ -278,9 +278,10 @@ async function metaEvent(request,env){
   const origin=request.headers.get("Origin")||"";
   if(origin){try{if(new URL(origin).hostname!==new URL(request.url).hostname)return resposta({ok:false},403)}catch{return resposta({ok:false},403)}}
   const d=await request.json().catch(()=>({})),eventName=metaSafeText(d.eventName,40),eventId=metaSafeText(d.eventId,160);
+  if(d.consent!=="granted")return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
   const allowed=new Set(["PageView","ViewContent","AddToCart","InitiateCheckout","AddPaymentInfo","Purchase"]);
   if(!allowed.has(eventName)||!/^[A-Za-z0-9._:-]{8,160}$/.test(eventId))return resposta({ok:false,error:"Evento Meta inválido."},400);
-  let eventSourceUrl="";try{const u=new URL(String(d.eventSourceUrl||request.url));if(u.hostname===new URL(request.url).hostname)eventSourceUrl=u.toString()}catch{}
+  let eventSourceUrl="";try{const u=new URL(String(d.eventSourceUrl||request.url));if(u.hostname===new URL(request.url).hostname&&u.protocol==="https:"){u.search="";u.hash="";u.username="";u.password="";eventSourceUrl=u.toString()}}catch{}
   if(!eventSourceUrl)eventSourceUrl=new URL("/",request.url).toString();
   const userData={client_user_agent:metaSafeText(request.headers.get("User-Agent"),500)};
   const ip=metaSafeText(request.headers.get("CF-Connecting-IP"),80);if(ip)userData.client_ip_address=ip;
@@ -290,10 +291,20 @@ async function metaEvent(request,env){
   const customData={currency:"BRL",value:Math.max(0,Math.min(1000000,Number(d.value)||0)),content_type:"product"};
   if(contentIds.length)customData.content_ids=contentIds;if(contents.length)customData.contents=contents;
   const orderId=metaSafeText(d.orderId,120);if(orderId)customData.order_id=orderId;
+  if(eventName==="Purchase"){
+   const customer=await currentCustomer(request,env);if(!customer)return resposta({ok:false,error:"Entre na conta para confirmar a conversão."},401);
+   const db=primaryDb(env),order=await db.prepare("SELECT id,status,total FROM orders WHERE id=? AND customer_id=? UNION SELECT id,status,total FROM guest_orders WHERE id=? AND lower(email)=lower(?) LIMIT 1").bind(orderId,customer.id,orderId,customer.email).first();
+   if(!order)return resposta({ok:false,error:"Pedido não encontrado na sua conta."},404);
+   if(order.status!=="Pago")return resposta({ok:false,error:"A compra só é registrada após o pagamento aprovado."},409);
+   if(eventId!=="purchase:"+String(order.id).replace(/[^A-Za-z0-9._:-]/g,"").slice(0,151))return resposta({ok:false,error:"Identificador de compra inválido."},400);
+   const rows=await db.prepare("SELECT product_id,quantity,unit_price FROM order_items WHERE order_id=?").bind(order.id).all(),items=rows.results||[];
+   customData.value=Number(order.total);customData.order_id=String(order.id);
+   customData.content_ids=items.map(x=>String(x.product_id));customData.contents=items.map(x=>({id:String(x.product_id),quantity:Number(x.quantity),item_price:Number(x.unit_price)}));
+  }
   const payload={data:[{event_name:eventName,event_time:Math.floor(Date.now()/1000),event_id:eventId,action_source:"website",event_source_url:eventSourceUrl,user_data:userData,custom_data:customData}]};
   if(cfg.testEventCode)payload.test_event_code=cfg.testEventCode;
   const r=await fetch("https://graph.facebook.com/"+cfg.apiVersion+"/"+cfg.pixelId+"/events",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+cfg.token},body:JSON.stringify(payload)});
-  if(!r.ok){const msg=await r.text().catch(()=>"");console.error("Meta CAPI:",r.status,msg.slice(0,500));return resposta({ok:false,error:"Meta CAPI indisponível."},502)}
+  if(!r.ok){console.error("Meta CAPI: HTTP",r.status);return resposta({ok:false,error:"Meta CAPI indisponível."},502)}
   return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
  }catch(e){console.error("Meta CAPI:",e);return resposta({ok:false},500)}
 }

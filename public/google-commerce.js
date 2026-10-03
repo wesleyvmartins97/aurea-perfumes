@@ -124,7 +124,7 @@ function metaSendNow(name,params={}){
  const data=metaData(params);
  try{window.fbq('track',eventName,data,{eventID:eventId})}catch{}
  fetch('/api/meta/event',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',keepalive:true,body:JSON.stringify({
-  eventName,eventId,eventSourceUrl:location.href,value:Number(data.value||0),contentIds:data.content_ids||[],contents:data.contents||[],orderId:String(data.order_id||''),fbp:cookieValue('_fbp'),fbc:cookieValue('_fbc')
+  consent:'granted',eventName,eventId,eventSourceUrl:location.origin+location.pathname,value:Number(data.value||0),contentIds:data.content_ids||[],contents:data.contents||[],orderId:String(data.order_id||''),fbp:cookieValue('_fbp'),fbc:cookieValue('_fbc')
  })}).catch(()=>{});
  return true;
 }
