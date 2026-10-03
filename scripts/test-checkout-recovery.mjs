@@ -50,3 +50,13 @@ await context.sendOpportunityRecoveryEmail(env,emailRow);await context.sendOppor
 assert.equal(sent[0].headers['Idempotency-Key'],sent[1].headers['Idempotency-Key'],'Concurrent sends for the same cart use the same provider delivery key');
 assert.notEqual(sent[0].headers['Idempotency-Key'],'checkout-recovery/'+firstId,'New cart must not reuse previous delivery key');
 console.log('PASS: paid/contact attribution, repeated webhooks, history after cleanup and new carts, late failures, admin exclusion, email delivery identity');
+
+// Repair only delivery timestamps supported by the durable successful-send event.
+sqlite.exec("CREATE TABLE operational_events(unique_key TEXT,status TEXT,created_at TEXT)");
+const currentId=row().id;
+sqlite.prepare('INSERT INTO operational_events VALUES(?,?,?)').run('checkout-recovery:'+currentId,'sent','2026-10-02T22:20:00Z');
+const repair=source.match(/env.DB.prepare\("(UPDATE checkout_opportunities SET email_sent_at=\(SELECT e.created_at [^\n]+)"\)/)[1];
+sqlite.exec(repair);assert.equal(row().email_sent_at,'2026-10-02T22:20:00Z');
+assert.equal(row().contacted_at,'2026-10-03T10:00:00Z','Preserve a later manually logged contact');
+sqlite.exec(repair);assert.equal(row().email_sent_at,'2026-10-02T22:20:00Z','History repair is idempotent');
+console.log('PASS: restores missing delivery history from successful-send events without sending another email');

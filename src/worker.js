@@ -153,7 +153,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_events (id TEXT PRIMARY KEY, event_key TEXT NOT NULL UNIQUE, visitor_id TEXT NOT NULL, session_id TEXT NOT NULL, event_name TEXT NOT NULL, page_path TEXT, product_id TEXT, product_name TEXT, value REAL NOT NULL DEFAULT 0, transaction_id TEXT, source TEXT, medium TEXT, campaign TEXT, referrer_host TEXT, country TEXT, region TEXT, region_code TEXT, city TEXT, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name,created_at)"),
-  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_location ON analytics_events(country,region_code,city,created_at)")
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_location ON analytics_events(country,region_code,city,created_at)"),
+  env.DB.prepare("UPDATE checkout_opportunities SET email_sent_at=(SELECT e.created_at FROM operational_events e WHERE e.unique_key='checkout-recovery:'||checkout_opportunities.id AND e.status='sent'),contacted_at=COALESCE(contacted_at,(SELECT e.created_at FROM operational_events e WHERE e.unique_key='checkout-recovery:'||checkout_opportunities.id AND e.status='sent')) WHERE email_sent_at IS NULL AND EXISTS(SELECT 1 FROM operational_events e WHERE e.unique_key='checkout-recovery:'||checkout_opportunities.id AND e.status='sent')")
  ]).catch(e=>{authSchemaReady=null;throw e});
  return authSchemaReady;
 }
