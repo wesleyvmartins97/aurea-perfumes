@@ -1,13 +1,13 @@
-/* Opções em fluxo normal: crescem e quebram linha sem estourar o celular. */
-.catalog-navigation{margin:0 0 22px;padding:18px;background:#fff;border:1px solid #e7e1da;border-radius:6px}
-.catalog-navigation fieldset{min-width:0;border:0;padding:0;margin:0 0 14px}
-.catalog-navigation fieldset:last-of-type{margin-bottom:0}
-.catalog-navigation legend{padding:0;margin-bottom:9px;font:700 10px/1.4 Arial,sans-serif;letter-spacing:1px;color:#756653}
-.catalog-choice-row{display:flex;flex-wrap:wrap;gap:8px}
-.catalog-choice{border:1px solid #d8d1ca;border-radius:4px;background:#fff;color:#40372f;padding:10px 13px;min-height:42px;font:12px/1.35 Arial,sans-serif;cursor:pointer}
-.catalog-choice[aria-pressed="true"]{background:#171513;border-color:#171513;color:#fff}
-.catalog-choice:focus-visible,.catalog-clear:focus-visible{outline:2px solid #8a735f;outline-offset:3px}
-.catalog-navigation-status{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid #e7e1da;font:12px/1.5 Arial,sans-serif;color:#655d54}
-.catalog-clear{background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;padding:8px 0;min-height:40px;color:#655341;font:12px Arial,sans-serif;cursor:pointer}
+/* Uma única navegação, com seletores nativos acessíveis no celular e no PC. */
+#catalogo #categorias.catalog-filters-anchor{padding:0!important;scroll-margin-top:88px}
+.catalog-navigation{margin:0 0 18px;padding:0 0 12px;border-bottom:1px solid #e7e1da}
+.catalog-select-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:620px}
+.catalog-select-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.catalog-select-field>span{font:700 9px/1.4 Arial,sans-serif;letter-spacing:1.3px;color:#756653}
+.catalog-select{box-sizing:border-box;display:block;width:100%;min-width:0;min-height:44px;padding:10px 30px 10px 12px;border:1px solid #d8d1ca;border-radius:3px;background:#fff;color:#171513;font:13px/1.4 Arial,sans-serif;cursor:pointer}
+.catalog-select:focus-visible,.catalog-clear:focus-visible{outline:2px solid #8a735f;outline-offset:3px}
+.catalog-navigation-status{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;min-height:36px;font:11px/1.5 Arial,sans-serif;color:#756e68}
+.catalog-clear{background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;padding:8px 0;min-height:36px;color:#655341;font:11px Arial,sans-serif;cursor:pointer}
 .catalog-empty{grid-column:1/-1;text-align:center;padding:32px 12px;color:#655d54;font:14px/1.6 Arial,sans-serif}
-@media(max-width:700px){.catalog-navigation{padding:13px;margin-bottom:16px}.catalog-choice-row{gap:6px}.catalog-choice{padding:10px;font-size:11px;min-height:44px}.catalog-navigation-status{font-size:11px}}
+#catalogo .catalog-search{margin-bottom:18px}
+@media(max-width:700px){.catalog-select-grid{gap:10px}.catalog-select{font-size:12px}.catalog-navigation{margin-bottom:14px}.catalog-navigation-status{font-size:10px}#catalogo .catalog-search{margin-bottom:14px}}
