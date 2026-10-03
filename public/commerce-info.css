@@ -1,0 +1,30 @@
+/* Etapa 6: informação comercial compartilhada pelos produtos atuais e futuros. */
+#grid .card .info{min-width:0}
+#grid .card .name{overflow-wrap:anywhere}
+#grid .card .commerce-pricing{margin-top:12px}
+#grid .card .commerce-pricing .price{margin:0;font-size:22px;line-height:1.25;color:#171513}
+#grid .card .commerce-pricing .pix{margin:9px 0 0;font-size:14px;line-height:1.4;color:#365c40;font-weight:700}
+.commerce-card-note,.commerce-pix-note,.commerce-payment-note{font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.5;color:#625b54;margin-top:4px}
+.commerce-pix-note{color:#47634d;font-size:10px}
+.commerce-offer{display:inline-block;margin-bottom:5px;padding:4px 7px;background:#171513;color:#fff;font:700 9px Arial,Helvetica,sans-serif;letter-spacing:1px}
+.commerce-was{font:12px Arial,Helvetica,sans-serif;color:#766f68;text-decoration:line-through;margin-bottom:3px}
+#grid .card .commerce-preparation{margin:12px 0 0;padding-top:9px;border-top:1px solid #e7e1da;font:11px/1.5 Arial,Helvetica,sans-serif;color:#655d54}
+#detailBox .commerce-pricing{margin-top:18px}
+#detailBox .commerce-pricing .price{margin:0;font-size:30px;line-height:1.3;color:#171513}
+#detailBox .commerce-pricing .pix{margin:10px 0 0;font-size:17px;line-height:1.4;color:#365c40;font-weight:700}
+.commerce-detail-actions{display:flex;flex-direction:column;gap:12px;margin:18px 0 24px}
+.commerce-detail-actions .add{width:100%;min-height:46px}
+.commerce-detail-actions a{align-self:flex-start;font:12px/1.4 Arial,Helvetica,sans-serif;color:#655341;text-underline-offset:3px}
+#detailBox .commerce-description{border-top:1px solid #e7e1da;padding-top:18px}
+.product .copy{min-width:0}
+.product .copy h1{overflow-wrap:anywhere}
+.product .copy .commerce-payment-note{margin-top:9px;font-size:12px}
+.product .copy .cta{min-height:46px}
+@media(max-width:700px){
+ #grid .card .commerce-pricing .price{font-size:20px}
+ #grid .card .commerce-pricing .pix{font-size:12px}
+ #grid .card .commerce-card-note{font-size:10px}
+ #grid .card .commerce-preparation{font-size:10px}
+ #detailBox .commerce-pricing .price{font-size:28px}
+ #detailBox .commerce-pricing .pix{font-size:16px}
+}
