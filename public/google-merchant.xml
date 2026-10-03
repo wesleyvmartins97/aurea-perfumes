@@ -653,6 +653,7 @@
     <g:availability>in_stock</g:availability>
     <g:price>749.90 BRL</g:price>
     <g:brand>Lancôme</g:brand>
+    <g:gtin>3605533286555</g:gtin>
     <g:product_type>Perfumes &gt; Designer &gt; Feminino</g:product_type>
     <g:custom_label_0>designer</g:custom_label_0>
     <g:custom_label_1>feminino</g:custom_label_1>
@@ -700,6 +701,7 @@
     <g:availability>in_stock</g:availability>
     <g:price>999.90 BRL</g:price>
     <g:brand>Dior</g:brand>
+    <g:gtin>3348900417878</g:gtin>
     <g:product_type>Perfumes &gt; Designer &gt; Feminino</g:product_type>
     <g:custom_label_0>designer</g:custom_label_0>
     <g:custom_label_1>feminino</g:custom_label_1>
@@ -715,6 +717,7 @@
     <g:availability>in_stock</g:availability>
     <g:price>829.90 BRL</g:price>
     <g:brand>Dior</g:brand>
+    <g:gtin>3348901250146</g:gtin>
     <g:product_type>Perfumes &gt; Designer &gt; Masculino</g:product_type>
     <g:custom_label_0>designer</g:custom_label_0>
     <g:custom_label_1>masculino</g:custom_label_1>

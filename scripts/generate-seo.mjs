@@ -18,7 +18,7 @@ for(const p of catalog){
  const graph={
   '@context':'https://schema.org',
   '@graph':[
-   {'@type':'Product','@id':url+'#product',name:p.name,image:[image],description:strip(p.desc),brand:{'@type':'Brand',name:p.brand},sku:p.id,
+   {'@type':'Product','@id':url+'#product',name:p.name,image:[image],description:strip(p.desc),brand:{'@type':'Brand',name:p.brand},sku:p.id,...(p.gtin?{['gtin'+String(p.gtin).length]:String(p.gtin)}:{}),
     offers:{'@type':'Offer',url,priceCurrency:'BRL',price:Number(p.price).toFixed(2),availability:'https://schema.org/InStock',itemCondition:'https://schema.org/NewCondition',seller:{'@type':'Organization',name:'VALENZA PARFUMS',url:ROOT+'/',logo:ROOT+'/favicon.png'}}
    },
    {'@type':'BreadcrumbList',itemListElement:[
