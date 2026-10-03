@@ -1,7 +1,18 @@
 /* Etapa 6: informação comercial compartilhada pelos produtos atuais e futuros. */
 #grid .card .info{min-width:0}
 #grid .card .name{overflow-wrap:anywhere}
-#grid .card .commerce-pricing{margin-top:12px}
+/* Cada linha do catálogo compartilha as alturas de conteúdo, sem cortar nomes.
+   Fallback flex conserva os botões na base em navegadores sem subgrid. */
+#grid .card .name{line-height:1.2;min-height:2.4em!important}
+@supports(grid-template-rows:subgrid){
+ #grid>.card{display:grid!important;grid-row:span 7;grid-template-rows:subgrid;row-gap:0;min-width:0}
+ #grid>.card>.info{display:grid!important;grid-row:span 6;grid-template-rows:subgrid;row-gap:0;min-width:0}
+ #grid>.card>.info>.name{min-height:0!important}
+ #grid>.card>.info>.commerce-pricing{margin-top:12px;padding-top:0;align-self:start}
+ #grid>.card>.info>.commerce-preparation{align-self:start}
+ #grid>.card>.info>.product-actions{align-self:end}
+}
+#grid .card .commerce-pricing{margin-top:auto;padding-top:12px}
 #grid .card .commerce-pricing .price{margin:0;font-size:22px;line-height:1.25;color:#171513}
 #grid .card .commerce-pricing .pix{margin:9px 0 0;font-size:14px;line-height:1.4;color:#365c40;font-weight:700}
 .commerce-card-note,.commerce-pix-note,.commerce-payment-note{font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.5;color:#625b54;margin-top:4px}
