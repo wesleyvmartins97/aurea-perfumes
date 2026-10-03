@@ -332,6 +332,36 @@ body.checkout-open .aurea-wa{display:none}
   letter-spacing:.65px!important;
  }
 }
+
+/* Área do cliente: conteúdo limitado à tela; tabelas rolam dentro do painel. */
+#clientCenter .ccWrap{grid-template-columns:230px minmax(0,1fr)}
+#clientCenter .ccMain,#clientCenter .ccSide,#clientCenter #vaBody,
+#clientCenter .vaPanel,#clientCenter .vaMetric,#clientCenter .vaGrid>*,
+#clientCenter .vaAnalyticsGrid>*{min-width:0}
+#clientCenter .vaGrid{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr)}
+#clientCenter .vaMetrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+#clientCenter .vaAnalyticsGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#clientCenter .vaHead{flex-wrap:wrap}
+#clientCenter .vaHead h2,#clientCenter .vaMetric b{overflow-wrap:anywhere}
+#clientCenter .vaPanel{max-width:100%;overscroll-behavior-x:contain}
+@media(max-width:850px){
+ #clientCenter .vaMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #clientCenter .vaGrid,#clientCenter .vaAnalyticsGrid{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:700px){
+ #clientCenter .ccWrap{grid-template-columns:minmax(0,1fr);gap:12px;margin:12px auto;padding:0 12px}
+ #clientCenter .ccUser{padding:12px}
+ #clientCenter .ccUser strong{font-size:20px}
+ #clientCenter .ccNav{display:flex;flex-wrap:wrap;padding:6px;gap:4px}
+ #clientCenter .ccNav button{width:auto;flex:1 1 120px;padding:12px 8px;border:1px solid #e7e1da;font-size:9px}
+ #clientCenter .ccMain{padding:16px 12px}
+ #clientCenter .vaHead h2{font-size:27px}
+ #clientCenter .vaMetric{padding:12px}
+ #clientCenter .vaMetric b{font-size:22px}
+ #clientCenter .vaTools{gap:6px}
+ #clientCenter .vaTools button{min-height:36px;padding:10px;font-size:9px}
+ #clientCenter .vaPanel{padding:12px}
+}
 </style>
 
 
