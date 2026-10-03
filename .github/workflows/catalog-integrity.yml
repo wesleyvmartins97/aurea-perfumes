@@ -27,6 +27,8 @@ on:
       - 'public/produtos/**'
       - 'public/sitemap.xml'
       - 'src/worker.js'
+      - 'src/merchant-fulfillment.mjs'
+      - 'scripts/test-merchant-fulfillment.mjs'
       - 'scripts/validate-catalog.mjs'
       - '.github/workflows/catalog-integrity.yml'
   pull_request:
@@ -54,6 +56,8 @@ on:
       - 'public/produtos/**'
       - 'public/sitemap.xml'
       - 'src/worker.js'
+      - 'src/merchant-fulfillment.mjs'
+      - 'scripts/test-merchant-fulfillment.mjs'
       - 'scripts/validate-catalog.mjs'
       - '.github/workflows/catalog-integrity.yml'
 
@@ -80,6 +84,8 @@ jobs:
         run: |
           node scripts/generate-merchant.mjs
           git diff --exit-code -- public/merchant-feed.xml public/google-merchant.xml
+      - name: Testar disponibilidade e previsão de postagem
+        run: node scripts/test-merchant-fulfillment.mjs
       - name: Validar Merchant feed
         run: node scripts/validate-merchant.mjs
       - name: Validar sintaxe do tracking Google

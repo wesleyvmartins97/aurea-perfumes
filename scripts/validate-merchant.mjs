@@ -28,7 +28,7 @@ for(const p of sellable){
  if(!block.includes(`<g:price>${Number(p.price).toFixed(2)} BRL</g:price>`))fail.push(`${tag}: preço diverge no feed.`);
  if(!block.includes('<g:availability>backorder</g:availability>'))fail.push(`${tag}: disponibilidade não é backorder.`);
  const date=block.match(/<g:availability_date>([^<]+)<\/g:availability_date>/)?.[1];
- if(!date||!Number.isFinite(Date.parse(date))||Date.parse(date)<=Date.now())fail.push(`${tag}: previsão de postagem ausente, inválida ou vencida.`);
+ if(date!=='__VALENZA_DISPATCH_DATE__')fail.push(`${tag}: previsão de postagem não usa o template atualizado pelo Worker.`);
  const page=read(`public/perfume/${p.id}/index.html`);
  if(!page.includes('https://schema.org/BackOrder')||!page.includes(date)||!page.includes('class="dispatch-estimate"'))fail.push(`${tag}: previsão ou disponibilidade divergente na página.`);
  if(!block.includes('<g:condition>new</g:condition>'))fail.push(`${tag}: condition ausente.`);

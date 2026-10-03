@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {merchantFulfillment} from '../src/merchant-fulfillment.mjs';
-const fulfillment=merchantFulfillment();
+import {merchantTemplateFulfillment as fulfillment} from '../src/merchant-fulfillment.mjs';
 
 const ROOT='https://www.valenzaparfums.com.br';
 const read=p=>fs.readFileSync(p,'utf8');

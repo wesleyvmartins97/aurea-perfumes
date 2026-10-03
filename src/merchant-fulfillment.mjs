@@ -19,3 +19,6 @@ export function merchantFulfillment(now=new Date()) {
  const iso=day.toISOString().slice(0,10);
  return {availability:'backorder',schemaAvailability:'https://schema.org/BackOrder',date:iso+'T18:00:00-03:00',label:iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4)};
 }
+
+// Stable build templates; the Worker resolves these per request in both feeds and pages.
+export const merchantTemplateFulfillment={schemaAvailability:'https://schema.org/BackOrder',date:'__VALENZA_DISPATCH_DATE__',label:'__VALENZA_DISPATCH_LABEL__'};

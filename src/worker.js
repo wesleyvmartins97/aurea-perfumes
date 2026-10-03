@@ -1455,7 +1455,7 @@ async function dynamicMerchantFeed(request,env){
     .replace(/<g:availability_date>[^<]*<\/g:availability_date>/,"<g:availability_date>"+fulfillment.date+"</g:availability_date>")
   });
   return new Response(updated,{status:200,headers:{"Content-Type":"application/xml; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate","Strict-Transport-Security":"max-age=31536000; includeSubDomains"}})
- }catch(e){console.error("Merchant dinâmico:",e);return env.ASSETS.fetch(request)}
+ }catch(e){console.error("Merchant dinâmico:",e);return new Response("Feed temporariamente indisponível.",{status:503,headers:{"Cache-Control":"no-store","Retry-After":"60"}})}
 }
 async function servirAssets(request,env){
  const response=await env.ASSETS.fetch(request),headers=new Headers(response.headers),pathname=new URL(request.url).pathname;
@@ -1465,11 +1465,13 @@ async function servirAssets(request,env){
   let html=await response.text();
   // VALENZA preço dinâmico da página individual: o mesmo preço normal salvo no D1 alimenta página, PIX e dados estruturados.
   const pm=pathname.match(/^\/perfume\/([^/]+)\/?$/);
-  if(pm){try{
+  if(pm){
+   const fulfillment=merchantFulfillment();
+   html=html.replaceAll("__VALENZA_DISPATCH_DATE__",fulfillment.date).replaceAll("__VALENZA_DISPATCH_LABEL__",fulfillment.label);
+   try{
    const id=decodeURIComponent(pm[1]),catalog=await officialCatalog(env),p=catalog[id];
    if(!p)return new Response("Produto não disponível.",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","Cache-Control":"no-store","X-Robots-Tag":"noindex, nofollow"}});
    if(p){
-    const fulfillment=merchantFulfillment();
     html=html.replace(/"availability":"[^"]*"/,'"availability":"'+fulfillment.schemaAvailability+'"');
     html=html.replace(/"availabilityStarts":"[^"]*"/,'"availabilityStarts":"'+fulfillment.date+'"');
     html=html.replace(/(<span class="dispatch-estimate">Previsão de postagem até )\d{2}\/\d{2}\/\d{4}/,'$1'+fulfillment.label);

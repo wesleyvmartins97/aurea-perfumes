@@ -1,15 +1,16 @@
 import fs from 'node:fs';
+import {merchantFulfillment} from '../src/merchant-fulfillment.mjs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {webcrypto} from 'node:crypto';
-const source=fs.readFileSync('src/worker.js','utf8').replace('export default','globalThis.worker =');
+const source=fs.readFileSync('src/worker.js','utf8').replace("import {merchantFulfillment} from './merchant-fulfillment.mjs';",'').replace('export default','globalThis.worker =');
 const sql=new DatabaseSync(':memory:');
 const DB={prepare(query){let values=[];return {bind(...v){values=v;return this},async run(){const r=sql.prepare(query).run(...values);return {meta:{changes:Number(r.changes)}}},async all(){return {results:sql.prepare(query).all(...values)}},async first(){return sql.prepare(query).get(...values)||null}}},async batch(statements){sql.exec('BEGIN');try{const out=[];for(const s of statements)out.push(await s.run());sql.exec('COMMIT');return out}catch(e){sql.exec('ROLLBACK');throw e}}};
 let payStatus='pending',failure='',shippingFailure=false,trackingStatus='Em trânsito',calls=[],orderSeq=0;
 const customer={id:'offline-customer',email:'client@example.invalid',email_verified:1};
 const response=d=>new Response(JSON.stringify(d),{headers:{'content-type':'application/json'}});
-const context={btoa,atob,URL,Request,Response,Headers,TextEncoder,TextDecoder,crypto:webcrypto,console,setTimeout,clearTimeout,fetch:async(url,options={})=>{
+const context={merchantFulfillment,btoa,atob,URL,Request,Response,Headers,TextEncoder,TextDecoder,crypto:webcrypto,console,setTimeout,clearTimeout,fetch:async(url,options={})=>{
  calls.push({url,method:options.method||'GET',body:options.body?JSON.parse(options.body):null});
  if(url==='https://api.resend.com/emails')return response({id:'offline-mail-'+calls.length});
  if(url.startsWith('https://api.mercadopago.com/v1/orders?'))return response({data:globalThis.reconciliationResults||[]});
