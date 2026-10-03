@@ -25,7 +25,7 @@ if(!worker.includes('Mercado Pago PIX recusado:'))fail.push('Worker não preserv
 if(!worker.includes('Mercado Pago cartão recusado:'))fail.push('Worker não preserva detalhe técnico do cartão somente em log.');
 if(fs.existsSync('public/admin/index.html'))fail.push('A rota pública /admin ainda existe.');
 if(!home.includes('id="ccAdminNav"'))fail.push('Minha Conta sem botão administrativo oculto.');
-if(!home.includes('src="/admin-account.js"'))fail.push('Minha Conta não carrega o módulo administrativo.');
+if(!/src="\/admin-account\.js(?:\?[^"]*)?"/.test(home))fail.push('Minha Conta não carrega o módulo administrativo.');
 if(!home.includes("if(t==='admin')"))fail.push('Aba administrativa não está integrada ao clientTab.');
 if(!admin.includes('/api/admin/status'))fail.push('Módulo admin sem consulta de elegibilidade.');
 if(!admin.includes('/api/admin/setup'))fail.push('Módulo admin sem criação segura de senha.');
