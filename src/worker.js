@@ -895,10 +895,10 @@ async function opportunitySync(request,env){
 }
 async function markOpportunityRecovered(env,orderId){
  try{
-  const row=await env.DB.prepare("SELECT customer_id FROM orders WHERE id=? AND status='Pago' LIMIT 1").bind(String(orderId||"")).first();if(!row?.customer_id)return;
+  const row=await env.DB.prepare("SELECT customer_id,created_at FROM orders WHERE id=? AND status='Pago' LIMIT 1").bind(String(orderId||"")).first();if(!row?.customer_id)return;
   const now=new Date().toISOString(),attempt=crypto.randomUUID();await env.DB.batch([
-   env.DB.prepare("INSERT OR IGNORE INTO checkout_recovered_orders(order_id,customer_id,attempt_id,recovered_at) SELECT ?,customer_id,?,? FROM checkout_opportunities WHERE customer_id=? AND status='active' AND contacted_at IS NOT NULL AND (recovered_order_id IS NULL OR recovered_order_id<>?)").bind(String(orderId),attempt,now,row.customer_id,String(orderId)),
-   env.DB.prepare("UPDATE checkout_opportunities SET status='recovered',recovered_order_id=?,recovered_at=?,recoveries=recoveries+1,last_error=NULL,updated_at=? WHERE customer_id=? AND status='active' AND EXISTS(SELECT 1 FROM checkout_recovered_orders r WHERE r.order_id=? AND r.attempt_id=?)").bind(String(orderId),now,now,row.customer_id,String(orderId),attempt)
+   env.DB.prepare("INSERT OR IGNORE INTO checkout_recovered_orders(order_id,customer_id,attempt_id,recovered_at) SELECT ?,customer_id,?,? FROM checkout_opportunities WHERE customer_id=? AND status IN ('active','cleared') AND contacted_at IS NOT NULL AND julianday(contacted_at)<=julianday(?) AND julianday(created_at)<=julianday(?) AND (recovered_order_id IS NULL OR recovered_order_id<>?)").bind(String(orderId),attempt,now,row.customer_id,row.created_at,row.created_at,String(orderId)),
+   env.DB.prepare("UPDATE checkout_opportunities SET status='recovered',recovered_order_id=?,recovered_at=?,recoveries=recoveries+1,last_error=NULL,updated_at=? WHERE customer_id=? AND status IN ('active','cleared') AND EXISTS(SELECT 1 FROM checkout_recovered_orders r WHERE r.order_id=? AND r.attempt_id=?)").bind(String(orderId),now,now,row.customer_id,String(orderId),attempt)
   ]);
  }catch(e){console.error("Oportunidade recuperada:",e)}
 }
