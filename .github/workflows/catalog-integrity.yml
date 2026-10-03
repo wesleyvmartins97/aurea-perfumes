@@ -19,6 +19,7 @@ on:
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
       - 'scripts/test-checkout-recovery.mjs'
+      - 'scripts/test-meta-tracking.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -43,6 +44,7 @@ on:
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
       - 'scripts/test-checkout-recovery.mjs'
+      - 'scripts/test-meta-tracking.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -84,6 +86,8 @@ jobs:
         run: node scripts/validate-google-commerce.mjs
       - name: Testar carregamento assíncrono do Google e consentimento
         run: node scripts/test-google-loading.mjs
+      - name: Testar Pixel Meta e consentimento
+        run: node scripts/test-meta-tracking.mjs
       - name: Validar sintaxe do painel administrativo
         run: node --check public/admin-account.js
       - name: Validar painel administrativo

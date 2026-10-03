@@ -39,6 +39,7 @@
     // Valores não secretos necessários em produção. Segredos continuam somente no painel da Cloudflare.
     "ENVIOECOM_ORIGIN_CEP": "29703131",
     "GA4_MEASUREMENT_ID": "G-B3B09R32V6",
+    "META_PIXEL_ID": "1842519260246859",
     "DAILY_REPORT_HOUR": "20"
   }
 }
