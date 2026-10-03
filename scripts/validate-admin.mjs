@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import vm from 'node:vm';
 const fail=[];
 const read=p=>fs.readFileSync(p,'utf8');
 const admin=read('public/admin-account.js');
@@ -254,7 +255,15 @@ if(!worker.includes('CREATE TABLE IF NOT EXISTS disabled_products'))fail.push('P
 if(!worker.includes('/api/admin/products/availability')||!worker.includes('async function adminProductAvailability'))fail.push('Admin sem exclusão/restauração protegida de produto.');
 if(!worker.includes('for(const id of disabled)delete out[id]'))fail.push('Checkout ainda reconhece produto removido.');
 if(!worker.includes('active=!disabled.has(id)'))fail.push('Runtime público não informa produto removido.');
-if(!home.includes('p.active=rt?rt.active!==false')||!home.includes('p.active!==false&&(collection'))fail.push('Vitrine não oculta produto removido.');
+let hidesRemoved=false;
+if(home.includes('VALENZA_NAV.filter(CATALOG,catalogState(),q)')&&home.includes('/catalog-navigation.js?')){
+ try{
+  const nav=vm.runInNewContext(read('public/catalog-navigation.js')+';VALENZA_NAV');
+  const result=nav.filter([{id:'active',cat:'feminino',collection:'arabes',active:true},{id:'removed',cat:'feminino',collection:'arabes',active:false}],{cat:'todos',collection:'todos',department:'todos'});
+  hidesRemoved=result.length===1&&result[0].id==='active';
+ }catch{}
+}else hidesRemoved=home.includes('p.active!==false&&(collection');
+if(!home.includes('p.active=rt?rt.active!==false')||!hidesRemoved)fail.push('Vitrine não oculta produto removido.');
 if(!home.includes('cart.flatMap')||!home.includes('p.active===false'))fail.push('Carrinho não remove produto excluído.');
 if(!worker.includes('if(!p)return "";'))fail.push('Merchant ainda publica produto removido.');
 if(!worker.includes('async function dynamicSitemap')||!wrangler.includes('"/sitemap.xml"'))fail.push('Sitemap ainda publica produto removido.');
