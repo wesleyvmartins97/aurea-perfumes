@@ -21,6 +21,7 @@ on:
       - 'scripts/test-checkout-recovery.mjs'
       - 'scripts/test-meta-tracking.mjs'
       - 'scripts/test-meta-capi.mjs'
+      - 'scripts/test-order-lifecycle.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -47,6 +48,7 @@ on:
       - 'scripts/test-checkout-recovery.mjs'
       - 'scripts/test-meta-tracking.mjs'
       - 'scripts/test-meta-capi.mjs'
+      - 'scripts/test-order-lifecycle.mjs'
       - 'wrangler.jsonc'
       - 'public/perfume/**'
       - 'public/produtos/**'
@@ -98,6 +100,8 @@ jobs:
         run: node scripts/validate-admin.mjs
       - name: Testar histórico e atribuição da recuperação de checkout
         run: node scripts/test-checkout-recovery.mjs
+      - name: Testar jornada de compra sem transações reais
+        run: node scripts/test-order-lifecycle.mjs
       - name: Validar sintaxe do Worker
         run: node --check src/worker.js
       - name: Validar sintaxe do catálogo

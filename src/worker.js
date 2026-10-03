@@ -88,7 +88,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),processCheckoutRecovery(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileUncertainPayments(env),reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),processCheckoutRecovery(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -108,7 +108,9 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS guest_orders (id TEXT PRIMARY KEY, email TEXT NOT NULL, customer_name TEXT NOT NULL, cpf TEXT, order_number TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'Aguardando pagamento', total REAL NOT NULL DEFAULT 0, tracking_code TEXT, tracking_url TEXT, carrier TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_guest_orders_email ON guest_orders(email)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS inventory (product_id TEXT PRIMARY KEY, stock INTEGER NOT NULL DEFAULT 10, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, name TEXT NOT NULL, brand TEXT, type TEXT, image TEXT, quantity INTEGER NOT NULL, unit_price REAL NOT NULL, stock_deducted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)"),
-  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS order_payments (order_id TEXT PRIMARY KEY, method TEXT NOT NULL, installments INTEGER NOT NULL DEFAULT 1, installment_amount REAL NOT NULL DEFAULT 0, total_paid REAL NOT NULL DEFAULT 0, status TEXT, status_detail TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS shipment_locks (order_id TEXT PRIMARY KEY, state TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS payment_attempts (reference TEXT PRIMARY KEY, customer_id TEXT NOT NULL, snapshot_json TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'sending', provider_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_attempt_customer_open ON payment_attempts(customer_id) WHERE state IN ('sending','uncertain')"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS order_payments (order_id TEXT PRIMARY KEY, method TEXT NOT NULL, installments INTEGER NOT NULL DEFAULT 1, installment_amount REAL NOT NULL DEFAULT 0, total_paid REAL NOT NULL DEFAULT 0, status TEXT, status_detail TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),env.DB.prepare("CREATE TABLE IF NOT EXISTS shipment_locks (order_id TEXT PRIMARY KEY, state TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS order_shipping (order_id TEXT PRIMARY KEY, email TEXT, customer_name TEXT, cpf TEXT, phone TEXT, cep TEXT, street TEXT, number TEXT, complement TEXT, neighborhood TEXT, city TEXT, state TEXT, carrier TEXT, freight_cost REAL NOT NULL DEFAULT 0, delivery_time INTEGER NOT NULL DEFAULT 0, shipping_id TEXT, barcode TEXT, label_ready INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS shipment_tracking_state (order_id TEXT PRIMARY KEY, shipping_id TEXT, barcode TEXT, carrier TEXT, status TEXT NOT NULL DEFAULT 'prepared', status_label TEXT, status_at TEXT, last_event_key TEXT, last_checked_at TEXT, delivered_at TEXT, issue_code TEXT, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_shipment_tracking_status ON shipment_tracking_state(status,updated_at)"),
@@ -1631,7 +1633,70 @@ async function statusMercadoPago(env){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
  try{const r=await fetch("https://api.mercadopago.com/users/me",{headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,Accept:"application/json"},signal:controller.signal});const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{};if(!r.ok)return resposta({ok:false,provider:"mercadopago",status:r.status,error:d.message||d.error||"Credencial recusada pelo Mercado Pago."},502);const accountId=String(d?.id||"");return resposta({ok:true,provider:"mercadopago",status:r.status,credentials:"accepted",accountIdLast4:accountId?accountId.slice(-4):null});}catch(e){return resposta({ok:false,provider:"mercadopago",error:e?.name==="AbortError"?"Tempo esgotado ao conectar ao Mercado Pago.":"Falha de conexão com o Mercado Pago."},504)}finally{clearTimeout(timer)}
 }
+async function closePaymentAttempt(env,reference,state){await env.DB.prepare("UPDATE payment_attempts SET state=?,updated_at=? WHERE reference=?").bind(state,new Date().toISOString(),reference).run()}
+async function guardedPaymentCreate(env,snapshot,url,options){
+ const now=new Date().toISOString();
+ // Snapshot contains order data only: no card token, authorization header or password.
+ const pending=await env.DB.prepare("SELECT reference FROM payment_attempts WHERE customer_id=? AND state IN ('sending','uncertain') LIMIT 1").bind(snapshot.customerId).first();
+ if(pending){
+  for(const it of snapshot.items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,now,it.id).run();
+  const e=new Error("Pagamento anterior ainda em conferência.");e.paymentUncertain=true;throw e;
+ }
+ try{await env.DB.prepare("INSERT INTO payment_attempts(reference,customer_id,snapshot_json,state,created_at,updated_at) VALUES(?,?,?,'sending',?,?)").bind(snapshot.reference,snapshot.customerId,JSON.stringify(snapshot),now,now).run()}
+ catch(e){for(const it of snapshot.items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,now,it.id).run();throw e}
+ try{
+  const r=await fetch(url,options);
+  if(r.status>=500)throw new Error("Resposta do provedor inconclusiva.");
+  const data=await r.clone().json().catch(()=>null);
+  if(r.ok&&!data?.id)throw new Error("Resposta do provedor sem identificador.");
+  if(data?.id)await env.DB.prepare("UPDATE payment_attempts SET provider_id=?,updated_at=? WHERE reference=?").bind(String(data.id),new Date().toISOString(),snapshot.reference).run();
+  return r;
+ }catch(e){
+  await closePaymentAttempt(env,snapshot.reference,"uncertain");
+  await recordOperationalEvent(env,{eventType:"payment.confirmation_uncertain",category:"payment",status:"failed",severity:"error",source:"checkout",message:"A conexão caiu durante o pagamento. Tentativa e reserva preservadas para conferência; não repetir a cobrança antes de verificar.",uniqueKey:"payment-uncertain:"+snapshot.reference});
+  e.paymentUncertain=true;throw e;
+ }
+}
+async function restorePaymentAttempt(env,row,remote){
+ const snap=JSON.parse(row.snapshot_json),pid=String(remote.id||""),tx=remote?.transactions?.payments?.[0]||{};
+ if(!pid||String(remote.external_reference||"")!==row.reference||!Number.isFinite(Number(remote.total_amount))||Math.abs(Number(remote.total_amount)-Number(snap.total))>0.009)return false;
+ const now=new Date().toISOString(),st=String(tx.status||remote.status||""),detail=String(tx.status_detail||remote.status_detail||""),approved=["approved","processed"].includes(st)||detail==="accredited",closed=["failed","rejected","expired","cancelled","canceled"].includes(st),status=approved?"Pago":closed?(st==="expired"?"Expirado":st.startsWith("cancel")?"Cancelado":"Pagamento recusado"):"Aguardando pagamento",sh=snap.shipping;
+ const costs=await productCostSnapshotMap(env),existing=await env.DB.prepare("SELECT * FROM orders WHERE id=?").bind(pid).first();
+ if(existing){
+  const storedItems=(await env.DB.prepare("SELECT product_id,quantity FROM order_items WHERE order_id=?").bind(pid).all()).results||[],storedShipping=await env.DB.prepare("SELECT order_id FROM order_shipping WHERE order_id=?").bind(pid).first(),storedPayment=await env.DB.prepare("SELECT order_id FROM order_payments WHERE order_id=?").bind(pid).first();
+  const complete=existing.customer_id===snap.customerId&&existing.order_number===row.reference&&Math.abs(Number(existing.total)-Number(snap.total))<0.009&&storedShipping&&storedPayment&&storedItems.length===snap.items.length&&snap.items.every(it=>storedItems.some(saved=>saved.product_id===it.id&&Number(saved.quantity)===Number(it.qty)));
+  if(!complete){await recordOperationalEvent(env,{orderId:pid,eventType:"payment.persistence_incomplete",category:"payment",status:"failed",severity:"error",source:"payment-reconcile",message:"Pedido com gravação incompleta: conferir no provedor antes de liberar estoque ou refazer cobrança.",uniqueKey:"payment-incomplete:"+row.reference});return false}
+  const checked=await consultarPagamentoCore(pid,env);if(!checked.ok)return false;
+ }else{
+  const statements=[env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,snap.customerId,row.reference,status,snap.total,row.created_at,now)];
+  for(let i=0;i<snap.items.length;i++){
+   const it=snap.items[i],itemId=row.reference+":"+i,price=snap.method==="pix"?pixPrice(it.price):it.price;
+   statements.push(env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(itemId,pid,it.id,it.name,it.brand,it.type,it.img,it.qty,price,approved?1:0,row.created_at));
+   statements.push(env.DB.prepare("INSERT OR IGNORE INTO order_item_costs(order_item_id,order_id,product_id,unit_cost,created_at) VALUES(?,?,?,?,?)").bind(itemId,pid,it.id,costs.get(it.id)??null,row.created_at));
+  }
+  statements.push(env.DB.prepare("INSERT OR IGNORE INTO order_shipping(order_id,email,customer_name,cpf,phone,cep,street,number,complement,neighborhood,city,state,carrier,freight_cost,delivery_time,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(pid,snap.email,snap.name,snap.cpf,snap.phone,String(sh.cep).replace(/\D/g,""),sh.street,sh.number,sh.complement||"",sh.neighborhood,sh.city||String(sh.cityState||"").split(/\s*-\s*/)[0],sh.state||String(sh.cityState||"").split(/\s*-\s*/)[1],sh.carrier,sh.freight_cost,sh.delivery_time,row.created_at,now));
+  statements.push(env.DB.prepare("INSERT OR IGNORE INTO order_payments(order_id,method,installments,installment_amount,total_paid,status,status_detail,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(pid,snap.method==="pix"?"pix":"Cartão de crédito",snap.installments,Number((snap.total/snap.installments).toFixed(2)),snap.total,st,detail,row.created_at,now));
+  await env.DB.batch(statements);
+ }
+ if(closed)await releaseReservedStock(env,pid,now);
+ await env.DB.prepare("UPDATE payment_attempts SET provider_id=?,state='saved',updated_at=? WHERE reference=?").bind(pid,now,row.reference).run();
+ if(approved){await sendOrderOperationalEmail(env,pid,"payment_confirmed");if(!mpConfig(env).testMode)await criarEnvioEnvioEcom(env,pid);await notifyPaidOrder(env,pid)}
+ await recordOperationalEvent(env,{orderId:pid,eventType:"payment.attempt_recovered",category:"payment",status:"recovered",severity:"success",source:"payment-reconcile",message:"Pedido recuperado após falha de conexão com o pagamento.",uniqueKey:"payment-recovered:"+row.reference});
+ return true;
+}
+async function reconcileUncertainPayments(env){
+ try{
+  await ensureAuthSchema(env);const cfg=mpConfig(env);if(!cfg.accessToken)return;
+  const cutoff=new Date(Date.now()-2*60e3).toISOString(),rows=await env.DB.prepare("SELECT * FROM payment_attempts WHERE state IN ('sending','uncertain') AND created_at<? ORDER BY created_at LIMIT 10").bind(cutoff).all();
+  for(const row of rows.results||[])try{
+   const url=new URL("https://api.mercadopago.com/v1/orders");url.searchParams.set("begin_date",new Date(Date.parse(row.created_at)-60e3).toISOString());url.searchParams.set("end_date",new Date().toISOString());url.searchParams.set("external_reference",row.reference);url.searchParams.set("page_size","20");
+   const r=await fetch(url.toString(),{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)continue;
+   const data=await r.json();for(const remote of Array.isArray(data.data)?data.data:[])if(await restorePaymentAttempt(env,row,remote))break;
+  }catch(e){console.error("Conferência de tentativa de pagamento:",e)}
+ }catch(e){console.error("Conferência de pagamentos:",e)}
+}
 async function criarPagamentoPix(request,env){
+ let attemptReference="";
  try{
   if(!mpConfig(env).accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
   const dados=await request.json(),deviceId=String(dados.deviceId||"").trim().slice(0,256),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
@@ -1653,9 +1718,10 @@ async function criarPagamentoPix(request,env){
   const releaseReservation=async()=>{for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,new Date().toISOString(),it.id).run()};
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
   const payload={type:"online",total_amount:total.toFixed(2),external_reference:referencia,processing_mode:"automatic",transactions:{payments:[{amount:total.toFixed(2),payment_method:{id:"pix",type:"bank_transfer"},expiration_time:"PT30M"}]},payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
-  const mp=await fetch("https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
-  const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok){await releaseReservation();await recordOperationalEvent(env,{eventType:"payment.gateway_error",category:"payment",status:"failed",severity:"error",source:"mercadopago-pix",message:"Mercado Pago recusou a criação do PIX.",metadata:{httpStatus:mp.status},uniqueKey:"mp-pix-create-error:"+String(Date.now())+":"+String(mp.status)});console.error("Mercado Pago PIX recusado:",{status:mp.status,message:result?.message||result?.error||null,data:result?.data||null,cause:result?.cause||null});const msg=(mp.status===429)?"Muitas tentativas foram feitas em pouco tempo. Aguarde alguns minutos e gere o Pix novamente.":([401,403].includes(mp.status)||mp.status>=500)?"O Pix está temporariamente indisponível. Tente novamente em alguns instantes.":"Não foi possível gerar o Pix agora. Confira seus dados e tente novamente.";return resposta({ok:false,error:msg},mp.status>=400&&mp.status<500?400:502)}
-  if(!result.id){await releaseReservation();await recordOperationalEvent(env,{eventType:"payment.gateway_error",category:"payment",status:"failed",severity:"error",source:"mercadopago-pix",message:"Mercado Pago respondeu sem identificador do pedido.",metadata:{httpStatus:mp.status},uniqueKey:"mp-pix-no-id:"+String(Date.now())});console.error("Mercado Pago PIX sem identificador:",result);return resposta({ok:false,error:"Não foi possível gerar o Pix agora. Tente novamente."},502)}
+  attemptReference=referencia;
+  const mp=await guardedPaymentCreate(env,{reference:referencia,customerId:u.id,items,shipping:{...shipping,carrier,freight_cost:freight,delivery_time:Number(chosen.delivery_time??chosen.delivery_days??0)},name:nome,email,cpf,phone:telefone,total,method:"pix",installments:1},"https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
+  const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}}if(!mp.ok){await releaseReservation();await closePaymentAttempt(env,referencia,"failed");await recordOperationalEvent(env,{eventType:"payment.gateway_error",category:"payment",status:"failed",severity:"error",source:"mercadopago-pix",message:"Mercado Pago recusou a criação do PIX.",metadata:{httpStatus:mp.status},uniqueKey:"mp-pix-create-error:"+String(Date.now())+":"+String(mp.status)});console.error("Mercado Pago PIX recusado:",{status:mp.status,message:result?.message||result?.error||null,data:result?.data||null,cause:result?.cause||null});const msg=(mp.status===429)?"Muitas tentativas foram feitas em pouco tempo. Aguarde alguns minutos e gere o Pix novamente.":([401,403].includes(mp.status)||mp.status>=500)?"O Pix está temporariamente indisponível. Tente novamente em alguns instantes.":"Não foi possível gerar o Pix agora. Confira seus dados e tente novamente.";return resposta({ok:false,error:msg},mp.status>=400&&mp.status<500?400:502)}
+  if(!result.id){await releaseReservation();await closePaymentAttempt(env,referencia,"failed");await recordOperationalEvent(env,{eventType:"payment.gateway_error",category:"payment",status:"failed",severity:"error",source:"mercadopago-pix",message:"Mercado Pago respondeu sem identificador do pedido.",metadata:{httpStatus:mp.status},uniqueKey:"mp-pix-no-id:"+String(Date.now())});console.error("Mercado Pago PIX sem identificador:",result);return resposta({ok:false,error:"Não foi possível gerar o Pix agora. Tente novamente."},502)}
   const pay=result?.transactions?.payments?.[0]||{},pix=pay?.payment_method||{},orderId=String(result.id),paymentId=String(pay.id||result.id);let savedToAccount=true;
   if(result.id){const now=new Date().toISOString(),pid=orderId;
    await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,"Aguardando pagamento",total,now,now).run();
@@ -1671,10 +1737,12 @@ async function criarPagamentoPix(request,env){
    await recordPaymentStatusEvent(env,{orderId:pid,rawStatus:String(pay.status||result.status||"created"),label:"Aguardando pagamento",method:"pix",source:"checkout-pix"});
    try{await sendOrderOperationalEmail(env,pid,"order_received")}catch(e){console.error("E-mail pedido PIX:",e)}
   }
+  await closePaymentAttempt(env,referencia,"saved");
   return resposta({ok:true,orderId,paymentId,status:pay.status??result.status??"pending",statusDetail:pay.status_detail??result.status_detail??null,amount:total.toFixed(2),qrCode:pix.qr_code||"",qrCodeBase64:pix.qr_code_base64||"",ticketUrl:pix.ticket_url||"",externalReference:referencia,savedToAccount});
- }catch(e){console.error("Criar PIX:",e);return resposta({ok:false,error:"Não foi possível gerar o Pix agora. Tente novamente em alguns instantes."},500)}
+ }catch(e){console.error("Criar PIX:",e);if(attemptReference&&!e.paymentUncertain){const open=await env.DB.prepare("SELECT reference FROM payment_attempts WHERE reference=? AND state IN ('sending','uncertain')").bind(attemptReference).first();if(open){await closePaymentAttempt(env,attemptReference,"uncertain");await recordOperationalEvent(env,{eventType:"payment.persistence_failed",category:"payment",status:"failed",severity:"error",source:"checkout",message:"Falha ao registrar o pagamento. Tentativa preservada para conferência antes de repetir a cobrança.",uniqueKey:"payment-persistence:"+attemptReference});e.paymentUncertain=true}}if(e.paymentUncertain)return resposta({ok:false,paymentUncertain:true,error:"Estamos conferindo a tentativa de pagamento. Não tente pagar novamente agora. Acompanhe Meus Pedidos ou fale com a VALENZA."},409);return resposta({ok:false,error:"Não foi possível gerar o Pix agora. Tente novamente em alguns instantes."},500)}
 }
 async function criarPagamentoCartao(request,env){
+ let attemptReference="";
  try{
   if(!mpConfig(env).accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
   const dados=await request.json(),deviceId=String(dados.deviceId||"").trim().slice(0,256),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
@@ -1701,10 +1769,11 @@ async function criarPagamentoCartao(request,env){
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
   const phoneArea=telefone.length>=10?telefone.slice(0,2):"",phoneNumber=telefone.length>=10?telefone.slice(2):telefone,shippingCityState=String(shipping.cityState||""),shippingParts=shippingCityState.split(/\s*-\s*/),payerCity=String(shipping.city||shippingParts[0]||""),payerState=String(shipping.state||shippingParts[1]||"").toUpperCase().slice(0,2);const payload={type:"online",processing_mode:"automatic",total_amount:total.toFixed(2),external_reference:referencia,config:{online:{transaction_security:{validation:"on_fraud_risk",liability_shift:"required"}}},payer:{email,first_name:partes[0]||nome,last_name:partes.slice(1).join(" ")||partes[0]||nome,identification:{type:"CPF",number:cpf},...(phoneNumber?{phone:{area_code:phoneArea,number:phoneNumber}}:{}),address:{zip_code:cep,street_name:String(shipping.street||""),street_number:String(shipping.number||""),neighborhood:String(shipping.neighborhood||""),city:payerCity,state:payerState,...(String(shipping.complement||"").trim()?{complement:String(shipping.complement).trim()}:{})}},items:items.map(it=>({external_code:it.id,title:it.name,type:it.type||"Perfume",description:`${it.brand||""} ${it.name}`.trim(),picture_url:it.img||"",category_id:"beauty",quantity:it.qty,unit_price:Number(it.price).toFixed(2)})),transactions:{payments:[{amount:total.toFixed(2),payment_method:{id:paymentMethodId,type:"credit_card",token,installments}}]}};
   
-  const mp=await fetch("https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
+  attemptReference=referencia;
+  const mp=await guardedPaymentCreate(env,{reference:referencia,customerId:u.id,items,shipping:{...shipping,carrier,freight_cost:freight,delivery_time:Number(chosen.delivery_time??chosen.delivery_days??0)},name:nome,email,cpf,phone:telefone,total,method:"card",installments:installments},"https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
   const raw=await mp.text();let result;try{result=JSON.parse(raw)}catch{result={}};
   const tx=result?.transactions?.payments?.[0]||{};
-  if(!mp.ok||!result.id){await releaseReservation();const detail=result?.status_detail||tx?.status_detail||result?.error||null;await recordOperationalEvent(env,{eventType:"payment.gateway_error",category:"payment",status:"failed",severity:"error",source:"mercadopago-card",message:"Mercado Pago não concluiu a criação do pagamento por cartão.",metadata:{httpStatus:mp.status,statusDetail:String(detail||"").slice(0,120)},uniqueKey:"mp-card-create-error:"+String(Date.now())+":"+String(mp.status)});console.error("Mercado Pago cartão recusado:",{status:mp.status,message:result?.message||null,statusDetail:detail,errors:result?.errors||null});return resposta({ok:false,error:cardPublicError(detail,mp.status),statusDetail:detail},mp.status>=400&&mp.status<500?400:502)}
+  if(!mp.ok||!result.id){await releaseReservation();await closePaymentAttempt(env,referencia,"failed");const detail=result?.status_detail||tx?.status_detail||result?.error||null;await recordOperationalEvent(env,{eventType:"payment.gateway_error",category:"payment",status:"failed",severity:"error",source:"mercadopago-card",message:"Mercado Pago não concluiu a criação do pagamento por cartão.",metadata:{httpStatus:mp.status,statusDetail:String(detail||"").slice(0,120)},uniqueKey:"mp-card-create-error:"+String(Date.now())+":"+String(mp.status)});console.error("Mercado Pago cartão recusado:",{status:mp.status,message:result?.message||null,statusDetail:detail,errors:result?.errors||null});return resposta({ok:false,error:cardPublicError(detail,mp.status),statusDetail:detail},mp.status>=400&&mp.status<500?400:502)}
   const now=new Date().toISOString(),pid=String(result.id),txStatus=String(tx.status||result.status||""),txDetail=String(tx.status_detail||result.status_detail||""),approved=txStatus==="processed"||txStatus==="approved"||txDetail==="accredited",statusMap={processed:"Pago",processing:"Processando",created:"Processando",action_required:"Aguardando pagamento",failed:"Pagamento recusado",rejected:"Pagamento recusado",canceled:"Cancelado",cancelled:"Cancelado"},status=approved?"Pago":(statusMap[txStatus]||statusMap[result.status]||String(txStatus||result.status||"Processando"));
   await env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,u.id,referencia,status,total,now,now).run();
   const costMap=await productCostSnapshotMap(env);
@@ -1723,12 +1792,13 @@ async function criarPagamentoCartao(request,env){
    await Promise.allSettled([notifyPaidOrder(env,pid),sendOrderOperationalEmail(env,pid,"payment_confirmed")]);
    if(!mpConfig(env).testMode)try{shipment=await criarEnvioEnvioEcom(env,pid)}catch(e){console.error("Expedição cartão:",e)}
   }else if(["failed","rejected","canceled","cancelled"].includes(txStatus)||["failed","rejected","canceled","cancelled"].includes(String(result.status||""))){
-   await releaseReservation();await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();await markOpportunityPaymentIssue(env,pid,txDetail||status);await sendOrderOperationalEmail(env,pid,"payment_failed").catch(e=>console.error("E-mail falha cartão:",e))
+   await releaseReservation();await closePaymentAttempt(env,referencia,"failed");await env.DB.prepare("UPDATE order_items SET stock_deducted=2 WHERE order_id=? AND stock_deducted=0").bind(pid).run();await markOpportunityPaymentIssue(env,pid,txDetail||status);await sendOrderOperationalEmail(env,pid,"payment_failed").catch(e=>console.error("E-mail falha cartão:",e))
   }else{
    await sendOrderOperationalEmail(env,pid,"order_received").catch(e=>console.error("E-mail pedido cartão:",e))
   }
+  await closePaymentAttempt(env,referencia,"saved");
   const challengeUrl=String(tx?.payment_method?.transaction_security?.url||"");return resposta({ok:true,orderId:pid,paymentId:pid,status:txStatus||result.status||null,statusDetail:txDetail||result.status_detail||null,challengeUrl:challengeUrl||null,amount:total.toFixed(2),externalReference:referencia,shipping:shipment?{created:!!shipment.ok,barcode:shipment.barcode||null,labelReady:!!shipment.labelReady}:null});
- }catch(e){console.error("Criar cartão:",e);return resposta({ok:false,error:"Não foi possível processar o cartão agora. Tente novamente em alguns instantes."},500)}
+ }catch(e){console.error("Criar cartão:",e);if(attemptReference&&!e.paymentUncertain){const open=await env.DB.prepare("SELECT reference FROM payment_attempts WHERE reference=? AND state IN ('sending','uncertain')").bind(attemptReference).first();if(open){await closePaymentAttempt(env,attemptReference,"uncertain");await recordOperationalEvent(env,{eventType:"payment.persistence_failed",category:"payment",status:"failed",severity:"error",source:"checkout",message:"Falha ao registrar o pagamento. Tentativa preservada para conferência antes de repetir a cobrança.",uniqueKey:"payment-persistence:"+attemptReference});e.paymentUncertain=true}}if(e.paymentUncertain)return resposta({ok:false,paymentUncertain:true,error:"Estamos conferindo a tentativa de pagamento. Não tente pagar novamente agora. Acompanhe Meus Pedidos ou fale com a VALENZA."},409);return resposta({ok:false,error:"Não foi possível processar o cartão agora. Tente novamente em alguns instantes."},500)}
 }
 async function tentarGerarEtiqueta(env,orderId,shippingId,barcode){
  try{
