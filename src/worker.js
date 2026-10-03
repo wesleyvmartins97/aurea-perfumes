@@ -1667,6 +1667,8 @@ async function restorePaymentAttempt(env,row,remote){
   const complete=existing.customer_id===snap.customerId&&existing.order_number===row.reference&&Math.abs(Number(existing.total)-Number(snap.total))<0.009&&storedShipping&&storedPayment&&storedItems.length===snap.items.length&&snap.items.every(it=>storedItems.some(saved=>saved.product_id===it.id&&Number(saved.quantity)===Number(it.qty)));
   if(!complete){await recordOperationalEvent(env,{orderId:pid,eventType:"payment.persistence_incomplete",category:"payment",status:"failed",severity:"error",source:"payment-reconcile",message:"Pedido com gravação incompleta: conferir no provedor antes de liberar estoque ou refazer cobrança.",uniqueKey:"payment-incomplete:"+row.reference});return false}
   const checked=await consultarPagamentoCore(pid,env);if(!checked.ok)return false;
+  await env.DB.prepare("UPDATE payment_attempts SET provider_id=?,state='saved',updated_at=? WHERE reference=?").bind(pid,now,row.reference).run();
+  return true;
  }else{
   const statements=[env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,snap.customerId,row.reference,status,snap.total,row.created_at,now)];
   for(let i=0;i<snap.items.length;i++){

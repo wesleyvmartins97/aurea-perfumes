@@ -62,6 +62,8 @@ const attempt=sql.prepare("SELECT * FROM payment_attempts WHERE state='uncertain
 const beforeRetry=stock();assert.equal((await call('criarPagamentoCartao')).status,409);assert.equal(stock(),beforeRetry,'Blocked retry must restore only the new reservation');
 failure='';payStatus='approved';const recovered={id:'offline-recovered',external_reference:attempt.reference,total_amount:'227.91',transactions:{payments:[{status:'approved'}]}};assert.equal(await context.restorePaymentAttempt(env,attempt,recovered),true);assert.equal(sql.prepare('SELECT status FROM orders WHERE id=?').get(recovered.id).status,'Pago');assert.equal(stock(),beforeNetwork-1);await context.restorePaymentAttempt(env,attempt,recovered);assert.equal(stock(),beforeNetwork-1);
 assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM order_items WHERE order_id=?').get(recovered.id).n,1);
+// Existing orders use a fresh provider status rather than a stale search result.
+payStatus='pending';await context.restorePaymentAttempt(env,attempt,recovered);assert.equal(sql.prepare('SELECT status FROM orders WHERE id=?').get(recovered.id).status,'Aguardando pagamento');assert.equal(stock(),beforeNetwork-1);payStatus='approved';
 console.log('PASS definite refusal restores stock; ambiguous interruption is journaled, retry blocked and approved order restored exactly once');
 
 // Exercise the scheduled search, including no match, wrong amount, partial persistence and rejection.
