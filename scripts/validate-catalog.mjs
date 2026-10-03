@@ -43,6 +43,10 @@ for(const p of catalog){
  for(const label of ['Topo:','Corpo:','Fundo:'])if(!String(p.details||'').includes(label))fail.push(`${tag}: details sem ${label}`);
  const imagePath='public/'+String(p.img||'').replace(/^\//,''),dynamicImage=String(p.img||'').startsWith('/produto-img/');
  if(p.img&&!dynamicImage&&!fs.existsSync(imagePath))fail.push(`${tag}: imagem não existe (${p.img}).`);
+ if(!dynamicImage&&fs.existsSync(imagePath)&&imagePath.endsWith('.webp')){
+  const bytes=fs.readFileSync(imagePath);
+  if(bytes.length<20||bytes.toString('ascii',0,4)!=='RIFF'||bytes.toString('ascii',8,12)!=='WEBP'||bytes.readUInt32LE(4)+8!==bytes.length)fail.push(`${tag}: WebP inválido ou truncado (${p.img}).`);
+ }
  if(dynamicImage&&!['/produto-img/asad-zanzibar.jpg','/produto-img/asad-elixir.png'].includes(String(p.img)))fail.push(`${tag}: rota dinâmica de imagem não reconhecida (${p.img}).`);
  const page=`public/perfume/${p.id}/index.html`;
  if(!fs.existsSync(page))fail.push(`${tag}: página SEO ausente (${page}).`);
