@@ -19,6 +19,7 @@ async function scenario({consent='granted',failFirst=false}={}){
  };
  vm.runInNewContext(source,context);
  window.valenzaTrackEvent('begin_checkout',{value:289.90,items:[{item_id:'angham-second-song',price:289.90,quantity:1}]});
+ window.valenzaTrackPurchase({transactionId:'offline-test-order',value:227.91,paymentType:'pix'});
  assert.equal(scripts.length,0,'Do not load Google before config is resolved');
  resolveConfig({ok:true,json:async()=>({ok:true,enabled:true,measurementId:'G-B2Q60PHCRE'})});
  for(let i=0;i<8;i++)await Promise.resolve();
@@ -37,6 +38,16 @@ async function scenario({consent='granted',failFirst=false}={}){
  if(failFirst)assert.equal(calls.filter(x=>x[1]==='add_shipping_info').length,1);
  window.valenzaTrackEvent('view_cart',{value:289.90});
  assert.equal(calls.filter(x=>x[1]==='view_cart').length,1,'Ready Google receives later events once');
+ const conversions=calls.filter(x=>x[0]==='event'&&x[1]==='conversion');
+ assert.equal(conversions.length,1,'Queued paid purchase emits one Ads conversion');
+ assert.equal(conversions[0][2].send_to,'AW-18488018298/x9KICL3nlo0dEPqK4-9E');
+ assert.equal(conversions[0][2].value,227.91);
+ assert.equal(conversions[0][2].currency,'BRL');
+ assert.equal(conversions[0][2].transaction_id,'offline-test-order');
+ assert.equal(calls.find(x=>x[1]==='purchase')[2].send_to,'G-B2Q60PHCRE','GA4 events use their explicit destination');
+ window.valenzaTrackPurchase({transactionId:'offline-test-order',value:227.91});
+ assert.equal(calls.filter(x=>x[1]==='conversion').length,1,'Repeated approval must not duplicate Ads conversion');
+
 }
 await scenario();
 await scenario({failFirst:true});

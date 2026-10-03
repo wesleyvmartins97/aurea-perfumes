@@ -1,5 +1,7 @@
 (()=>{
 'use strict';
+const ADS_TAG_ID='AW-18488018298';
+const ADS_PURCHASE_DESTINATION=ADS_TAG_ID+'/x9KICL3nlo0dEPqK4-9E';
 const CONSENT_KEY='valenza_google_consent';
 const PURCHASE_PREFIX='valenza_purchase_';
 const PENDING_PREFIX='valenza_pending_purchase_';
@@ -150,11 +152,23 @@ async function loadMetaConfig(){
  if(consentGranted())startMeta();
 }
 
+// Route Analytics events explicitly; only a confirmed purchase reaches Ads conversion.
+function sendGoogleEvent(name,params={}){
+ if(!consentGranted()||typeof window.gtag!=='function')return;
+ window.gtag('event',name,{currency:'BRL',...params,send_to:measurementId});
+ if(name==='purchase'&&String(params.transaction_id||'').trim()){
+  window.gtag('event','conversion',{
+   send_to:ADS_PURCHASE_DESTINATION,
+   value:Math.max(0,Number(params.value||0)),currency:'BRL',
+   transaction_id:String(params.transaction_id)
+  });
+ }
+}
 function emit(name,params={}){
  if(!consentGranted())return false;
  const internal=internalTrack(name,params);
  // Preserve events while configuration and the Google library load.
- if(ready&&typeof window.gtag==='function')window.gtag('event',name,{currency:'BRL',...params});
+ if(ready&&typeof window.gtag==='function')sendGoogleEvent(name,params);
  else{
   googleQueue.push({name,params:JSON.parse(JSON.stringify(params))});
   if(googleQueue.length>100)googleQueue.shift();
@@ -170,13 +184,14 @@ function loadGoogleTag(){
  window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};
  window.gtag('js',new Date());
  window.gtag('config',measurementId,{send_page_view:true});
+ window.gtag('config',ADS_TAG_ID);
  const s=document.createElement('script');
  s.async=true;
  s.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(measurementId);
  s.onload=()=>{
   ready=true;loading=false;
   const pending=googleQueue;googleQueue=[];
-  if(consentGranted())for(const event of pending)window.gtag('event',event.name,{currency:'BRL',...event.params});
+  if(consentGranted())for(const event of pending)sendGoogleEvent(event.name,event.params);
  };
  s.onerror=()=>{loading=false;ready=false};
  document.head.appendChild(s);
