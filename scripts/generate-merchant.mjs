@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {merchantFulfillment} from '../src/merchant-fulfillment.mjs';
+const fulfillment=merchantFulfillment();
 
 const ROOT='https://www.valenzaparfums.com.br';
 const read=p=>fs.readFileSync(p,'utf8');
@@ -30,7 +32,7 @@ for(const p of sellable){
  out+=`    <g:link>${ROOT}/perfume/${encodeURIComponent(p.id)}/</g:link>\n`;
  out+=`    <g:image_link>${ROOT}${xml(p.img)}</g:image_link>\n`;
  out+='    <g:condition>new</g:condition>\n';
- out+='    <g:availability>in_stock</g:availability>\n';
+ out+=`    <g:availability>backorder</g:availability>\n    <g:availability_date>${fulfillment.date}</g:availability_date>\n`;
  out+=`    <g:price>${Number(p.price).toFixed(2)} BRL</g:price>\n`;
  out+=`    <g:brand>${xml(p.brand)}</g:brand>\n`;
  if(/^\d{8}$|^\d{12,14}$/.test(String(p.gtin||'')))out+=`    <g:gtin>${xml(p.gtin)}</g:gtin>\n`;

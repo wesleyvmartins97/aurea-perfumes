@@ -13,7 +13,7 @@ if(!feed.includes('xmlns:g="http://base.google.com/ns/1.0"'))fail.push('Namespac
 if(!feed.includes('<rss')||!feed.includes('<channel>'))fail.push('Feed não está em RSS 2.0 válido.');
 const items=(feed.match(/<item>/g)||[]).length;
 if(items!==sellable.length)fail.push(`Feed tem ${items} itens, mas catálogo vendável tem ${sellable.length}.`);
-if(/<g:availability>(preorder|backorder)<\/g:availability>/i.test(feed))fail.push('Feed usa preorder/backorder indevidamente.');
+if(/<g:availability>in_stock<\/g:availability>/i.test(feed))fail.push('Operação sob encomenda anunciada como estoque físico.');
 const validGtin=v=>{
  const digits=String(v||'');if(!/^(\d{8}|\d{12,14})$/.test(digits))return false;
  const sum=[...digits.slice(0,-1)].reverse().reduce((total,digit,i)=>total+Number(digit)*(i%2?1:3),0);
@@ -26,7 +26,11 @@ for(const p of sellable){
  const block=feed.split('<item>').find(x=>x.includes(`<g:id>${p.id}</g:id>`))||'';
  if(!block)fail.push(`${tag}: ausente no feed.`);
  if(!block.includes(`<g:price>${Number(p.price).toFixed(2)} BRL</g:price>`))fail.push(`${tag}: preço diverge no feed.`);
- if(!block.includes('<g:availability>in_stock</g:availability>'))fail.push(`${tag}: disponibilidade não é in_stock.`);
+ if(!block.includes('<g:availability>backorder</g:availability>'))fail.push(`${tag}: disponibilidade não é backorder.`);
+ const date=block.match(/<g:availability_date>([^<]+)<\/g:availability_date>/)?.[1];
+ if(!date||!Number.isFinite(Date.parse(date))||Date.parse(date)<=Date.now())fail.push(`${tag}: previsão de postagem ausente, inválida ou vencida.`);
+ const page=read(`public/perfume/${p.id}/index.html`);
+ if(!page.includes('https://schema.org/BackOrder')||!page.includes(date)||!page.includes('class="dispatch-estimate"'))fail.push(`${tag}: previsão ou disponibilidade divergente na página.`);
  if(!block.includes('<g:condition>new</g:condition>'))fail.push(`${tag}: condition ausente.`);
  if(!block.includes(`<g:brand>${String(p.brand).replace(/&/g,'&amp;')}</g:brand>`)&&!block.includes('<g:brand>'))fail.push(`${tag}: brand ausente.`);
  if(!block.includes(`/perfume/${encodeURIComponent(p.id)}/`))fail.push(`${tag}: link divergente.`);

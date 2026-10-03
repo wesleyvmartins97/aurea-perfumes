@@ -1,3 +1,4 @@
+import {merchantFulfillment} from './merchant-fulfillment.mjs';
 const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Strict-Transport-Security":"max-age=31536000; includeSubDomains"};
 
 const PRODUCT_IMAGE_SOURCES={
@@ -1445,11 +1446,13 @@ async function dynamicSitemap(request,env){
 async function dynamicMerchantFeed(request,env){
  try{
   const response=await env.ASSETS.fetch(request);if(!response.ok)return response;
-  const catalog=await officialCatalog(env),xml=await response.text();
+  const catalog=await officialCatalog(env),xml=await response.text(),fulfillment=merchantFulfillment();
   const updated=xml.replace(/<item>[\s\S]*?<\/item>/g,item=>{
    const m=item.match(/<g:id>([^<]+)<\/g:id>/);if(!m)return item;
    const p=catalog[String(m[1]||"")];if(!p)return "";
    return item.replace(/<g:price>[0-9.]+ BRL<\/g:price>/,"<g:price>"+Number(p.price).toFixed(2)+" BRL</g:price>")
+    .replace(/<g:availability>[^<]*<\/g:availability>/,"<g:availability>backorder</g:availability>")
+    .replace(/<g:availability_date>[^<]*<\/g:availability_date>/,"<g:availability_date>"+fulfillment.date+"</g:availability_date>")
   });
   return new Response(updated,{status:200,headers:{"Content-Type":"application/xml; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate","Strict-Transport-Security":"max-age=31536000; includeSubDomains"}})
  }catch(e){console.error("Merchant dinâmico:",e);return env.ASSETS.fetch(request)}
@@ -1466,6 +1469,10 @@ async function servirAssets(request,env){
    const id=decodeURIComponent(pm[1]),catalog=await officialCatalog(env),p=catalog[id];
    if(!p)return new Response("Produto não disponível.",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","Cache-Control":"no-store","X-Robots-Tag":"noindex, nofollow"}});
    if(p){
+    const fulfillment=merchantFulfillment();
+    html=html.replace(/"availability":"[^"]*"/,'"availability":"'+fulfillment.schemaAvailability+'"');
+    html=html.replace(/"availabilityStarts":"[^"]*"/,'"availabilityStarts":"'+fulfillment.date+'"');
+    html=html.replace(/(<span class="dispatch-estimate">Previsão de postagem até )\d{2}\/\d{2}\/\d{4}/,'$1'+fulfillment.label);
     const price=Number(p.price),pix=pixPrice(price),brl=n=>Number(n).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     html=html.replace(/"price":"[0-9.]+"/,'"price":"'+price.toFixed(2)+'"');
     html=html.replace(/<div class="price">[^<]*<\/div>/,'<div class="price">'+brl(price)+'</div>');
