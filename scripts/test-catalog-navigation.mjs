@@ -25,3 +25,23 @@ assert.equal(new Set(nav.filter(future,all).map(p=>p.id)).size,200);
 assert.equal(nav.departments(future).length,2);
 assert.equal(nav.filter([{id:'decant',cat:'decants',gender:'feminino',collection:'arabes'}],{...all,cat:'feminino',collection:'decants'}).length,1);
 console.log('Navegação aprovada: combinações atuais, unissex, busca, inativos e 200 produtos futuros separados por departamento.');
+
+const original=Array.from(products,p=>JSON.stringify(p));
+for(const cat of ['todos','feminino','masculino','unissex'])for(const collection of ['todos','arabes','designer','decants']){
+ const filtered=nav.filter(products,{...all,cat,collection});
+ for(const mode of ['default','priceAsc','priceDesc','name']){
+  const sorted=nav.sort(filtered,mode);
+  assert.deepEqual(ids(sorted),ids(filtered));
+  if(mode==='default')assert.deepEqual(Array.from(sorted,p=>p.id),Array.from(filtered,p=>p.id));
+  if(mode.startsWith('price'))for(let i=1;i<sorted.length;i++)assert.ok(mode==='priceAsc'?Number(sorted[i-1].price)<=Number(sorted[i].price):Number(sorted[i-1].price)>=Number(sorted[i].price));
+  if(mode==='name'){const collator=new Intl.Collator('pt-BR',{numeric:true,sensitivity:'base'});for(let i=1;i<sorted.length;i++)assert.ok(collator.compare(sorted[i-1].name,sorted[i].name)<=0)}
+ }
+}
+assert.deepEqual(Array.from(products,p=>JSON.stringify(p)),original);
+const sample=[{id:'a',name:'Água 10',price:50},{id:'b',name:'agua 2',price:10},{id:'c',name:'Zeta',price:null}];
+assert.deepEqual(Array.from(nav.sort(sample,'name'),p=>p.id),['b','a','c']);
+assert.deepEqual(Array.from(nav.sort(sample,'priceDesc'),p=>p.id),['a','b','c']);
+assert.deepEqual(Array.from(nav.sort(sample.map(p=>p.id==='a'?{...p,price:5}:p),'priceAsc'),p=>p.id),['a','b','c']);
+const expanded=future.map((p,i)=>({...p,price:200-i}));
+assert.equal(nav.sort(nav.filter(expanded,{...all,department:'cremes'}),'priceAsc')[0].price,1);
+console.log('Ordenação aprovada: preços, promoções, A a Z com acentos, filtros, integridade e crescimento do catálogo.');

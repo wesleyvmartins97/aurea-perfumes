@@ -16,5 +16,18 @@ const VALENZA_NAV = (() => {
   return products.filter(p=>matches(p,state) && (!q ||
    [p.name,p.brand,p.type,p.collection,p.cat,p.ml,p.id,p.department,p.departmentLabel].join(' ').toLocaleLowerCase('pt-BR').includes(q)));
  };
- return {department,line,gender,matches,departments,filter};
+ const collator = new Intl.Collator('pt-BR',{numeric:true,sensitivity:'base'});
+ const byName = (a,b) => collator.compare(a.name||'',b.name||'') || collator.compare(a.brand||'',b.brand||'') || collator.compare(String(a.id||''),String(b.id||''));
+ const price = p => p.price !== null && p.price !== undefined && String(p.price).trim() !== '' && Number.isFinite(Number(p.price)) && Number(p.price) >= 0 ? Number(p.price) : null;
+ const sort = (products, mode='default') => {
+  const result=[...products];
+  if(mode==='name')return result.sort(byName);
+  if(mode!=='priceAsc'&&mode!=='priceDesc')return result;
+  return result.sort((a,b)=>{
+   const pa=price(a),pb=price(b);
+   if(pa===null||pb===null)return pa===pb?byName(a,b):pa===null?1:-1;
+   return (mode==='priceDesc'?pb-pa:pa-pb)||byName(a,b);
+  });
+ };
+ return {department,line,gender,matches,departments,filter,sort};
 })();
