@@ -44,3 +44,30 @@ await scenario({consent:'denied'});
 const config=fs.readFileSync('wrangler.jsonc','utf8');
 assert.match(config,/"run_worker_first":\s*\[\s*"\/",\s*"\/index.html"/,'Home must pass through existing canonical redirect');
 console.log('PASS: delayed GA4 config, failed-load recovery, consent rejection, canonical home routing');
+
+// Run the real checkout entry point: a visible modal must reach tracking and recovery.
+const home=fs.readFileSync('public/index.html','utf8');
+const checkoutSource=home.split('\n').find(line=>line.startsWith('async function openCheckout()'));
+assert.ok(checkoutSource);
+async function checkoutScenario({verified=true}={}){
+ const events=[],layers=[],sync=[];
+ const classes=new Set();
+ const modal={querySelector:()=>({}),classList:{add:name=>classes.add(name)}};
+ const nodes={checkoutModal:modal,valenzaCheckoutTemplate:null,cart:{classList:{contains:()=>false}},accountModal:{classList:{add:()=>{}}}};
+ const context={cart:[{id:'athena',price:239.90,qty:1}],accountUser:null,aureaLayers:[],
+  document:{getElementById:id=>nodes[id]},
+  stopPaymentPoll:()=>{},refreshProductPromotions:async()=>true,renderAccount:()=>{},
+  fetch:async()=>({ok:true,json:async()=>({ok:true,user:{emailVerified:verified}})}),
+  accountMsg:()=>{},showError:()=>{},valenzaNotice:()=>{},updateSummary:()=>{},
+  pushLayer:name=>layers.push(name),queueOpportunitySync:stage=>sync.push(stage),
+  window:{valenzaTrackBeginCheckout:()=>events.push('begin_checkout')}
+ };
+ vm.runInNewContext(checkoutSource+';this.checkout=openCheckout;',context);
+ await context.checkout();
+ assert.equal(events.length,verified?1:0);
+ assert.equal(sync.length,verified?1:0);
+ if(verified){assert.ok(classes.has('open'));assert.deepEqual(layers,['checkout']);assert.deepEqual(sync,['checkout']);}
+}
+await checkoutScenario();
+await checkoutScenario({verified:false});
+console.log('PASS: verified checkout opens, emits begin_checkout and records recovery; unverified login remains blocked');
