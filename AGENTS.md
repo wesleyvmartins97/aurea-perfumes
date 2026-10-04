@@ -16,3 +16,7 @@ O usuário aprovou o visual atual e pediu que fosse preservado nas próximas atu
 - Revalidar somente produtos novos ou com mudança de marca, versão, volume, embalagem ou GTIN. Atualizar a evidência junto da mudança; não alterar o registro apenas para ocultar falhas.
 - Executar `node scripts/validate-gtin-evidence.mjs` e `node scripts/validate-merchant.mjs` em alterações do catálogo, feed ou evidências.
 - O decant de 5ml não herda o GTIN do frasco de 100ml. Observar as apresentações específicas de Light Blue e Miss Dior registradas na auditoria.
+
+## Preços — preferência atualizada em 04/10/2026
+
+- Comparar a apresentação exata com preços normais de grandes perfumarias; separar preço de lista, promoção e PIX. O usuário definiu cerca de 10% a 15% abaixo do preço normal, no máximo, substituindo diferenças de 45%. Consultar `docs/PRECOS-QUATRO-2026-10-04.md`. Não usar o maior anúncio de parceiro como média, nem aumentar todos sem justificativa.
