@@ -1,3 +1,4 @@
+import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
 const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Strict-Transport-Security":"max-age=31536000; includeSubDomains"};
 
@@ -1458,11 +1459,14 @@ async function dynamicMerchantFeed(request,env){
  }catch(e){console.error("Merchant dinâmico:",e);return new Response("Feed temporariamente indisponível.",{status:503,headers:{"Cache-Control":"no-store","Retry-After":"60"}})}
 }
 async function servirAssets(request,env){
- const response=await env.ASSETS.fetch(request),headers=new Headers(response.headers),pathname=new URL(request.url).pathname;
+ const pathname=new URL(request.url).pathname,isCatalog=/^\/catalogo\/?$/.test(pathname);let assetRequest=request;
+ if(isCatalog){const url=new URL(request.url);url.pathname='/';assetRequest=new Request(url,request)}
+ const response=await env.ASSETS.fetch(assetRequest),headers=new Headers(response.headers);
  headers.set("Strict-Transport-Security","max-age=31536000; includeSubDomains");
  const contentType=headers.get("content-type")||"";
  if(contentType.includes("text/html")){
   let html=await response.text();
+  if(isCatalog)html=catalogPageHtml(html);
   // VALENZA preço dinâmico da página individual: o mesmo preço normal salvo no D1 alimenta página, PIX e dados estruturados.
   const pm=pathname.match(/^\/perfume\/([^/]+)\/?$/);
   if(pm){

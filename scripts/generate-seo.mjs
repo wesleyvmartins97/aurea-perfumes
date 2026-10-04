@@ -33,7 +33,7 @@ for(const p of catalog){
 }
 
 let sitemap='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n';
-for(const path of ['','privacidade/','termos/','trocas-e-devolucoes/','politica-de-devolucao/','envio-e-entrega/'])sitemap+=`  <url><loc>${ROOT}/${path}</loc></url>\n`;
+for(const path of ['','catalogo/','privacidade/','termos/','trocas-e-devolucoes/','politica-de-devolucao/','envio-e-entrega/'])sitemap+=`  <url><loc>${ROOT}/${path}</loc></url>\n`;
 for(const p of catalog)sitemap+=`  <url><loc>${ROOT}/perfume/${p.id}/</loc><image:image><image:loc>${ROOT}${p.img}</image:loc><image:title>${esc(p.brand+' '+p.name)}</image:title></image:image></url>\n`;
 sitemap+='</urlset>\n';
 fs.writeFileSync('public/sitemap.xml',sitemap);
