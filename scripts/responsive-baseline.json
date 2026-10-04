@@ -1,0 +1,21 @@
+{
+  "approvedCommit": "5342b881f7186852c4e13b32411b173825d921e4",
+  "files": {
+    "public/commerce-info.css": "cb47070295576e0945ad8ac7552abc70b33548f638b980735365913a9a870bf4",
+    "public/catalog-navigation.css": "a954df967dc991551b8abcfa6aa3ff6cc24ac53ff7a0bab77627f0469f2d0800",
+    "public/featured-selection.css": "8a664515010853f2f389599437c90a0e08adcca0e862f3478b93ed0e5871f337",
+    "public/brand/brand.css": "fdfecae94db919930d5687db5a9ac6d9c801e85075c2c38c0ac33f45bf94d634",
+    "public/catalog-pagination.css": "d56eae4d0f838daaf683cc264ee0542ca142d6c33c3ad8ffc2ce760b4ade1fd5",
+    "public/catalog-pagination.js": "fa265f23f760ecb345227784ea1f54983d3004953412cc1a95eac24e3284bd00"
+  },
+  "inlineStyles": [
+    "966ec332491c150ed361aa0020f8835e806b3efd62642bc1efb128b28cf2fde7"
+  ],
+  "stylesheets": [
+    "/brand/brand.css",
+    "/commerce-info.css",
+    "/catalog-navigation.css",
+    "/featured-selection.css",
+    "/catalog-pagination.css"
+  ]
+}

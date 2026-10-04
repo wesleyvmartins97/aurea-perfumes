@@ -1,0 +1,23 @@
+name: Padrão responsivo aprovado
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preservar-layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Conferir estilos aprovados do computador e celular
+        run: node scripts/validate-responsive.mjs
+      - name: Conferir filtros, paginação e retorno dos detalhes
+        run: |
+          node scripts/test-catalog-navigation.mjs
+          node scripts/test-catalog-pagination.mjs
