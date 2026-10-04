@@ -614,6 +614,46 @@
       "status": "verified_reference",
       "source_url": "https://cellshop.com.br/produto/perfume-lattafa-musamam-edp-100ml-unissex/",
       "verified_on": "2026-10-04"
+    },
+    {
+      "id": "durrat-al-aroos",
+      "name": "Durrat Al Aroos",
+      "brand": "Al Wataniah",
+      "type": "EDP · 85ml",
+      "gtin": "5055810012786",
+      "status": "verified_reference",
+      "source_url": "https://nissei.com/br/perfume-al-wataniah-durrat-al-aroos-edp-femenino-85ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "yara-elixir",
+      "name": "Yara Elixir",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290362346531",
+      "status": "verified_reference",
+      "source_url": "https://www.lattafa-usa.com/products/yara-elixir",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "haya",
+      "name": "Haya",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6291108738504",
+      "status": "verified_reference",
+      "source_url": "https://www.lattafa-usa.com/products/haya",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "petra",
+      "name": "Petra",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290360598796",
+      "status": "verified_reference",
+      "source_url": "https://www.lattafa-usa.com/products/petra",
+      "verified_on": "2026-10-04"
     }
   ],
   "exceptions": [
