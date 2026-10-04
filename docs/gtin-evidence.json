@@ -1,0 +1,588 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-04",
+  "catalog_blob_sha": "4b95df1bf915a4bc1b6e2362da65b071ba180b80",
+  "repository_commit": "95b761acfaf5b9f4a17ce6b425dc01fcc346c404",
+  "method": "Dígito verificador GS1 e associação publicada de marca, perfume, concentração e volume; fontes comerciais, não certificação GS1 ou leitura de embalagem física.",
+  "products": [
+    {
+      "id": "angham-second-song",
+      "name": "Angham Second Song",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290362345671",
+      "status": "verified_reference",
+      "source_url": "https://alleperfum.pl/wody-perfumowane/angham-second-song-edp-100ml-woda-perfumowana-damska.html",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "athena",
+      "name": "Athena",
+      "brand": "Maison Alhambra",
+      "type": "EDP · 100ml",
+      "gtin": "6290360599243",
+      "status": "verified_reference",
+      "source_url": "https://dubaiscent.de/products/maison-alhambra-parfum-athena-eau-de-parfum-100ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "delilah-blanc",
+      "name": "Delilah Blanc",
+      "brand": "Maison Alhambra",
+      "type": "EDP · 100ml",
+      "gtin": "6290362340799",
+      "status": "verified_reference",
+      "source_url": "https://www.shamperfume.com/perfumes/maison-alhambra/delilah-blanc/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "delilah",
+      "name": "Delilah Pour Femme",
+      "brand": "Maison Alhambra",
+      "type": "EDP · 100ml",
+      "gtin": "6291107459196",
+      "status": "verified_reference",
+      "source_url": "https://www.tiendalafe.com/products/maison-alhambra-delilah-pour-femme-edp-100ml-m-dupe-parfums-de-marly-delina-edp",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "fakhar-rose",
+      "name": "Fakhar Rose",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6291107456041",
+      "status": "verified_reference",
+      "source_url": "https://www.shopcoopera.com.br/lattafa-fakhar-rose-edp-100ml-1776694/p",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "sabah",
+      "name": "Sabah Al Ward",
+      "brand": "Al Wataniah",
+      "type": "EDP · 100ml",
+      "gtin": "5055810013110",
+      "status": "verified_reference",
+      "source_url": "https://www.contatocelular.com/perfumes/perfume-sabah-al-ward-edp-100ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "asad",
+      "name": "Asad",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6291108735411",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-asad-edp-100ml-masculino-2/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "asad-bourbon",
+      "name": "Asad Bourbon",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290362340362",
+      "status": "verified_reference",
+      "source_url": "https://www.giraofertas.com.br/produto/asad-bourbon-lattafa-eau-de-parfum-masculino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "asad-zanzibar",
+      "name": "Asad Zanzibar",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290360598666",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-asad-zanzibar-edp-100ml-masculino-2/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "asad-elixir",
+      "name": "Asad Elixir",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290362346548",
+      "status": "verified_reference",
+      "source_url": "https://www.likamagazine.com.br/asad-elixir-lattafa-edp-100ml-arabe-masculino",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "attar",
+      "name": "Attar Al Wesal",
+      "brand": "Al Wataniah",
+      "type": "EDP · 100ml",
+      "gtin": "5055810014933",
+      "status": "verified_reference",
+      "source_url": "https://www.amobeleza.com.br/perfume-al-wataniah-attar-al-wesal-masculino-eau-de-parfum-100ml/p",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "ameerati",
+      "name": "Ameerati",
+      "brand": "Al Wataniah",
+      "type": "EDP · 100ml",
+      "gtin": "5055810014902",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-al-wataniah-ameerati-edp-100ml-unisex/",
+      "verified_on": "2026-10-04",
+      "additional_sources": [
+        "https://www.alwataniah.com/products/ameerati"
+      ],
+      "presentation_note": "EDP 100ml confirmado pelo fabricante; ficha Cellshop diz EDT, em conflito com seu próprio título."
+    },
+    {
+      "id": "angham",
+      "name": "Angham",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290360598338",
+      "status": "verified_reference",
+      "source_url": "https://wafadutyfree.com/products/angham-edp",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "vanilla-voyage",
+      "name": "Vanilla Voyage",
+      "brand": "Maison Asrar",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290362161783",
+      "status": "verified_reference",
+      "source_url": "https://www.trendyol.com/en/maison-asrar/vanilla-voyage-eau-de-parfum-women-100-ml-100-ml-p-929420892",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "atheeri",
+      "name": "Atheeri",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290360598918",
+      "status": "verified_reference",
+      "source_url": "https://www.kuantokusta.pt/p/11917609/lattafa-atheeri-woman-eau-de-parfum-100ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "club-de-nuit-intense-man",
+      "name": "Club de Nuit Intense Man",
+      "brand": "Armaf",
+      "type": "EDT · 105ml",
+      "gtin": "6085010044712",
+      "status": "verified_reference",
+      "source_url": "https://www.drogasil.com.br/club-de-nuit-intense-man-edt-105ml-1484433.html",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "musamam-white-intense",
+      "name": "Musamam White Intense",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290360593159",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-musamam-white-intense-edp-100ml-unissex/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "afeef",
+      "name": "Afeef",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290360598888",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-afeef-edp-100ml-unissex/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "queen-of-arabia",
+      "name": "Queen of Arabia",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290362346111",
+      "status": "verified_reference",
+      "source_url": "https://www.alqbeauty.com.br/perfumes/perfumes-arabes/lattafa-pride-queen-of-arabia-edp-100ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "yara",
+      "name": "Yara",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6291108730515",
+      "status": "verified_reference",
+      "source_url": "https://www.buyzeprime.com.br/produto/lattafa-yara-edp-100ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "yara-moi",
+      "name": "Yara Moi",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290360591421",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-yara-moi-edp-100ml-feminino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "yara-tous",
+      "name": "Yara Tous",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290360594552",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-yara-tous-edp-100ml-feminino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "tharwah-gold",
+      "name": "Tharwah Gold",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6291108738177",
+      "status": "verified_reference",
+      "source_url": "https://wafadutyfree.com/products/tharwah-gold-edp-unisex",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "vulcan-feu",
+      "name": "Vulcan Feu",
+      "brand": "French Avenue",
+      "type": "EDP · 100ml",
+      "gtin": "6290360378053",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-french-avenue-vulcan-feu-edp-100ml-unissex/",
+      "verified_on": "2026-10-04",
+      "additional_sources": [
+        "https://www.belezanaweb.com.br/produto/vulcan-feu-french-avenue-eau-de-parfum-perfume-unissex-100ml/"
+      ],
+      "presentation_note": "EDP 100ml nas referências; ficha Cellshop diz Extrait, em conflito com seu próprio título."
+    },
+    {
+      "id": "khamrah",
+      "name": "Khamrah",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6291108737194",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-khamrah-edp-100ml-unissex/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "khamrah-qahwa",
+      "name": "Khamrah Qahwa",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290360593661",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-khamrah-qahwa-edp-100ml-unissex/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "eclaire",
+      "name": "Eclaire",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290362340638",
+      "status": "verified_reference",
+      "source_url": "https://www.patyparfumerie.com.br/perfume/lattafa-eclaire-edp-100ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "liquid-brun",
+      "name": "Liquid Brun",
+      "brand": "French Avenue",
+      "type": "EDP · 100ml",
+      "gtin": "6290360375694",
+      "status": "verified_reference",
+      "source_url": "https://www.almaycasa.com/products/french-avenue-liquid-brun-edp",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "spectre-ghost",
+      "name": "Spectre Ghost",
+      "brand": "French Avenue",
+      "type": "EDP · 80ml",
+      "gtin": "6290360372723",
+      "status": "verified_reference",
+      "source_url": "https://www.kuantokusta.pt/p/12014879/french-avenue-spectre-ghost-eau-de-parfum-80ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "afnan-9pm",
+      "name": "9 PM",
+      "brand": "Afnan",
+      "type": "EDP · 100ml",
+      "gtin": "6290171002338",
+      "status": "verified_reference",
+      "source_url": "https://www.portland-trading.com/product-page/afnan-9-pm-edp-m-100ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "hawas-ice",
+      "name": "Hawas Ice",
+      "brand": "Rasasi",
+      "type": "EDP · 100ml",
+      "gtin": "614514331040",
+      "status": "verified_reference",
+      "source_url": "https://moonfashionpt.com/pt/product/hawas-ice-by-rasasi-eau-de-parfum-100ml-for-him",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "yara-candy",
+      "name": "Yara Candy",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290360599168",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-yara-candy-edp-100ml-feminino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "tiramisu-coco",
+      "name": "Tiramisu Coco",
+      "brand": "Zimaya",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290171075639",
+      "status": "verified_reference",
+      "source_url": "https://www.giraofertas.com.br/produto/tiramisu-coco-zimaya-eau-de-parfum-unissex/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "fatima-pink",
+      "name": "Fatima Pink",
+      "brand": "Zimaya",
+      "type": "Extrait de Parfum · 100ml",
+      "gtin": "6290171071051",
+      "status": "verified_reference",
+      "source_url": "https://www.shopcoopera.com.br/perfume-afnan-zimaya-fatima-pink-extrait-de-parfum-100ml-feminino-1311328/p",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "supremacy-not-only-intense",
+      "name": "Supremacy Not Only Intense",
+      "brand": "Afnan",
+      "type": "Extrait de Parfum · 100ml",
+      "gtin": "6290171070214",
+      "status": "verified_reference",
+      "source_url": "https://aromaticcloud.com/ar/%D8%B9%D8%B7%D8%B1-%D8%A7%D9%81%D9%86%D8%A7%D9%86-%D8%B3%D9%88%D8%A8%D8%B1%D9%8A%D9%85%D8%A7%D8%B3%D9%8A-%D9%86%D9%88%D8%AA-%D8%A7%D9%88%D9%86%D9%84%D9%8A-%D8%A7%D9%86%D8%AA%D9%86%D8%B3-%D8%A7%D9%83%D8%B3%D8%AA%D8%B1%D8%A7%D9%8A%D8%AA-%D8%AF%D9%88-%D8%A8%D8%A7%D8%B1%D9%81%D9%8A%D9%88%D9%85-100%D9%85%D9%84/p1973894221",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "club-de-nuit-milestone",
+      "name": "Club de Nuit Milestone",
+      "brand": "Armaf",
+      "type": "EDP · 105ml",
+      "gtin": "6294015132120",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-armaf-club-de-nuit-milestone-edp-105ml-feminino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "club-de-nuit-untold",
+      "name": "Club de Nuit Untold",
+      "brand": "Armaf",
+      "type": "EDP · 105ml · Unissex",
+      "gtin": "6294015164176",
+      "status": "verified_reference",
+      "source_url": "https://www.smartbeauty.pt/product/club-de-nuit-untold-or-armaf",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "badee-al-oud-amethyst",
+      "name": "Bade'e Al Oud Amethyst",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6291108733875",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-badee-al-oud-amethyst-edp-100ml-unissex/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "raghba-wood-intense",
+      "name": "Raghba Wood Intense",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6291106064070",
+      "status": "verified_reference",
+      "source_url": "https://www.trendyol.com/en/lattafa/perfumes-raghba-wood-intense-eau-de-parfum-men-100ml-eau-de-parfum-100-ml-p-884533278",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-la-vie-est-belle",
+      "name": "La Vie Est Belle",
+      "brand": "Lancôme",
+      "type": "EDP · 100ml",
+      "gtin": "3605533286555",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lancome-la-vie-est-belle-edp-100ml-feminino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-good-girl",
+      "name": "Good Girl",
+      "brand": "Carolina Herrera",
+      "type": "EDP · 80ml",
+      "gtin": "8411061026342",
+      "status": "verified_reference",
+      "source_url": "https://www.formosa.com.br/perfume-carolina-herrera-good-girl-feminino-eau-de-parfum-80ml/p",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-libre",
+      "name": "Libre",
+      "brand": "Yves Saint Laurent",
+      "type": "EDP · 90ml",
+      "gtin": "3614272648425",
+      "status": "verified_reference",
+      "source_url": "https://www.farmaciapermanente.com.br/col-ysl-libre-edp-90ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-jadore",
+      "name": "J'adore",
+      "brand": "Dior",
+      "type": "EDP · 100ml",
+      "gtin": "3348900417878",
+      "status": "verified_reference",
+      "source_url": "https://beautydirect2u.com/products/dior-jadore-eau-de-parfum-100ml?variant=53781203878252",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-sauvage",
+      "name": "Sauvage",
+      "brand": "Dior",
+      "type": "EDT · 100ml",
+      "gtin": "3348901250146",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-christian-dior-sauvage-edt-100ml-masculino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-212-vip-rose",
+      "name": "212 VIP Rosé",
+      "brand": "Carolina Herrera",
+      "type": "EDP · 80ml",
+      "gtin": "8411061088197",
+      "status": "verified_reference",
+      "source_url": "https://www.amobeleza.com.br/perfume-carolina-herrera-212-vip-rose-feminino-eau-de-parfum-80ml/p",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-1-million",
+      "name": "1 Million",
+      "brand": "Rabanne",
+      "type": "EDT · 100ml",
+      "gtin": "3349666007921",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-paco-rabanne-1-million-edt-100ml-masculino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-versace-eros",
+      "name": "Eros",
+      "brand": "Versace",
+      "type": "EDT · 100ml",
+      "gtin": "8011003809219",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-versace-eros-edt-100ml-masculino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-acqua-di-gio",
+      "name": "Acqua di Giò",
+      "brand": "Giorgio Armani",
+      "type": "EDT · 100ml",
+      "gtin": "3360372058878",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-giorgio-armani-acqua-di-gio-edt-100ml-masculino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-my-way",
+      "name": "My Way",
+      "brand": "Giorgio Armani",
+      "type": "EDP · 90ml",
+      "gtin": "3614272907690",
+      "status": "verified_reference",
+      "source_url": "https://venerafragrances.com/armani-my-way-edp-90ml-for-women",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-scandal",
+      "name": "Scandal",
+      "brand": "Jean Paul Gaultier",
+      "type": "EDP · 80ml",
+      "gtin": "8435415059060",
+      "status": "verified_reference",
+      "source_url": "https://www.fiorani.com/scandal-edp/p",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-invictus",
+      "name": "Invictus",
+      "brand": "Rabanne",
+      "type": "EDT · 100ml",
+      "gtin": "3349668515660",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-paco-rabanne-invictus-edt-100ml-masculino/",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-black-opium",
+      "name": "Black Opium",
+      "brand": "Yves Saint Laurent",
+      "type": "EDP · 90ml",
+      "gtin": "3365440787971",
+      "status": "verified_reference",
+      "source_url": "https://ownlyclub.in/products/yves-saint-laurent-black-opium-for-women-eau-de-parfum-90ml",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "designer-light-blue",
+      "name": "Light Blue",
+      "brand": "Dolce & Gabbana",
+      "type": "EDT · 100ml",
+      "gtin": "8057971188192",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-dolcegabbana-light-blue-edt-100ml-feminino-recarregavel/",
+      "verified_on": "2026-10-04",
+      "presentation_note": "GTIN da apresentação EDT 100ml recarregável / nova embalagem. Não reutilizar para a apresentação antiga."
+    },
+    {
+      "id": "designer-miss-dior",
+      "name": "Miss Dior",
+      "brand": "Dior",
+      "type": "EDP · 100ml",
+      "gtin": "3348901811637",
+      "status": "verified_reference",
+      "source_url": "https://www.theperfumeshop.com/dior/miss-dior/eau-de-parfum-spray/p/170710EDPJU?varSel=1334207",
+      "verified_on": "2026-10-04",
+      "presentation_note": "GTIN da edição EDP 100ml 2026. Não reutilizar para edição anterior sem conferir a embalagem."
+    },
+    {
+      "id": "designer-linterdit",
+      "name": "L'Interdit",
+      "brand": "Givenchy",
+      "type": "EDP · 80ml",
+      "gtin": "3274872372153",
+      "status": "verified_reference",
+      "source_url": "https://www.almaycasa.com/products/givenchy-linterdit-edp",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "armaf-club-de-nuit-maleka",
+      "name": "Club de Nuit Maleka",
+      "brand": "Armaf",
+      "type": "EDP · 105ml",
+      "gtin": "6295199801116",
+      "status": "verified_reference",
+      "source_url": "https://alhajisoman.com/products/armaf-club-de-nuit-maleka-edp-105ml",
+      "verified_on": "2026-10-04"
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "decant-sabah",
+      "name": "Decant Sabah Al Ward",
+      "type": "Decant · 5ml",
+      "status": "no_manufacturer_gtin",
+      "reason": "Fracionamento próprio de 5ml. Não usar o GTIN do frasco original de 100ml."
+    }
+  ]
+}

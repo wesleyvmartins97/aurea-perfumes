@@ -12,6 +12,8 @@ on:
       - 'public/merchant-feed.xml'
       - 'public/google-merchant.xml'
       - 'scripts/validate-merchant.mjs'
+      - 'scripts/validate-gtin-evidence.mjs'
+      - 'docs/gtin-evidence.json'
       - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
@@ -47,6 +49,8 @@ on:
       - 'scripts/generate-seo.mjs'
       - 'public/merchant-feed.xml'
       - 'scripts/validate-merchant.mjs'
+      - 'scripts/validate-gtin-evidence.mjs'
+      - 'docs/gtin-evidence.json'
       - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
@@ -102,6 +106,8 @@ jobs:
           git diff --exit-code -- public/merchant-feed.xml public/google-merchant.xml
       - name: Testar disponibilidade e previsão de postagem
         run: node scripts/test-merchant-fulfillment.mjs
+      - name: Preservar evidências dos GTIN
+        run: node scripts/validate-gtin-evidence.mjs
       - name: Validar Merchant feed
         run: node scripts/validate-merchant.mjs
       - name: Validar sintaxe do tracking Google
