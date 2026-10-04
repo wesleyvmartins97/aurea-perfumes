@@ -14,7 +14,8 @@ for(const cat of ['todos','feminino','masculino','unissex']){
   assert.deepEqual(ids(nav.filter(products,{...all,cat,collection})),ids(expected));
  }
 }
-assert.equal(nav.filter(products,all,'mUsAmAm')[0].id,'musamam-white-intense');
+assert.deepEqual(ids(nav.filter(products,all,'mUsAmAm')),['musamam-original','musamam-white-intense']);
+assert.equal(nav.filter(products,all,'Musamam White Intense')[0].id,'musamam-white-intense');
 assert.equal(nav.filter(products,{...all,collection:'designer'},'musamam').length,0);
 assert.equal(nav.filter(products.map(p=>({...p,active:false})),all).length,0);
 const future=Array.from({length:200},(_,i)=>({id:'future-'+i,name:'Produto '+i,brand:i%2?'Victoria’s Secret':'Outra marca',department:i%2?'cremes':'perfumes',gender:'unissex',collection:'designer'}));
@@ -45,3 +46,4 @@ assert.deepEqual(Array.from(nav.sort(sample.map(p=>p.id==='a'?{...p,price:5}:p),
 const expanded=future.map((p,i)=>({...p,price:200-i}));
 assert.equal(nav.sort(nav.filter(expanded,{...all,department:'cremes'}),'priceAsc')[0].price,1);
 console.log('Ordenação aprovada: preços, promoções, A a Z com acentos, filtros, integridade e crescimento do catálogo.');
+

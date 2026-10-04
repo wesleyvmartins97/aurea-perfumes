@@ -1493,6 +1493,10 @@ async function servirAssets(request,env){
 }
 async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
 const AUREA_CATALOG={
+"dalal":{"name": "Dalal", "brand": "Lattafa", "type": "EDP · 100ml", "price": 329.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
+"club-de-nuit-intense-woman":{"name": "Club de Nuit Intense Woman", "brand": "Armaf", "type": "EDP · 105ml", "price": 289.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
+"victoria":{"name": "Victoria", "brand": "Lattafa", "type": "EDP · 100ml · Unissex", "price": 279.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
+"musamam-original":{"name": "Musamam", "brand": "Lattafa", "type": "EDP · 100ml · Unissex", "price": 279.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
 "angham-second-song":{name:"Angham Second Song",brand:"Lattafa",type:"EDP · 100ml",price:289.9,weight:.6,length:20,height:12,width:16},
 "athena":{name:"Athena",brand:"Maison Alhambra",type:"EDP · 100ml",price:239.9,weight:.6,length:20,height:12,width:16},
 "delilah-blanc":{name:"Delilah Blanc",brand:"Maison Alhambra",type:"EDP · 100ml",price:279.9,weight:.6,length:20,height:12,width:16},
@@ -1597,7 +1601,17 @@ async function seedInventory(env){const now=new Date().toISOString();await env.D
  ])}const doneV11=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v11-default100'").first();if(!doneV11){await env.DB.batch([
  env.DB.prepare("UPDATE inventory SET stock=100,updated_at=? WHERE stock=10 AND NOT EXISTS(SELECT 1 FROM order_items oi WHERE oi.product_id=inventory.product_id)").bind(now),
  env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v11-default100','100',?)").bind(now)
- ])}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
+ ])}const doneV12=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v12-four-perfumes'").first();if(!doneV12){await env.DB.batch([
+ env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("dalal",100,now),
+ env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("dalal",240.5,now),
+ env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("club-de-nuit-intense-woman",100,now),
+ env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("club-de-nuit-intense-woman",187.5,now),
+ env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("victoria",100,now),
+ env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("victoria",192.8,now),
+ env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("musamam-original",100,now),
+ env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("musamam-original",171.6,now),
+ env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v12-four-perfumes','100',?)").bind(now)
+])}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
 async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-price)>0.009;return {id,qty:n,...p,price,regularPrice,promotionId:offer?.id||null,priceChanged,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
@@ -1988,3 +2002,4 @@ async function consultarPagamentoCore(orderId,env){
 }
 function cpfValido(cpf){if(!/^\d{11}$/.test(cpf)||/^([0-9])\1+$/.test(cpf))return false;let sum=0;for(let i=0;i<9;i++)sum+=Number(cpf[i])*(10-i);let d1=(sum*10)%11;if(d1===10)d1=0;if(d1!==Number(cpf[9]))return false;sum=0;for(let i=0;i<10;i++)sum+=Number(cpf[i])*(11-i);let d2=(sum*10)%11;if(d2===10)d2=0;return d2===Number(cpf[10])}
 function resposta(dados,status=200){return new Response(JSON.stringify(dados),{status,headers:jsonHeaders})}
+

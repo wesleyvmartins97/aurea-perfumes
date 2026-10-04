@@ -574,6 +574,46 @@
       "status": "verified_reference",
       "source_url": "https://alhajisoman.com/products/armaf-club-de-nuit-maleka-edp-105ml",
       "verified_on": "2026-10-04"
+    },
+    {
+      "id": "dalal",
+      "name": "Dalal",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml",
+      "gtin": "6290360598925",
+      "status": "verified_reference",
+      "source_url": "https://www.lattafa-usa.com/products/dalal",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "club-de-nuit-intense-woman",
+      "name": "Club de Nuit Intense Woman",
+      "brand": "Armaf",
+      "type": "EDP · 105ml",
+      "gtin": "6085010094977",
+      "status": "verified_reference",
+      "source_url": "https://armaf.com/products/club-de-nuit-intense-woman",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "victoria",
+      "name": "Victoria",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6290360598789",
+      "status": "verified_reference",
+      "source_url": "https://www.lattafa-usa.com/products/victoria",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "musamam-original",
+      "name": "Musamam",
+      "brand": "Lattafa",
+      "type": "EDP · 100ml · Unissex",
+      "gtin": "6291108737323",
+      "status": "verified_reference",
+      "source_url": "https://cellshop.com.br/produto/perfume-lattafa-musamam-edp-100ml-unissex/",
+      "verified_on": "2026-10-04"
     }
   ],
   "exceptions": [
