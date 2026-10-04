@@ -15,6 +15,12 @@ on:
       - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
+      - 'public/catalog-pagination.js'
+      - 'public/catalog-pagination.css'
+      - 'public/catalog-navigation.js'
+      - 'scripts/test-catalog-pagination.mjs'
+      - 'scripts/test-catalog-navigation.mjs'
+      - 'src/catalog-page.mjs'
       - 'public/admin/**'
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
@@ -44,6 +50,12 @@ on:
       - 'scripts/generate-merchant.mjs'
       - 'public/favicon.png'
       - 'public/index.html'
+      - 'public/catalog-pagination.js'
+      - 'public/catalog-pagination.css'
+      - 'public/catalog-navigation.js'
+      - 'scripts/test-catalog-pagination.mjs'
+      - 'scripts/test-catalog-navigation.mjs'
+      - 'src/catalog-page.mjs'
       - 'public/admin/**'
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
@@ -70,6 +82,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Testar catálogo responsivo e paginação
+        run: |
+          node scripts/test-catalog-navigation.mjs
+          node scripts/test-catalog-pagination.mjs
       - name: Validar sintaxe do gerador SEO
         run: node --check scripts/generate-seo.mjs
       - name: Validar sintaxe do gerador Merchant
