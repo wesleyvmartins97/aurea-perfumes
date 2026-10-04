@@ -453,7 +453,7 @@ body.checkout-open .aurea-wa{display:none}
 </footer>
 <aside class="drawer" id="cart"><button class="close" onclick="closeCart()">×</button><h2>Seu carrinho</h2><div id="cartContent"></div><div id="shipArea" style="display:none" class="shipping"><div style="margin:0 0 16px;padding:12px 13px;border:1px solid #3b342e;background:#171513;color:#f3eee8"><strong style="display:block;font-size:10px;letter-spacing:1.4px;margin-bottom:5px">SOB ENCOMENDA</strong><span style="font-size:11px;line-height:1.5;color:#d7cec5">Preparação em até 10 dias úteis. O prazo da transportadora começa após a postagem.</span></div><h3 class="serif">Calcule o frete</h3><p>Informe seu CEP para consultar as opções.</p><div class="cep"><input id="cep" maxlength="9" inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" oninput="maskCep(this);autoShipping(this)"><button onclick="shipping()">CALCULAR</button></div><div class="ship-options" id="shipOptions"></div></div><div id="totalArea" style="display:none"><div class="total"><strong>Total</strong><strong id="total">R$ 0,00</strong></div><button class="checkout" onclick="openCheckout()">FINALIZAR COMPRA</button></div></aside>
 <div class="modal" id="accountModal"><button class="modal-close" onclick="closeAccount()">×</button><div class="box account-box"><div class="eyebrow">ÁREA DO CLIENTE</div><h2 class="serif" style="font-size:30px;margin:6px 0 10px">Minha conta</h2><div id="accountBody"><div class="account-message">Carregando...</div></div></div></div>
-<div class="modal" id="detailModal"><button class="modal-close" type="button" aria-label="Fechar detalhes" onclick="if(window.AureaCloseDetail){window.AureaCloseDetail()}else{closeDetail()}">×</button><div class="box detail" id="detailBox"></div></div>
+<div class="modal" id="detailModal" role="dialog" aria-modal="true" aria-label="Detalhes do perfume"><button class="modal-close" type="button" aria-label="Fechar detalhes" onclick="if(window.AureaCloseDetail){window.AureaCloseDetail()}else{closeDetail()}">×</button><div class="box detail" id="detailBox"></div></div>
 <div class="modal" id="checkoutModal"><div class="box checkout-box"><div class="checkout-head"><div><div class="logo valenza-brand"><img src="/brand/valenza-logo.svg?v=20261003" alt="VALENZA PARFUMS" width="300" height="206"></div><small>CHECKOUT SEGURO</small></div><button class="close" style="color:#fff" onclick="closeCheckout()">×</button></div><div class="checkout-body" data-checkout-host></div></div></div></div>
 <template id="valenzaCheckoutTemplate"><div class="checkout-body"><div><section class="checkout-section"><h2>Dados do comprador</h2><div class="muted">Informe os dados necessários para gerar o pagamento.</div><div class="form"><div class="field full"><label>Nome completo</label><input id="name"></div><div class="field full"><label>E-mail</label><input id="email" type="email"></div><div class="field"><label>CPF</label><input id="cpf" maxlength="14" oninput="maskCpf(this)"></div><div class="field"><label>Data de nascimento</label><input id="birthDate" type="text" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="bday" oninput="maskBirthDate(this)"></div><div class="field"><label>Telefone</label><input id="phone" maxlength="15" oninput="maskPhone(this)"></div></div></section><section class="checkout-section"><h2>Endereço</h2><div class="muted">Digite o CEP para preencher o endereço.</div><div class="form"><div class="field"><label>CEP</label><input id="checkoutCep" maxlength="9" oninput="maskCep(this)" onblur="lookupCep()"></div><div class="field"><label>Número</label><input id="number"></div><div class="field full"><label>Rua</label><input id="street"></div><div class="field"><label>Bairro</label><input id="neighborhood"></div><div class="field"><label>Cidade / UF</label><input id="cityState"></div></div></section><section class="checkout-section" style="margin-bottom:10px"><h2>Pagamento</h2><div class="muted">Escolha como deseja pagar.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button type="button" class="final" id="pixChoice" onclick="choosePayment('pix')">PIX</button><button type="button" class="final" id="cardChoice" onclick="choosePayment('card')" style="background:#fff;color:#171513;border:1px solid #171513">CARTÃO</button></div></section><div id="pixPaymentArea"><button class="final" id="payButton" onclick="payPix()">GERAR PAGAMENTO PIX</button></div><div id="cardPaymentArea" style="display:none;background:#fff;border:1px solid var(--line);padding:14px"><div id="cardPaymentBrick_container"></div><div id="cardLoading" class="muted" style="margin:0">Preencha seus dados e escolha o frete antes de abrir o cartão.</div></div><div class="checkout-policies">Ao finalizar, confira também <a href="/termos/" target="_blank" rel="noopener">Termos de compra</a>, <a href="/envio-e-entrega/" target="_blank" rel="noopener">Envio e entrega</a>, <a href="/trocas-e-devolucoes/" target="_blank" rel="noopener">Trocas e devoluções</a> e <a href="/privacidade/" target="_blank" rel="noopener">Privacidade</a>. Atendimento: <a href="https://wa.me/5527997962708" target="_blank" rel="noopener">WhatsApp VALENZA</a>.</div><div class="error" id="error" style="margin-top:10px"></div></div><aside class="summary"><h2>Resumo</h2><div id="summary"></div></aside></template>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
@@ -559,6 +559,8 @@ function pushLayer(name){
 function dropLayer(name,fromHistory=false){
  const i=aureaLayers.lastIndexOf(name);
  if(i<0)return;
+ // Let popstate consume the detail layer once, leaving underlying layers intact.
+ if(name==='detail'&&!fromHistory&&history.state?.aureaLayer==='detail'){history.back();return;}
  aureaLayers.splice(i,1);
  if(!fromHistory&&history.state&&history.state.aureaLayer===name)history.back();
 }
@@ -569,8 +571,42 @@ if(!history.state||(!history.state.aureaBase&&!history.state.aureaLayer)){
 }
 function openCart(){document.getElementById('cart').classList.add('open');pushLayer('cart')};if(sessionStorage.getItem('aurea_open_cart')==='1'){sessionStorage.removeItem('aurea_open_cart');setTimeout(()=>{updateCart();openCart()},0)}
 function closeCart(fromHistory=false){document.getElementById('cart').classList.remove('open');dropLayer('cart',fromHistory)}
+// Keep the catalogue view while product details are open.
+let valenzaDetailReturn=null;
+function rememberDetailReturn(){
+ if(valenzaDetailReturn)return;
+ const search=document.getElementById('search');
+ valenzaDetailReturn={...catalogState(),query:search?.value||'',x:window.scrollX,y:window.scrollY,focus:document.activeElement,overflow:document.body.style.overflow,restoration:history.scrollRestoration};
+ history.scrollRestoration='manual';
+ document.body.style.overflow='hidden';
+}
+function restoreDetailReturn(){
+ const saved=valenzaDetailReturn;if(!saved)return;
+ valenzaDetailReturn=null;
+ const search=document.getElementById('search'),current=catalogState();
+ const changed=['cat','collection','department','sort'].some(key=>current[key]!==saved[key])||(search?.value||'')!==saved.query;
+ cat=saved.cat;collection=saved.collection;department=saved.department;catalogSort=saved.sort;
+ if(search)search.value=saved.query;
+ if(changed)render();
+ document.body.style.overflow=saved.overflow;
+ requestAnimationFrame(()=>{
+  if(saved.focus?.isConnected)saved.focus.focus({preventScroll:true});
+  window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'});
+  history.scrollRestoration=saved.restoration;
+ });
+}
+document.addEventListener('keydown',event=>{
+ const modal=document.getElementById('detailModal');
+ if(!modal?.classList.contains('open')||aureaLayers.at(-1)!=='detail')return;
+ if(event.key==='Escape'){event.preventDefault();closeDetail();return;}
+ if(event.key!=='Tab')return;
+ const controls=[...modal.querySelectorAll('button,a[href],input,select,textarea,[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);
+ const first=controls[0],last=controls.at(-1);if(!first)return;
+ if(event.shiftKey&&(document.activeElement===first||!modal.contains(document.activeElement))){event.preventDefault();last.focus();}
+ else if(!event.shiftKey&&(document.activeElement===last||!modal.contains(document.activeElement))){event.preventDefault();first.focus();}
+});
 function enableOutsideModalClose(){['detailModal'].forEach(id=>{const m=document.getElementById(id);if(!m||m.dataset.outsideClose)return;m.dataset.outsideClose='1';m.addEventListener('click',e=>{if(e.target===m)closeDetail()})})}
-function detail(id){const p=CATALOG.find(x=>x.id===id);if(!p||p.active===false){valenzaNotice('Este perfume não está mais disponível.');return}const priceBlock=productPriceHtml(p);document.getElementById('detailBox').innerHTML=`<img src="${esc(p.img)}" alt="${esc(p.name)}"><div class="detail-copy"><div class="brand">${esc(p.brand)}</div><h2>${esc(p.name)}</h2><div class="meta">${esc(p.type)}</div>${priceBlock}<div style="margin:14px 0;padding:11px 12px;border:1px solid #d8cfc6;background:#f7f3ef;font-size:11px;line-height:1.55;color:#4f4740"><strong style="display:block;font-size:10px;letter-spacing:1px;color:#171513;margin-bottom:3px">DISPONÍVEL PARA COMPRA ONLINE · SOB ENCOMENDA</strong>Este perfume é adquirido especialmente para o seu pedido. Preparação em até 10 dias úteis; depois, segue pela transportadora escolhida.</div><div class="commerce-detail-actions"><button class="add" onclick="add('${p.id}');closeDetail()">ADICIONAR AO CARRINHO</button><a href="/envio-e-entrega/">Ver condições de envio</a></div>${p.desc?`<p class="commerce-description">${esc(p.desc)}</p>`:''}${p.details||''}</div>`;document.getElementById('detailModal').classList.add('open');pushLayer('detail')};function closeDetail(fromHistory=false){document.getElementById('detailModal').classList.remove('open');dropLayer('detail',fromHistory)};let autoShippingTimer=null,lastAutoShippingCep='';function maskCep(i){let v=i.value.replace(/\D/g,'').slice(0,8);i.value=v.replace(/(\d{5})(\d)/,'$1-$2')};function formatCepValue(v){const n=String(v||'').replace(/\D/g,'').slice(0,8);return n.length===8?n.replace(/(\d{5})(\d{3})/,'$1-$2'):String(v||'')};function autoShipping(i){const cep=String(i?.value||'').replace(/\D/g,'');clearTimeout(autoShippingTimer);if(cep.length!==8){lastAutoShippingCep='';return}if(cep===lastAutoShippingCep)return;lastAutoShippingCep=cep;autoShippingTimer=setTimeout(()=>{if(document.getElementById('cep')===i&&String(i.value||'').replace(/\D/g,'')===cep)shipping()},180)};function maskCpf(i){let v=i.value.replace(/\D/g,'').slice(0,11);i.value=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')};function maskBirthDate(el){
+function detail(id){const p=CATALOG.find(x=>x.id===id);if(!p||p.active===false){valenzaNotice('Este perfume não está mais disponível.');return}rememberDetailReturn();const priceBlock=productPriceHtml(p);document.getElementById('detailBox').innerHTML=`<img src="${esc(p.img)}" alt="${esc(p.name)}"><div class="detail-copy"><div class="brand">${esc(p.brand)}</div><h2>${esc(p.name)}</h2><div class="meta">${esc(p.type)}</div>${priceBlock}<div style="margin:14px 0;padding:11px 12px;border:1px solid #d8cfc6;background:#f7f3ef;font-size:11px;line-height:1.55;color:#4f4740"><strong style="display:block;font-size:10px;letter-spacing:1px;color:#171513;margin-bottom:3px">DISPONÍVEL PARA COMPRA ONLINE · SOB ENCOMENDA</strong>Este perfume é adquirido especialmente para o seu pedido. Preparação em até 10 dias úteis; depois, segue pela transportadora escolhida.</div><div class="commerce-detail-actions"><button class="add" onclick="add('${p.id}');closeDetail()">ADICIONAR AO CARRINHO</button><a href="/envio-e-entrega/">Ver condições de envio</a></div>${p.desc?`<p class="commerce-description">${esc(p.desc)}</p>`:''}${p.details||''}</div>`;document.getElementById('detailModal').classList.add('open');pushLayer('detail');document.querySelector('#detailModal .modal-close')?.focus({preventScroll:true})};function closeDetail(fromHistory=false){document.getElementById('detailModal').classList.remove('open');restoreDetailReturn();dropLayer('detail',fromHistory)};let autoShippingTimer=null,lastAutoShippingCep='';function maskCep(i){let v=i.value.replace(/\D/g,'').slice(0,8);i.value=v.replace(/(\d{5})(\d)/,'$1-$2')};function formatCepValue(v){const n=String(v||'').replace(/\D/g,'').slice(0,8);return n.length===8?n.replace(/(\d{5})(\d{3})/,'$1-$2'):String(v||'')};function autoShipping(i){const cep=String(i?.value||'').replace(/\D/g,'');clearTimeout(autoShippingTimer);if(cep.length!==8){lastAutoShippingCep='';return}if(cep===lastAutoShippingCep)return;lastAutoShippingCep=cep;autoShippingTimer=setTimeout(()=>{if(document.getElementById('cep')===i&&String(i.value||'').replace(/\D/g,'')===cep)shipping()},180)};function maskCpf(i){let v=i.value.replace(/\D/g,'').slice(0,11);i.value=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')};function maskBirthDate(el){
  let v=el.value.replace(/\D/g,'').slice(0,8);
  if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
  else if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);
@@ -593,7 +629,7 @@ function closeCheckout(fromHistory=false){stopPaymentPoll();const modal=document
 window.addEventListener('popstate',()=>{
  const layer=aureaLayers.pop();
  if(layer==='checkout')document.getElementById('checkoutModal').classList.remove('open');
- else if(layer==='detail')document.getElementById('detailModal').classList.remove('open');
+ else if(layer==='detail')closeDetail(true);
  else if(layer==='cart')document.getElementById('cart').classList.remove('open');
  else if(layer==='account')document.getElementById('accountModal').classList.remove('open');
  else if(layer==='client'){const cc=document.getElementById('clientCenter');if(cc)cc.style.display='none';document.body.style.overflow='';}
