@@ -20,3 +20,5 @@ O usuário aprovou o visual atual e pediu que fosse preservado nas próximas atu
 ## Preços — preferência atualizada em 04/10/2026
 
 - Comparar a apresentação exata com preços normais de grandes perfumarias; separar preço de lista, promoção e PIX. O usuário definiu cerca de 10% a 15% abaixo do preço normal, no máximo, substituindo diferenças de 45%. Consultar `docs/PRECOS-QUATRO-2026-10-04.md`. Não usar o maior anúncio de parceiro como média, nem aumentar todos sem justificativa.
+
+- Atualização posterior de 04/10/2026: para os quatro novos, o usuário priorizou margem BRUTA de cerca de 38–40% sobre a venda no cartão, com PIX 5% abaixo. Dalal explicitamente R$399,90. Pesquisar preços no Brasil em sites próprios/venda direta e no fabricante; parceiros de marketplaces não são a referência solicitada. Esta decisão substitui a meta anterior de 10–15% abaixo para estes quatro. Não confundir margem com acréscimo sobre custo, nem taxa/juros. As margens PIX são menores. Consultar a revisão final no documento de preços.
