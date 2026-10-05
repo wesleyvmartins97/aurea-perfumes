@@ -39,3 +39,14 @@ Todos os valores são referências públicas; consultar disponibilidade e valor 
 ## Implementação
 
 Catálogo público, catálogo do Worker, páginas individuais, sitemap e dois feeds sincronizados. MigraçãoV17 insere disponibilidade100 e custos uma vez, sem sobrescrever ajustes existentes nem pedidos. Layout protegido preservado. Validações catálogo, GTIN, Merchant, responsividade, navegação, paginação e ciclo de pedidos passaram com provedores simulados; sem compra real.
+
+### Complemento: Época confirmada pelo catálogo público (22h53 Brasil)
+
+A página renderizada não exibiu preços na coleta anterior; a API pública de catálogo forneceu ofertas atuais pelo EAN, consultadas sem login:
+`https://www.epocacosmeticos.com.br/api/catalog_system/pub/products/search?fq=alternateIds_Ean:6298042000926`
+e `https://www.epocacosmeticos.com.br/api/catalog_system/pub/products/search?fq=alternateIds_Ean:5055810007720`.
+
+- Vulcan100ml: AAZ Perfumes343,20 (lista440); Perfumaria Salamanca435,90 (lista599); Kassio444 (lista519); Shophub458,57 (lista579,71). Todas são lojas parceiras; oferta própria da Época indisponível.
+- Shagaf100ml: Evas186,90 (lista373,90); Kassio191 (lista299); Amobeleza200,90 (lista299); Beleza Box211 (lista253,20); Sintra219,90 sem desconto. Todas parceiras; oferta própria da Época indisponível.
+- Preços de oferta consultados, sem frete; eventuais condições de PIX/cupom dependem do checkout. Valores riscados são preços de lista anunciados, não média nacional nem prova de preço habitual.
+- Valenza289,90 fica15,5% abaixo da oferta Vulcan343,20; Shagaf219,90 fica17,7% acima da Evas186,90 e2,2% abaixo da Amobeleza na BLZ224,90. Mantida margem definida pelo usuário; não alegar menor preço geral.
