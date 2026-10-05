@@ -33,3 +33,12 @@
  .header .header-status .hs-main{font-size:7px}
  .header .cart{padding:9px;font-size:7px}
 }
+
+
+/* Desktop: espaço seguro para a marca sem alterar o mobile */
+@media(min-width:701px){
+ .header{height:88px!important;min-height:88px!important;overflow:visible!important}
+ .header>.valenza-brand{height:88px!important;min-height:88px!important;overflow:visible!important;align-self:center!important}
+ .header>.valenza-brand img{width:102px!important;height:70px!important;max-height:70px!important;object-fit:contain!important}
+ .head .valenza-brand,.checkout-head .valenza-brand,.ccHead .valenza-brand{overflow:visible!important}
+}
