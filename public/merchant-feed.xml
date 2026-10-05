@@ -372,6 +372,7 @@
     <g:availability_date>__VALENZA_DISPATCH_DATE__</g:availability_date>
     <g:price>52.00 BRL</g:price>
     <g:brand>Al Wataniah</g:brand>
+    <g:identifier_exists>false</g:identifier_exists>
     <g:product_type>Perfumes &gt; Árabes &gt; Decants</g:product_type>
     <g:custom_label_0>arabes</g:custom_label_0>
     <g:custom_label_1>decants</g:custom_label_1>
@@ -956,23 +957,6 @@
     <g:shipping_weight>0.60 kg</g:shipping_weight>
   </item>
   <item>
-    <g:id>designer-1-million</g:id>
-    <g:title>1 Million Rabanne EDT · 100ml</g:title>
-    <g:description>Amadeirado especiado masculino, cítrico na abertura, quente no coração e profundo no fundo. Detalhes 1 Million Eau de Toilette, de Rabanne , abre com mandarina sanguínea, toranja e hortelã, criando um início cítrico e vibrante. O coração traz rosa, canela e notas especiadas, acrescentando calor e contraste à composição. No fundo, couro, âmbar, madeiras e patchouli indiano formam um rastro denso, quente e marcante. Pirâmide Olfativa Topo: Mandarina Sanguínea, Toranja e Hortelã. Corpo: Rosa, Canela e Notas Especiadas. Fundo: Couro, Âmbar, Notas Amadeiradas e Patchouli Indiano.</g:description>
-    <g:link>https://www.valenzaparfums.com.br/perfume/designer-1-million/</g:link>
-    <g:image_link>https://www.valenzaparfums.com.br/produtos/rabanne-1-million-edt-100ml.webp</g:image_link>
-    <g:condition>new</g:condition>
-    <g:availability>backorder</g:availability>
-    <g:availability_date>__VALENZA_DISPATCH_DATE__</g:availability_date>
-    <g:price>559.90 BRL</g:price>
-    <g:brand>Rabanne</g:brand>
-    <g:gtin>3349666007921</g:gtin>
-    <g:product_type>Perfumes &gt; Designer &gt; Masculino</g:product_type>
-    <g:custom_label_0>designer</g:custom_label_0>
-    <g:custom_label_1>masculino</g:custom_label_1>
-    <g:shipping_weight>0.60 kg</g:shipping_weight>
-  </item>
-  <item>
     <g:id>designer-versace-eros</g:id>
     <g:title>Eros Versace EDT · 100ml</g:title>
     <g:description>Amadeirado oriental fresco masculino, com cítricos, hortelã, ervas aromáticas e baunilha. Detalhes Eros Eau de Toilette, de Versace , combina frescor vibrante com uma base quente e amadeirada. Limão e mandarina italianos, óleo de hortelã e maçã cristalizada formam uma abertura luminosa e energética. No coração, gerânio, sálvia esclareia e AmberMax® conduzem a transição para um fundo de cedros Atlas e Virgínia, vetiver, patchouli, sândalo e baunilha. Pirâmide Olfativa Topo: Limão Italiano, Mandarina Italiana, Óleo de Hortelã e Maçã Cristalizada. Corpo: Gerânio, Sálvia Esclareia e AmberMax®. Fundo: Cedro Atlas, Cedro da Virgínia, Vetiver, Patchouli, Sândalo e Baunilha.</g:description>
@@ -1035,40 +1019,6 @@
     <g:price>849.90 BRL</g:price>
     <g:brand>Jean Paul Gaultier</g:brand>
     <g:gtin>8435415059060</g:gtin>
-    <g:product_type>Perfumes &gt; Designer &gt; Feminino</g:product_type>
-    <g:custom_label_0>designer</g:custom_label_0>
-    <g:custom_label_1>feminino</g:custom_label_1>
-    <g:shipping_weight>0.60 kg</g:shipping_weight>
-  </item>
-  <item>
-    <g:id>designer-invictus</g:id>
-    <g:title>Invictus Rabanne EDT · 100ml</g:title>
-    <g:description>Aquático amadeirado masculino, cítrico e marinho, com fundo quente e terroso. Detalhes Invictus Eau de Toilette, de Rabanne , combina frescor marinho e cítrico com uma base amadeirada quente. Notas marinhas, toranja e tangerina formam uma abertura energética, enquanto folha de louro e jasmim Hedione conduzem o coração aromático. No fundo, madeira de guaiac, âmbar-cinzento, musgo de carvalho e patchouli dão profundidade e sustentação ao rastro. Pirâmide Olfativa Topo: Notas Marinhas, Toranja e Tangerina. Corpo: Folha de Louro e Jasmim Hedione. Fundo: Madeira de Guaiac, Âmbar-cinzento, Musgo de Carvalho e Patchouli.</g:description>
-    <g:link>https://www.valenzaparfums.com.br/perfume/designer-invictus/</g:link>
-    <g:image_link>https://www.valenzaparfums.com.br/produtos/rabanne-invictus-edt-100ml.webp</g:image_link>
-    <g:condition>new</g:condition>
-    <g:availability>backorder</g:availability>
-    <g:availability_date>__VALENZA_DISPATCH_DATE__</g:availability_date>
-    <g:price>649.90 BRL</g:price>
-    <g:brand>Rabanne</g:brand>
-    <g:gtin>3349668515660</g:gtin>
-    <g:product_type>Perfumes &gt; Designer &gt; Masculino</g:product_type>
-    <g:custom_label_0>designer</g:custom_label_0>
-    <g:custom_label_1>masculino</g:custom_label_1>
-    <g:shipping_weight>0.60 kg</g:shipping_weight>
-  </item>
-  <item>
-    <g:id>designer-black-opium</g:id>
-    <g:title>Black Opium Yves Saint Laurent EDP · 90ml</g:title>
-    <g:description>Floral gourmand feminino, com assinatura de café, flores brancas, baunilha e fundo amadeirado. Detalhes Black Opium Eau de Parfum, de Yves Saint Laurent , é reconhecido por sua assinatura café-floral. A abertura combina café e pimenta-rosa; no coração, baunilha, jasmim e flor de laranjeira criam um contraste entre intensidade gourmand e luminosidade floral. Cedro e patchouli aparecem no fundo, dando estrutura amadeirada ao rastro sem tirar o protagonismo do café, das flores brancas e da baunilha. Pirâmide Olfativa Topo: Café e Pimenta-rosa. Corpo: Baunilha, Jasmim e Flor de Laranjeira. Fundo: Cedro e Patchouli.</g:description>
-    <g:link>https://www.valenzaparfums.com.br/perfume/designer-black-opium/</g:link>
-    <g:image_link>https://www.valenzaparfums.com.br/produtos/ysl-black-opium-edp-90ml.webp</g:image_link>
-    <g:condition>new</g:condition>
-    <g:availability>backorder</g:availability>
-    <g:availability_date>__VALENZA_DISPATCH_DATE__</g:availability_date>
-    <g:price>949.90 BRL</g:price>
-    <g:brand>Yves Saint Laurent</g:brand>
-    <g:gtin>3365440787971</g:gtin>
     <g:product_type>Perfumes &gt; Designer &gt; Feminino</g:product_type>
     <g:custom_label_0>designer</g:custom_label_0>
     <g:custom_label_1>feminino</g:custom_label_1>
