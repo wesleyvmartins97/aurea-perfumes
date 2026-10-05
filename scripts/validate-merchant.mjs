@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const read=p=>fs.readFileSync(p,'utf8');
 const fail=[];
 const catalog=vm.runInNewContext(`${read('public/products.js')}\n;CATALOG`,{console});
-const sellable=catalog.filter(p=>p.offer!==false);
+const sellable=catalog.filter(p=>p.offer!==false&&p.merchant!==false);
 const feed=read('public/merchant-feed.xml');
 const legacyFeed=read('public/google-merchant.xml');
 if(legacyFeed!==feed)fail.push('google-merchant.xml diverge do merchant-feed.xml canônico.');
@@ -39,6 +39,10 @@ for(const p of sellable){
  if(p.gtin&&!read(`public/perfume/${p.id}/index.html`).includes(`"gtin${String(p.gtin).length}":"${p.gtin}"`))fail.push(`${tag}: GTIN ausente ou divergente na página SEO.`);
  if(p.gtin&&!block.includes(`<g:gtin>${p.gtin}</g:gtin>`))fail.push(`${tag}: GTIN verificado ausente ou divergente no feed.`);
  if(!p.gtin&&/<g:gtin>/.test(block))fail.push(`${tag}: feed contém GTIN sem cadastro verificado.`);
+ if(!p.gtin&&!block.includes('<g:identifier_exists>false</g:identifier_exists>'))fail.push(`${tag}: item sem GTIN precisa declarar identifier_exists=false.`);
+}
+for(const p of catalog.filter(p=>p.offer!==false&&p.merchant===false)){
+ if(feed.includes(`<g:id>${p.id}</g:id>`))fail.push(`${p.id}: produto excluído do Merchant ainda aparece no feed.`);
 }
 if(fail.length){
  console.error(`\nMERCHANT REPROVADO — ${fail.length} erro(s):\n- ${fail.join('\n- ')}\n`);
