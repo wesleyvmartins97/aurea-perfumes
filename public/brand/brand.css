@@ -213,27 +213,8 @@
   .vf-logo.valenza-brand img{width:160px!important;max-width:160px!important;max-height:108px!important}
 }
 
-/* Banners: usa a marca transparente por cima da foto, sem bloco vinho. */
-.slide::after{
-  content:"";
-  position:absolute;
-  z-index:2;
-  pointer-events:none;
-  left:20.4%;
-  top:1.8%;
-  width:14.5%;
-  height:36%;
-  background:url("/brand/valenza-logo.svg?v=20261005-wine-brand1") center/contain no-repeat;
-  filter:drop-shadow(0 2px 5px rgba(0,0,0,.38));
-}
+/* Banners já possuem a marca VALENZA PARFUMS integrada à própria arte.
+   Não sobrepor uma segunda logo: isso preserva leitura e evita duplicação. */
+.slide::after{content:none!important;display:none!important}
 .banner-zone{z-index:4!important}
 .slide-arrow,.slide-dots{z-index:5!important}
-
-@media(max-width:700px){
-  .slide::after{
-    left:19.8%;
-    top:1.5%;
-    width:15.5%;
-    height:38%;
-  }
-}
