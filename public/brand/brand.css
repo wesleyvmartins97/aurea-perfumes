@@ -142,79 +142,56 @@
 }
 
 
-/* ===== VALENZA VINHO + ROSE GOLD — identidade final 2026-10-05 ===== */
-:root{
-  --valenza-wine:#52070b;
-  --valenza-wine-deep:#2a0205;
-  --valenza-wine-mid:#74131a;
-  --valenza-rose:#e6b28d;
-  --valenza-cream:#f8eadc;
-}
-.header{
+/* ===== LOGO-TILE VALENZA — somente a área da marca recebe o vinho =====
+   O restante do site permanece com a identidade original escura. */
+.header>.valenza-brand{
   background:
-    radial-gradient(circle at 18% 10%,rgba(255,205,170,.12),transparent 30%),
-    linear-gradient(100deg,var(--valenza-wine-deep),var(--valenza-wine) 42%,#681016 70%,var(--valenza-wine-deep))!important;
-  border-bottom:1px solid rgba(230,178,141,.42)!important;
-  box-shadow:0 8px 24px rgba(39,0,4,.18)!important;
+    linear-gradient(135deg,rgba(255,231,210,.10),transparent 28%),
+    radial-gradient(circle at 72% 20%,rgba(255,215,180,.08),transparent 34%),
+    linear-gradient(145deg,#6b1117,#45060a 58%,#2b0205)!important;
+  border:1px solid rgba(214,166,117,.58)!important;
+  border-radius:4px!important;
+  box-shadow:0 4px 13px rgba(0,0,0,.28)!important;
+  padding:5px 8px!important;
+  overflow:hidden!important;
+  text-decoration:none!important;
+  cursor:pointer!important;
 }
-.header .nav a,.header .account{color:var(--valenza-cream)!important}
-.header .nav a:hover{color:#fff!important}
-.header .cart{
-  background:rgba(18,0,2,.34)!important;
-  border:1px solid rgba(230,178,141,.28)!important;
-  color:#fff!important;
+.header>.valenza-brand:hover{
+  border-color:rgba(232,190,143,.82)!important;
+  box-shadow:0 5px 16px rgba(0,0,0,.34)!important;
 }
-.header-search-box{
-  background:rgba(255,250,246,.97)!important;
-  border-color:rgba(230,178,141,.46)!important;
-}
-.aurea-closing{
-  background:
-    radial-gradient(circle at 50% 0,rgba(255,204,166,.09),transparent 46%),
-    linear-gradient(100deg,#310306,#650c11 48%,#340306)!important;
-  border-top:1px solid rgba(230,178,141,.34)!important;
-  border-bottom:1px solid rgba(230,178,141,.24)!important;
-}
-.aurea-closing p{color:#eaded4!important}
-.valenza-footer{
-  background:
-    radial-gradient(circle at 12% 0,rgba(230,178,141,.08),transparent 30%),
-    linear-gradient(160deg,#260204,#130102 65%,#080101)!important;
-}
-.valenza-footer a:hover{color:#f0c6a4!important}
-.checkout-head,.ccHead{
-  background:linear-gradient(100deg,#330305,#681016 55%,#350305)!important;
-  border-color:rgba(230,178,141,.35)!important;
-}
-.header>.valenza-brand img,
-.aurea-closing-mark.valenza-brand img,
-.vf-logo.valenza-brand img,
-.checkout-head .valenza-brand img,
-.ccHead .valenza-brand img{
-  filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
+.header>.valenza-brand img{
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.32))!important;
 }
 
-/* Logo principal: um pouco menor no topo, mas com VALENZA/PARFUMS legíveis. */
 @media(min-width:701px){
-  .header{height:84px!important;min-height:84px!important}
+  .header{height:82px!important;min-height:82px!important}
   .header>.valenza-brand{
-    flex-basis:124px!important;
-    width:124px!important;
-    min-width:124px!important;
-    height:84px!important;
-    min-height:84px!important;
+    flex:0 0 118px!important;
+    width:118px!important;
+    min-width:118px!important;
+    height:70px!important;
+    min-height:70px!important;
   }
   .header>.valenza-brand img{
-    width:108px!important;
-    max-width:108px!important;
-    max-height:78px!important;
+    width:98px!important;
+    max-width:98px!important;
+    max-height:60px!important;
   }
-  .vf-logo.valenza-brand{width:164px!important;min-width:164px!important;height:112px!important}
-  .vf-logo.valenza-brand img{width:160px!important;max-width:160px!important;max-height:108px!important}
 }
-
-/* Banners já possuem a marca VALENZA PARFUMS integrada à própria arte.
-   Não sobrepor uma segunda logo: isso preserva leitura e evita duplicação. */
-.slide::after{content:none!important;display:none!important}
-.banner-zone{z-index:4!important}
-.slide-arrow,.slide-dots{z-index:5!important}
+@media(max-width:700px){
+  .header>.valenza-brand{
+    flex-basis:72px!important;
+    width:72px!important;
+    min-width:72px!important;
+    height:54px!important;
+    min-height:54px!important;
+    padding:3px 5px!important;
+  }
+  .header>.valenza-brand img{
+    width:60px!important;
+    max-width:60px!important;
+    max-height:46px!important;
+  }
+}
