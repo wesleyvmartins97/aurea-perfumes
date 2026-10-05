@@ -12,7 +12,7 @@ const strip=s=>String(s??'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 const label=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const catName={feminino:'Feminino',masculino:'Masculino',unissex:'Unissex',decants:'Decants'};
 const collectionName={arabes:'Árabes',designer:'Designer'};
-const sellable=catalog.filter(p=>p.offer!==false);
+const sellable=catalog.filter(p=>p.offer!==false&&p.merchant!==false);
 
 let out='<?xml version="1.0" encoding="UTF-8"?>\n';
 out+='<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">\n<channel>\n';
@@ -35,6 +35,7 @@ for(const p of sellable){
  out+=`    <g:price>${Number(p.price).toFixed(2)} BRL</g:price>\n`;
  out+=`    <g:brand>${xml(p.brand)}</g:brand>\n`;
  if(/^\d{8}$|^\d{12,14}$/.test(String(p.gtin||'')))out+=`    <g:gtin>${xml(p.gtin)}</g:gtin>\n`;
+ else out+='    <g:identifier_exists>false</g:identifier_exists>\n';
  out+=`    <g:product_type>${xml(productType)}</g:product_type>\n`;
  out+=`    <g:custom_label_0>${xml(label(p.collection))}</g:custom_label_0>\n`;
  out+=`    <g:custom_label_1>${xml(label(p.cat))}</g:custom_label_1>\n`;
