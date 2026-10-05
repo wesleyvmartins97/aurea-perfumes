@@ -2,7 +2,7 @@
 .valenza-brand{display:inline-flex!important;align-items:center!important;justify-content:center!important;flex-direction:row!important;line-height:1!important;font-size:0!important;letter-spacing:0!important;min-width:0!important;text-shadow:none!important;padding:0!important;border:0!important;background:transparent!important;text-decoration:none!important;flex-shrink:0}
 .valenza-brand:before,.valenza-brand:after{content:none!important;display:none!important}
 .valenza-brand img{display:block;width:112px;height:77px;object-fit:contain;max-width:100%}
-.header>.valenza-brand img{width:108px;height:74px}
+.header>.valenza-brand img{width:94px;height:auto;max-height:64px;object-fit:contain}
 .head .valenza-brand img{width:96px;height:66px}
 .vf-brand .valenza-brand{margin-bottom:22px}
 .vf-brand .valenza-brand img{width:150px;height:103px}
