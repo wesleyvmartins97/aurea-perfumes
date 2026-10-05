@@ -140,3 +140,100 @@
   .header .header-status .hs-main{font-size:7px}
   .header .cart{padding:9px;font-size:7px}
 }
+
+
+/* ===== VALENZA VINHO + ROSE GOLD — identidade final 2026-10-05 ===== */
+:root{
+  --valenza-wine:#52070b;
+  --valenza-wine-deep:#2a0205;
+  --valenza-wine-mid:#74131a;
+  --valenza-rose:#e6b28d;
+  --valenza-cream:#f8eadc;
+}
+.header{
+  background:
+    radial-gradient(circle at 18% 10%,rgba(255,205,170,.12),transparent 30%),
+    linear-gradient(100deg,var(--valenza-wine-deep),var(--valenza-wine) 42%,#681016 70%,var(--valenza-wine-deep))!important;
+  border-bottom:1px solid rgba(230,178,141,.42)!important;
+  box-shadow:0 8px 24px rgba(39,0,4,.18)!important;
+}
+.header .nav a,.header .account{color:var(--valenza-cream)!important}
+.header .nav a:hover{color:#fff!important}
+.header .cart{
+  background:rgba(18,0,2,.34)!important;
+  border:1px solid rgba(230,178,141,.28)!important;
+  color:#fff!important;
+}
+.header-search-box{
+  background:rgba(255,250,246,.97)!important;
+  border-color:rgba(230,178,141,.46)!important;
+}
+.aurea-closing{
+  background:
+    radial-gradient(circle at 50% 0,rgba(255,204,166,.09),transparent 46%),
+    linear-gradient(100deg,#310306,#650c11 48%,#340306)!important;
+  border-top:1px solid rgba(230,178,141,.34)!important;
+  border-bottom:1px solid rgba(230,178,141,.24)!important;
+}
+.aurea-closing p{color:#eaded4!important}
+.valenza-footer{
+  background:
+    radial-gradient(circle at 12% 0,rgba(230,178,141,.08),transparent 30%),
+    linear-gradient(160deg,#260204,#130102 65%,#080101)!important;
+}
+.valenza-footer a:hover{color:#f0c6a4!important}
+.checkout-head,.ccHead{
+  background:linear-gradient(100deg,#330305,#681016 55%,#350305)!important;
+  border-color:rgba(230,178,141,.35)!important;
+}
+.header>.valenza-brand img,
+.aurea-closing-mark.valenza-brand img,
+.vf-logo.valenza-brand img,
+.checkout-head .valenza-brand img,
+.ccHead .valenza-brand img{
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
+}
+
+/* Logo principal: um pouco menor no topo, mas com VALENZA/PARFUMS legíveis. */
+@media(min-width:701px){
+  .header{height:84px!important;min-height:84px!important}
+  .header>.valenza-brand{
+    flex-basis:124px!important;
+    width:124px!important;
+    min-width:124px!important;
+    height:84px!important;
+    min-height:84px!important;
+  }
+  .header>.valenza-brand img{
+    width:108px!important;
+    max-width:108px!important;
+    max-height:78px!important;
+  }
+  .vf-logo.valenza-brand{width:164px!important;min-width:164px!important;height:112px!important}
+  .vf-logo.valenza-brand img{width:160px!important;max-width:160px!important;max-height:108px!important}
+}
+
+/* Banners: usa a marca transparente por cima da foto, sem bloco vinho. */
+.slide::after{
+  content:"";
+  position:absolute;
+  z-index:2;
+  pointer-events:none;
+  left:20.4%;
+  top:1.8%;
+  width:14.5%;
+  height:36%;
+  background:url("/brand/valenza-logo.svg?v=20261005-wine-brand1") center/contain no-repeat;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.38));
+}
+.banner-zone{z-index:4!important}
+.slide-arrow,.slide-dots{z-index:5!important}
+
+@media(max-width:700px){
+  .slide::after{
+    left:19.8%;
+    top:1.5%;
+    width:15.5%;
+    height:38%;
+  }
+}
