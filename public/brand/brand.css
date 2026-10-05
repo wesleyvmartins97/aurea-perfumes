@@ -1,89 +1,142 @@
-/* Marca VALENZA compartilhada: comportamento seguro em desktop, tablet e celular. */
+/* VALENZA — slots de marca responsivos e independentes do CSS legado */
 .valenza-brand{
- display:inline-flex!important;
- align-items:center!important;
- justify-content:center!important;
- flex-direction:row!important;
- line-height:1!important;
- font-size:0!important;
- letter-spacing:0!important;
- min-width:0!important;
- text-shadow:none!important;
- padding:0!important;
- border:0!important;
- background:transparent!important;
- text-decoration:none!important;
- flex-shrink:0!important;
- overflow:visible!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex-direction:row!important;
+  flex-shrink:0!important;
+  box-sizing:border-box!important;
+  line-height:0!important;
+  font-size:0!important;
+  letter-spacing:0!important;
+  text-shadow:none!important;
+  text-decoration:none!important;
+  background:transparent!important;
+  border:0!important;
+  padding:0!important;
+  overflow:visible!important;
 }
 .valenza-brand:before,.valenza-brand:after{content:none!important;display:none!important}
 .valenza-brand img{
- display:block!important;
- width:auto!important;
- height:auto!important;
- max-width:100%!important;
- object-fit:contain!important;
- object-position:center!important;
- flex:none!important;
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  flex:none!important;
 }
 
-/* Cabeçalho principal — desktop/tablet */
+/* Cabeçalho principal — desktop/tablet. Não depende mais da classe .logo antiga. */
 @media(min-width:701px){
- .header{
-   height:88px!important;
-   min-height:88px!important;
-   overflow:visible!important;
- }
- .header>.valenza-brand{
-   width:112px!important;
-   height:88px!important;
-   min-height:88px!important;
-   overflow:visible!important;
-   align-self:center!important;
- }
- .header>.valenza-brand img{
-   width:102px!important;
-   height:auto!important;
-   max-height:70px!important;
- }
+  .header{
+    height:82px!important;
+    min-height:82px!important;
+    overflow:visible!important;
+  }
+  .header>.valenza-brand{
+    flex:0 0 116px!important;
+    width:116px!important;
+    min-width:116px!important;
+    height:82px!important;
+    min-height:82px!important;
+    align-self:center!important;
+    overflow:visible!important;
+  }
+  .header>.valenza-brand img{
+    width:100px!important;
+    max-width:100px!important;
+    height:auto!important;
+    max-height:68px!important;
+  }
 }
 
-/* Outros pontos de marca do site */
-.head .valenza-brand img{width:96px!important;max-height:66px!important}
-.vf-brand .valenza-brand{margin-bottom:22px}
-.vf-brand .valenza-brand img{width:150px!important;max-height:104px!important}
-.checkout-head .valenza-brand img{width:96px!important;max-height:66px!important}
-.ccHead .valenza-brand img{width:88px!important;max-height:61px!important}
-.head .valenza-brand,
-.vf-brand .valenza-brand,
-.checkout-head .valenza-brand,
-.ccHead .valenza-brand{overflow:visible!important}
+/* Faixa de compromisso logo acima do rodapé — mantém a logo visível. */
+.aurea-closing-mark.valenza-brand{
+  flex:0 0 88px!important;
+  width:88px!important;
+  min-width:88px!important;
+  height:62px!important;
+  min-height:62px!important;
+  margin:0!important;
+}
+.aurea-closing-mark.valenza-brand img{
+  width:82px!important;
+  max-width:82px!important;
+  height:auto!important;
+  max-height:58px!important;
+}
 
-/* Celular: regras próprias, independentes do desktop */
+/* Rodapé principal */
+.vf-logo.valenza-brand{
+  width:150px!important;
+  min-width:150px!important;
+  height:104px!important;
+  min-height:104px!important;
+  margin:0 0 22px!important;
+}
+.vf-logo.valenza-brand img{
+  width:146px!important;
+  max-width:146px!important;
+  height:auto!important;
+  max-height:100px!important;
+}
+
+/* Outras áreas */
+.head .valenza-brand img{width:96px!important;max-width:96px!important;max-height:66px!important}
+.checkout-head .valenza-brand img{width:96px!important;max-width:96px!important;max-height:66px!important}
+.ccHead .valenza-brand img{width:88px!important;max-width:88px!important;max-height:61px!important}
+.head .valenza-brand,.checkout-head .valenza-brand,.ccHead .valenza-brand{overflow:visible!important}
+
+/* Celular — regras próprias; mudanças de desktop não alteram este bloco. */
 @media(max-width:700px){
- .header{height:64px!important;min-height:64px!important;padding:0 4%!important;gap:8px!important;overflow:visible!important}
- .header>.valenza-brand{width:72px!important;height:64px!important;min-height:64px!important;min-width:0!important;overflow:visible!important}
- .header>.valenza-brand img{width:68px!important;height:auto!important;max-height:54px!important}
- .header .actions{min-width:0;gap:6px}
- .header .header-search{width:38px;flex:0 0 38px}
- .header .header-search-box{width:38px;height:38px}
- .header .header-search.mobile-open{width:auto}
- .header .header-search.mobile-open .header-search-box{width:100%}
- .header .account{display:inline-flex;min-height:44px;align-items:center}
- .header .header-status .hs-main{font-size:8px;letter-spacing:.4px}
- .header .cart{min-height:38px;padding:10px;font-size:8px;letter-spacing:.4px}
- #categorias{padding-top:24px!important;padding-bottom:14px!important}
- #categorias .title{font-size:24px!important;line-height:1.15!important;margin-bottom:16px!important}
- #categorias .shop-categories .category{min-height:64px!important}
- #catalogo{padding-top:16px!important}
- #catalogo .title{font-size:24px!important;line-height:1.15!important;margin-bottom:20px!important}
- .vf-brand .valenza-brand img{width:132px!important;max-height:91px!important}
+  .header{height:64px!important;min-height:64px!important;padding:0 4%!important;gap:8px!important;overflow:visible!important}
+  .header>.valenza-brand{
+    flex:0 0 72px!important;
+    width:72px!important;
+    min-width:72px!important;
+    height:64px!important;
+    min-height:64px!important;
+    overflow:visible!important;
+  }
+  .header>.valenza-brand img{width:68px!important;max-width:68px!important;height:auto!important;max-height:54px!important}
+  .header .actions{min-width:0;gap:6px}
+  .header .header-search{width:38px;flex:0 0 38px}
+  .header .header-search-box{width:38px;height:38px}
+  .header .header-search.mobile-open{width:auto}
+  .header .header-search.mobile-open .header-search-box{width:100%}
+  .header .account{display:inline-flex;min-height:44px;align-items:center}
+  .header .header-status .hs-main{font-size:8px;letter-spacing:.4px}
+  .header .cart{min-height:38px;padding:10px;font-size:8px;letter-spacing:.4px}
+
+  .aurea-closing-mark.valenza-brand{
+    flex:0 0 72px!important;
+    width:72px!important;
+    min-width:72px!important;
+    height:52px!important;
+    min-height:52px!important;
+  }
+  .aurea-closing-mark.valenza-brand img{width:68px!important;max-width:68px!important;max-height:48px!important}
+
+  .vf-logo.valenza-brand{
+    width:132px!important;
+    min-width:132px!important;
+    height:92px!important;
+    min-height:92px!important;
+    margin-bottom:20px!important;
+  }
+  .vf-logo.valenza-brand img{width:128px!important;max-width:128px!important;max-height:88px!important}
+
+  #categorias{padding-top:24px!important;padding-bottom:14px!important}
+  #categorias .title{font-size:24px!important;line-height:1.15!important;margin-bottom:16px!important}
+  #categorias .shop-categories .category{min-height:64px!important}
+  #catalogo{padding-top:16px!important}
+  #catalogo .title{font-size:24px!important;line-height:1.15!important;margin-bottom:20px!important}
 }
 @media(max-width:350px){
- .header{padding:0 3%!important;gap:5px!important}
- .header>.valenza-brand{width:66px!important}
- .header>.valenza-brand img{width:62px!important;max-height:50px!important}
- .header .actions{gap:3px}
- .header .header-status .hs-main{font-size:7px}
- .header .cart{padding:9px;font-size:7px}
+  .header{padding:0 3%!important;gap:5px!important}
+  .header>.valenza-brand{flex-basis:66px!important;width:66px!important;min-width:66px!important}
+  .header>.valenza-brand img{width:62px!important;max-width:62px!important;max-height:50px!important}
+  .header .actions{gap:3px}
+  .header .header-status .hs-main{font-size:7px}
+  .header .cart{padding:9px;font-size:7px}
 }
