@@ -654,6 +654,26 @@
       "status": "verified_reference",
       "source_url": "https://www.lattafa-usa.com/products/petra",
       "verified_on": "2026-10-04"
+    },
+    {
+      "id": "vulcan-baie",
+      "name": "Vulcan Baie",
+      "brand": "French Avenue",
+      "type": "Extrait de Parfum · 100ml · Unissex",
+      "gtin": "6298042000926",
+      "status": "verified_reference",
+      "source_url": "https://frenchavenue.com/products/vulcan-baie",
+      "verified_on": "2026-10-04"
+    },
+    {
+      "id": "shagaf-al-ward",
+      "name": "Shagaf Al Ward",
+      "brand": "Al Wataniah",
+      "type": "EDP · 100ml",
+      "gtin": "5055810007720",
+      "status": "verified_reference",
+      "source_url": "https://saudi.alwataniah.com/products/shagaf-al-ward",
+      "verified_on": "2026-10-04"
     }
   ],
   "exceptions": [

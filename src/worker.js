@@ -1493,6 +1493,9 @@ async function servirAssets(request,env){
 }
 async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
 const AUREA_CATALOG={
+"vulcan-baie":{"name": "Vulcan Baie", "brand": "French Avenue", "type": "Extrait de Parfum · 100ml · Unissex", "price": 289.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
+"shagaf-al-ward":{"name": "Shagaf Al Ward", "brand": "Al Wataniah", "type": "EDP · 100ml", "price": 219.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
+
 "durrat-al-aroos":{"name": "Durrat Al Aroos", "brand": "Al Wataniah", "type": "EDP · 85ml", "price": 219.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
 "yara-elixir":{"name": "Yara Elixir", "brand": "Lattafa", "type": "EDP · 100ml", "price": 309.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
 "haya":{"name": "Haya", "brand": "Lattafa", "type": "EDP · 100ml", "price": 269.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
@@ -1638,6 +1641,12 @@ async function seedInventory(env){const now=new Date().toISOString();await env.D
 ])}const priceV16=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-price-v16-yara-audit-20261004'").first();if(!priceV16){await env.DB.batch([
  env.DB.prepare("INSERT INTO product_settings(product_id,price_override,unit_cost,updated_at) VALUES(?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET price_override=excluded.price_override,unit_cost=excluded.unit_cost,updated_at=excluded.updated_at").bind("yara",289.9,176.9,now),
  env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-price-v16-yara-audit-20261004','ok',?)").bind(now)
+])}const doneV17=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-stock-v17-last-two-20261005'").first();if(!doneV17){await env.DB.batch([
+env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("vulcan-baie",100,now),
+env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("vulcan-baie",176.9,now),
+env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("shagaf-al-ward",100,now),
+env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("shagaf-al-ward",134.5,now),
+env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v17-last-two-20261005','100',?)").bind(now)
 ])}const doneV3=await env.DB.prepare("SELECT value FROM inventory_meta WHERE key='catalog-cleanup-v3'").first();if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
 async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-price)>0.009;return {id,qty:n,...p,price,regularPrice,promotionId:offer?.id||null,priceChanged,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}

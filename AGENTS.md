@@ -27,3 +27,7 @@ O usuário aprovou o visual atual e pediu que fosse preservado nas próximas atu
 
 - Itens 5–8 cadastrados: Durrat Al Aroos 85ml, Yara Elixir 100ml, Haya 100ml e Petra 100ml. Consultar `docs/PROXIMOS-QUATRO-2026-10-04.md` para custos, fotos, notas, GTIN e preços. Faltam da lista original Vulcan Baie e Shaghaf Al Ward.
 - Preservar preços normais com final 9,90, PIX 5% abaixo e a regra de margem bruta registrada. Não arredondar o PIX para 9,90: calculá-lo do preço normal.
+
+## Últimos dois da lista — 04/10/2026
+
+- Lista original concluída: Vulcan Baie 100ml e Shagaf Al Ward 100ml adicionados. Ver `docs/ULTIMOS-DOIS-2026-10-04.md`. Vulcan Baie usa Extrait de Parfum conforme fabricante; não confundir com Vulcan Feu nem substituir foto.
