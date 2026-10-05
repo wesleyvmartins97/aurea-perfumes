@@ -69,7 +69,7 @@ async function checkoutScenario({verified=true}={}){
   document:{getElementById:id=>nodes[id]},
   stopPaymentPoll:()=>{},refreshProductPromotions:async()=>true,renderAccount:()=>{},
   fetch:async()=>({ok:true,json:async()=>({ok:true,user:{emailVerified:verified}})}),
-  accountMsg:()=>{},showError:()=>{},valenzaNotice:()=>{},updateSummary:()=>{},
+  accountMsg:()=>{},showError:()=>{},valenzaNotice:()=>{},updateSummary:()=>{},setTimeout:fn=>{fn();return 1},ensureMercadoPagoSecurity:async()=>{},
   pushLayer:name=>layers.push(name),queueOpportunitySync:stage=>sync.push(stage),
   window:{valenzaTrackBeginCheckout:()=>events.push('begin_checkout')}
  };
