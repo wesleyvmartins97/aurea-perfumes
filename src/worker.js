@@ -1197,7 +1197,7 @@ function siteVisualNormalize(input){
   const banners=x.banners.slice(0,16).map((b,i)=>{b=b&&typeof b==="object"?b:{};const id=String(b.id||("banner-"+(i+1))).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,70)||("banner-"+(i+1)),targetType=["product","url","zones","none"].includes(String(b.targetType))?String(b.targetType):"none",zones=Array.isArray(b.zones)?b.zones.slice(0,5).map(z=>({product:String(z?.product||"").trim().slice(0,80),left:Math.max(0,Math.min(95,Number(z?.left)||0)),width:Math.max(1,Math.min(100,Number(z?.width)||10))})).filter(z=>z.product):[];
    return {id,active:b.active!==false,sortOrder:Number.isFinite(Number(b.sortOrder))?Math.max(0,Math.min(9999,Math.trunc(Number(b.sortOrder)))):i+1,alt:siteVisualString(b.alt,140,"Banner VALENZA"),imageUrl:siteVisualUrl(b.imageUrl,""),targetType,targetValue:targetType==="url"?siteVisualUrl(b.targetValue,""):siteVisualString(b.targetValue,160,""),zones}
   }).filter(b=>b.imageUrl);
-  if(banners.length)d.banners=banners.sort((a,b)=>a.sortOrder-b.sortOrder)
+  d.banners=banners.sort((a,b)=>a.sortOrder-b.sortOrder)
  }
  return d
 }
@@ -1213,10 +1213,19 @@ async function siteVisualPublic(env){
 async function adminSiteVisual(request,env){
  try{const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);const state=await siteVisualState(env);return resposta({ok:true,...state})}catch(e){console.error("Visual admin:",e);return resposta({ok:false,error:"Não foi possível carregar a central visual."},500)}
 }
+async function validateSiteVisualTargets(env,config){
+ const catalog=await officialCatalog(env);
+ for(const b of config.banners||[]){
+  if(b.targetType==="product"){if(!b.targetValue||!catalog[b.targetValue])return "O banner "+b.alt+" aponta para um produto inexistente ou inativo."}
+  if(b.targetType==="url"&&!b.targetValue)return "O banner "+b.alt+" precisa de um link HTTPS ou interno.";
+  if(b.targetType==="zones"){if(!Array.isArray(b.zones)||!b.zones.length)return "O banner "+b.alt+" precisa de pelo menos uma zona de produto.";for(const z of b.zones)if(!catalog[z.product])return "O banner "+b.alt+" possui uma zona apontando para produto inexistente ou inativo: "+z.product}
+ }
+ return ""
+}
 async function adminSiteVisualDraft(request,env){
  try{
   const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
-  const body=await request.json().catch(()=>({})),config=siteVisualNormalize(body.config),raw=JSON.stringify(config);if(raw.length>70000)return resposta({ok:false,error:"A configuração visual ficou grande demais."},413);
+  const body=await request.json().catch(()=>({})),config=siteVisualNormalize(body.config),targetError=await validateSiteVisualTargets(env,config),raw=JSON.stringify(config);if(targetError)return resposta({ok:false,error:targetError},400);if(raw.length>70000)return resposta({ok:false,error:"A configuração visual ficou grande demais."},413);
   const now=new Date().toISOString(),current=await env.DB.prepare("SELECT published_json,published_at FROM site_visual_state WHERE id='main'").first(),published=String(current?.published_json||"{}");
   await env.DB.prepare("INSERT INTO site_visual_state(id,draft_json,published_json,updated_by,updated_at,published_at) VALUES('main',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET draft_json=excluded.draft_json,updated_by=excluded.updated_by,updated_at=excluded.updated_at").bind(raw,published,admin.id,now,current?.published_at||null).run();
   await recordAdminAudit(env,admin,"site_visual_draft",{sections:["identity","home","contact","footer","notice","banners"]});
@@ -1235,8 +1244,8 @@ async function adminSiteVisualPublish(request,env){
 async function adminSiteVisualReset(request,env){
  try{
   const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
-  const state=await siteVisualState(env),raw=JSON.stringify(state.published),now=new Date().toISOString();
-  await env.DB.prepare("INSERT INTO site_visual_state(id,draft_json,published_json,updated_by,updated_at,published_at) VALUES('main',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET draft_json=excluded.draft_json,updated_by=excluded.updated_by,updated_at=excluded.updated_at").bind(raw,raw,admin.id,now,state.publishedAt).run();
+  const state=await siteVisualState(env),raw=JSON.stringify(state.published),publishedRaw=state.customized?raw:"{}",now=new Date().toISOString();
+  await env.DB.prepare("INSERT INTO site_visual_state(id,draft_json,published_json,updated_by,updated_at,published_at) VALUES('main',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET draft_json=excluded.draft_json,updated_by=excluded.updated_by,updated_at=excluded.updated_at").bind(raw,publishedRaw,admin.id,now,state.publishedAt).run();
   await recordAdminAudit(env,admin,"site_visual_draft_reset",{});
   return resposta({ok:true,draft:state.published,message:"Rascunho descartado e restaurado para a versão publicada."})
  }catch(e){console.error("Restaurar visual:",e);return resposta({ok:false,error:"Não foi possível restaurar o rascunho."},500)}
@@ -1756,10 +1765,22 @@ function siteVisualContactHtml(html,config){
   .replaceAll("https://wa.me/"+SITE_VISUAL_DEFAULT.contact.whatsapp,"https://wa.me/"+wa)
   .replaceAll(SITE_VISUAL_DEFAULT.contact.whatsappDisplay,waDisplay)
 }
+function siteVisualHtmlAttr(v){return String(v??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")}
+function siteVisualGlobalHtml(html,config){
+ let out=siteVisualContactHtml(html,config),logo=siteVisualHtmlAttr(config?.logoUrl||SITE_VISUAL_DEFAULT.logoUrl),favicon=siteVisualHtmlAttr(config?.faviconUrl||SITE_VISUAL_DEFAULT.faviconUrl),colors=config?.colors||{};
+ out=out.replace(/<link\s+rel="icon"[^>]*>/i,'<link rel="icon" href="'+favicon+'">');
+ out=out.replace(/(<img\b[^>]*\bsrc=")\/brand\/valenza-(?:card\.webp|logo\.svg)[^"]*("[^>]*>)/gi,'$1'+logo+'$2');
+ const absoluteLogo=siteVisualUrl(config?.logoUrl||SITE_VISUAL_DEFAULT.logoUrl,SITE_VISUAL_DEFAULT.logoUrl);try{const u=new URL(absoluteLogo,"https://www.valenzaparfums.com.br/");out=out.replaceAll('"logo":"https://www.valenzaparfums.com.br/favicon.png"','"logo":"'+u.href+'"')}catch{}
+ const header=siteVisualColor(colors.header,SITE_VISUAL_DEFAULT.colors.header),accent=siteVisualColor(colors.accent,SITE_VISUAL_DEFAULT.colors.accent),bg=siteVisualColor(colors.background,SITE_VISUAL_DEFAULT.colors.background),text=siteVisualColor(colors.text,SITE_VISUAL_DEFAULT.colors.text);
+ const style='<style id="valenza-visual-global">:root{--ink:'+text+'!important;--paper:'+bg+'!important;--gold:'+accent+'!important}body{background:'+bg+'!important;color:'+text+'!important}.head,.header,.footer,.valenza-footer{background:'+header+'!important}</style>';
+ if(out.includes("</head>"))out=out.replace("</head>",style+"</head>");
+ out=out.replace(/<meta name="theme-color" content="[^"]*">/i,'<meta name="theme-color" content="'+header+'">');
+ return out
+}
 async function servirAssets(request,env){
  const pathname=new URL(request.url).pathname,isCatalog=/^\/catalogo\/?$/.test(pathname);let assetRequest=request;
  const customMatch=pathname.match(/^\/perfume\/([^/]+)\/?$/);
- if(customMatch){try{const id=decodeURIComponent(customMatch[1]),[catalog,row,inv]=await Promise.all([officialCatalog(env),env.DB.prepare("SELECT product_id FROM catalog_products WHERE product_id=? LIMIT 1").bind(id).first(),env.DB.prepare("SELECT stock FROM inventory WHERE product_id=? LIMIT 1").bind(id).first()]),p=catalog[id];if(p&&row)return new Response(customProductPageHtml(id,{...p,_stock:Number(inv?.stock)}),{status:200,headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate",...securityHeaders}})}catch(e){console.error("Página dinâmica do produto:",e)}}
+ if(customMatch){try{const id=decodeURIComponent(customMatch[1]),[catalog,row,inv,visual]=await Promise.all([officialCatalog(env),env.DB.prepare("SELECT product_id FROM catalog_products WHERE product_id=? LIMIT 1").bind(id).first(),env.DB.prepare("SELECT stock FROM inventory WHERE product_id=? LIMIT 1").bind(id).first(),siteVisualState(env).catch(()=>null)]),p=catalog[id];if(p&&row){let html=customProductPageHtml(id,{...p,_stock:Number(inv?.stock)});if(visual?.customized)html=siteVisualGlobalHtml(html,visual.published);return new Response(html,{status:200,headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate",...securityHeaders}})}}catch(e){console.error("Página dinâmica do produto:",e)}}
  if(isCatalog){const url=new URL(request.url);url.pathname='/';assetRequest=new Request(url,request)}
  const response=await env.ASSETS.fetch(assetRequest),headers=new Headers(response.headers);
  for(const [key,value] of Object.entries(securityHeaders))headers.set(key,value);
@@ -1767,7 +1788,7 @@ async function servirAssets(request,env){
  if(contentType.includes("text/html")){
   let html=await response.text();
   if(isCatalog)html=catalogPageHtml(html);
-  if(/^\/(?:envio-e-entrega|politica-de-devolucao|privacidade|termos|trocas-e-devolucoes)\/?/.test(pathname)){try{const visual=await siteVisualState(env);if(visual.customized)html=siteVisualContactHtml(html,visual.published)}catch(e){console.error("Contato institucional dinâmico:",e)}}
+  try{const visual=await siteVisualState(env);if(visual.customized)html=siteVisualGlobalHtml(html,visual.published)}catch(e){console.error("Visual global dinâmico:",e)}
   // VALENZA preço dinâmico da página individual: o mesmo preço normal salvo no D1 alimenta página, PIX e dados estruturados.
   const pm=pathname.match(/^\/perfume\/([^/]+)\/?$/);
   if(pm){
