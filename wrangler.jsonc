@@ -22,7 +22,14 @@
       "/merchant-feed.xml",
       "/google-merchant.xml",
       "/sitemap.xml",
-      "/perfume/*"
+      "/perfume/*",
+      "/src/*",
+      "/scripts/*",
+      "/docs/*",
+      "/.git*",
+      "/wrangler",
+      "/wrangler.jsonc",
+      "/AGENTS.md"
     ]
   },
   "d1_databases": [

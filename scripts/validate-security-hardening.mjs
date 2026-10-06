@@ -1,0 +1,7 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const worker=fs.readFileSync('src/worker.js','utf8'),wrangler=fs.readFileSync('wrangler.jsonc','utf8');
+for(const h of ['X-Content-Type-Options','X-Frame-Options','Referrer-Policy','Permissions-Policy'])assert.ok(worker.includes(h),'missing '+h);
+for(const route of ['/src/*','/scripts/*','/docs/*','/.git*','/wrangler','/wrangler.jsonc','/AGENTS.md'])assert.ok(wrangler.includes('"'+route+'"'),'missing worker-first route '+route);
+assert.ok(worker.includes('(?:src|scripts|docs|\\.git)'),'internal-path guard missing');
+assert.ok(worker.includes('wrangler(?:\\.jsonc)?|AGENTS\\.md'),'config-path guard missing');
+console.log('SECURITY HARDENING APPROVED — headers and internal-path 404 routing are present.');

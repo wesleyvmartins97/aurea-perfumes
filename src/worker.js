@@ -1,6 +1,7 @@
 import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
-const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Strict-Transport-Security":"max-age=31536000; includeSubDomains"};
+const securityHeaders={"Strict-Transport-Security":"max-age=31536000; includeSubDomains","X-Content-Type-Options":"nosniff","X-Frame-Options":"DENY","Referrer-Policy":"strict-origin-when-cross-origin","Permissions-Policy":"camera=(), microphone=(), geolocation=(self)"};
+const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS",...securityHeaders};
 
 const PRODUCT_IMAGE_SOURCES={
  "/produto-img/asad-zanzibar.jpg":"https://cdn-shopkit.com/usercontent/arabiaperfumes/media/images/660bbd3-174337-asad-zanzibar-1-1080x1080.jpg",
@@ -27,6 +28,7 @@ export default{async fetch(request,env,ctx){
  if(url.protocol!=="https:"){const target=new URL(request.url);target.protocol="https:";if(target.hostname==="valenzaparfums.com.br"&&(request.method==="GET"||request.method==="HEAD")&&!target.pathname.startsWith("/api/"))target.hostname="www.valenzaparfums.com.br";return Response.redirect(target.toString(),308)}
  if(url.hostname==="valenzaparfums.com.br"&&(request.method==="GET"||request.method==="HEAD")&&!url.pathname.startsWith("/api/")){const target=new URL(request.url);target.protocol="https:";target.hostname="www.valenzaparfums.com.br";return Response.redirect(target.toString(),308)}
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
+ if(request.method==="GET"&&(/^\/(?:src|scripts|docs|\.git)(?:\/|$)/i.test(url.pathname)||/^\/(?:wrangler(?:\.jsonc)?|AGENTS\.md)$/i.test(url.pathname)))return new Response("Not Found",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","Cache-Control":"no-store",...securityHeaders}});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(request.method==="GET"&&PRODUCT_IMAGE_SOURCES[url.pathname])return productCatalogImage(request,url.pathname);
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
@@ -1602,10 +1604,10 @@ async function dynamicMerchantFeed(request,env){
 async function servirAssets(request,env){
  const pathname=new URL(request.url).pathname,isCatalog=/^\/catalogo\/?$/.test(pathname);let assetRequest=request;
  const customMatch=pathname.match(/^\/perfume\/([^/]+)\/?$/);
- if(customMatch){try{const id=decodeURIComponent(customMatch[1]),[catalog,row,inv]=await Promise.all([officialCatalog(env),env.DB.prepare("SELECT product_id FROM catalog_products WHERE product_id=? LIMIT 1").bind(id).first(),env.DB.prepare("SELECT stock FROM inventory WHERE product_id=? LIMIT 1").bind(id).first()]),p=catalog[id];if(p&&row)return new Response(customProductPageHtml(id,{...p,_stock:Number(inv?.stock)}),{status:200,headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate","Strict-Transport-Security":"max-age=31536000; includeSubDomains"}})}catch(e){console.error("Página dinâmica do produto:",e)}}
+ if(customMatch){try{const id=decodeURIComponent(customMatch[1]),[catalog,row,inv]=await Promise.all([officialCatalog(env),env.DB.prepare("SELECT product_id FROM catalog_products WHERE product_id=? LIMIT 1").bind(id).first(),env.DB.prepare("SELECT stock FROM inventory WHERE product_id=? LIMIT 1").bind(id).first()]),p=catalog[id];if(p&&row)return new Response(customProductPageHtml(id,{...p,_stock:Number(inv?.stock)}),{status:200,headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate",...securityHeaders}})}catch(e){console.error("Página dinâmica do produto:",e)}}
  if(isCatalog){const url=new URL(request.url);url.pathname='/';assetRequest=new Request(url,request)}
  const response=await env.ASSETS.fetch(assetRequest),headers=new Headers(response.headers);
- headers.set("Strict-Transport-Security","max-age=31536000; includeSubDomains");
+ for(const [key,value] of Object.entries(securityHeaders))headers.set(key,value);
  const contentType=headers.get("content-type")||"";
  if(contentType.includes("text/html")){
   let html=await response.text();
