@@ -59,6 +59,7 @@ for(const match of catalog.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)
 console.log('Pagination passed: complete sorted catalogue, 200 products, global search, reset/clamp, detail page/scroll restoration, shared HTML and JS validity.');
 const worker=fs.readFileSync('src/worker.js','utf8');
 const wc=vm.createContext({URL,Request,Response,Headers,catalogPageHtml});
+vm.runInContext(worker.slice(worker.indexOf('const securityHeaders='),worker.indexOf('const jsonHeaders=')),wc);
 vm.runInContext(worker.slice(worker.indexOf('async function servirAssets('),worker.indexOf('async function consultarEstoque(')),wc);
 for(const path of ['/catalogo','/catalogo/','/']){
  let fetched;
