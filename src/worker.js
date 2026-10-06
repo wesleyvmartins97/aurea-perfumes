@@ -1130,7 +1130,7 @@ const SITE_VISUAL_DEFAULT={
  colors:{header:"#171513",accent:"#8a735f",background:"#fbfaf8",text:"#171513"},
  home:{
   showFeatured:true,showCatalog:true,showAbout:true,
-  featuredEyebrow:"SELEÇÃO DE PERFUMES",featuredTitle:"Escolhas VALENZA",
+  featuredEyebrow:"SELEÇÃO DE PERFUMES",featuredTitle:"Seleção de perfumes",
   catalogEyebrow:"CATÁLOGO VALENZA",catalogTitle:"Fragrâncias selecionadas",
   aboutEyebrow:"NOSSA ESSÊNCIA",aboutTitle:"Quem somos",
   aboutParagraphs:[
@@ -1138,6 +1138,10 @@ const SITE_VISUAL_DEFAULT={
    "Nossa proposta é manter a compra clara do início ao fim: preço, condição de pagamento, prazo de preparação, frete e políticas ficam disponíveis antes da conclusão do pedido."
   ],
   closingText:"Perfumes selecionados, compra segura e envio para todo o Brasil."
+ },
+ catalog:{
+  showFilters:true,categoryTitle:"CATEGORIA",audienceTitle:"PARA QUEM",lineTitle:"LINHA",
+  labels:{todos:"Todos",feminino:"Femininos",masculino:"Masculinos",unissex:"Unissex",arabes:"Árabes",designer:"Designer",decants:"Decants",perfumes:"Perfumes",cremes:"Cremes e hidratantes","body-splash":"Body splash","corpo-banho":"Corpo e banho"}
  },
  contact:{
   email:"contato@valenzaparfums.com.br",whatsapp:"5527997962708",whatsappDisplay:"(27) 99796-2708",
@@ -1170,7 +1174,7 @@ function siteVisualColor(v,fallback){const x=String(v||"").trim();return /^#[0-9
 function siteVisualUrl(v,fallback=""){const x=String(v||"").trim();if(!x)return fallback;if(x.startsWith("/")&&!x.startsWith("//"))return x.slice(0,500);try{const u=new URL(x);return u.protocol==="https:"?u.toString().slice(0,500):fallback}catch{return fallback}}
 function siteVisualBool(v,fallback=true){return typeof v==="boolean"?v:fallback}
 function siteVisualNormalize(input){
- const d=siteVisualClone(SITE_VISUAL_DEFAULT),x=input&&typeof input==="object"?input:{},home=x.home&&typeof x.home==="object"?x.home:{},contact=x.contact&&typeof x.contact==="object"?x.contact:{},footer=x.footer&&typeof x.footer==="object"?x.footer:{},notice=x.notice&&typeof x.notice==="object"?x.notice:{},colors=x.colors&&typeof x.colors==="object"?x.colors:{};
+ const d=siteVisualClone(SITE_VISUAL_DEFAULT),x=input&&typeof input==="object"?input:{},home=x.home&&typeof x.home==="object"?x.home:{},catalog=x.catalog&&typeof x.catalog==="object"?x.catalog:{},contact=x.contact&&typeof x.contact==="object"?x.contact:{},footer=x.footer&&typeof x.footer==="object"?x.footer:{},notice=x.notice&&typeof x.notice==="object"?x.notice:{},colors=x.colors&&typeof x.colors==="object"?x.colors:{};
  d.logoUrl=siteVisualUrl(x.logoUrl,d.logoUrl);d.faviconUrl=siteVisualUrl(x.faviconUrl,d.faviconUrl);
  d.colors={header:siteVisualColor(colors.header,d.colors.header),accent:siteVisualColor(colors.accent,d.colors.accent),background:siteVisualColor(colors.background,d.colors.background),text:siteVisualColor(colors.text,d.colors.text)};
  d.home.showFeatured=siteVisualBool(home.showFeatured,d.home.showFeatured);d.home.showCatalog=siteVisualBool(home.showCatalog,d.home.showCatalog);d.home.showAbout=siteVisualBool(home.showAbout,d.home.showAbout);
@@ -1179,10 +1183,15 @@ function siteVisualNormalize(input){
  d.home.aboutEyebrow=siteVisualString(home.aboutEyebrow,50,d.home.aboutEyebrow);d.home.aboutTitle=siteVisualString(home.aboutTitle,90,d.home.aboutTitle);
  if(Array.isArray(home.aboutParagraphs)){const p=home.aboutParagraphs.map(v=>siteVisualString(v,700)).filter(Boolean).slice(0,4);if(p.length)d.home.aboutParagraphs=p}
  d.home.closingText=siteVisualString(home.closingText,180,d.home.closingText);
+ d.catalog.showFilters=siteVisualBool(catalog.showFilters,d.catalog.showFilters);
+ d.catalog.categoryTitle=siteVisualString(catalog.categoryTitle,40,d.catalog.categoryTitle);d.catalog.audienceTitle=siteVisualString(catalog.audienceTitle,40,d.catalog.audienceTitle);d.catalog.lineTitle=siteVisualString(catalog.lineTitle,40,d.catalog.lineTitle);
+ const labels=catalog.labels&&typeof catalog.labels==="object"?catalog.labels:{};for(const key of Object.keys(d.catalog.labels))d.catalog.labels[key]=siteVisualString(labels[key],60,d.catalog.labels[key]);
  d.contact.email=siteVisualString(contact.email,160,d.contact.email).toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.contact.email))d.contact.email=SITE_VISUAL_DEFAULT.contact.email;
  const wa=String(contact.whatsapp??d.contact.whatsapp).replace(/\D/g,"").slice(0,15);d.contact.whatsapp=/^\d{10,15}$/.test(wa)?wa:SITE_VISUAL_DEFAULT.contact.whatsapp;
  d.contact.whatsappDisplay=siteVisualString(contact.whatsappDisplay,40,d.contact.whatsappDisplay);d.contact.location=siteVisualString(contact.location,100,d.contact.location);d.contact.instagram=siteVisualUrl(contact.instagram,"");d.contact.facebook=siteVisualUrl(contact.facebook,"");
- d.footer.tagline=siteVisualString(footer.tagline,140,d.footer.tagline);d.footer.description=siteVisualString(footer.description,500,d.footer.description);d.footer.responsible=siteVisualString(footer.responsible,160,d.footer.responsible);d.footer.document=siteVisualString(footer.document,100,d.footer.document);d.footer.address=siteVisualString(footer.address,300,d.footer.address);d.footer.pickup=siteVisualString(footer.pickup,180,d.footer.pickup);d.footer.bottom=siteVisualString(footer.bottom,240,d.footer.bottom);
+ d.footer.tagline=siteVisualString(footer.tagline,140,d.footer.tagline);d.footer.description=siteVisualString(footer.description,500,d.footer.description);
+ // Dados jurídicos ficam protegidos nesta etapa para não divergir de Termos/Privacidade.
+ d.footer.responsible=SITE_VISUAL_DEFAULT.footer.responsible;d.footer.document=SITE_VISUAL_DEFAULT.footer.document;d.footer.address=SITE_VISUAL_DEFAULT.footer.address;d.footer.pickup=SITE_VISUAL_DEFAULT.footer.pickup;d.footer.bottom=SITE_VISUAL_DEFAULT.footer.bottom;
  d.notice.enabled=siteVisualBool(notice.enabled,false);d.notice.text=siteVisualString(notice.text,180,"");d.notice.url=siteVisualUrl(notice.url,"");
  if(Array.isArray(x.banners)){
   const banners=x.banners.slice(0,16).map((b,i)=>{b=b&&typeof b==="object"?b:{};const id=String(b.id||("banner-"+(i+1))).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,70)||("banner-"+(i+1)),targetType=["product","url","zones","none"].includes(String(b.targetType))?String(b.targetType):"none",zones=Array.isArray(b.zones)?b.zones.slice(0,5).map(z=>({product:String(z?.product||"").trim().slice(0,80),left:Math.max(0,Math.min(95,Number(z?.left)||0)),width:Math.max(1,Math.min(100,Number(z?.width)||10))})).filter(z=>z.product):[];
@@ -1199,7 +1208,7 @@ async function siteVisualState(env){
  return {draft:dr,published:pub,customized:!!(published&&Object.keys(published).length),updatedAt:row?.updated_at||null,publishedAt:row?.published_at||null}
 }
 async function siteVisualPublic(env){
- try{const state=await siteVisualState(env);return resposta({ok:true,customized:state.customized,config:state.published,publishedAt:state.publishedAt})}catch(e){console.error("Visual público:",e);return resposta({ok:true,customized:false,config:siteVisualClone(SITE_VISUAL_DEFAULT),publishedAt:null})}
+ try{const state=await siteVisualState(env);return resposta({ok:true,customized:state.customized,config:state.customized?state.published:null,publishedAt:state.publishedAt})}catch(e){console.error("Visual público:",e);return resposta({ok:true,customized:false,config:null,publishedAt:null})}
 }
 async function adminSiteVisual(request,env){
  try{const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);const state=await siteVisualState(env);return resposta({ok:true,...state})}catch(e){console.error("Visual admin:",e);return resposta({ok:false,error:"Não foi possível carregar a central visual."},500)}
@@ -1739,6 +1748,14 @@ async function dynamicMerchantFeed(request,env){
   return new Response(updated,{status:200,headers:{"Content-Type":"application/xml; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate","Strict-Transport-Security":"max-age=31536000; includeSubDomains"}})
  }catch(e){console.error("Merchant dinâmico:",e);return new Response("Feed temporariamente indisponível.",{status:503,headers:{"Cache-Control":"no-store","Retry-After":"60"}})}
 }
+function siteVisualContactHtml(html,config){
+ const contact=config?.contact||{},email=String(contact.email||SITE_VISUAL_DEFAULT.contact.email),wa=String(contact.whatsapp||SITE_VISUAL_DEFAULT.contact.whatsapp),waDisplay=String(contact.whatsappDisplay||SITE_VISUAL_DEFAULT.contact.whatsappDisplay);
+ return String(html)
+  .replaceAll("mailto:"+SITE_VISUAL_DEFAULT.contact.email,"mailto:"+email)
+  .replaceAll(SITE_VISUAL_DEFAULT.contact.email,email)
+  .replaceAll("https://wa.me/"+SITE_VISUAL_DEFAULT.contact.whatsapp,"https://wa.me/"+wa)
+  .replaceAll(SITE_VISUAL_DEFAULT.contact.whatsappDisplay,waDisplay)
+}
 async function servirAssets(request,env){
  const pathname=new URL(request.url).pathname,isCatalog=/^\/catalogo\/?$/.test(pathname);let assetRequest=request;
  const customMatch=pathname.match(/^\/perfume\/([^/]+)\/?$/);
@@ -1750,6 +1767,7 @@ async function servirAssets(request,env){
  if(contentType.includes("text/html")){
   let html=await response.text();
   if(isCatalog)html=catalogPageHtml(html);
+  if(/^\/(?:envio-e-entrega|politica-de-devolucao|privacidade|termos|trocas-e-devolucoes)\/?/.test(pathname)){try{const visual=await siteVisualState(env);if(visual.customized)html=siteVisualContactHtml(html,visual.published)}catch(e){console.error("Contato institucional dinâmico:",e)}}
   // VALENZA preço dinâmico da página individual: o mesmo preço normal salvo no D1 alimenta página, PIX e dados estruturados.
   const pm=pathname.match(/^\/perfume\/([^/]+)\/?$/);
   if(pm){
