@@ -37,6 +37,8 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/promotions/active"&&request.method==="GET")return activePromotionPublic(env);
  if(url.pathname==="/api/product-promotions/active"&&request.method==="GET")return activeProductPromotionsPublic(env);
  if(url.pathname==="/api/catalog/runtime"&&request.method==="GET")return catalogRuntimePublic(env);
+ if(url.pathname==="/api/site/visual"&&request.method==="GET")return siteVisualPublic(env);
+ if(request.method==="GET"&&url.pathname.startsWith("/media/site/"))return siteVisualAsset(request,env,url.pathname.slice("/media/site/".length));
  if(request.method==="GET"&&(url.pathname==="/merchant-feed.xml"||url.pathname==="/google-merchant.xml"))return dynamicMerchantFeed(request,env);
  if(request.method==="GET"&&url.pathname==="/sitemap.xml")return dynamicSitemap(request,env);
  if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env);
@@ -64,6 +66,11 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/promotions/toggle"&&request.method==="POST")return adminPromotionToggle(request,env);
  if(url.pathname==="/api/admin/product-promotions/save"&&request.method==="POST")return adminProductPromotionSave(request,env);
  if(url.pathname==="/api/admin/product-promotions/toggle"&&request.method==="POST")return adminProductPromotionToggle(request,env);
+ if(url.pathname==="/api/admin/site/visual"&&request.method==="GET")return adminSiteVisual(request,env);
+ if(url.pathname==="/api/admin/site/visual/draft"&&request.method==="POST")return adminSiteVisualDraft(request,env);
+ if(url.pathname==="/api/admin/site/visual/publish"&&request.method==="POST")return adminSiteVisualPublish(request,env);
+ if(url.pathname==="/api/admin/site/visual/reset"&&request.method==="POST")return adminSiteVisualReset(request,env);
+ if(url.pathname==="/api/admin/site/visual/asset"&&request.method==="POST")return adminSiteVisualAsset(request,env);
  if(url.pathname==="/api/admin/products/catalog"&&request.method==="GET")return adminCatalogProducts(request,env);
  if(url.pathname==="/api/admin/products/save"&&request.method==="POST")return adminCatalogProductSave(request,env);
  if(url.pathname==="/api/admin/products/image"&&request.method==="POST")return adminCatalogProductImage(request,env);
@@ -148,6 +155,8 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS catalog_products (product_id TEXT PRIMARY KEY, is_custom INTEGER NOT NULL DEFAULT 0, published INTEGER NOT NULL DEFAULT 1, name TEXT, brand TEXT, cat TEXT, collection TEXT, type TEXT, gtin TEXT, base_price REAL, short_description TEXT, long_description TEXT, notes_top TEXT, notes_heart TEXT, notes_base TEXT, weight REAL, length REAL, height REAL, width REAL, image_url TEXT, offer INTEGER, featured INTEGER NOT NULL DEFAULT 0, seo_title TEXT, seo_description TEXT, sort_order INTEGER, created_by TEXT, updated_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_catalog_products_custom_published ON catalog_products(is_custom,published,updated_at)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS catalog_product_images (product_id TEXT PRIMARY KEY, content_type TEXT NOT NULL, data BLOB NOT NULL, byte_size INTEGER NOT NULL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS site_visual_state (id TEXT PRIMARY KEY, draft_json TEXT NOT NULL DEFAULT '{}', published_json TEXT NOT NULL DEFAULT '{}', updated_by TEXT, updated_at TEXT NOT NULL, published_at TEXT)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS site_visual_assets (asset_key TEXT PRIMARY KEY, content_type TEXT NOT NULL, data BLOB NOT NULL, byte_size INTEGER NOT NULL, updated_by TEXT, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS product_settings (product_id TEXT PRIMARY KEY, price_override REAL, unit_cost REAL, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS disabled_products (product_id TEXT PRIMARY KEY, disabled_at TEXT NOT NULL, disabled_by TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS order_item_costs (order_item_id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, unit_cost REAL, created_at TEXT NOT NULL)"),
@@ -1111,6 +1120,135 @@ async function catalogProductImage(request,env,idRaw){
   if(!row?.data)return new Response("Not Found",{status:404});
   return new Response(row.data,{status:200,headers:{"Content-Type":String(row.content_type||"image/webp"),"Content-Length":String(row.byte_size||0),"Cache-Control":"public, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"}});
  }catch(e){console.error("Servir imagem do produto:",e);return new Response("Not Found",{status:404})}
+}
+
+
+const SITE_VISUAL_DEFAULT={
+ version:1,
+ logoUrl:"/brand/valenza-card.webp?v=20261005-glossy-logo1",
+ faviconUrl:"/favicon.png?v=20261003",
+ colors:{header:"#171513",accent:"#8a735f",background:"#fbfaf8",text:"#171513"},
+ home:{
+  showFeatured:true,showCatalog:true,showAbout:true,
+  featuredEyebrow:"SELEÇÃO DE PERFUMES",featuredTitle:"Escolhas VALENZA",
+  catalogEyebrow:"CATÁLOGO VALENZA",catalogTitle:"Fragrâncias selecionadas",
+  aboutEyebrow:"NOSSA ESSÊNCIA",aboutTitle:"Quem somos",
+  aboutParagraphs:[
+   "A VALENZA PARFUMS é uma loja online com operação em Colatina, Espírito Santo, dedicada a perfumes árabes e grandes nomes da perfumaria internacional. Trabalhamos com uma seleção enxuta de fragrâncias e produtos sob encomenda, com atendimento direto pelo WhatsApp e acompanhamento do pedido pela área do cliente.",
+   "Nossa proposta é manter a compra clara do início ao fim: preço, condição de pagamento, prazo de preparação, frete e políticas ficam disponíveis antes da conclusão do pedido."
+  ],
+  closingText:"Perfumes selecionados, compra segura e envio para todo o Brasil."
+ },
+ contact:{
+  email:"contato@valenzaparfums.com.br",whatsapp:"5527997962708",whatsappDisplay:"(27) 99796-2708",
+  location:"Colatina · Espírito Santo",instagram:"",facebook:""
+ },
+ footer:{
+  tagline:"Fragrâncias escolhidas para deixar marca.",
+  description:"Uma curadoria de perfumes árabes e grandes nomes da perfumaria internacional, com uma experiência de compra simples, segura e próxima.",
+  responsible:"Fornecedor responsável · pessoa física",
+  document:"CPF 140.992.757-10",
+  address:"Endereço operacional para contato e correspondência: Av. Silvio Avidos, 1077 · São Silvano · Colatina/ES · CEP 29703-131",
+  pickup:"Não é loja física nem ponto de retirada.",
+  bottom:"© 2026 VALENZA PARFUMS · CPF 140.992.757-10 · Colatina/ES · Todos os direitos reservados."
+ },
+ notice:{enabled:false,text:"",url:""},
+ banners:[
+  {id:"banner-1",active:true,sortOrder:1,alt:"Musamam White Intense",imageUrl:"/banners/glossy-fast-file_000000000724820ebc0b08dbb2f06341.webp?v=20261005-glossy-logo1",targetType:"product",targetValue:"musamam-white-intense",zones:[]},
+  {id:"banner-2",active:true,sortOrder:2,alt:"Tharwah Gold",imageUrl:"/banners/glossy-fast-file_0000000014ac820e8d470a47527300b8.webp?v=20261005-glossy-logo1",targetType:"product",targetValue:"tharwah-gold",zones:[]},
+  {id:"banner-3",active:true,sortOrder:3,alt:"Seleção VALENZA",imageUrl:"/banners/glossy-fast-file_000000001714820eb5933f80dfef2161.webp?v=20261005-glossy-logo1",targetType:"zones",targetValue:"",zones:[{product:"asad",left:25,width:17},{product:"attar",left:42,width:17},{product:"club-de-nuit-intense-man",left:59,width:17}]},
+  {id:"banner-4",active:true,sortOrder:4,alt:"Queen of Arabia",imageUrl:"/banners/glossy-fast-file_000000003780820e92f2892973dd850d.webp?v=20261005-glossy-logo1",targetType:"product",targetValue:"queen-of-arabia",zones:[]},
+  {id:"banner-5",active:true,sortOrder:5,alt:"Seleção VALENZA",imageUrl:"/banners/glossy-fast-file_000000008550820ebd74d70eef82b434.webp?v=20261005-glossy-logo1",targetType:"zones",targetValue:"",zones:[{product:"fakhar-rose",left:25,width:17},{product:"yara",left:42,width:17},{product:"musamam-white-intense",left:59,width:17}]},
+  {id:"banner-6",active:true,sortOrder:6,alt:"Fakhar Rose",imageUrl:"/banners/glossy-fast-file_00000000b95c820eb6171811309e3681.webp?v=20261005-glossy-logo1",targetType:"product",targetValue:"fakhar-rose",zones:[]},
+  {id:"banner-7",active:true,sortOrder:7,alt:"Atheeri",imageUrl:"/banners/glossy-fast-file_00000000f864820eb8b928870cd20402.webp?v=20261005-glossy-logo1",targetType:"product",targetValue:"atheeri",zones:[]},
+  {id:"banner-8",active:true,sortOrder:8,alt:"Afeef",imageUrl:"/banners/glossy-fast-file_00000000fe88820eabdaa61890b393ad.webp?v=20261005-glossy-logo1",targetType:"product",targetValue:"afeef",zones:[]}
+ ]
+};
+function siteVisualClone(v){return JSON.parse(JSON.stringify(v))}
+function siteVisualString(v,max,fallback=""){const x=String(v??"").trim();return (x||fallback).slice(0,max)}
+function siteVisualColor(v,fallback){const x=String(v||"").trim();return /^#[0-9a-f]{6}$/i.test(x)?x:fallback}
+function siteVisualUrl(v,fallback=""){const x=String(v||"").trim();if(!x)return fallback;if(x.startsWith("/")&&!x.startsWith("//"))return x.slice(0,500);try{const u=new URL(x);return u.protocol==="https:"?u.toString().slice(0,500):fallback}catch{return fallback}}
+function siteVisualBool(v,fallback=true){return typeof v==="boolean"?v:fallback}
+function siteVisualNormalize(input){
+ const d=siteVisualClone(SITE_VISUAL_DEFAULT),x=input&&typeof input==="object"?input:{},home=x.home&&typeof x.home==="object"?x.home:{},contact=x.contact&&typeof x.contact==="object"?x.contact:{},footer=x.footer&&typeof x.footer==="object"?x.footer:{},notice=x.notice&&typeof x.notice==="object"?x.notice:{},colors=x.colors&&typeof x.colors==="object"?x.colors:{};
+ d.logoUrl=siteVisualUrl(x.logoUrl,d.logoUrl);d.faviconUrl=siteVisualUrl(x.faviconUrl,d.faviconUrl);
+ d.colors={header:siteVisualColor(colors.header,d.colors.header),accent:siteVisualColor(colors.accent,d.colors.accent),background:siteVisualColor(colors.background,d.colors.background),text:siteVisualColor(colors.text,d.colors.text)};
+ d.home.showFeatured=siteVisualBool(home.showFeatured,d.home.showFeatured);d.home.showCatalog=siteVisualBool(home.showCatalog,d.home.showCatalog);d.home.showAbout=siteVisualBool(home.showAbout,d.home.showAbout);
+ d.home.featuredEyebrow=siteVisualString(home.featuredEyebrow,50,d.home.featuredEyebrow);d.home.featuredTitle=siteVisualString(home.featuredTitle,90,d.home.featuredTitle);
+ d.home.catalogEyebrow=siteVisualString(home.catalogEyebrow,50,d.home.catalogEyebrow);d.home.catalogTitle=siteVisualString(home.catalogTitle,90,d.home.catalogTitle);
+ d.home.aboutEyebrow=siteVisualString(home.aboutEyebrow,50,d.home.aboutEyebrow);d.home.aboutTitle=siteVisualString(home.aboutTitle,90,d.home.aboutTitle);
+ if(Array.isArray(home.aboutParagraphs)){const p=home.aboutParagraphs.map(v=>siteVisualString(v,700)).filter(Boolean).slice(0,4);if(p.length)d.home.aboutParagraphs=p}
+ d.home.closingText=siteVisualString(home.closingText,180,d.home.closingText);
+ d.contact.email=siteVisualString(contact.email,160,d.contact.email).toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.contact.email))d.contact.email=SITE_VISUAL_DEFAULT.contact.email;
+ const wa=String(contact.whatsapp??d.contact.whatsapp).replace(/\D/g,"").slice(0,15);d.contact.whatsapp=/^\d{10,15}$/.test(wa)?wa:SITE_VISUAL_DEFAULT.contact.whatsapp;
+ d.contact.whatsappDisplay=siteVisualString(contact.whatsappDisplay,40,d.contact.whatsappDisplay);d.contact.location=siteVisualString(contact.location,100,d.contact.location);d.contact.instagram=siteVisualUrl(contact.instagram,"");d.contact.facebook=siteVisualUrl(contact.facebook,"");
+ d.footer.tagline=siteVisualString(footer.tagline,140,d.footer.tagline);d.footer.description=siteVisualString(footer.description,500,d.footer.description);d.footer.responsible=siteVisualString(footer.responsible,160,d.footer.responsible);d.footer.document=siteVisualString(footer.document,100,d.footer.document);d.footer.address=siteVisualString(footer.address,300,d.footer.address);d.footer.pickup=siteVisualString(footer.pickup,180,d.footer.pickup);d.footer.bottom=siteVisualString(footer.bottom,240,d.footer.bottom);
+ d.notice.enabled=siteVisualBool(notice.enabled,false);d.notice.text=siteVisualString(notice.text,180,"");d.notice.url=siteVisualUrl(notice.url,"");
+ if(Array.isArray(x.banners)){
+  const banners=x.banners.slice(0,16).map((b,i)=>{b=b&&typeof b==="object"?b:{};const id=String(b.id||("banner-"+(i+1))).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,70)||("banner-"+(i+1)),targetType=["product","url","zones","none"].includes(String(b.targetType))?String(b.targetType):"none",zones=Array.isArray(b.zones)?b.zones.slice(0,5).map(z=>({product:String(z?.product||"").trim().slice(0,80),left:Math.max(0,Math.min(95,Number(z?.left)||0)),width:Math.max(1,Math.min(100,Number(z?.width)||10))})).filter(z=>z.product):[];
+   return {id,active:b.active!==false,sortOrder:Number.isFinite(Number(b.sortOrder))?Math.max(0,Math.min(9999,Math.trunc(Number(b.sortOrder)))):i+1,alt:siteVisualString(b.alt,140,"Banner VALENZA"),imageUrl:siteVisualUrl(b.imageUrl,""),targetType,targetValue:targetType==="url"?siteVisualUrl(b.targetValue,""):siteVisualString(b.targetValue,160,""),zones}
+  }).filter(b=>b.imageUrl);
+  if(banners.length)d.banners=banners.sort((a,b)=>a.sortOrder-b.sortOrder)
+ }
+ return d
+}
+async function siteVisualState(env){
+ await ensureAuthSchema(env);const row=await env.DB.prepare("SELECT draft_json,published_json,updated_at,published_at FROM site_visual_state WHERE id='main' LIMIT 1").first();
+ let published=null,draft=null;try{published=row?.published_json?JSON.parse(row.published_json):null}catch{}try{draft=row?.draft_json?JSON.parse(row.draft_json):null}catch{}
+ const pub=siteVisualNormalize(published||SITE_VISUAL_DEFAULT),dr=siteVisualNormalize(draft||published||SITE_VISUAL_DEFAULT);
+ return {draft:dr,published:pub,customized:!!(published&&Object.keys(published).length),updatedAt:row?.updated_at||null,publishedAt:row?.published_at||null}
+}
+async function siteVisualPublic(env){
+ try{const state=await siteVisualState(env);return resposta({ok:true,customized:state.customized,config:state.published,publishedAt:state.publishedAt})}catch(e){console.error("Visual público:",e);return resposta({ok:true,customized:false,config:siteVisualClone(SITE_VISUAL_DEFAULT),publishedAt:null})}
+}
+async function adminSiteVisual(request,env){
+ try{const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);const state=await siteVisualState(env);return resposta({ok:true,...state})}catch(e){console.error("Visual admin:",e);return resposta({ok:false,error:"Não foi possível carregar a central visual."},500)}
+}
+async function adminSiteVisualDraft(request,env){
+ try{
+  const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const body=await request.json().catch(()=>({})),config=siteVisualNormalize(body.config),raw=JSON.stringify(config);if(raw.length>70000)return resposta({ok:false,error:"A configuração visual ficou grande demais."},413);
+  const now=new Date().toISOString(),current=await env.DB.prepare("SELECT published_json,published_at FROM site_visual_state WHERE id='main'").first(),published=String(current?.published_json||"{}");
+  await env.DB.prepare("INSERT INTO site_visual_state(id,draft_json,published_json,updated_by,updated_at,published_at) VALUES('main',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET draft_json=excluded.draft_json,updated_by=excluded.updated_by,updated_at=excluded.updated_at").bind(raw,published,admin.id,now,current?.published_at||null).run();
+  await recordAdminAudit(env,admin,"site_visual_draft",{sections:["identity","home","contact","footer","notice","banners"]});
+  return resposta({ok:true,draft:config,message:"Rascunho visual salvo. A loja pública ainda não foi alterada."})
+ }catch(e){console.error("Rascunho visual:",e);return resposta({ok:false,error:"Não foi possível salvar o rascunho visual."},500)}
+}
+async function adminSiteVisualPublish(request,env){
+ try{
+  const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const state=await siteVisualState(env),config=siteVisualNormalize(state.draft),raw=JSON.stringify(config),now=new Date().toISOString();
+  await env.DB.prepare("INSERT INTO site_visual_state(id,draft_json,published_json,updated_by,updated_at,published_at) VALUES('main',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET draft_json=excluded.draft_json,published_json=excluded.published_json,updated_by=excluded.updated_by,updated_at=excluded.updated_at,published_at=excluded.published_at").bind(raw,raw,admin.id,now,now).run();
+  await recordAdminAudit(env,admin,"site_visual_publish",{bannerCount:config.banners.filter(x=>x.active!==false).length});
+  return resposta({ok:true,config,publishedAt:now,message:"Alterações visuais publicadas na loja."})
+ }catch(e){console.error("Publicar visual:",e);return resposta({ok:false,error:"Não foi possível publicar as alterações visuais."},500)}
+}
+async function adminSiteVisualReset(request,env){
+ try{
+  const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const state=await siteVisualState(env),raw=JSON.stringify(state.published),now=new Date().toISOString();
+  await env.DB.prepare("INSERT INTO site_visual_state(id,draft_json,published_json,updated_by,updated_at,published_at) VALUES('main',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET draft_json=excluded.draft_json,updated_by=excluded.updated_by,updated_at=excluded.updated_at").bind(raw,raw,admin.id,now,state.publishedAt).run();
+  await recordAdminAudit(env,admin,"site_visual_draft_reset",{});
+  return resposta({ok:true,draft:state.published,message:"Rascunho descartado e restaurado para a versão publicada."})
+ }catch(e){console.error("Restaurar visual:",e);return resposta({ok:false,error:"Não foi possível restaurar o rascunho."},500)}
+}
+async function adminSiteVisualAsset(request,env){
+ try{
+  const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const body=await request.json().catch(()=>({})),kind=["logo","favicon","banner"].includes(String(body.kind))?String(body.kind):"",decoded=catalogDecodeImage(body.dataUrl);
+  if(!kind)return resposta({ok:false,error:"Tipo de imagem inválido."},400);if(!decoded)return resposta({ok:false,error:"Envie uma imagem JPG, PNG ou WebP válida."},400);if(decoded.tooLarge)return resposta({ok:false,error:"A imagem ficou grande demais. Tente uma imagem menor."},413);
+  const assetKey=(kind+"-"+crypto.randomUUID()).toLowerCase(),now=new Date().toISOString();
+  await env.DB.prepare("INSERT INTO site_visual_assets(asset_key,content_type,data,byte_size,updated_by,updated_at) VALUES(?,?,?,?,?,?)").bind(assetKey,decoded.contentType,decoded.bytes.buffer,decoded.bytes.byteLength,admin.id,now).run();
+  await recordAdminAudit(env,admin,"site_visual_asset",{kind,assetKey,contentType:decoded.contentType,byteSize:decoded.bytes.byteLength});
+  return resposta({ok:true,assetKey,url:"/media/site/"+encodeURIComponent(assetKey)+"?v="+Date.now(),contentType:decoded.contentType})
+ }catch(e){console.error("Imagem visual:",e);return resposta({ok:false,error:"Não foi possível salvar a imagem agora."},500)}
+}
+async function siteVisualAsset(request,env,keyRaw){
+ try{
+  await ensureAuthSchema(env);const key=decodeURIComponent(String(keyRaw||"")).replace(/\?.*$/,"");if(!/^[a-z0-9-]{8,120}$/.test(key))return new Response("Not Found",{status:404});
+  const row=await env.DB.prepare("SELECT content_type,data,byte_size FROM site_visual_assets WHERE asset_key=?").bind(key).first();if(!row?.data)return new Response("Not Found",{status:404});
+  return new Response(row.data,{status:200,headers:{"Content-Type":String(row.content_type||"image/webp"),"Content-Length":String(row.byte_size||0),"Cache-Control":"public, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"}})
+ }catch(e){console.error("Servir imagem visual:",e);return new Response("Not Found",{status:404})}
 }
 
 async function adminPriceUpdate(request,env){
