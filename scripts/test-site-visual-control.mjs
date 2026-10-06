@@ -27,3 +27,10 @@ assert.ok(index.includes("background:'+footerColor+'!important"),'footer color m
 assert.ok(index.includes("accountCartColor=String(colors.accountCart||visualContrast(headerColor))"),'account/cart color must follow visual config');
 assert.ok(index.includes(".header .cart{background:'+cartSurface+'!important;color:'+accountCartColor+'!important}"),'cart surface must auto-contrast with account/cart text');
 assert.ok(!admin.includes("confirm('Publicar este rascunho na loja agora?')"),'native publish confirm must not return');
+
+assert.ok(admin.includes('adminPrepareVisualAsset'),'visual assets must be normalized before upload');
+for(const token of ['w:1200,h:600','w:512,h:512','w:1600,h:533','PADRONIZAÇÃO ATIVA','maxlength="52"','maxlength="420"','maxlength="110"'])assert.ok(admin.includes(token),'visual guardrail missing '+token);
+const brandCss=fs.readFileSync('public/brand/brand.css','utf8');
+assert.ok(brandCss.includes('VALENZA VISUAL GUARDRAILS'),'layout guardrail CSS missing');
+assert.ok(brandCss.includes('object-fit:contain!important'),'logo containment guardrail missing');
+assert.ok(brandCss.includes('text-overflow:ellipsis!important'),'header overflow guardrail missing');

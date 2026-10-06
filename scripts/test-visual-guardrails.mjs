@@ -1,0 +1,10 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const worker=fs.readFileSync('src/worker.js','utf8'),admin=fs.readFileSync('public/admin-account.js','utf8'),css=fs.readFileSync('public/brand/brand.css','utf8');
+assert.ok(worker.includes('siteVisualString(home.featuredTitle,52'),'server must cap featured title');
+assert.ok(worker.includes('siteVisualString(v,420)'),'server must cap about paragraphs');
+assert.ok(worker.includes('siteVisualString(notice.text,110'),'server must cap notice text');
+for(const token of ["logo:{w:1200,h:600","favicon:{w:512,h:512","banner:{w:1600,h:533","adminPrepareVisualAsset(kind,file)"])assert.ok(admin.includes(token),'asset normalization missing '+token);
+for(const token of ['maxlength="52"','maxlength="420"','maxlength="24"','maxlength="28"','maxlength="110"'])assert.ok(admin.includes(token),'admin text limit missing '+token);
+for(const token of ['VALENZA VISUAL GUARDRAILS','object-fit:contain!important','text-overflow:ellipsis!important','overflow-wrap:anywhere!important'])assert.ok(css.includes(token),'CSS guardrail missing '+token);
+assert.ok(!admin.includes('const dataUrl=await adminCompressProductImage(file),r=await fetch(\'/api/admin/site/visual/asset\''),'visual asset upload must not use generic product compressor');
+console.log('PADRONIZAÇÃO VISUAL APROVADA — imagens, logos, banners, textos e cabeçalho possuem limites e proporções seguras.');

@@ -211,3 +211,61 @@
   .header .account,.header .cart{padding:7px 5px!important}
   .header .header-status .hs-main{font-size:6.7px!important;letter-spacing:0!important}
 }
+
+/* ===== VALENZA VISUAL GUARDRAILS — evita quebra por conteúdo administrável ===== */
+.valenza-brand,
+.header>.valenza-brand,
+.aurea-closing-mark.valenza-brand,
+.vf-logo.valenza-brand{overflow:hidden!important}
+.valenza-brand img,
+.header>.valenza-brand img,
+.aurea-closing-mark.valenza-brand img,
+.vf-logo.valenza-brand img{
+  display:block!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  max-width:100%!important;
+  max-height:100%!important;
+}
+.header .actions{min-width:0!important}
+.header .header-status,
+.header .account,
+.header .cart{min-width:0!important}
+.header .account{max-width:132px!important;overflow:hidden!important}
+.header .cart{max-width:142px!important;overflow:hidden!important;white-space:nowrap!important}
+.header .account .hs-main,
+.header .account .hs-sub,
+.header .cart .hs-main,
+.header .cart .hs-sub{
+  display:block!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+#featured-title,
+#catalogo .title,
+#sobre-title,
+.about-valenza-text,
+.aurea-closing p,
+.vf-brand p,
+.vf-contact,
+.catalog-nav-group,
+.catalog-nav-option,
+.eyebrow{
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+}
+#featured-title,#catalogo .title,#sobre-title{text-wrap:balance}
+.slider,.slides,.slide{max-width:100%!important;overflow:hidden!important}
+.slide img{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;object-position:center!important}
+@media(max-width:700px){
+  .header .account{max-width:94px!important}
+  .header .cart{max-width:112px!important}
+  #featured-title,#catalogo .title,#sobre-title{max-width:100%!important}
+}
+@media(max-width:350px){
+  .header .account{max-width:76px!important}
+  .header .cart{max-width:96px!important}
+}
+

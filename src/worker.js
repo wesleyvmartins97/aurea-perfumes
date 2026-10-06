@@ -1179,24 +1179,24 @@ function siteVisualNormalize(input){
  d.logoUrl=siteVisualUrl(x.logoUrl,d.logoUrl);d.faviconUrl=siteVisualUrl(x.faviconUrl,d.faviconUrl);
  const normalizedHeader=siteVisualColor(colors.header,d.colors.header),normalizedFooter=siteVisualColor(colors.footer,siteVisualColor(colors.header,d.colors.footer)),normalizedAccountCart=siteVisualColor(colors.accountCart,siteVisualContrastColor(normalizedHeader));d.colors={header:normalizedHeader,footer:normalizedFooter,accountCart:normalizedAccountCart,accent:siteVisualColor(colors.accent,d.colors.accent),background:siteVisualColor(colors.background,d.colors.background),text:siteVisualColor(colors.text,d.colors.text)};
  d.home.showFeatured=siteVisualBool(home.showFeatured,d.home.showFeatured);d.home.showCatalog=siteVisualBool(home.showCatalog,d.home.showCatalog);d.home.showAbout=siteVisualBool(home.showAbout,d.home.showAbout);
- d.home.featuredEyebrow=siteVisualString(home.featuredEyebrow,50,d.home.featuredEyebrow);d.home.featuredTitle=siteVisualString(home.featuredTitle,90,d.home.featuredTitle);
- d.home.catalogEyebrow=siteVisualString(home.catalogEyebrow,50,d.home.catalogEyebrow);d.home.catalogTitle=siteVisualString(home.catalogTitle,90,d.home.catalogTitle);
- d.home.aboutEyebrow=siteVisualString(home.aboutEyebrow,50,d.home.aboutEyebrow);d.home.aboutTitle=siteVisualString(home.aboutTitle,90,d.home.aboutTitle);
- if(Array.isArray(home.aboutParagraphs)){const p=home.aboutParagraphs.map(v=>siteVisualString(v,700)).filter(Boolean).slice(0,4);if(p.length)d.home.aboutParagraphs=p}
- d.home.closingText=siteVisualString(home.closingText,180,d.home.closingText);
+ d.home.featuredEyebrow=siteVisualString(home.featuredEyebrow,32,d.home.featuredEyebrow);d.home.featuredTitle=siteVisualString(home.featuredTitle,52,d.home.featuredTitle);
+ d.home.catalogEyebrow=siteVisualString(home.catalogEyebrow,32,d.home.catalogEyebrow);d.home.catalogTitle=siteVisualString(home.catalogTitle,52,d.home.catalogTitle);
+ d.home.aboutEyebrow=siteVisualString(home.aboutEyebrow,32,d.home.aboutEyebrow);d.home.aboutTitle=siteVisualString(home.aboutTitle,52,d.home.aboutTitle);
+ if(Array.isArray(home.aboutParagraphs)){const p=home.aboutParagraphs.map(v=>siteVisualString(v,420)).filter(Boolean).slice(0,4);if(p.length)d.home.aboutParagraphs=p}
+ d.home.closingText=siteVisualString(home.closingText,120,d.home.closingText);
  d.catalog.showFilters=siteVisualBool(catalog.showFilters,d.catalog.showFilters);
- d.catalog.categoryTitle=siteVisualString(catalog.categoryTitle,40,d.catalog.categoryTitle);d.catalog.audienceTitle=siteVisualString(catalog.audienceTitle,40,d.catalog.audienceTitle);d.catalog.lineTitle=siteVisualString(catalog.lineTitle,40,d.catalog.lineTitle);
- const labels=catalog.labels&&typeof catalog.labels==="object"?catalog.labels:{};for(const key of Object.keys(d.catalog.labels))d.catalog.labels[key]=siteVisualString(labels[key],60,d.catalog.labels[key]);
- d.contact.email=siteVisualString(contact.email,160,d.contact.email).toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.contact.email))d.contact.email=SITE_VISUAL_DEFAULT.contact.email;
+ d.catalog.categoryTitle=siteVisualString(catalog.categoryTitle,24,d.catalog.categoryTitle);d.catalog.audienceTitle=siteVisualString(catalog.audienceTitle,24,d.catalog.audienceTitle);d.catalog.lineTitle=siteVisualString(catalog.lineTitle,24,d.catalog.lineTitle);
+ const labels=catalog.labels&&typeof catalog.labels==="object"?catalog.labels:{};for(const key of Object.keys(d.catalog.labels))d.catalog.labels[key]=siteVisualString(labels[key],28,d.catalog.labels[key]);
+ d.contact.email=siteVisualString(contact.email,120,d.contact.email).toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.contact.email))d.contact.email=SITE_VISUAL_DEFAULT.contact.email;
  const wa=String(contact.whatsapp??d.contact.whatsapp).replace(/\D/g,"").slice(0,15);d.contact.whatsapp=/^\d{10,15}$/.test(wa)?wa:SITE_VISUAL_DEFAULT.contact.whatsapp;
- d.contact.whatsappDisplay=siteVisualString(contact.whatsappDisplay,40,d.contact.whatsappDisplay);d.contact.location=siteVisualString(contact.location,100,d.contact.location);d.contact.instagram=siteVisualUrl(contact.instagram,"");d.contact.facebook=siteVisualUrl(contact.facebook,"");
- d.footer.tagline=siteVisualString(footer.tagline,140,d.footer.tagline);d.footer.description=siteVisualString(footer.description,500,d.footer.description);
+ d.contact.whatsappDisplay=siteVisualString(contact.whatsappDisplay,32,d.contact.whatsappDisplay);d.contact.location=siteVisualString(contact.location,80,d.contact.location);d.contact.instagram=siteVisualUrl(contact.instagram,"");d.contact.facebook=siteVisualUrl(contact.facebook,"");
+ d.footer.tagline=siteVisualString(footer.tagline,80,d.footer.tagline);d.footer.description=siteVisualString(footer.description,320,d.footer.description);
  // Dados jurídicos ficam protegidos nesta etapa para não divergir de Termos/Privacidade.
  d.footer.responsible=SITE_VISUAL_DEFAULT.footer.responsible;d.footer.document=SITE_VISUAL_DEFAULT.footer.document;d.footer.address=SITE_VISUAL_DEFAULT.footer.address;d.footer.pickup=SITE_VISUAL_DEFAULT.footer.pickup;d.footer.bottom=SITE_VISUAL_DEFAULT.footer.bottom;
- d.notice.enabled=siteVisualBool(notice.enabled,false);d.notice.text=siteVisualString(notice.text,180,"");d.notice.url=siteVisualUrl(notice.url,"");
+ d.notice.enabled=siteVisualBool(notice.enabled,false);d.notice.text=siteVisualString(notice.text,110,"");d.notice.url=siteVisualUrl(notice.url,"");
  if(Array.isArray(x.banners)){
   const banners=x.banners.slice(0,16).map((b,i)=>{b=b&&typeof b==="object"?b:{};const id=String(b.id||("banner-"+(i+1))).toLowerCase().replace(/[^a-z0-9-]/g,"-").replace(/-+/g,"-").slice(0,70)||("banner-"+(i+1)),targetType=["product","url","zones","none"].includes(String(b.targetType))?String(b.targetType):"none",zones=Array.isArray(b.zones)?b.zones.slice(0,5).map(z=>({product:String(z?.product||"").trim().slice(0,80),left:Math.max(0,Math.min(95,Number(z?.left)||0)),width:Math.max(1,Math.min(100,Number(z?.width)||10))})).filter(z=>z.product):[];
-   return {id,active:b.active!==false,sortOrder:Number.isFinite(Number(b.sortOrder))?Math.max(0,Math.min(9999,Math.trunc(Number(b.sortOrder)))):i+1,alt:siteVisualString(b.alt,140,"Banner VALENZA"),imageUrl:siteVisualUrl(b.imageUrl,""),targetType,targetValue:targetType==="url"?siteVisualUrl(b.targetValue,""):siteVisualString(b.targetValue,160,""),zones}
+   return {id,active:b.active!==false,sortOrder:Number.isFinite(Number(b.sortOrder))?Math.max(0,Math.min(9999,Math.trunc(Number(b.sortOrder)))):i+1,alt:siteVisualString(b.alt,100,"Banner VALENZA"),imageUrl:siteVisualUrl(b.imageUrl,""),targetType,targetValue:targetType==="url"?siteVisualUrl(b.targetValue,""):siteVisualString(b.targetValue,100,""),zones}
   }).filter(b=>b.imageUrl);
   d.banners=banners.sort((a,b)=>a.sortOrder-b.sortOrder)
  }
@@ -1773,7 +1773,7 @@ function siteVisualGlobalHtml(html,config){
  out=out.replace(/(<img\b[^>]*\bsrc=")\/brand\/valenza-(?:card\.webp|logo\.svg)[^"]*("[^>]*>)/gi,'$1'+logo+'$2');
  const absoluteLogo=siteVisualUrl(config?.logoUrl||SITE_VISUAL_DEFAULT.logoUrl,SITE_VISUAL_DEFAULT.logoUrl);try{const u=new URL(absoluteLogo,"https://www.valenzaparfums.com.br/");out=out.replaceAll('"logo":"https://www.valenzaparfums.com.br/favicon.png"','"logo":"'+u.href+'"')}catch{}
  const header=siteVisualColor(colors.header,SITE_VISUAL_DEFAULT.colors.header),footer=siteVisualColor(colors.footer,header),accent=siteVisualColor(colors.accent,SITE_VISUAL_DEFAULT.colors.accent),bg=siteVisualColor(colors.background,SITE_VISUAL_DEFAULT.colors.background),text=siteVisualColor(colors.text,SITE_VISUAL_DEFAULT.colors.text);
- const style='<style id="valenza-visual-global">:root{--ink:'+text+'!important;--paper:'+bg+'!important;--gold:'+accent+'!important}body{background:'+bg+'!important;color:'+text+'!important}.head,.header{background:'+header+'!important}.footer,.valenza-footer{background:'+footer+'!important}</style>';
+ const style='<style id="valenza-visual-global">:root{--ink:'+text+'!important;--paper:'+bg+'!important;--gold:'+accent+'!important}body{background:'+bg+'!important;color:'+text+'!important}.head,.header{background:'+header+'!important}.footer,.valenza-footer{background:'+footer+'!important}.valenza-brand img{max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important}h1,h2,h3,.title,.eyebrow,.about-valenza-text,.vf-brand p,.vf-contact{overflow-wrap:anywhere;word-break:normal}</style>';
  if(out.includes("</head>"))out=out.replace("</head>",style+"</head>");
  out=out.replace(/<meta name="theme-color" content="[^"]*">/i,'<meta name="theme-color" content="'+header+'">');
  return out
