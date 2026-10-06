@@ -1127,7 +1127,7 @@ const SITE_VISUAL_DEFAULT={
  version:1,
  logoUrl:"/brand/valenza-card.webp?v=20261005-glossy-logo1",
  faviconUrl:"/favicon.png?v=20261003",
- colors:{header:"#171513",accent:"#8a735f",background:"#fbfaf8",text:"#171513"},
+ colors:{header:"#171513",footer:"#171513",accent:"#8a735f",background:"#fbfaf8",text:"#171513"},
  home:{
   showFeatured:true,showCatalog:true,showAbout:true,
   featuredEyebrow:"SELEÇÃO DE PERFUMES",featuredTitle:"Seleção de perfumes",
@@ -1176,7 +1176,7 @@ function siteVisualBool(v,fallback=true){return typeof v==="boolean"?v:fallback}
 function siteVisualNormalize(input){
  const d=siteVisualClone(SITE_VISUAL_DEFAULT),x=input&&typeof input==="object"?input:{},home=x.home&&typeof x.home==="object"?x.home:{},catalog=x.catalog&&typeof x.catalog==="object"?x.catalog:{},contact=x.contact&&typeof x.contact==="object"?x.contact:{},footer=x.footer&&typeof x.footer==="object"?x.footer:{},notice=x.notice&&typeof x.notice==="object"?x.notice:{},colors=x.colors&&typeof x.colors==="object"?x.colors:{};
  d.logoUrl=siteVisualUrl(x.logoUrl,d.logoUrl);d.faviconUrl=siteVisualUrl(x.faviconUrl,d.faviconUrl);
- d.colors={header:siteVisualColor(colors.header,d.colors.header),accent:siteVisualColor(colors.accent,d.colors.accent),background:siteVisualColor(colors.background,d.colors.background),text:siteVisualColor(colors.text,d.colors.text)};
+ const normalizedHeader=siteVisualColor(colors.header,d.colors.header),normalizedFooter=siteVisualColor(colors.footer,siteVisualColor(colors.header,d.colors.footer));d.colors={header:normalizedHeader,footer:normalizedFooter,accent:siteVisualColor(colors.accent,d.colors.accent),background:siteVisualColor(colors.background,d.colors.background),text:siteVisualColor(colors.text,d.colors.text)};
  d.home.showFeatured=siteVisualBool(home.showFeatured,d.home.showFeatured);d.home.showCatalog=siteVisualBool(home.showCatalog,d.home.showCatalog);d.home.showAbout=siteVisualBool(home.showAbout,d.home.showAbout);
  d.home.featuredEyebrow=siteVisualString(home.featuredEyebrow,50,d.home.featuredEyebrow);d.home.featuredTitle=siteVisualString(home.featuredTitle,90,d.home.featuredTitle);
  d.home.catalogEyebrow=siteVisualString(home.catalogEyebrow,50,d.home.catalogEyebrow);d.home.catalogTitle=siteVisualString(home.catalogTitle,90,d.home.catalogTitle);
@@ -1771,8 +1771,8 @@ function siteVisualGlobalHtml(html,config){
  out=out.replace(/<link\s+rel="icon"[^>]*>/i,'<link rel="icon" href="'+favicon+'">');
  out=out.replace(/(<img\b[^>]*\bsrc=")\/brand\/valenza-(?:card\.webp|logo\.svg)[^"]*("[^>]*>)/gi,'$1'+logo+'$2');
  const absoluteLogo=siteVisualUrl(config?.logoUrl||SITE_VISUAL_DEFAULT.logoUrl,SITE_VISUAL_DEFAULT.logoUrl);try{const u=new URL(absoluteLogo,"https://www.valenzaparfums.com.br/");out=out.replaceAll('"logo":"https://www.valenzaparfums.com.br/favicon.png"','"logo":"'+u.href+'"')}catch{}
- const header=siteVisualColor(colors.header,SITE_VISUAL_DEFAULT.colors.header),accent=siteVisualColor(colors.accent,SITE_VISUAL_DEFAULT.colors.accent),bg=siteVisualColor(colors.background,SITE_VISUAL_DEFAULT.colors.background),text=siteVisualColor(colors.text,SITE_VISUAL_DEFAULT.colors.text);
- const style='<style id="valenza-visual-global">:root{--ink:'+text+'!important;--paper:'+bg+'!important;--gold:'+accent+'!important}body{background:'+bg+'!important;color:'+text+'!important}.head,.header,.footer,.valenza-footer{background:'+header+'!important}</style>';
+ const header=siteVisualColor(colors.header,SITE_VISUAL_DEFAULT.colors.header),footer=siteVisualColor(colors.footer,header),accent=siteVisualColor(colors.accent,SITE_VISUAL_DEFAULT.colors.accent),bg=siteVisualColor(colors.background,SITE_VISUAL_DEFAULT.colors.background),text=siteVisualColor(colors.text,SITE_VISUAL_DEFAULT.colors.text);
+ const style='<style id="valenza-visual-global">:root{--ink:'+text+'!important;--paper:'+bg+'!important;--gold:'+accent+'!important}body{background:'+bg+'!important;color:'+text+'!important}.head,.header{background:'+header+'!important}.footer,.valenza-footer{background:'+footer+'!important}</style>';
  if(out.includes("</head>"))out=out.replace("</head>",style+"</head>");
  out=out.replace(/<meta name="theme-color" content="[^"]*">/i,'<meta name="theme-color" content="'+header+'">');
  return out

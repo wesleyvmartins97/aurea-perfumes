@@ -13,10 +13,13 @@ assert.ok(index.includes("new URLSearchParams(location.search).get('visual-previ
 assert.ok(index.includes("fetch('/api/admin/site/visual"),'authenticated draft preview must load admin visual config');
 assert.ok(index.includes("if(!r.ok||!d.ok||d.customized!==true||!d.config)return false"),'normal storefront must ignore defaults until first publish');
 for(const token of ['loadPublishedSiteVisual','applyPublishedSiteVisual','renderPublishedBanners','valenzaVisualNotice','catalogGroupTitles','showFilters'])assert.ok(index.includes(token),'storefront visual support missing '+token);
-for(const token of ['data-v="visual"','SALVAR RASCUNHO','DESCARTAR RASCUNHO','PRÉVIA REAL PC','PRÉVIA REAL CELULAR','PUBLICAR ALTERAÇÕES','openVisualLivePreview','vvShowFilters','DADOS LEGAIS PROTEGIDOS','/api/admin/site/visual/draft','/api/admin/site/visual/publish'])assert.ok(admin.includes(token),'admin visual control missing '+token);
+for(const token of ['data-v="visual"','SALVAR RASCUNHO','DESCARTAR RASCUNHO','PRÉVIA REAL PC','PRÉVIA REAL CELULAR','PUBLICAR ALTERAÇÕES','openVisualLivePreview','vvShowFilters','DADOS LEGAIS PROTEGIDOS','vvColorHeader','vvColorFooter','Creme VALENZA','Preto VALENZA','Cor personalizada · digite o HEX','/api/admin/site/visual/draft','/api/admin/site/visual/publish'])assert.ok(admin.includes(token),'admin visual control missing '+token);
 assert.ok(index.includes('PRÉVIA DO RASCUNHO · NÃO PUBLICADA'),'real draft preview badge missing');
 assert.ok(worker.includes('"X-Frame-Options":"SAMEORIGIN"'),'real preview iframe requires SAMEORIGIN');
 assert.ok(worker.includes("frame-ancestors 'self'"),'real preview must remain protected from external framing');
 assert.ok(worker.includes('featuredTitle:"Seleção de perfumes"'),'default visual config must preserve current live featured title');
 for(const banner of ['000000000724820ebc0b08dbb2f06341','0000000014ac820e8d470a47527300b8','00000000fe88820eabdaa61890b393ad'])assert.ok(index.includes(banner),'legacy safe fallback banner missing '+banner);
 console.log('ETAPA 2 BASE APROVADA — publicação separada do rascunho, defaults não alteram a loja, mídia/contatos globais protegidos e prévia real PC/celular.');
+
+assert.ok(index.includes("background:'+headerColor+'!important"),'header color must override legacy theme rules');
+assert.ok(index.includes("background:'+footerColor+'!important"),'footer color must be independent from header');
