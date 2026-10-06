@@ -1,3 +1,5 @@
+[Reading 719 lines from start (total: 719 lines, 0 remaining)]
+
 (()=>{'use strict';
 let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='',adminSalePollTimer=null,adminSaleTitleTimer=null,adminSalePollBusy=false,adminSaleWatcherPrimed=false,adminSaleSoundCtx=null;
 const ADMIN_SALE_POLL_MS=30000,ADMIN_SALE_SEEN_KEY='valenza_admin_seen_sales_v1',ADMIN_SALE_ALERTS_KEY='valenza_admin_sale_alerts_v1';
@@ -179,6 +181,17 @@ async function loadDashboard(){
  try{
   const r=await fetch('/api/admin/dashboard?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
   if(!r.ok||!d.ok){if(r.status===401){if(adminStatusState)adminStatusState.authenticated=false;lockView('login');return}throw Error(d.error||'Não foi possível carregar o painel.')}
+  try{
+   const cr=await fetch('/api/admin/products/catalog?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),cd=await cr.json().catch(()=>({}));
+   if(cr.ok&&cd.ok&&Array.isArray(cd.products)&&typeof CATALOG!=='undefined'&&Array.isArray(CATALOG)){
+    for(const raw of cd.products){
+     const id=String(raw?.id||'').trim();if(!id)continue;
+     let p=CATALOG.find(x=>String(x.id)===id);
+     const normalized={...raw,price:Number(raw.price||0),basePrice:Number(raw.price||0),regularPrice:Number(raw.price||0),sourcePrice:Number(raw.price||0),pix:Number(raw.price||0)*.95,stock:Number(raw.stock||0),weight:Number(raw.weight||.6),length:Number(raw.length||20),height:Number(raw.height||12),width:Number(raw.width||16),offer:raw.offer!==false,featured:raw.featured===true,active:raw.active!==false};
+     if(p)Object.assign(p,normalized);else CATALOG.push({id,name:String(raw.name||id),brand:String(raw.brand||''),type:String(raw.type||'Perfume'),cat:String(raw.cat||'unissex'),collection:String(raw.collection||'arabes'),gtin:String(raw.gtin||''),img:String(raw.img||''),desc:String(raw.desc||''),details:String(raw.details||''),...normalized})
+    }
+   }
+  }catch(e){console.error('VALENZA catálogo admin:',e)}
   adminData=d;renderDashboard();
  }catch(e){m.innerHTML='<div class="ccEmpty">'+esc(adminErrorMessage(e,'Não foi possível carregar o painel administrativo agora. Tente novamente.'))+'<br><br><button class="ccBtn" onclick="loadDashboard()">TENTAR NOVAMENTE</button></div>'}
 }
@@ -251,6 +264,86 @@ async function grantAdminMember(email,name){
  }catch(e){
   if(typeof window.valenzaNotice==='function')window.valenzaNotice(adminErrorMessage(e,'Não foi possível ativar o administrador agora.'));else alert(adminErrorMessage(e))
  }
+}
+function fullProductEditorCss(){
+ if(document.getElementById('valenzaFullProductCss'))return;
+ const st=document.createElement('style');st.id='valenzaFullProductCss';st.textContent='.vpeOverlay{position:fixed;inset:0;z-index:130000;background:#171513cc;padding:18px;overflow:auto}.vpeCard{max-width:1040px;margin:0 auto;background:#fbfaf8;border:1px solid #d9d0c8;box-shadow:0 24px 80px #0006}.vpeHead{position:sticky;top:0;z-index:2;background:#171513;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}.vpeHead h3{font:26px Georgia,serif;margin:0}.vpeClose{border:1px solid #5c5249;background:transparent;color:#fff;font-size:22px;width:40px;height:40px}.vpeBody{padding:20px}.vpeGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.vpeField{display:grid;gap:5px}.vpeField.wide{grid-column:1/-1}.vpeField label{font-size:8px;font-weight:bold;letter-spacing:1px;color:#685f58}.vpeField input,.vpeField select,.vpeField textarea{width:100%;padding:11px;border:1px solid #d8d1ca;background:#fff;color:#171513;font:12px Arial}.vpeField textarea{min-height:92px;resize:vertical}.vpeChecks{grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap;padding:12px;border:1px solid #e2d8ce;background:#fff}.vpeChecks label{font-size:10px;display:flex;gap:6px;align-items:center}.vpeImageBox{grid-column:1/-1;display:grid;grid-template-columns:180px 1fr;gap:14px;align-items:center;padding:14px;border:1px solid #e2d8ce;background:#fff}.vpeImageBox img{width:180px;height:180px;object-fit:contain;background:#fff;border:1px solid #eee}.vpeActions{position:sticky;bottom:0;display:flex;gap:8px;flex-wrap:wrap;padding:14px 20px;background:#fff;border-top:1px solid #ddd}.vpeActions button{padding:12px 15px;border:1px solid #171513;background:#171513;color:#fff;font-size:9px;font-weight:bold}.vpeActions .secondary{background:#fff;color:#171513}.vpeMsg{font-size:10px;line-height:1.5;color:#765;flex:1 1 100%}.vpeHelp{grid-column:1/-1;font-size:9px;line-height:1.6;color:#777;background:#f4f0eb;padding:12px;border-left:3px solid #8a735f}@media(max-width:700px){.vpeOverlay{padding:0}.vpeCard{min-height:100%;border:0}.vpeHead{padding:12px 14px}.vpeHead h3{font-size:21px}.vpeBody{padding:14px}.vpeGrid{grid-template-columns:1fr}.vpeField.wide,.vpeChecks,.vpeImageBox{grid-column:1}.vpeImageBox{grid-template-columns:92px 1fr}.vpeImageBox img{width:92px;height:92px}.vpeActions{padding:12px 14px}.vpeActions button{flex:1 1 45%}}';
+ document.head.appendChild(st)
+}
+async function adminEditableCatalog(){
+ const r=await fetch('/api/admin/products/catalog?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
+ if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível carregar os dados editáveis.');
+ return Array.isArray(d.products)?d.products:[]
+}
+function adminProductBase(id){
+ try{return CATALOG.find(x=>String(x.id)===String(id))||null}catch{return null}
+}
+function adminNum(v,fallback=''){const n=Number(v);return Number.isFinite(n)?String(n):fallback}
+function adminEditorValue(v){return String(v??'')}
+async function adminCompressProductImage(file){
+ if(!file||!/^image\/(jpeg|png|webp)$/i.test(file.type||''))throw Error('Escolha uma foto JPG, PNG ou WebP.');
+ if(file.size>12*1024*1024)throw Error('A foto original é grande demais. Escolha uma imagem de até 12 MB.');
+ const url=URL.createObjectURL(file);
+ try{
+  const img=await new Promise((resolve,reject)=>{const el=new Image();el.onload=()=>resolve(el);el.onerror=()=>reject(Error('Não foi possível abrir a imagem.'));el.src=url});
+  const max=1200,scale=Math.min(1,max/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height)),w=Math.max(1,Math.round((img.naturalWidth||img.width)*scale)),h=Math.max(1,Math.round((img.naturalHeight||img.height)*scale)),canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d',{alpha:true});ctx.drawImage(img,0,0,w,h);
+  let data=canvas.toDataURL('image/webp',.84);if(!/^data:image\/webp/.test(data))data=canvas.toDataURL('image/jpeg',.84);
+  if(data.length>1600000){const max2=900,s2=Math.min(1,max2/Math.max(w,h)),c2=document.createElement('canvas');c2.width=Math.max(1,Math.round(w*s2));c2.height=Math.max(1,Math.round(h*s2));c2.getContext('2d').drawImage(canvas,0,0,c2.width,c2.height);data=c2.toDataURL('image/webp',.78)}
+  if(data.length>1600000)throw Error('A foto ainda ficou grande demais depois da otimização. Escolha outra imagem.');
+  return data
+ }finally{URL.revokeObjectURL(url)}
+}
+async function openFullProductEditor(id='',opts={}){
+ fullProductEditorCss();
+ const isNew=opts.isNew===true,duplicate=opts.duplicate===true,source=adminProductBase(id),editable=(await adminEditableCatalog()).find(x=>String(x.id)===String(id))||{},base={...(source||{}),...editable};
+ const defaults={cat:'unissex',collection:'arabes',type:'EDP · 100ml',price:0,stock:100,unitCost:'',weight:.6,length:20,height:12,width:16,offer:true,featured:false,published:true,active:true};
+ const x={...defaults,...base};if(duplicate){x.id='';x.name=(base.name?'Cópia de '+base.name:'');x.gtin='';x.published=false;x.active=false}
+ const ov=document.createElement('div');ov.className='vpeOverlay';ov.id='valenzaProductEditor';
+ const currentImg=String(x.img||'');
+ ov.innerHTML='<div class="vpeCard"><div class="vpeHead"><div><div class="eyebrow">ETAPA 1 · PRODUTOS</div><h3>'+(isNew||duplicate?'Novo produto':'Editar produto completo')+'</h3></div><button class="vpeClose" type="button" aria-label="Fechar">×</button></div><div class="vpeBody"><div class="vpeGrid">'+
+ '<div class="vpeField"><label>CÓDIGO / SLUG</label><input id="vpeId" value="'+esc(duplicate?'':(x.id||id))+'" '+(!isNew&&!duplicate?'readonly':'')+' placeholder="ex.: novo-perfume"></div>'+
+ '<div class="vpeField"><label>NOME</label><input id="vpeName" value="'+esc(x.name||'')+'"></div>'+
+ '<div class="vpeField"><label>MARCA</label><input id="vpeBrand" value="'+esc(x.brand||'')+'"></div>'+
+ '<div class="vpeField"><label>APRESENTAÇÃO / TIPO</label><input id="vpeType" value="'+esc(x.type||'')+'" placeholder="EDP · 100ml"></div>'+
+ '<div class="vpeField"><label>CATEGORIA</label><select id="vpeCat"><option value="feminino">Feminino</option><option value="masculino">Masculino</option><option value="unissex">Unissex</option></select></div>'+
+ '<div class="vpeField"><label>COLEÇÃO</label><select id="vpeCollection"><option value="arabes">Perfumes Árabes</option><option value="designer">Perfumes Designer</option><option value="decants">Decants</option></select></div>'+
+ '<div class="vpeField"><label>GTIN / EAN</label><input id="vpeGtin" inputmode="numeric" value="'+esc(x.gtin||'')+'" placeholder="Somente números"></div>'+
+ '<div class="vpeField"><label>ORDEM DE EXIBIÇÃO</label><input id="vpeSort" inputmode="numeric" value="'+esc(x.sortOrder??'')+'" placeholder="Opcional"></div>'+
+ '<div class="vpeField"><label>PREÇO DE VENDA</label><input id="vpePrice" inputmode="decimal" value="'+esc(adminNum(x.price))+'"></div>'+
+ '<div class="vpeField"><label>CUSTO UNITÁRIO</label><input id="vpeCost" inputmode="decimal" value="'+esc(x.unitCost??x.cost??'')+'" placeholder="Opcional"></div>'+
+ '<div class="vpeField"><label>ESTOQUE</label><input id="vpeStock" inputmode="numeric" value="'+esc(adminNum(x.stock,100))+'"></div>'+
+ '<div class="vpeField"><label>PESO (KG)</label><input id="vpeWeight" inputmode="decimal" value="'+esc(adminNum(x.weight,.6))+'"></div>'+
+ '<div class="vpeField"><label>COMPRIMENTO (CM)</label><input id="vpeLength" inputmode="decimal" value="'+esc(adminNum(x.length,20))+'"></div>'+
+ '<div class="vpeField"><label>ALTURA (CM)</label><input id="vpeHeight" inputmode="decimal" value="'+esc(adminNum(x.height,12))+'"></div>'+
+ '<div class="vpeField"><label>LARGURA (CM)</label><input id="vpeWidth" inputmode="decimal" value="'+esc(adminNum(x.width,16))+'"></div>'+
+ '<div class="vpeField wide"><label>DESCRIÇÃO CURTA</label><textarea id="vpeDesc">'+esc(x.desc||'')+'</textarea></div>'+
+ '<div class="vpeField wide"><label>DESCRIÇÃO COMPLETA</label><textarea id="vpeLong">'+esc(x.longDescription||'')+'</textarea></div>'+
+ '<div class="vpeField"><label>NOTAS DE TOPO</label><textarea id="vpeTop">'+esc(x.notesTop||'')+'</textarea></div>'+
+ '<div class="vpeField"><label>NOTAS DE CORPO</label><textarea id="vpeHeart">'+esc(x.notesHeart||'')+'</textarea></div>'+
+ '<div class="vpeField wide"><label>NOTAS DE FUNDO</label><textarea id="vpeBase">'+esc(x.notesBase||'')+'</textarea></div>'+
+ '<div class="vpeField"><label>TÍTULO SEO</label><input id="vpeSeoTitle" value="'+esc(x.seoTitle||'')+'" placeholder="Opcional"></div>'+
+ '<div class="vpeField"><label>DESCRIÇÃO SEO</label><input id="vpeSeoDescription" value="'+esc(x.seoDescription||'')+'" placeholder="Opcional"></div>'+
+ '<div class="vpeImageBox"><img id="vpePreview" src="'+esc(currentImg)+'" alt="Prévia" onerror="this.removeAttribute(\'src\')"><div><div class="vpeField"><label>FOTO DO PRODUTO</label><input id="vpeFile" type="file" accept="image/jpeg,image/png,image/webp"></div><div class="vpeField"><label>OU URL HTTPS DA FOTO</label><input id="vpeImg" value="'+esc(currentImg)+'" placeholder="https://..."></div><p style="font-size:9px;color:#777;line-height:1.5">Fotos enviadas pelo celular são reduzidas automaticamente antes de salvar.</p></div></div>'+
+ '<div class="vpeChecks"><label><input id="vpePublished" type="checkbox" '+(x.published!==false?'checked':'')+'> Publicado</label><label><input id="vpeActive" type="checkbox" '+(x.active!==false?'checked':'')+'> Ativo</label><label><input id="vpeOffer" type="checkbox" '+(x.offer!==false?'checked':'')+'> Vendável</label><label><input id="vpeFeatured" type="checkbox" '+(x.featured===true?'checked':'')+'> Destaque na Home</label></div>'+
+ '<div class="vpeHelp"><b>SEGURANÇA:</b> preço, estoque e dados de frete continuam validados pelo servidor. Alterações entram no histórico administrativo. Produto novo só entra na loja depois de estar publicado e ativo.</div>'+
+ '</div></div><div class="vpeActions"><button type="button" id="vpeSave">SALVAR PRODUTO</button>'+(!isNew&&!duplicate?'<button type="button" class="secondary" id="vpeDuplicate">DUPLICAR</button>':'')+'<button type="button" class="secondary" id="vpeCancel">CANCELAR</button><div class="vpeMsg" id="vpeMsg"></div></div></div>';
+ document.body.appendChild(ov);document.body.style.overflow='hidden';
+ const close=()=>{ov.remove();document.body.style.overflow=''};ov.querySelector('.vpeClose').onclick=close;ov.querySelector('#vpeCancel').onclick=close;
+ const catEl=ov.querySelector('#vpeCat'),colEl=ov.querySelector('#vpeCollection');catEl.value=['feminino','masculino','unissex'].includes(String(x.cat))?String(x.cat):'unissex';if([...colEl.options].some(o=>o.value===String(x.collection)))colEl.value=String(x.collection);
+ const imgInput=ov.querySelector('#vpeImg'),preview=ov.querySelector('#vpePreview'),fileInput=ov.querySelector('#vpeFile');imgInput.oninput=()=>{preview.src=imgInput.value.trim()};
+ fileInput.onchange=()=>{const f=fileInput.files?.[0];if(f)preview.src=URL.createObjectURL(f)};
+ const payload=()=>({productId:ov.querySelector('#vpeId').value.trim(),isNew:isNew||duplicate,name:ov.querySelector('#vpeName').value.trim(),brand:ov.querySelector('#vpeBrand').value.trim(),type:ov.querySelector('#vpeType').value.trim(),cat:catEl.value,collection:colEl.value,gtin:ov.querySelector('#vpeGtin').value.trim(),sortOrder:ov.querySelector('#vpeSort').value.trim(),price:ov.querySelector('#vpePrice').value.replace(',','.'),unitCost:ov.querySelector('#vpeCost').value.trim().replace(',','.'),stock:Number(ov.querySelector('#vpeStock').value),weight:ov.querySelector('#vpeWeight').value.replace(',','.'),length:ov.querySelector('#vpeLength').value.replace(',','.'),height:ov.querySelector('#vpeHeight').value.replace(',','.'),width:ov.querySelector('#vpeWidth').value.replace(',','.'),desc:ov.querySelector('#vpeDesc').value.trim(),longDescription:ov.querySelector('#vpeLong').value.trim(),notesTop:ov.querySelector('#vpeTop').value.trim(),notesHeart:ov.querySelector('#vpeHeart').value.trim(),notesBase:ov.querySelector('#vpeBase').value.trim(),seoTitle:ov.querySelector('#vpeSeoTitle').value.trim(),seoDescription:ov.querySelector('#vpeSeoDescription').value.trim(),img:imgInput.value.trim(),published:ov.querySelector('#vpePublished').checked,active:ov.querySelector('#vpeActive').checked,offer:ov.querySelector('#vpeOffer').checked,featured:ov.querySelector('#vpeFeatured').checked});
+ const saveRequest=async data=>{const r=await fetch('/api/admin/products/save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível salvar o produto.');return j};
+ ov.querySelector('#vpeSave').onclick=async()=>{const btn=ov.querySelector('#vpeSave'),msg=ov.querySelector('#vpeMsg'),wanted=payload(),file=fileInput.files?.[0];btn.disabled=true;msg.textContent='Validando produto...';try{
+   if((wanted.isNew)&&wanted.published&&!wanted.img&&!file)throw Error('Adicione uma foto antes de publicar o produto.');
+   let saved,working={...wanted};
+   if(wanted.isNew&&file&&!wanted.img){working={...working,published:false,active:false};saved=await saveRequest(working);working.productId=saved.product.id;working.isNew=false}
+   if(file){msg.textContent='Otimizando e enviando a foto...';const dataUrl=await adminCompressProductImage(file),imageRes=await fetch('/api/admin/products/image',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:working.productId||wanted.productId,dataUrl})}),imageData=await imageRes.json().catch(()=>({}));if(!imageRes.ok||!imageData.ok)throw Error(imageData.error||'Não foi possível salvar a foto.');working.img=imageData.imageUrl}
+   msg.textContent='Salvando e sincronizando a loja...';saved=await saveRequest({...working,published:wanted.published,active:wanted.active,isNew:working.isNew===true});if(typeof window.refreshProductPromotions==='function')await window.refreshProductPromotions({redraw:true});await loadDashboard();adminView='products';renderAdminBody();close();if(typeof window.valenzaNotice==='function')window.valenzaNotice(saved.message||'Produto salvo com sucesso.')
+  }catch(e){btn.disabled=false;msg.textContent=adminErrorMessage(e,'Não foi possível salvar o produto agora.')}
+ };
+ const dup=ov.querySelector('#vpeDuplicate');if(dup)dup.onclick=()=>{close();openFullProductEditor(id,{isNew:true,duplicate:true}).catch(e=>window.valenzaNotice?.(adminErrorMessage(e)))}
 }
 function renderAdminBody(){
  const d=adminData||{},m=d.metrics||{},body=document.getElementById('vaBody');document.querySelectorAll('.vaTools button').forEach(b=>b.classList.toggle('active',b.dataset.v===adminView));
@@ -452,12 +545,13 @@ function renderAdminBody(){
    if(!arr.length)return '<div class="vaEmpty">Nenhum produto encontrado.</div>';
    return '<div style="overflow:auto"><table class="vaTable"><thead><tr><th>PRODUTO</th><th>PREÇO</th><th>CUSTO</th><th>MARGEM BASE</th><th>ESTOQUE</th><th>VENDIDOS</th><th>STATUS</th><th>AÇÃO</th></tr></thead><tbody>'+arr.map(x=>{
     const st=!x.active?'<span class="vaChip bad">REMOVIDO</span>':x.stock<=0?'<span class="vaChip bad">ESGOTADO</span>':x.stock<=criticalThreshold?'<span class="vaChip warn">CRÍTICO</span>':x.stock<=reorderThreshold?'<span class="vaChip warn">REPOR</span>':'<span class="vaChip ok">DISPONÍVEL</span>';
-    const actions=x.active?'<button class="vaDeleteOne vaProductEdit" data-id="'+esc(x.id)+'">CONFIGURAR</button> <button class="vaDeleteOne vaProductRemove" data-id="'+esc(x.id)+'" style="margin-top:5px;background:#8b403a;color:#fff;border-color:#8b403a">EXCLUIR PRODUTO</button>':'<button class="vaDeleteOne vaProductRestore" data-id="'+esc(x.id)+'">RESTAURAR</button>';
+    const actions=x.active?'<button class="vaDeleteOne vaProductEdit" data-id="'+esc(x.id)+'">PREÇO / ESTOQUE</button> <button class="vaDeleteOne vaProductFull" data-id="'+esc(x.id)+'" style="margin-top:5px">EDITAR COMPLETO</button> <button class="vaDeleteOne vaProductDuplicate" data-id="'+esc(x.id)+'" style="margin-top:5px">DUPLICAR</button> <button class="vaDeleteOne vaProductRemove" data-id="'+esc(x.id)+'" style="margin-top:5px;background:#8b403a;color:#fff;border-color:#8b403a">EXCLUIR PRODUTO</button>':'<button class="vaDeleteOne vaProductRestore" data-id="'+esc(x.id)+'">RESTAURAR</button> <button class="vaDeleteOne vaProductFull" data-id="'+esc(x.id)+'" style="margin-top:5px">EDITAR COMPLETO</button> <button class="vaDeleteOne vaProductDuplicate" data-id="'+esc(x.id)+'" style="margin-top:5px">DUPLICAR</button>';
     return '<tr><td><b>'+esc(x.name||x.id)+'</b><br><small>'+esc(x.brand||'—')+' · '+esc(x.type||'Perfume')+'</small></td><td><b>'+money(x.price)+'</b><br><small>PIX '+money(x.pix)+'</small></td><td>'+(x.cost===null?'—':'<b>'+money(x.cost)+'</b>')+'</td><td>'+(x.margin===null?'—':x.margin.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%')+'</td><td><b>'+x.stock+' un.</b></td><td>'+x.sold+' un.</td><td>'+st+'</td><td>'+actions+'</td></tr>';
    }).join('')+'</tbody></table></div>';
   };
   const options=activeRows.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'pt-BR')).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' · '+money(x.price)+'</option>').join('');
   body.innerHTML='<div class="vaPanel" style="margin-bottom:12px"><h3>Produtos & estoque</h3><p style="font-size:9px;color:#777;line-height:1.6;margin:0">Preço, estoque e custo ficam salvos no banco D1. Você também pode excluir um perfume da loja por aqui. A exclusão retira o item da vitrine, busca, carrinho, checkout, PIX, cartão, Google Merchant, sitemap e página pública, mas preserva pedidos e histórico financeiro antigos para não quebrar vendas já realizadas.</p></div><div class="vaMetrics"><div class="vaMetric"><span>ATIVOS</span><b>'+activeRows.length+'</b><small>Na loja</small></div><div class="vaMetric"><span>REMOVIDOS</span><b>'+(rows.length-activeRows.length)+'</b><small>Fora da loja</small></div><div class="vaMetric"><span>DISPONÍVEIS</span><b>'+available+'</b><small>Com estoque</small></div><div class="vaMetric"><span>REPOR</span><b>'+reorder+'</b><small>3–'+reorderThreshold+' unidades</small></div><div class="vaMetric"><span>CRÍTICO</span><b>'+critical+'</b><small>1–'+criticalThreshold+' unidades</small></div><div class="vaMetric"><span>ESGOTADOS</span><b>'+out+'</b><small>Sem estoque</small></div><div class="vaMetric"><span>CUSTO CADASTRADO</span><b>'+withCost+'/'+rows.length+'</b><small>Para calcular margem</small></div></div><div class="vaPanel" style="margin-bottom:12px;border:1px solid #cdbca8"><h3>Editar produto</h3><div class="vaGrid"><div><div class="vaField"><label>PRODUTO</label><select id="vaEditProduct" style="width:100%;padding:12px;border:1px solid #d8d1ca;background:#fff">'+options+'</select></div><div class="vaField"><label>PREÇO DE VENDA</label><input id="vaEditPrice" inputmode="decimal"></div><div class="vaField"><label>ESTOQUE</label><input id="vaEditStock" inputmode="numeric"></div><div class="vaField"><label>CUSTO UNITÁRIO TOTAL</label><input id="vaEditCost" inputmode="decimal" placeholder="Ex.: 185,50"><small style="display:block;margin-top:4px;color:#8a8178;font-size:8px">Use seu custo real por unidade. Pode incluir compra, atravessador e frete de aquisição.</small></div><button class="ccBtn" id="vaEditSave">SALVAR ALTERAÇÕES</button><div id="vaEditMsg" style="font-size:9px;color:#777;margin-top:8px"></div></div><div><div style="padding:16px;border:1px solid #e2d8ce;background:#fbfaf8"><div class="eyebrow">PRÉVIA</div><div id="vaEditPreview" style="margin-top:9px;font-size:11px;line-height:1.8"></div></div><div style="padding:13px;margin-top:10px;border-left:3px solid #171513;background:#f5f1eb;font-size:9px;line-height:1.65;color:#6c625a"><b>SEGURANÇA</b><br>O preço usado no PIX, cartão, frete e pedidos vem do servidor. O estoque é conferido novamente na hora do pagamento. Alterações ficam registradas no histórico administrativo.</div></div></div></div><div class="vaPanel"><h3>Localizar produtos</h3><p style="font-size:9px;color:#777;line-height:1.6;margin:-4px 0 10px">Digite parte do nome. Ex.: <b>Asad</b> mostra todos os perfumes da linha Asad.</p><input class="vaSearch" id="vaProductSearch" placeholder="Buscar por nome, linha, marca ou código..."><div id="vaProductSearchCount" style="font-size:9px;color:#777;margin:-4px 0 10px">Todos os produtos</div><div id="vaProductRows">'+render(rows)+'</div></div>';
+  const newProductBtn=document.createElement('button');newProductBtn.className='ccBtn';newProductBtn.id='vaNewProduct';newProductBtn.textContent='NOVO PRODUTO';newProductBtn.style.marginTop='12px';newProductBtn.onclick=()=>openFullProductEditor('',{isNew:true}).catch(e=>window.valenzaNotice?.(adminErrorMessage(e)));body.querySelector('.vaPanel')?.appendChild(newProductBtn);
   const parseMoney=v=>{let s=String(v||'').trim().replace(/\s/g,'').replace(/^R\$/i,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=Number(s);return Number.isFinite(n)?n:NaN},sel=document.getElementById('vaEditProduct'),priceEl=document.getElementById('vaEditPrice'),stockEl=document.getElementById('vaEditStock'),costEl=document.getElementById('vaEditCost'),preview=document.getElementById('vaEditPreview'),msg=document.getElementById('vaEditMsg');
   const current=()=>rows.find(x=>String(x.id)===String(sel?.value||''));
   const drawPreview=()=>{const x=current(),price=parseMoney(priceEl?.value),cost=String(costEl?.value||'').trim()===''?null:parseMoney(costEl.value),stock=Number(stockEl?.value);if(!x)return;const pix=Number.isFinite(price)?Math.floor((Math.round(price*100)*95+50)/100)/100:0,margin=Number.isFinite(price)&&price>0&&cost!==null&&Number.isFinite(cost)?((price-cost)/price*100):null;preview.innerHTML='<b>'+esc(x.name)+'</b><br>Venda: <b>'+(Number.isFinite(price)?money(price):'—')+'</b><br>PIX 5%: <b>'+(Number.isFinite(price)?money(pix):'—')+'</b><br>Estoque: <b>'+(Number.isInteger(stock)?stock:'—')+' un.</b><br>Custo: <b>'+(cost===null?'não informado':(Number.isFinite(cost)?money(cost):'inválido'))+'</b><br>Margem base: <b>'+(margin===null?'—':margin.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%')+'</b>'};
@@ -482,6 +576,8 @@ function renderAdminBody(){
   };
   const bindProductButtons=box=>{
    box.querySelectorAll('.vaProductEdit').forEach(b=>b.onclick=()=>fill(b.dataset.id));
+   box.querySelectorAll('.vaProductFull').forEach(b=>b.onclick=()=>openFullProductEditor(b.dataset.id).catch(e=>window.valenzaNotice?.(adminErrorMessage(e))));
+   box.querySelectorAll('.vaProductDuplicate').forEach(b=>b.onclick=()=>openFullProductEditor(b.dataset.id,{isNew:true,duplicate:true}).catch(e=>window.valenzaNotice?.(adminErrorMessage(e))));
    box.querySelectorAll('.vaProductRemove').forEach(b=>b.onclick=()=>openAvailabilityConfirm(b.dataset.id,false));
    box.querySelectorAll('.vaProductRestore').forEach(b=>b.onclick=()=>openAvailabilityConfirm(b.dataset.id,true));
   };
@@ -623,3 +719,5 @@ window.valenzaAdminRender=async()=>{
  await loadDashboard();
 };
 })();
+
+[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

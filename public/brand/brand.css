@@ -1,3 +1,5 @@
+[Reading 187 lines from start (total: 187 lines, 0 remaining)]
+
 /* VALENZA — slots de marca responsivos e independentes do CSS legado */
 .valenza-brand{
   display:inline-flex!important;
@@ -168,3 +170,22 @@
  .header>.valenza-brand{flex-basis:80px!important;width:80px!important;min-width:80px!important}
  .header>.valenza-brand img{width:78px!important;max-width:78px!important;max-height:38px!important}
 }
+/* FIX 2026-10-05 — MINHA CONTA VISÍVEL NO HEADER ESCURO */
+.header .account,
+.header .account .hs-main,
+.header .account .hs-sub{
+  color:#fff!important;
+  background:transparent!important;
+  text-decoration:none!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+.header .account .hs-sub{color:#b8b0a7!important}
+.header .account:focus,.header .account:active,.header .account:hover{
+  color:#fff!important;
+  background:transparent!important;
+  text-decoration:none!important;
+  outline:none!important;
+}
+
+[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

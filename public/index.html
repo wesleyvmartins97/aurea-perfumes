@@ -1,3 +1,5 @@
+[Reading 1000 lines from start (total: 1093 lines, 93 remaining)]
+
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VALENZA PARFUMS | Perfumes Árabes e Fragrâncias Selecionadas</title><meta name="description" content="Descubra a VALENZA PARFUMS: perfumes árabes e fragrâncias selecionadas para quem busca presença, elegância e personalidade."><link rel="canonical" href="https://www.valenzaparfums.com.br/"><meta name="robots" content="index,follow,max-image-preview:large"><link rel="icon" type="image/png" sizes="96x96" href="/favicon.png?v=20261003"><meta property="og:type" content="website"><meta property="og:locale" content="pt_BR"><meta property="og:site_name" content="VALENZA PARFUMS"><meta property="og:title" content="VALENZA PARFUMS | Perfumes Árabes e Fragrâncias Selecionadas"><meta property="og:description" content="Perfumes árabes e fragrâncias selecionadas para quem busca presença, elegância e personalidade."><meta property="og:url" content="https://www.valenzaparfums.com.br/"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="VALENZA PARFUMS | Perfumes Árabes e Fragrâncias Selecionadas"><meta name="twitter:description" content="Perfumes árabes e fragrâncias selecionadas para quem busca presença, elegância e personalidade."><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.valenzaparfums.com.br/#website","url":"https://www.valenzaparfums.com.br/","name":"VALENZA PARFUMS","alternateName":"VALENZA","inLanguage":"pt-BR"},{"@type":"OnlineStore","@id":"https://www.valenzaparfums.com.br/#store","name":"VALENZA PARFUMS","url":"https://www.valenzaparfums.com.br/","logo":"https://www.valenzaparfums.com.br/favicon.png","description":"Perfumaria online de perfumes árabes e fragrâncias selecionadas.","email":"contato@valenzaparfums.com.br","telephone":"+55 27 99796-2708","areaServed":"BR","currenciesAccepted":"BRL","paymentAccepted":["Pix","Cartão de crédito"],"taxID":"140.992.757-10","address":{"@type":"PostalAddress","streetAddress":"Av. Silvio Avidos, 1077","addressLocality":"Colatina","addressRegion":"ES","postalCode":"29703-131","addressCountry":"BR"},"hasMerchantReturnPolicy":{"@type":"MerchantReturnPolicy","merchantReturnLink":"https://www.valenzaparfums.com.br/politica-de-devolucao/"}}]}</script><meta name="theme-color" content="#171513"><style id="valenza-styles">
 /* ===== VALENZA CSS 01 ===== */
 :root{--ink:#171513;--muted:#756e68;--line:#e7e1da;--paper:#fbfaf8;--card:#fff;--gold:#8a735f;--green:#4f7257}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:Arial,Helvetica,sans-serif}.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}button,input{font:inherit}button{cursor:pointer}a{color:inherit}.header{height:76px;position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:0 6%;background:#fbfaf8f5;border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.logo,.serif{font-family:Georgia,serif}.logo{font-size:26px;letter-spacing:6px}
@@ -500,6 +502,8 @@ async function refreshProductPromotions({redraw=false}={}){
   ]),runtime=await runtimeRes.json().catch(()=>({})),promo=await promoRes.json().catch(()=>({}));
   if(!runtimeRes.ok||!runtime.ok)throw Error(runtime.error||'Não foi possível atualizar preços e estoque.');
   if(!promoRes.ok||!promo.ok)throw Error(promo.error||'Não foi possível atualizar as ofertas.');
+  const dynamicCatalog=Array.isArray(runtime.catalog)?runtime.catalog:[];
+  for(const raw of dynamicCatalog){const id=String(raw?.id||'').trim();if(!id)continue;let p=CATALOG.find(x=>String(x.id)===id);const patch={...raw};delete patch.custom;delete patch.published;delete patch.updatedAt;delete patch.seoTitle;delete patch.seoDescription;if(p){Object.assign(p,patch);if(Number.isFinite(Number(raw.price))&&Number(raw.price)>0)p.sourcePrice=Number(raw.price)}else{const initial=Number(raw.price||0);p={id,name:String(raw.name||id),brand:String(raw.brand||''),cat:String(raw.cat||'unissex'),collection:String(raw.collection||'arabes'),type:String(raw.type||'Perfume'),gtin:String(raw.gtin||''),price:initial,desc:String(raw.desc||''),details:String(raw.details||''),weight:Number(raw.weight||.6),length:Number(raw.length||20),height:Number(raw.height||12),width:Number(raw.width||16),img:String(raw.img||''),offer:raw.offer!==false,active:true,stock:null};p.sourcePrice=initial;p.basePrice=initial;p.regularPrice=initial;p.pix=pixUnitPrice(initial);p.promoActive=false;CATALOG.push(p)}}
   const runtimeMap=new Map((Array.isArray(runtime.products)?runtime.products:[]).map(x=>[String(x.id),x])),offers=new Map((Array.isArray(promo.promotions)?promo.promotions:[]).map(x=>[String(x.productId),x]));
   for(const p of CATALOG){
    const rt=runtimeMap.get(String(p.id)),regular=Number(rt?.price),fallback=Number(p.sourcePrice||p.basePrice||p.regularPrice||p.price||0);
@@ -996,96 +1000,5 @@ function renderClientProfile(){
 }
 async function saveClientProfile(){
  const el=id=>document.getElementById(id),msg=el('cpMsg');msg.textContent='Salvando...';
- try{const r=await fetch('/api/account/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:el('cpName').value,phone:el('cpPhone').value,cpf:el('cpCpf').value,birthDate:el('cpBirth').value})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível salvar seus dados agora.');msg.textContent=d.message||'Dados salvos.';await fetchClientData();accountUser={...accountUser,name:clientData.user.name};renderAccount()}
- catch(e){msg.textContent=clientErrorMessage(e,'Não foi possível salvar seus dados agora. Tente novamente.')}
-}
-function toggleClientPasswordVisibility(){
- const ids=['cpCurrentPassword','cpNewPassword','cpConfirmPassword'],fields=ids.map(id=>document.getElementById(id)).filter(Boolean),show=fields.some(el=>el.type==='password');
- fields.forEach(el=>el.type=show?'text':'password');
- const btn=document.getElementById('cpPasswordToggle');if(btn)btn.textContent=show?'OCULTAR SENHAS':'MOSTRAR SENHAS';
-}
-async function saveClientPassword(){
- const current=document.getElementById('cpCurrentPassword'),next=document.getElementById('cpNewPassword'),confirmNew=document.getElementById('cpConfirmPassword'),msg=document.getElementById('cpPasswordMsg'),btn=document.getElementById('cpPasswordSave');
- if(!current||!next||!confirmNew||!msg||!btn)return;
- msg.style.color='#666';
- if(!current.value){msg.textContent='Informe sua senha atual.';return}
- if(next.value.length<8){msg.textContent='A nova senha precisa ter pelo menos 8 caracteres.';return}
- if(next.value!==confirmNew.value){msg.textContent='A confirmação da nova senha não confere.';return}
- btn.disabled=true;btn.textContent='ALTERANDO...';msg.textContent='Validando sua senha atual...';
- try{
-  const r=await fetch('/api/account/password',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({currentPassword:current.value,newPassword:next.value})}),d=await r.json().catch(()=>({}));
-  if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível alterar sua senha agora.');
-  current.value='';next.value='';confirmNew.value='';[current,next,confirmNew].forEach(el=>el.type='password');
-  const toggle=document.getElementById('cpPasswordToggle');if(toggle)toggle.textContent='MOSTRAR SENHAS';
-  msg.style.color='#3e6b4a';msg.textContent=d.message||'Senha alterada com sucesso.';
- }catch(e){msg.style.color='#8b403a';msg.textContent=clientErrorMessage(e,'Não foi possível alterar sua senha agora. Tente novamente.')}
- finally{btn.disabled=false;btn.textContent='ALTERAR SENHA'}
-}
-initClientCenter();
 
-function openProductFromUrl(){
- const id=new URLSearchParams(location.search).get('produto');
- if(!id||!CATALOG.some(x=>x.id===id&&x.active!==false))return;
- detail(id);
-}
-
-async function bootAurea(){
- // Primeira pintura nunca depende da API: catálogo e vitrine aparecem imediatamente.
- try{render()}catch(e){console.error('AUREA render',e)}
- try{openProductFromUrl()}catch(e){console.error('VALENZA produto URL',e)}
- try{enableOutsideModalClose()}catch(e){console.error('AUREA modal',e)}
- try{updateCart()}catch(e){console.error('AUREA carrinho',e)}
- try{initSlider()}catch(e){console.error('AUREA slider',e)}
- try{initBannerProductLinks()}catch(e){console.error('AUREA banners',e)}
- try{initAccount()}catch(e){console.error('AUREA conta',e)}
- try{startProductPromotionRefresh()}catch(e){console.error('VALENZA atualização de ofertas',e)}
- try{if(cart.length)queueOpportunitySync('cart',{},1800)}catch(e){}
-
- // Preço/estoque/ofertas continuam sendo sincronizados, mas sem bloquear a tela.
- requestAnimationFrame(()=>setTimeout(()=>{
-  refreshProductPromotions({redraw:true}).then(ok=>{
-   if(ok)try{syncBannerAvailability()}catch(e){console.error('VALENZA banners',e)}
-  }).catch(e=>console.error('VALENZA ofertas',e))
- },0))
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAurea,{once:true});else bootAurea();
-</script>
-<script>
-(async()=>{
- const el=document.getElementById('valenzaPromoBar');if(!el)return;
- try{
-  const r=await fetch('/api/promotions/active?t='+Date.now(),{cache:'no-store'}),d=await r.json().catch(()=>({})),p=d&&d.promotion;
-  if(r.ok&&d.ok&&p){
-   el.textContent=[String(p.title||'').trim(),String(p.message||'').trim()].filter(Boolean).join(' · ');
-   if(el.textContent){el.style.display='block'}
-  }
- }catch{}
-})();
-</script>
-<script src="/admin-account.js?v=20261003-refresh3"></script>
-<script src="/google-commerce.js"></script>
-
-<a class="aurea-wa" href="https://wa.me/5527997962708?text=Ol%C3%A1!%20%E2%9C%A8%20Conheci%20a%20VALENZA%20PARFUMS%20pelo%20site%20e%20gostaria%20de%20conhecer%20melhor%20as%20fragr%C3%A2ncias%20e%20encontrar%20uma%20op%C3%A7%C3%A3o%20especial%20para%20mim.%20%F0%9F%8C%B9" target="_blank" rel="noopener noreferrer" aria-label="Falar com a VALENZA PARFUMS pelo WhatsApp">
- <span class="aurea-wa-text"><strong>Atendimento VALENZA</strong><span>Curadoria em fragrâncias</span></span>
- <span class="aurea-wa-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16.04 3C9.43 3 4.05 8.37 4.05 14.98c0 2.11.55 4.17 1.6 5.98L3.95 27l6.19-1.62a11.94 11.94 0 0 0 5.89 1.5h.01c6.61 0 11.99-5.38 11.99-11.99C28.03 8.37 22.65 3 16.04 3zm0 21.86h-.01a9.9 9.9 0 0 1-5.05-1.38l-.36-.21-3.67.96.98-3.58-.23-.37a9.91 9.91 0 1 1 8.34 4.58zm5.43-7.42c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47a8.92 8.92 0 0 1-1.65-2.05c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.19 1.87.12.57-.08 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/></svg></span>
-</a>
-<script>
-(()=>{const w=document.querySelector('.aurea-wa');if(!w)return;let t;w.addEventListener('touchstart',e=>{if(!w.classList.contains('is-touched')){e.preventDefault();w.classList.add('is-touched');clearTimeout(t);t=setTimeout(()=>w.classList.remove('is-touched'),1800)}},{passive:false})})();
-</script>
-<script id="valenza-tab-title">
-(()=>{
- const normalTitle=document.title||'VALENZA PARFUMS | Perfumes Importados';
- const awayTitles=['VOLTE PARA A VALENZA','Sua fragrância espera.'];
- let timer=null,index=0;
- function stop(){if(timer){clearInterval(timer);timer=null}}
- function restore(){stop();index=0;document.title=normalTitle}
- function start(){
-  stop();index=0;document.title=awayTitles[0];
-  timer=setInterval(()=>{index=(index+1)%awayTitles.length;document.title=awayTitles[index]},2200);
- }
- document.addEventListener('visibilitychange',()=>document.hidden?start():restore());
- window.addEventListener('focus',restore);
- window.addEventListener('blur',()=>{if(document.hidden)start()});
-})();
-</script>
-</body></html>
+[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

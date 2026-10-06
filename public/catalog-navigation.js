@@ -1,3 +1,5 @@
+[Reading 34 lines from start (total: 34 lines, 0 remaining)]
+
 /* Navegação independente de preço, estoque e checkout.
    Produtos futuros podem informar department (cremes, body-splash, corpo-banho)
    e departmentLabel. A marca continua em brand; não é um gênero ou departamento. */
@@ -22,6 +24,7 @@ const VALENZA_NAV = (() => {
  const sort = (products, mode='default') => {
   const result=[...products];
   if(mode==='name')return result.sort(byName);
+  if(mode==='default'){const order=p=>Number.isFinite(Number(p.sortOrder))?Number(p.sortOrder):99999;return result.sort((a,b)=>order(a)-order(b))}
   if(mode!=='priceAsc'&&mode!=='priceDesc')return result;
   return result.sort((a,b)=>{
    const pa=price(a),pb=price(b);
@@ -31,3 +34,5 @@ const VALENZA_NAV = (() => {
  };
  return {department,line,gender,matches,departments,filter,sort};
 })();
+
+[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

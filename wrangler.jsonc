@@ -1,3 +1,5 @@
+[Reading 49 lines from start (total: 49 lines, 0 remaining)]
+
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "aurea-perfumes",
@@ -15,6 +17,7 @@
       "/catalogo",
       "/catalogo/*",
       "/api/*",
+      "/media/products/*",
       "/oauth/*",
       "/admin",
       "/admin/*",
@@ -46,3 +49,5 @@
     "DAILY_REPORT_HOUR": "20"
   }
 }
+
+[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]
