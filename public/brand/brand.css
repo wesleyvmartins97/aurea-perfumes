@@ -186,3 +186,28 @@
   text-decoration:none!important;
   outline:none!important;
 }
+
+
+/* FINAL 2026-10-06 — CABEÇALHO MOBILE SEM CORTE */
+@media(max-width:430px){
+  .header{padding:0 10px!important;gap:4px!important}
+  .header>.valenza-brand{flex:0 0 76px!important;width:76px!important;min-width:76px!important;height:44px!important;min-height:44px!important}
+  .header>.valenza-brand img{width:74px!important;max-width:74px!important;max-height:40px!important}
+  .header .nav{display:none!important}
+  .header .actions{flex:1 1 auto!important;min-width:0!important;max-width:calc(100% - 80px)!important;gap:4px!important;justify-content:flex-end!important;overflow:visible!important}
+  .header .header-search{flex:0 0 34px!important;width:34px!important}
+  .header .header-search-box{width:34px!important;height:34px!important;padding:0 8px!important}
+  .header .header-search-box svg{width:16px!important;height:16px!important;margin-right:0!important}
+  .header .account,.header .cart{display:inline-flex!important;flex:0 1 auto!important;min-width:0!important;min-height:34px!important;padding:8px 6px!important}
+  .header .header-status .hs-main{font-size:7px!important;letter-spacing:.15px!important}
+}
+@media(max-width:360px){
+  .header{padding:0 8px!important;gap:3px!important}
+  .header>.valenza-brand{flex-basis:68px!important;width:68px!important;min-width:68px!important}
+  .header>.valenza-brand img{width:66px!important;max-width:66px!important}
+  .header .actions{max-width:calc(100% - 71px)!important;gap:2px!important}
+  .header .header-search{flex-basis:32px!important;width:32px!important}
+  .header .header-search-box{width:32px!important;height:32px!important;padding:0 7px!important}
+  .header .account,.header .cart{padding:7px 5px!important}
+  .header .header-status .hs-main{font-size:6.7px!important;letter-spacing:0!important}
+}

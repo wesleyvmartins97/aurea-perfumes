@@ -23,3 +23,5 @@ jobs:
           node scripts/test-catalog-pagination.mjs
       - name: Conferir ciclo dos destaques
         run: node scripts/test-featured-selection.mjs
+      - name: Conferir cabeçalho em celular estreito
+        run: node scripts/test-mobile-header-fit.mjs
