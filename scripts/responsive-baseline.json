@@ -1,10 +1,10 @@
 {
-    "approvedCommit": "3a8e7112c037af99beb77d26d5f75ce614f3e35b",
+    "approvedCommit": "0c7ce7ab29fd25443442381ca39b91bdb29c283e",
     "files": {
         "public/commerce-info.css": "cb47070295576e0945ad8ac7552abc70b33548f638b980735365913a9a870bf4",
         "public/catalog-navigation.css": "a954df967dc991551b8abcfa6aa3ff6cc24ac53ff7a0bab77627f0469f2d0800",
         "public/featured-selection.css": "8a664515010853f2f389599437c90a0e08adcca0e862f3478b93ed0e5871f337",
-        "public/brand/brand.css": "8a3d0aaff86d3c78e152a2cd97f632376b32d51b2ea238a9afff4177d05581cf",
+        "public/brand/brand.css": "ea50da80b38ece0be9363202c444d57e0e11957471a9e8c181b58c4e857be924",
         "public/catalog-pagination.css": "d56eae4d0f838daaf683cc264ee0542ca142d6c33c3ad8ffc2ce760b4ade1fd5",
         "public/catalog-pagination.js": "fa265f23f760ecb345227784ea1f54983d3004953412cc1a95eac24e3284bd00"
     },
