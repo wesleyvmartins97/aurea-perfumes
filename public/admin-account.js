@@ -1,5 +1,3 @@
-[Reading 720 lines from start (total: 720 lines, 0 remaining)]
-
 (()=>{'use strict';
 let adminStatusState=null,adminData=null,adminView='overview',adminPromoEditId='',adminProductPromoEditId='',adminSalePollTimer=null,adminSaleTitleTimer=null,adminSalePollBusy=false,adminSaleWatcherPrimed=false,adminSaleSoundCtx=null;
 const ADMIN_SALE_POLL_MS=30000,ADMIN_SALE_SEEN_KEY='valenza_admin_seen_sales_v1',ADMIN_SALE_ALERTS_KEY='valenza_admin_sale_alerts_v1';
@@ -720,5 +718,3 @@ window.valenzaAdminRender=async()=>{
  await loadDashboard();
 };
 })();
-
-[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

@@ -1,5 +1,3 @@
-[Reading 35 lines from start (total: 35 lines, 0 remaining)]
-
 /* Curadoria editorial. A ordem não representa um ranking nacional de vendas. */
 (()=>{
  'use strict';
@@ -35,5 +33,3 @@
  document.addEventListener('DOMContentLoaded',()=>{document.getElementById('featuredTrack')?.addEventListener('scroll',controls,{passive:true});controls()},{once:true});
  window.addEventListener('resize',controls);
 })();
-
-[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

@@ -1,5 +1,3 @@
-[Reading 34 lines from start (total: 34 lines, 0 remaining)]
-
 /* Navegação independente de preço, estoque e checkout.
    Produtos futuros podem informar department (cremes, body-splash, corpo-banho)
    e departmentLabel. A marca continua em brand; não é um gênero ou departamento. */
@@ -34,5 +32,3 @@ const VALENZA_NAV = (() => {
  };
  return {department,line,gender,matches,departments,filter,sort};
 })();
-
-[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]
