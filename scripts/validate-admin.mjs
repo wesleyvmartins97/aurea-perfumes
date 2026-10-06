@@ -1,5 +1,3 @@
-[Reading 277 lines from start (total: 277 lines, 0 remaining)]
-
 import fs from 'node:fs';
 import vm from 'node:vm';
 const fail=[];
@@ -277,5 +275,3 @@ if(!home.includes('function syncBannerAvailability')||!home.includes('slide.remo
 try{new Function(admin)}catch(e){fail.push('JavaScript admin inválido: '+e.message)}
 if(fail.length){console.error('\nADMIN REPROVADO — '+fail.length+' erro(s):\n- '+fail.join('\n- ')+'\n');process.exit(1)}
 console.log('ADMIN APROVADO — deny-by-default para pagamentos, action_required protegido, lock anti-corrida do EnvioEcom e exclusões de teste arquivadas.');
-
-[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

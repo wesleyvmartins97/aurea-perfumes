@@ -1,5 +1,3 @@
-[Reading 69 lines from start (total: 69 lines, 0 remaining)]
-
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
@@ -69,5 +67,3 @@ for(const path of ['/catalogo','/catalogo/','/']){
  assert.equal((await response.text()).includes('class="catalog-page"'),path!=='/');
 }
 console.log('Asset routing passed: dedicated catalogue, unchanged homepage, cache/security headers and no database access.');
-
-[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

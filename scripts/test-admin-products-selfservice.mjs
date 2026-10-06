@@ -1,5 +1,3 @@
-[Reading 59 lines from start (total: 59 lines, 0 remaining)]
-
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -59,5 +57,3 @@ const args=bindText.slice(bindText.indexOf('(')+1).split(',').length;
 assert.equal(args,29,'Quantidade de valores do bind do produto deve ser 29');
 
 console.log('ETAPA 1 APROVADA ESTATICAMENTE — criação, edição completa, duplicação, imagem, SEO, destaque, ordenação, catálogo seguro, Merchant e sitemap estão conectados.');
-
-[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]
