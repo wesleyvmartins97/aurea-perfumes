@@ -542,6 +542,7 @@ function headerSearchKey(e){if(e.key==='Escape'){const box=document.getElementBy
 document.addEventListener('click',e=>{const wrap=document.getElementById('headerSearch'),box=document.getElementById('headerSearchResults');if(wrap&&!wrap.contains(e.target)){wrap.classList.remove('mobile-open');if(box)box.classList.remove('open')}})
 function openHeaderSearch(){activateHeaderSearch()}
 const catalogLabels={sort:{default:'Padrão',priceAsc:'Menor preço',priceDesc:'Maior preço',name:'Nome: A a Z'},cat:{todos:'Todos',feminino:'Femininos',masculino:'Masculinos',unissex:'Unissex'},collection:{todos:'Todas',arabes:'Árabes',designer:'Designer',decants:'Decants'},department:{todos:'Todos os produtos',perfumes:'Perfumes',cremes:'Cremes e hidratantes','body-splash':'Body splash','corpo-banho':'Corpo e banho'}};
+const catalogGroupTitles={category:'CATEGORIA',audience:'PARA QUEM',line:'LINHA'};
 const isCatalogPage=/^\/catalogo\/?$/.test(location.pathname);let catalogPage=1,catalogSignature="",catalogPageCount=1,catalogPageSize=VALENZA_PAGES.pageSize();
 function catalogState(){return {cat,collection,department,sort:catalogSort}}
 function catalogLabel(axis,value){return catalogLabels[axis][value]||String(CATALOG.find(p=>axis==='department'?VALENZA_NAV.department(p)===value:VALENZA_NAV.line(p)===value)?.[axis==='department'?'departmentLabel':'collectionLabel']||value)}
@@ -556,7 +557,7 @@ function renderCatalogNavigation(resultCount){
  const available=active.filter(p=>department==='todos'||VALENZA_NAV.department(p)===department);
  const lines=[...new Set(available.map(VALENZA_NAV.line))];
  const group=(axis,title,values)=>'<div class="catalog-select-field"><span id="catalog-label-'+esc(axis)+'">'+esc(title)+'</span><details class="catalog-picker" data-axis="'+esc(axis)+'"><summary class="catalog-select" aria-labelledby="catalog-label-'+esc(axis)+' catalog-value-'+esc(axis)+'"><span id="catalog-value-'+esc(axis)+'">'+esc(axis==='sort'&&catalogSort==='default'?'Ordenar':catalogLabel(axis,catalogState()[axis]))+'</span><span class="catalog-chevron" aria-hidden="true"></span></summary><fieldset class="catalog-options"><legend class="catalog-sr-only">'+esc(title)+'</legend>'+values.map(value=>'<label class="catalog-option"><input type="radio" name="catalog-'+esc(axis)+'" data-axis="'+esc(axis)+'" value="'+esc(value)+'"'+(catalogState()[axis]===value?' checked':'')+'><span>'+esc(catalogLabel(axis,value))+'</span></label>').join('')+'</fieldset></details></div>';
- const choices=[...(departments.length>1?[group('department','CATEGORIA',['todos',...departments])]:[]),group('cat','PARA QUEM',['todos','feminino','masculino','unissex']),group('collection','LINHA',['todos',...lines])];
+ const choices=[...(departments.length>1?[group('department',catalogGroupTitles.category,['todos',...departments])]:[]),group('cat',catalogGroupTitles.audience,['todos','feminino','masculino','unissex']),group('collection',catalogGroupTitles.line,['todos',...lines])];
  const selected=['department','cat','collection'].filter(axis=>catalogState()[axis]!=='todos').map(axis=>catalogLabel(axis,catalogState()[axis]));
  const hasChoices=selected.length||catalogSort!=='default'||document.getElementById('search').value.trim();
  host.innerHTML='<div class="catalog-select-grid">'+choices.join('')+'</div><div class="catalog-navigation-status"><span role="status" aria-live="polite">'+resultCount+' produto'+(resultCount===1?'':'s')+'</span>'+'<div class="catalog-status-actions">'+(hasChoices?'<button type="button" class="catalog-clear" data-clear="true">Limpar filtros</button>':'')+'<div class="catalog-sort">'+group('sort','ORDENAR POR',['default','priceAsc','priceDesc','name'])+'</div></div></div>';
@@ -839,14 +840,18 @@ function renderPublishedBanners(config){
   return '<div class="slide">'+img+'</div>'
  }).join('');
 }
+function visualContrast(hex){const m=String(hex||'').match(/^#([0-9a-f]{6})$/i);if(!m)return'#fff';const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255,l=(.299*r+.587*g+.114*b);return l>165?'#171513':'#fff'}
 function applyPublishedSiteVisual(config){
  if(!config||typeof config!=='object')return false;valenzaSiteVisual=config;window.VALENZA_SITE_VISUAL=config;
- const colors=config.colors||{},home=config.home||{},contact=config.contact||{},footer=config.footer||{},notice=config.notice||{};
+ const colors=config.colors||{},home=config.home||{},catalog=config.catalog||{},contact=config.contact||{},footer=config.footer||{},notice=config.notice||{},headerColor=String(colors.header||'#171513'),headerText=visualContrast(headerColor);
  let theme=document.getElementById('valenzaPublishedTheme');if(!theme){theme=document.createElement('style');theme.id='valenzaPublishedTheme';document.head.appendChild(theme)}
- theme.textContent='body{background:'+String(colors.background||'#fbfaf8')+';color:'+String(colors.text||'#171513')+'}.header,.valenza-footer{background:'+String(colors.header||'#171513')+'}.eyebrow{color:'+String(colors.accent||'#8a735f')+'}'+
-  (home.showFeatured===false?'#essenciais-valenza{display:none!important}':'')+(home.showCatalog===false?'#catalogo{display:none!important}':'')+(home.showAbout===false?'#sobre{display:none!important}':'');
- if(config.faviconUrl){const fav=document.querySelector('link[rel~="icon"]');if(fav)fav.href=config.faviconUrl}
+ theme.textContent='body{background:'+String(colors.background||'#fbfaf8')+';color:'+String(colors.text||'#171513')+'}.header,.valenza-footer{background:'+headerColor+'}.header,.header a,.header button,.header .hs-main,.header .hs-sub{color:'+headerText+'!important}.header-search svg{stroke:'+headerText+'}.eyebrow{color:'+String(colors.accent||'#8a735f')+'}'+
+  (home.showFeatured===false?'#essenciais-valenza{display:none!important}':'')+(home.showCatalog===false?'#catalogo{display:none!important}':'')+(home.showAbout===false?'#sobre{display:none!important}':'')+(catalog.showFilters===false?'#categorias{display:none!important}':'');
+ const themeMeta=document.querySelector('meta[name="theme-color"]');if(themeMeta)themeMeta.content=headerColor;
+ if(config.faviconUrl){const fav=document.querySelector('link[rel~="icon"]');if(fav){fav.href=config.faviconUrl;fav.removeAttribute('type');fav.removeAttribute('sizes')}}
  if(config.logoUrl)document.querySelectorAll('.valenza-brand img').forEach(img=>{img.src=config.logoUrl});
+ if(catalog.labels){const l=catalog.labels;Object.assign(catalogLabels.cat,{todos:l.todos||catalogLabels.cat.todos,feminino:l.feminino||catalogLabels.cat.feminino,masculino:l.masculino||catalogLabels.cat.masculino,unissex:l.unissex||catalogLabels.cat.unissex});Object.assign(catalogLabels.collection,{arabes:l.arabes||catalogLabels.collection.arabes,designer:l.designer||catalogLabels.collection.designer,decants:l.decants||catalogLabels.collection.decants});Object.assign(catalogLabels.department,{perfumes:l.perfumes||catalogLabels.department.perfumes,cremes:l.cremes||catalogLabels.department.cremes,'body-splash':l['body-splash']||catalogLabels.department['body-splash'],'corpo-banho':l['corpo-banho']||catalogLabels.department['corpo-banho']})}
+ catalogGroupTitles.category=String(catalog.categoryTitle||catalogGroupTitles.category);catalogGroupTitles.audience=String(catalog.audienceTitle||catalogGroupTitles.audience);catalogGroupTitles.line=String(catalog.lineTitle||catalogGroupTitles.line);
  const noticeEl=document.getElementById('valenzaVisualNotice');
  if(noticeEl){noticeEl.style.background=String(colors.accent||'#8a735f');noticeEl.style.color='#fff';if(notice.enabled&&notice.text){noticeEl.innerHTML=notice.url?'<a href="'+esc(String(notice.url))+'" style="color:inherit;text-decoration:none">'+esc(String(notice.text))+'</a>':esc(String(notice.text));noticeEl.style.display='block'}else{noticeEl.style.display='none';noticeEl.textContent=''}}
  visualText('#featured-title',home.featuredTitle||'Seleção de perfumes');
@@ -862,10 +867,23 @@ function applyPublishedSiteVisual(config){
  let socials=document.getElementById('valenzaFooterSocials');if(!socials){socials=document.createElement('div');socials.id='valenzaFooterSocials';socials.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin-top:8px';document.querySelector('.vf-contact')?.appendChild(socials)}
  if(socials){socials.innerHTML='';if(contact.instagram)socials.innerHTML+='<a href="'+esc(String(contact.instagram))+'" target="_blank" rel="noopener noreferrer">Instagram</a>';if(contact.facebook)socials.innerHTML+='<a href="'+esc(String(contact.facebook))+'" target="_blank" rel="noopener noreferrer">Facebook</a>'}
  const floating=document.querySelector('.aurea-wa');if(floating&&contact.whatsapp){let query='';try{query=new URL(floating.href).search}catch{}floating.href='https://wa.me/'+String(contact.whatsapp)+query}
+ try{const schemaEl=document.querySelector('script[type="application/ld+json"]'),schema=schemaEl?JSON.parse(schemaEl.textContent):null,graph=Array.isArray(schema?.['@graph'])?schema['@graph']:[],store=graph.find(x=>x&&x['@type']==='OnlineStore');if(store){store.email=contact.email||store.email;store.telephone=contact.whatsapp?('+'+String(contact.whatsapp)):store.telephone;if(config.logoUrl)store.logo=new URL(config.logoUrl,location.origin).href;schemaEl.textContent=JSON.stringify(schema)}}catch(e){console.error('VALENZA dados estruturados visuais:',e)}
  renderPublishedBanners(config);return true
 }
 async function loadPublishedSiteVisual(){
- try{const r=await fetch('/api/site/visual?t='+Date.now(),{cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok||!d.ok||!d.config)return false;return applyPublishedSiteVisual(d.config)}catch(e){console.error('VALENZA visual publicado:',e);return false}
+ const preview=new URLSearchParams(location.search).get('visual-preview')==='draft';
+ try{
+  if(preview){
+   let robots=document.querySelector('meta[name="robots"]');if(robots)robots.content='noindex,nofollow';
+   const r=await fetch('/api/admin/site/visual?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.ok||!d.draft)return false;
+   const badge=document.createElement('div');badge.textContent='PRÉVIA DO RASCUNHO · NÃO PUBLICADA';badge.style.cssText='position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:99999;background:#9b6c2c;color:#fff;padding:7px 12px;border-radius:3px;font:700 8px Arial;letter-spacing:1px;box-shadow:0 3px 12px #0003';document.body.appendChild(badge);
+   return applyPublishedSiteVisual(d.draft)
+  }
+  const r=await fetch('/api/site/visual?t='+Date.now(),{cache:'no-store'}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok||d.customized!==true||!d.config)return false;
+  return applyPublishedSiteVisual(d.config)
+ }catch(e){console.error('VALENZA visual publicado:',e);return false}
 }
 
 let slideIndex=0,slideTimer=null;function drawSlider(){const s=document.getElementById('slides');if(!s)return;const n=s.children.length,dots=document.getElementById('slideDots');if(!n){s.style.transform='';if(dots)dots.innerHTML='';return}slideIndex=Math.max(0,Math.min(slideIndex,n-1));s.style.transform='translateX(-'+(slideIndex*100)+'%)';if(dots){if(dots.children.length!==n)dots.innerHTML=Array.from({length:n},(_,i)=>'<button class="slide-dot" aria-label="Ir para slide '+(i+1)+'" onclick="goSlide('+i+')"></button>').join('');[...dots.children].forEach((d,i)=>d.classList.toggle('active',i===slideIndex))}}function moveSlide(d){const s=document.getElementById('slides');if(!s||!s.children.length)return;slideIndex=(slideIndex+d+s.children.length)%s.children.length;drawSlider();resetSlideTimer()}function goSlide(i){const s=document.getElementById('slides');if(!s||!s.children.length)return;slideIndex=Math.max(0,Math.min(Number(i)||0,s.children.length-1));drawSlider();resetSlideTimer()}function resetSlideTimer(){clearInterval(slideTimer);const s=document.getElementById('slides');if(s&&s.children.length>1)slideTimer=setInterval(()=>moveSlide(1),5000)}function initSlider(){const s=document.getElementById('slides');if(!s||!s.children.length)return;drawSlider();resetSlideTimer();if(s.dataset.touchReady)return;s.dataset.touchReady='1';let x=0;s.addEventListener('touchstart',e=>x=e.touches[0].clientX,{passive:true});s.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-x;if(Math.abs(dx)>45)moveSlide(dx<0?1:-1)},{passive:true})}
