@@ -27,6 +27,7 @@ on:
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
       - 'scripts/test-site-visual-runtime.mjs'
+      - 'scripts/test-visual-guardrails.mjs'
       - 'scripts/test-stage1-stage2-contract.mjs'
       - 'scripts/test-site-visual-control.mjs'
       - 'scripts/test-checkout-recovery.mjs'
@@ -141,6 +142,8 @@ jobs:
         run: node scripts/test-site-visual-control.mjs
       - name: Testar runtime da Central Visual
         run: node scripts/test-site-visual-runtime.mjs
+      - name: Validar padronização visual
+        run: node scripts/test-visual-guardrails.mjs
       - name: Validar contrato Etapa 1 + Etapa 2
         run: node scripts/test-stage1-stage2-contract.mjs
       - name: Validar sintaxe do catálogo
