@@ -1,6 +1,9 @@
 import fs from 'node:fs';import assert from 'node:assert/strict';
 const worker=fs.readFileSync('src/worker.js','utf8'),wrangler=fs.readFileSync('wrangler.jsonc','utf8');
 for(const h of ['X-Content-Type-Options','X-Frame-Options','Referrer-Policy','Permissions-Policy'])assert.ok(worker.includes(h),'missing '+h);
+assert.ok(worker.includes('"X-Frame-Options":"SAMEORIGIN"'),'same-origin framing must be allowed for authenticated visual preview');
+assert.ok(!worker.includes('"X-Frame-Options":"DENY"'),'DENY would break the same-origin visual preview');
+assert.ok(worker.includes('"Content-Security-Policy":"frame-ancestors \'self\'"'),'CSP must block framing by external origins');
 for(const route of ['/src/*','/scripts/*','/docs/*','/.git*','/wrangler','/wrangler.jsonc','/AGENTS.md'])assert.ok(wrangler.includes('"'+route+'"'),'missing worker-first route '+route);
 assert.ok(worker.includes('(?:src|scripts|docs|\\.git)'),'internal-path guard missing');
 assert.ok(worker.includes('wrangler(?:\\.jsonc)?|AGENTS\\.md'),'config-path guard missing');
