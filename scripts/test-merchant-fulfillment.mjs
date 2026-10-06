@@ -10,9 +10,10 @@ for(const [now,date] of [
  ['2026-12-24T13:00:00Z','11/01/2027']
 ])assert.equal(merchantFulfillment(new Date(now)).label,date);
 const source=fs.readFileSync('src/worker.js','utf8');
-const context={Response,Headers,URL,console,merchantFulfillment,pixPrice:n=>n*.95,officialCatalog:async()=>({asad:{price:269.9}})};
+const context={Response,Headers,URL,console,merchantFulfillment,pixPrice:n=>n*.95,officialCatalog:async()=>({asad:{price:269.9}}),catalogProductRows:async()=>[],validCatalogGtin:()=>false,xmlEscapeText:value=>String(value??'').replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;","'":"&apos;"}[c]))};
 vm.runInNewContext(source.slice(source.indexOf('async function dynamicMerchantFeed('),source.indexOf('async function consultarEstoque('))+';this.feed=dynamicMerchantFeed;this.page=servirAssets;',context);
-const env={ASSETS:{fetch:async()=>new Response(fs.readFileSync('public/google-merchant.xml','utf8'))}};
+const dbStatement={bind(){return this},all:async()=>({results:[{product_id:'asad',stock:100}]}),first:async()=>null};
+const env={ASSETS:{fetch:async()=>new Response(fs.readFileSync('public/google-merchant.xml','utf8'))},DB:{prepare:()=>dbStatement}};
 const feed=await (await context.feed(new Request('https://www.valenzaparfums.com.br/google-merchant.xml'),env)).text();
 assert.ok(!feed.includes('__VALENZA_'));assert.equal((feed.match(/<item>/g)||[]).length,1);
 assert.ok(feed.includes('<g:availability>backorder</g:availability>'));
