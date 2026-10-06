@@ -383,6 +383,7 @@ body.checkout-open .aurea-wa{display:none}
 <link rel="stylesheet" href="/brand/brand.css?v=20261005-glossy-logo1"><link rel="stylesheet" href="/commerce-info.css?v=20261003-6-align1"><link rel="stylesheet" href="/catalog-navigation.css?v=20261003-sort-compact2"><link rel="stylesheet" href="/featured-selection.css?v=20261003-1"><link rel="stylesheet" href="/catalog-pagination.css?v=20261004-1"><script src="/catalog-pagination.js?v=20261004-responsive1"></script></head><body>
 <header class="header"><a class="valenza-brand" href="/" aria-label="Ir para a página inicial da Valenza"><img src="/brand/valenza-card.webp?v=20261005-glossy-logo1" alt="VALENZA PARFUMS" width="900" height="429"></a><nav class="nav"><a href="/catalogo/">CATÁLOGO</a><a href="#categorias">CATEGORIAS</a></nav><div class="actions"><div class="header-search" id="headerSearch"><div class="header-search-box" onclick="activateHeaderSearch(event)"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke-width="1.8"></circle><path d="M16 16l4 4" stroke-width="1.8" stroke-linecap="round"></path></svg><input id="headerSearchInput" class="header-search-input" type="search" autocomplete="off" placeholder="Busque sua fragrância..." aria-label="Buscar perfumes" oninput="renderHeaderSearch()" onfocus="renderHeaderSearch()" onkeydown="headerSearchKey(event)"></div><div class="header-search-results" id="headerSearchResults"></div></div><button class="account header-status" onclick="openAccount()"><span class="hs-main">MINHA CONTA</span><span class="hs-sub">Entrar / Cadastrar</span></button><button class="cart header-status" onclick="openCart()"><span class="hs-main">CARRINHO (<span id="count">0</span>)</span><span class="hs-sub" id="headerCartValue">R$ 0,00</span></button></div></header>
 <div id="valenzaPromoBar" role="status" style="display:none;background:#171513;color:#f6f0e9;text-align:center;padding:8px 16px;font:10px/1.45 Arial,sans-serif;letter-spacing:.6px;border-top:1px solid #403a35;border-bottom:1px solid #403a35"></div>
+<div id="valenzaVisualNotice" role="status" style="display:none;text-align:center;padding:8px 16px;font:10px/1.45 Arial,sans-serif;letter-spacing:.6px"></div>
 <main id="top"><section class="slider" aria-label="Destaques VALENZA">
   <div class="slides" id="slides">
     <div class="slide banner-product" data-product="musamam-white-intense"><img src="/banners/glossy-fast-file_000000000724820ebc0b08dbb2f06341.webp?v=20261005-glossy-logo1" alt="Musamam White Intense" loading="eager" decoding="async" fetchpriority="high"></div>
@@ -533,7 +534,7 @@ function openBannerProduct(id){const p=CATALOG.find(x=>x.id===id);if(!p||p.activ
 function syncBannerAvailability(){
  document.querySelectorAll('.slide').forEach(slide=>{const ids=[...slide.querySelectorAll('[data-product]')].map(x=>String(x.dataset.product||'')).filter(Boolean);if(!ids.length&&slide.dataset.product)ids.push(String(slide.dataset.product));if(ids.some(id=>CATALOG.find(p=>p.id===id)?.active===false))slide.remove()})
 }
-function initBannerProductLinks(){document.querySelectorAll('.banner-product[data-product]').forEach(el=>el.addEventListener('click',()=>openBannerProduct(el.dataset.product)));document.querySelectorAll('.banner-zone[data-product]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();openBannerProduct(el.dataset.product)}))}
+function initBannerProductLinks(){document.querySelectorAll('.banner-product[data-product]').forEach(el=>el.addEventListener('click',()=>openBannerProduct(el.dataset.product)));document.querySelectorAll('.banner-zone[data-product]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();openBannerProduct(el.dataset.product)}));document.querySelectorAll('.banner-link[data-url]').forEach(el=>el.addEventListener('click',()=>{const u=String(el.dataset.url||'');if(u.startsWith('/')||u.startsWith('https://'))location.href=u}))}
 function activateHeaderSearch(e){const wrap=document.getElementById('headerSearch'),input=document.getElementById('headerSearchInput');if(!wrap||!input)return;if(window.matchMedia('(max-width:850px)').matches){wrap.classList.add('mobile-open')}if(e&&e.target!==input)e.preventDefault();setTimeout(()=>input.focus({preventScroll:true}),0)}
 function renderHeaderSearch(){const input=document.getElementById('headerSearchInput'),box=document.getElementById('headerSearchResults');if(!input||!box)return;const q=input.value.trim().toLocaleLowerCase('pt-BR');if(!q){box.classList.remove('open');box.innerHTML='';return}const matches=CATALOG.filter(p=>p.active!==false&&[p.name,p.brand,p.type,p.collection,p.cat,p.ml,p.id].join(' ').toLocaleLowerCase('pt-BR').includes(q)).slice(0,8);box.innerHTML=matches.length?matches.map(p=>`<button type="button" class="header-search-result" onclick="selectHeaderSearch('${p.id}')"><img src="${esc(p.img)}" alt="${esc(p.brand+' '+p.name)}"><span><strong>${esc(p.name)}</strong><small>${esc(p.brand)} · ${esc(p.type)}</small></span><span class="header-search-price">${money(p.price)}</span></button>`).join(''):'<div class="header-search-empty">Nenhum perfume encontrado.</div>';box.classList.add('open')}
 function selectHeaderSearch(id){const input=document.getElementById('headerSearchInput'),box=document.getElementById('headerSearchResults'),wrap=document.getElementById('headerSearch');if(input)input.value='';if(box){box.classList.remove('open');box.innerHTML=''}if(wrap)wrap.classList.remove('mobile-open');detail(id)}
@@ -541,6 +542,7 @@ function headerSearchKey(e){if(e.key==='Escape'){const box=document.getElementBy
 document.addEventListener('click',e=>{const wrap=document.getElementById('headerSearch'),box=document.getElementById('headerSearchResults');if(wrap&&!wrap.contains(e.target)){wrap.classList.remove('mobile-open');if(box)box.classList.remove('open')}})
 function openHeaderSearch(){activateHeaderSearch()}
 const catalogLabels={sort:{default:'Padrão',priceAsc:'Menor preço',priceDesc:'Maior preço',name:'Nome: A a Z'},cat:{todos:'Todos',feminino:'Femininos',masculino:'Masculinos',unissex:'Unissex'},collection:{todos:'Todas',arabes:'Árabes',designer:'Designer',decants:'Decants'},department:{todos:'Todos os produtos',perfumes:'Perfumes',cremes:'Cremes e hidratantes','body-splash':'Body splash','corpo-banho':'Corpo e banho'}};
+const catalogGroupTitles={category:'CATEGORIA',audience:'PARA QUEM',line:'LINHA'};
 const isCatalogPage=/^\/catalogo\/?$/.test(location.pathname);let catalogPage=1,catalogSignature="",catalogPageCount=1,catalogPageSize=VALENZA_PAGES.pageSize();
 function catalogState(){return {cat,collection,department,sort:catalogSort}}
 function catalogLabel(axis,value){return catalogLabels[axis][value]||String(CATALOG.find(p=>axis==='department'?VALENZA_NAV.department(p)===value:VALENZA_NAV.line(p)===value)?.[axis==='department'?'departmentLabel':'collectionLabel']||value)}
@@ -555,7 +557,7 @@ function renderCatalogNavigation(resultCount){
  const available=active.filter(p=>department==='todos'||VALENZA_NAV.department(p)===department);
  const lines=[...new Set(available.map(VALENZA_NAV.line))];
  const group=(axis,title,values)=>'<div class="catalog-select-field"><span id="catalog-label-'+esc(axis)+'">'+esc(title)+'</span><details class="catalog-picker" data-axis="'+esc(axis)+'"><summary class="catalog-select" aria-labelledby="catalog-label-'+esc(axis)+' catalog-value-'+esc(axis)+'"><span id="catalog-value-'+esc(axis)+'">'+esc(axis==='sort'&&catalogSort==='default'?'Ordenar':catalogLabel(axis,catalogState()[axis]))+'</span><span class="catalog-chevron" aria-hidden="true"></span></summary><fieldset class="catalog-options"><legend class="catalog-sr-only">'+esc(title)+'</legend>'+values.map(value=>'<label class="catalog-option"><input type="radio" name="catalog-'+esc(axis)+'" data-axis="'+esc(axis)+'" value="'+esc(value)+'"'+(catalogState()[axis]===value?' checked':'')+'><span>'+esc(catalogLabel(axis,value))+'</span></label>').join('')+'</fieldset></details></div>';
- const choices=[...(departments.length>1?[group('department','CATEGORIA',['todos',...departments])]:[]),group('cat','PARA QUEM',['todos','feminino','masculino','unissex']),group('collection','LINHA',['todos',...lines])];
+ const choices=[...(departments.length>1?[group('department',catalogGroupTitles.category,['todos',...departments])]:[]),group('cat',catalogGroupTitles.audience,['todos','feminino','masculino','unissex']),group('collection',catalogGroupTitles.line,['todos',...lines])];
  const selected=['department','cat','collection'].filter(axis=>catalogState()[axis]!=='todos').map(axis=>catalogLabel(axis,catalogState()[axis]));
  const hasChoices=selected.length||catalogSort!=='default'||document.getElementById('search').value.trim();
  host.innerHTML='<div class="catalog-select-grid">'+choices.join('')+'</div><div class="catalog-navigation-status"><span role="status" aria-live="polite">'+resultCount+' produto'+(resultCount===1?'':'s')+'</span>'+'<div class="catalog-status-actions">'+(hasChoices?'<button type="button" class="catalog-clear" data-clear="true">Limpar filtros</button>':'')+'<div class="catalog-sort">'+group('sort','ORDENAR POR',['default','priceAsc','priceDesc','name'])+'</div></div></div>';
@@ -821,7 +823,70 @@ async function loadAureaBanners(){
  }));
 }
 
-let slideIndex=0,slideTimer=null;function drawSlider(){const s=document.getElementById('slides');if(!s)return;const n=s.children.length;s.style.transform='translateX(-'+(slideIndex*100)+'%)';const dots=document.getElementById('slideDots');if(!dots.children.length)dots.innerHTML=Array.from({length:n},(_,i)=>'<button class="slide-dot" aria-label="Ir para slide '+(i+1)+'" onclick="goSlide('+i+')"></button>').join('');[...dots.children].forEach((d,i)=>d.classList.toggle('active',i===slideIndex))}function moveSlide(d){const s=document.getElementById('slides');if(!s)return;slideIndex=(slideIndex+d+s.children.length)%s.children.length;drawSlider();resetSlideTimer()}function goSlide(i){slideIndex=i;drawSlider();resetSlideTimer()}function resetSlideTimer(){clearInterval(slideTimer);slideTimer=setInterval(()=>moveSlide(1),5000)}function initSlider(){const s=document.getElementById('slides');if(!s)return;drawSlider();resetSlideTimer();let x=0;s.addEventListener('touchstart',e=>x=e.touches[0].clientX,{passive:true});s.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-x;if(Math.abs(dx)>45)moveSlide(dx<0?1:-1)},{passive:true})}
+
+let valenzaSiteVisual=null;
+function visualText(selector,value){const el=document.querySelector(selector);if(el&&typeof value==='string')el.textContent=value}
+function visualHref(el,href){if(!el||!href)return;el.setAttribute('href',href)}
+function renderPublishedBanners(config){
+ const slider=document.querySelector('.slider'),slides=document.getElementById('slides'),dots=document.getElementById('slideDots');if(!slider||!slides)return;
+ const banners=(Array.isArray(config?.banners)?config.banners:[]).filter(b=>b&&b.active!==false&&b.imageUrl).sort((a,b)=>Number(a.sortOrder||0)-Number(b.sortOrder||0));
+ if(!banners.length){slider.hidden=true;slides.innerHTML='';if(dots)dots.innerHTML='';clearInterval(slideTimer);return}
+ slider.hidden=false;slideIndex=0;if(dots)dots.innerHTML='';
+ slides.innerHTML=banners.map((b,i)=>{
+  const img='<img src="'+esc(String(b.imageUrl||''))+'" alt="'+esc(String(b.alt||'Banner VALENZA'))+'" loading="'+(i===0?'eager':'lazy')+'" decoding="async"'+(i===0?' fetchpriority="high"':'')+'>';
+  if(b.targetType==='product'&&b.targetValue)return '<div class="slide banner-product" data-product="'+esc(String(b.targetValue))+'">'+img+'</div>';
+  if(b.targetType==='url'&&b.targetValue)return '<div class="slide banner-link" data-url="'+esc(String(b.targetValue))+'" style="cursor:pointer">'+img+'</div>';
+  if(b.targetType==='zones'&&Array.isArray(b.zones)){const zones=b.zones.map(z=>'<button class="banner-zone" data-product="'+esc(String(z.product||''))+'" style="left:'+Math.max(0,Math.min(95,Number(z.left)||0))+'%;width:'+Math.max(1,Math.min(100,Number(z.width)||10))+'%" aria-label="Ver produto"></button>').join('');return '<div class="slide banner-zones">'+img+zones+'</div>'}
+  return '<div class="slide">'+img+'</div>'
+ }).join('');
+}
+function visualContrast(hex){const m=String(hex||'').match(/^#([0-9a-f]{6})$/i);if(!m)return'#fff';const n=parseInt(m[1],16),r=(n>>16)&255,g=(n>>8)&255,b=n&255,l=(.299*r+.587*g+.114*b);return l>165?'#171513':'#fff'}
+function applyPublishedSiteVisual(config){
+ if(!config||typeof config!=='object')return false;valenzaSiteVisual=config;window.VALENZA_SITE_VISUAL=config;
+ const colors=config.colors||{},home=config.home||{},catalog=config.catalog||{},contact=config.contact||{},footer=config.footer||{},notice=config.notice||{},headerColor=String(colors.header||'#171513'),headerText=visualContrast(headerColor);
+ let theme=document.getElementById('valenzaPublishedTheme');if(!theme){theme=document.createElement('style');theme.id='valenzaPublishedTheme';document.head.appendChild(theme)}
+ theme.textContent='body{background:'+String(colors.background||'#fbfaf8')+';color:'+String(colors.text||'#171513')+'}.header,.valenza-footer{background:'+headerColor+'}.header,.header a,.header button,.header .hs-main,.header .hs-sub{color:'+headerText+'!important}.header-search svg{stroke:'+headerText+'}.eyebrow{color:'+String(colors.accent||'#8a735f')+'}'+
+  (home.showFeatured===false?'#essenciais-valenza{display:none!important}':'')+(home.showCatalog===false?'#catalogo{display:none!important}':'')+(home.showAbout===false?'#sobre{display:none!important}':'')+(catalog.showFilters===false?'#categorias{display:none!important}':'');
+ const themeMeta=document.querySelector('meta[name="theme-color"]');if(themeMeta)themeMeta.content=headerColor;
+ if(config.faviconUrl){const fav=document.querySelector('link[rel~="icon"]');if(fav){fav.href=config.faviconUrl;fav.removeAttribute('type');fav.removeAttribute('sizes')}}
+ if(config.logoUrl)document.querySelectorAll('.valenza-brand img').forEach(img=>{img.src=config.logoUrl});
+ if(catalog.labels){const l=catalog.labels;Object.assign(catalogLabels.cat,{todos:l.todos||catalogLabels.cat.todos,feminino:l.feminino||catalogLabels.cat.feminino,masculino:l.masculino||catalogLabels.cat.masculino,unissex:l.unissex||catalogLabels.cat.unissex});Object.assign(catalogLabels.collection,{arabes:l.arabes||catalogLabels.collection.arabes,designer:l.designer||catalogLabels.collection.designer,decants:l.decants||catalogLabels.collection.decants});Object.assign(catalogLabels.department,{perfumes:l.perfumes||catalogLabels.department.perfumes,cremes:l.cremes||catalogLabels.department.cremes,'body-splash':l['body-splash']||catalogLabels.department['body-splash'],'corpo-banho':l['corpo-banho']||catalogLabels.department['corpo-banho']})}
+ catalogGroupTitles.category=String(catalog.categoryTitle||catalogGroupTitles.category);catalogGroupTitles.audience=String(catalog.audienceTitle||catalogGroupTitles.audience);catalogGroupTitles.line=String(catalog.lineTitle||catalogGroupTitles.line);
+ const noticeEl=document.getElementById('valenzaVisualNotice');
+ if(noticeEl){noticeEl.style.background=String(colors.accent||'#8a735f');noticeEl.style.color='#fff';if(notice.enabled&&notice.text){noticeEl.innerHTML=notice.url?'<a href="'+esc(String(notice.url))+'" style="color:inherit;text-decoration:none">'+esc(String(notice.text))+'</a>':esc(String(notice.text));noticeEl.style.display='block'}else{noticeEl.style.display='none';noticeEl.textContent=''}}
+ visualText('#featured-title',home.featuredTitle||'Seleção de perfumes');
+ visualText('#catalogo > .eyebrow',home.catalogEyebrow||'CATÁLOGO VALENZA');visualText('#catalogo > .title',home.catalogTitle||'Fragrâncias selecionadas');
+ visualText('#sobre .eyebrow',home.aboutEyebrow||'NOSSA ESSÊNCIA');visualText('#sobre-title',home.aboutTitle||'Quem somos');
+ const about=document.querySelector('#sobre .about-valenza-inner');if(about&&Array.isArray(home.aboutParagraphs)){about.querySelectorAll('.about-valenza-text').forEach(x=>x.remove());home.aboutParagraphs.forEach((p,i)=>{const el=document.createElement('p');el.className='about-valenza-text';if(i)el.style.marginTop='12px';el.textContent=String(p);about.appendChild(el)})}
+ visualText('.aurea-closing p',home.closingText||'');
+ visualText('.vf-brand > p',footer.tagline||'');visualText('.vf-brand > span',footer.description||'');
+ const mail=document.querySelector('.vf-contact a[href^="mailto:"]');if(mail){mail.textContent=contact.email||'';mail.href='mailto:'+(contact.email||'')}
+ const wa=document.querySelector('.vf-contact a[href*="wa.me/"]');if(wa){wa.textContent=contact.whatsappDisplay||contact.whatsapp||'';wa.href='https://wa.me/'+String(contact.whatsapp||'')}
+ const spans=document.querySelectorAll('.vf-contact > span');const vals=[contact.location,footer.responsible,footer.document,footer.address,footer.pickup];spans.forEach((el,i)=>{if(typeof vals[i]==='string')el.textContent=vals[i]});
+ visualText('.vf-bottom span:last-child',footer.bottom||'');
+ let socials=document.getElementById('valenzaFooterSocials');if(!socials){socials=document.createElement('div');socials.id='valenzaFooterSocials';socials.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin-top:8px';document.querySelector('.vf-contact')?.appendChild(socials)}
+ if(socials){socials.innerHTML='';if(contact.instagram)socials.innerHTML+='<a href="'+esc(String(contact.instagram))+'" target="_blank" rel="noopener noreferrer">Instagram</a>';if(contact.facebook)socials.innerHTML+='<a href="'+esc(String(contact.facebook))+'" target="_blank" rel="noopener noreferrer">Facebook</a>'}
+ const floating=document.querySelector('.aurea-wa');if(floating&&contact.whatsapp){let query='';try{query=new URL(floating.href).search}catch{}floating.href='https://wa.me/'+String(contact.whatsapp)+query}
+ try{const schemaEl=document.querySelector('script[type="application/'+'ld+json"]'),schema=schemaEl?JSON.parse(schemaEl.textContent):null,graph=Array.isArray(schema?.['@graph'])?schema['@graph']:[],store=graph.find(x=>x&&x['@type']==='OnlineStore');if(store){store.email=contact.email||store.email;store.telephone=contact.whatsapp?('+'+String(contact.whatsapp)):store.telephone;if(config.logoUrl)store.logo=new URL(config.logoUrl,location.origin).href;schemaEl.textContent=JSON.stringify(schema)}}catch(e){console.error('VALENZA dados estruturados visuais:',e)}
+ renderPublishedBanners(config);return true
+}
+async function loadPublishedSiteVisual(){
+ const preview=new URLSearchParams(location.search).get('visual-preview')==='draft';
+ try{
+  if(preview){
+   let robots=document.querySelector('meta[name="robots"]');if(robots)robots.content='noindex,nofollow';
+   const r=await fetch('/api/admin/site/visual?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.ok||!d.draft)return false;
+   const badge=document.createElement('div');badge.textContent='PRÉVIA DO RASCUNHO · NÃO PUBLICADA';badge.style.cssText='position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:99999;background:#9b6c2c;color:#fff;padding:7px 12px;border-radius:3px;font:700 8px Arial;letter-spacing:1px;box-shadow:0 3px 12px #0003';document.body.appendChild(badge);
+   return applyPublishedSiteVisual(d.draft)
+  }
+  const r=await fetch('/api/site/visual?t='+Date.now(),{cache:'no-store'}),d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok||d.customized!==true||!d.config)return false;
+  return applyPublishedSiteVisual(d.config)
+ }catch(e){console.error('VALENZA visual publicado:',e);return false}
+}
+
+let slideIndex=0,slideTimer=null;function drawSlider(){const s=document.getElementById('slides');if(!s)return;const n=s.children.length,dots=document.getElementById('slideDots');if(!n){s.style.transform='';if(dots)dots.innerHTML='';return}slideIndex=Math.max(0,Math.min(slideIndex,n-1));s.style.transform='translateX(-'+(slideIndex*100)+'%)';if(dots){if(dots.children.length!==n)dots.innerHTML=Array.from({length:n},(_,i)=>'<button class="slide-dot" aria-label="Ir para slide '+(i+1)+'" onclick="goSlide('+i+')"></button>').join('');[...dots.children].forEach((d,i)=>d.classList.toggle('active',i===slideIndex))}}function moveSlide(d){const s=document.getElementById('slides');if(!s||!s.children.length)return;slideIndex=(slideIndex+d+s.children.length)%s.children.length;drawSlider();resetSlideTimer()}function goSlide(i){const s=document.getElementById('slides');if(!s||!s.children.length)return;slideIndex=Math.max(0,Math.min(Number(i)||0,s.children.length-1));drawSlider();resetSlideTimer()}function resetSlideTimer(){clearInterval(slideTimer);const s=document.getElementById('slides');if(s&&s.children.length>1)slideTimer=setInterval(()=>moveSlide(1),5000)}function initSlider(){const s=document.getElementById('slides');if(!s||!s.children.length)return;drawSlider();resetSlideTimer();if(s.dataset.touchReady)return;s.dataset.touchReady='1';let x=0;s.addEventListener('touchstart',e=>x=e.touches[0].clientX,{passive:true});s.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-x;if(Math.abs(dx)>45)moveSlide(dx<0?1:-1)},{passive:true})}
 function buyNow(id){const p=CATALOG.find(x=>x.id===id);if(!p||p.active===false){valenzaNotice('Este perfume não está mais disponível.');return}const av=productAvailability(p);if(!av.sellable){valenzaNotice(av.message);return}const i=cart.find(x=>x.id===id);if(i){if(Number.isFinite(Number(p.stock))&&i.qty>=Math.min(10,Number(p.stock))){valenzaNotice('Quantidade máxima disponível atingida.');return}i.qty++}else cart.push({id:p.id,name:p.name,brand:p.brand,type:p.type,price:p.price,img:p.img,qty:1});saveCart();openCart();setTimeout(()=>document.getElementById('cep')?.focus(),180)}
 let accountUser=null;
 async function openAccount(){await loadAccount();if(accountUser&&typeof openClient==='function'){openClient();return}const modal=document.getElementById('accountModal');if(!modal)return;modal.classList.add('open');if(!aureaLayers.includes('account'))pushLayer('account');renderAccount()}
@@ -1043,6 +1108,7 @@ async function bootAurea(){
  try{openProductFromUrl()}catch(e){console.error('VALENZA produto URL',e)}
  try{enableOutsideModalClose()}catch(e){console.error('AUREA modal',e)}
  try{updateCart()}catch(e){console.error('AUREA carrinho',e)}
+ try{await loadPublishedSiteVisual()}catch(e){console.error('VALENZA visual',e)}
  try{initSlider()}catch(e){console.error('AUREA slider',e)}
  try{initBannerProductLinks()}catch(e){console.error('AUREA banners',e)}
  try{initAccount()}catch(e){console.error('AUREA conta',e)}

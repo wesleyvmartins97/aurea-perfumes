@@ -26,6 +26,8 @@ on:
       - 'public/admin/**'
       - 'public/admin-account.js'
       - 'scripts/validate-admin.mjs'
+      - 'scripts/test-site-visual-runtime.mjs'
+      - 'scripts/test-site-visual-control.mjs'
       - 'scripts/test-checkout-recovery.mjs'
       - 'scripts/test-meta-tracking.mjs'
       - 'scripts/test-meta-capi.mjs'
@@ -134,6 +136,10 @@ jobs:
         run: node --check src/worker.js
       - name: Validar endurecimento de segurança
         run: node scripts/validate-security-hardening.mjs
+      - name: Validar base da Central Visual
+        run: node scripts/test-site-visual-control.mjs
+      - name: Testar runtime da Central Visual
+        run: node scripts/test-site-visual-runtime.mjs
       - name: Validar sintaxe do catálogo
         run: node --check public/products.js
       - name: Validar catálogo completo
