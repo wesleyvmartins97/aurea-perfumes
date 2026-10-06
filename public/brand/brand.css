@@ -1,4 +1,4 @@
-[Reading 187 lines from start (total: 187 lines, 0 remaining)]
+[Reading 188 lines from start (total: 188 lines, 0 remaining)]
 
 /* VALENZA — slots de marca responsivos e independentes do CSS legado */
 .valenza-brand{
@@ -181,6 +181,7 @@
   box-shadow:none!important;
 }
 .header .account .hs-sub{color:#b8b0a7!important}
+.buy:disabled,.product-actions .add:disabled,.commerce-detail-actions .add:disabled{opacity:.45!important;cursor:not-allowed!important;filter:grayscale(.35)}
 .header .account:focus,.header .account:active,.header .account:hover{
   color:#fff!important;
   background:transparent!important;

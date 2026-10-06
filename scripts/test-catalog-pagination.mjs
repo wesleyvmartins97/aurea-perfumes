@@ -1,3 +1,5 @@
+[Reading 69 lines from start (total: 69 lines, 0 remaining)]
+
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
@@ -27,7 +29,7 @@ assert.equal(pages.paginate([1],9).page,1);
 assert.ok(pages.numbers(500,1000).length<=7);
 const grid={innerHTML:''},search={value:''},pager={hidden:true,innerHTML:'',addEventListener(){}},status={textContent:''};
 let count;
-Object.assign(c,{location:{pathname},window:{},document:{getElementById:id=>({grid,search,catalogPages:pager}[id]),querySelector:()=>status},renderCatalogNavigation:n=>count=n,esc:String,productPriceHtml:()=>''});
+Object.assign(c,{location:{pathname},window:{},document:{getElementById:id=>({grid,search,catalogPages:pager}[id]),querySelector:()=>status},renderCatalogNavigation:n=>count=n,esc:String,productPriceHtml:()=>'',productAvailability:p=>{const raw=p?.stock,stock=raw===null||typeof raw==='undefined'||raw===''?NaN:Number(raw);return{sellable:p?.offer!==false&&(!Number.isFinite(stock)||stock>0),label:p?.offer===false?'INDISPONÍVEL':(Number.isFinite(stock)&&stock<=0?'ESGOTADO':'SOB ENCOMENDA'),message:''}}});
 vm.runInContext("let cat='todos',collection='todos',department='todos',catalogSort='default';"+html.slice(html.indexOf('const isCatalogPage='),html.indexOf('function catalogLabel(')),c);
 vm.runInContext(html.slice(html.indexOf('function renderCatalogPages('),html.indexOf("document.getElementById('catalogPages')?.addEventListener")),c);
 vm.runInContext(html.slice(html.indexOf('function render(){'),html.indexOf('\n',html.indexOf('function render(){'))),c);
@@ -67,3 +69,5 @@ for(const path of ['/catalogo','/catalogo/','/']){
  assert.equal((await response.text()).includes('class="catalog-page"'),path!=='/');
 }
 console.log('Asset routing passed: dedicated catalogue, unchanged homepage, cache/security headers and no database access.');
+
+[executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]

@@ -15,7 +15,7 @@
  window.renderValenzaFeatured=catalog=>{
   const section=document.getElementById('essenciais-valenza'),track=document.getElementById('featuredTrack');if(!section||!track)return;
   const selected=catalog.filter(p=>p?.featured===true);const source=selected.length?selected.slice().sort((a,b)=>(Number.isFinite(Number(a.sortOrder))?Number(a.sortOrder):99999)-(Number.isFinite(Number(b.sortOrder))?Number(b.sortOrder):99999)):ids.map(id=>catalog.find(p=>p.id===id));
-  const products=source.filter(p=>p&&p.active!==false&&Number.isFinite(Number(p.price))&&Number(p.price)>0).slice(0,12);
+  const products=source.filter(p=>p&&p.active!==false&&p.offer!==false&&(p.stock===null||typeof p.stock==='undefined'||p.stock===''||!Number.isFinite(Number(p.stock))||Number(p.stock)>0)&&Number.isFinite(Number(p.price))&&Number(p.price)>0).slice(0,12);
   section.hidden=!products.length;
   const next=JSON.stringify(products.map(p=>[p.id,p.name,p.brand,p.img,p.price,p.pix]));
   if(next===signature){controls();return}signature=next;

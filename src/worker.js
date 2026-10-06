@@ -1,4 +1,4 @@
-[Reading 1000 lines from start (total: 2237 lines, 1237 remaining)]
+[Reading 1000 lines from start (total: 2251 lines, 1251 remaining)]
 
 import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
@@ -682,8 +682,8 @@ async function activeProductPromotionRows(env){
 async function activeProductPromotionMap(env){
  const rows=await activeProductPromotionRows(env),catalog=await officialCatalog(env),map=new Map();
  for(const row of rows){
-  const base=Number(catalog[row.product_id]?.price),promo=Number(row.promo_price);
-  if(!map.has(String(row.product_id))&&Number.isFinite(base)&&Number.isFinite(promo)&&promo>0&&promo<base)map.set(String(row.product_id),row);
+  const p=catalog[row.product_id],base=Number(p?.price),promo=Number(row.promo_price);
+  if(p&&p.offer!==false&&!map.has(String(row.product_id))&&Number.isFinite(base)&&Number.isFinite(promo)&&promo>0&&promo<base)map.set(String(row.product_id),row);
  }
  return map;
 }
@@ -692,7 +692,7 @@ async function activeProductPromotionsPublic(env){
   const rows=await activeProductPromotionRows(env),catalog=await officialCatalog(env),promotions=[];
   for(const row of rows){
    const p=catalog[row.product_id],base=Number(p?.price),promo=Number(row.promo_price);
-   if(!p||!Number.isFinite(base)||!Number.isFinite(promo)||promo<=0||promo>=base)continue;
+   if(!p||p.offer===false||!Number.isFinite(base)||!Number.isFinite(promo)||promo<=0||promo>=base)continue;
    promotions.push({id:String(row.id),productId:String(row.product_id),promoPrice:Number(promo.toFixed(2)),regularPrice:Number(base.toFixed(2)),startsAt:row.starts_at||null,endsAt:row.ends_at||null});
   }
   return resposta({ok:true,promotions});
@@ -704,6 +704,7 @@ async function adminProductPromotionSave(request,env){
   const d=await request.json().catch(()=>({})),productId=promotionText(d.productId,120),startsAt=promotionDate(d.startsAt),endsAt=promotionDate(d.endsAt),active=d.active?1:0,promoPrice=Number(d.promoPrice);
   const catalog=await officialCatalog(env),p=catalog[productId],base=Number(p?.price);
   if(!p)return resposta({ok:false,error:"Selecione um produto válido do catálogo."},400);
+  if(p.offer===false)return resposta({ok:false,error:"Este produto está marcado como não vendável. Ative a venda antes de criar uma oferta."},409);
   if(!Number.isFinite(promoPrice)||promoPrice<=0)return resposta({ok:false,error:"Informe um preço promocional válido."},400);
   if(promoPrice>=base)return resposta({ok:false,error:"O preço promocional precisa ser menor que o preço normal de "+Number(base).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})+"."},400);
   if(String(d.startsAt||"").trim()&&!startsAt)return resposta({ok:false,error:"Data inicial inválida."},400);
@@ -721,7 +722,8 @@ async function adminProductPromotionToggle(request,env){
   await ensureAuthSchema(env);const admin=await currentAdmin(request,env);if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
   const d=await request.json().catch(()=>({})),id=promotionText(d.id,80);if(!id)return resposta({ok:false,error:"Oferta inválida."},400);
   const row=await env.DB.prepare("SELECT id,product_id,promo_price FROM product_promotions WHERE id=?").bind(id).first();if(!row)return resposta({ok:false,error:"Oferta não encontrada."},404);
-  const catalog=await officialCatalog(env),base=Number(catalog[row.product_id]?.price),promo=Number(row.promo_price);
+  const catalog=await officialCatalog(env),product=catalog[row.product_id],base=Number(product?.price),promo=Number(row.promo_price);
+  if(d.active&&product?.offer===false)return resposta({ok:false,error:"Este produto está marcado como não vendável. Ative a venda antes de reativar a oferta."},409);
   if(d.active&&(!Number.isFinite(base)||!Number.isFinite(promo)||promo<=0||promo>=base))return resposta({ok:false,error:"Esta oferta não pode ser ativada porque o preço normal do produto mudou. Edite a oferta antes de ativar."},409);
   const now=new Date().toISOString();await env.DB.prepare("UPDATE product_promotions SET active=?,updated_at=? WHERE id=?").bind(d.active?1:0,now,id).run();
   await recordAdminAudit(env,admin,"product_promotion_toggle",{id,productId:row.product_id,active:!!d.active});
@@ -998,7 +1000,5 @@ async function adminOpportunityContacted(request,env){
   await recordAdminAudit(env,admin,"opportunity_contacted",{id});return resposta({ok:true});
  }catch(e){return resposta({ok:false,error:"Não foi possível atualizar o contato."},500)}
 }
-async function adminOpportunityArchive(request,env){
- try{
 
 [executed on device: Wesley-Comercial (046fd993-2053-4712-9851-794f0185b67f)]
