@@ -1127,7 +1127,7 @@ const SITE_VISUAL_DEFAULT={
  version:1,
  logoUrl:"/brand/valenza-card.webp?v=20261005-glossy-logo1",
  faviconUrl:"/favicon.png?v=20261003",
- colors:{header:"#171513",footer:"#171513",accent:"#8a735f",background:"#fbfaf8",text:"#171513"},
+ colors:{header:"#171513",footer:"#171513",accountCart:"#FFFFFF",accent:"#8a735f",background:"#fbfaf8",text:"#171513"},
  home:{
   showFeatured:true,showCatalog:true,showAbout:true,
   featuredEyebrow:"SELEÇÃO DE PERFUMES",featuredTitle:"Seleção de perfumes",
@@ -1171,12 +1171,13 @@ const SITE_VISUAL_DEFAULT={
 function siteVisualClone(v){return JSON.parse(JSON.stringify(v))}
 function siteVisualString(v,max,fallback=""){const x=String(v??"").trim();return (x||fallback).slice(0,max)}
 function siteVisualColor(v,fallback){const x=String(v||"").trim();return /^#[0-9a-f]{6}$/i.test(x)?x:fallback}
+function siteVisualContrastColor(v){const x=siteVisualColor(v,"#171513"),n=parseInt(x.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return (.299*r+.587*g+.114*b)>165?"#171513":"#FFFFFF"}
 function siteVisualUrl(v,fallback=""){const x=String(v||"").trim();if(!x)return fallback;if(x.startsWith("/")&&!x.startsWith("//"))return x.slice(0,500);try{const u=new URL(x);return u.protocol==="https:"?u.toString().slice(0,500):fallback}catch{return fallback}}
 function siteVisualBool(v,fallback=true){return typeof v==="boolean"?v:fallback}
 function siteVisualNormalize(input){
  const d=siteVisualClone(SITE_VISUAL_DEFAULT),x=input&&typeof input==="object"?input:{},home=x.home&&typeof x.home==="object"?x.home:{},catalog=x.catalog&&typeof x.catalog==="object"?x.catalog:{},contact=x.contact&&typeof x.contact==="object"?x.contact:{},footer=x.footer&&typeof x.footer==="object"?x.footer:{},notice=x.notice&&typeof x.notice==="object"?x.notice:{},colors=x.colors&&typeof x.colors==="object"?x.colors:{};
  d.logoUrl=siteVisualUrl(x.logoUrl,d.logoUrl);d.faviconUrl=siteVisualUrl(x.faviconUrl,d.faviconUrl);
- const normalizedHeader=siteVisualColor(colors.header,d.colors.header),normalizedFooter=siteVisualColor(colors.footer,siteVisualColor(colors.header,d.colors.footer));d.colors={header:normalizedHeader,footer:normalizedFooter,accent:siteVisualColor(colors.accent,d.colors.accent),background:siteVisualColor(colors.background,d.colors.background),text:siteVisualColor(colors.text,d.colors.text)};
+ const normalizedHeader=siteVisualColor(colors.header,d.colors.header),normalizedFooter=siteVisualColor(colors.footer,siteVisualColor(colors.header,d.colors.footer)),normalizedAccountCart=siteVisualColor(colors.accountCart,siteVisualContrastColor(normalizedHeader));d.colors={header:normalizedHeader,footer:normalizedFooter,accountCart:normalizedAccountCart,accent:siteVisualColor(colors.accent,d.colors.accent),background:siteVisualColor(colors.background,d.colors.background),text:siteVisualColor(colors.text,d.colors.text)};
  d.home.showFeatured=siteVisualBool(home.showFeatured,d.home.showFeatured);d.home.showCatalog=siteVisualBool(home.showCatalog,d.home.showCatalog);d.home.showAbout=siteVisualBool(home.showAbout,d.home.showAbout);
  d.home.featuredEyebrow=siteVisualString(home.featuredEyebrow,50,d.home.featuredEyebrow);d.home.featuredTitle=siteVisualString(home.featuredTitle,90,d.home.featuredTitle);
  d.home.catalogEyebrow=siteVisualString(home.catalogEyebrow,50,d.home.catalogEyebrow);d.home.catalogTitle=siteVisualString(home.catalogTitle,90,d.home.catalogTitle);
