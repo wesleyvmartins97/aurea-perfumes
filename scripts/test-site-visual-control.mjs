@@ -1,0 +1,13 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const worker=fs.readFileSync('src/worker.js','utf8'),index=fs.readFileSync('public/index.html','utf8'),admin=fs.readFileSync('public/admin-account.js','utf8'),wrangler=fs.readFileSync('wrangler.jsonc','utf8');
+for(const token of ['site_visual_state','site_visual_assets','/api/site/visual','/api/admin/site/visual/draft','/api/admin/site/visual/publish','/api/admin/site/visual/reset','/api/admin/site/visual/asset','/media/site/'])assert.ok(worker.includes(token),'worker missing '+token);
+assert.ok(worker.includes('config:state.published'),'public visual endpoint must expose published config only');
+assert.ok(worker.includes('draft_json=excluded.draft_json,updated_by=excluded.updated_by,updated_at=excluded.updated_at'),'draft save must not overwrite published_json');
+assert.ok(worker.includes('published_json=excluded.published_json'),'publish endpoint must update published_json');
+assert.ok(wrangler.includes('"/media/site/*"'),'site media must run worker first');
+assert.ok(index.includes("fetch('/api/site/visual"),'storefront must load published visual config');
+assert.ok(!index.includes("fetch('/api/admin/site/visual"),'storefront must never load admin visual draft');
+for(const token of ['loadPublishedSiteVisual','applyPublishedSiteVisual','renderPublishedBanners','valenzaVisualNotice'])assert.ok(index.includes(token),'storefront visual support missing '+token);
+for(const token of ['data-v="visual"','SALVAR RASCUNHO','DESCARTAR RASCUNHO','PRÉVIA PC','PRÉVIA CELULAR','PUBLICAR ALTERAÇÕES','/api/admin/site/visual/draft','/api/admin/site/visual/publish'])assert.ok(admin.includes(token),'admin visual control missing '+token);
+for(const banner of ['000000000724820ebc0b08dbb2f06341','0000000014ac820e8d470a47527300b8','00000000fe88820eabdaa61890b393ad'])assert.ok(index.includes(banner),'legacy safe fallback banner missing '+banner);
+console.log('ETAPA 2 BASE APROVADA — draft/publicação separados, mídia roteada, storefront usa somente publicado e admin tem prévia PC/celular.');

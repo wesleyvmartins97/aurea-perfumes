@@ -16,6 +16,7 @@
       "/catalogo/*",
       "/api/*",
       "/media/products/*",
+      "/media/site/*",
       "/oauth/*",
       "/admin",
       "/admin/*",

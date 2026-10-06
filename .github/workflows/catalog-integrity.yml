@@ -134,6 +134,8 @@ jobs:
         run: node --check src/worker.js
       - name: Validar endurecimento de segurança
         run: node scripts/validate-security-hardening.mjs
+      - name: Validar base da Central Visual
+        run: node scripts/test-site-visual-control.mjs
       - name: Validar sintaxe do catálogo
         run: node --check public/products.js
       - name: Validar catálogo completo
