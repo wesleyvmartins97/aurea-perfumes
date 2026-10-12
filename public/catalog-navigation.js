@@ -19,12 +19,15 @@ const VALENZA_NAV = (() => {
  const collator = new Intl.Collator('pt-BR',{numeric:true,sensitivity:'base'});
  const byName = (a,b) => collator.compare(a.name||'',b.name||'') || collator.compare(a.brand||'',b.brand||'') || collator.compare(String(a.id||''),String(b.id||''));
  const price = p => p.price !== null && p.price !== undefined && String(p.price).trim() !== '' && Number.isFinite(Number(p.price)) && Number(p.price) >= 0 ? Number(p.price) : null;
+ const unavailable = p => p.stock !== null && p.stock !== undefined && Number.isFinite(Number(p.stock)) && Number(p.stock) <= 0 ? 1 : 0;
+ const availabilityOrder = (a,b) => unavailable(a)-unavailable(b);
  const sort = (products, mode='default') => {
   const result=[...products];
-  if(mode==='name')return result.sort(byName);
-  if(mode==='default'){const order=p=>Number.isFinite(Number(p.sortOrder))?Number(p.sortOrder):99999;return result.sort((a,b)=>order(a)-order(b))}
-  if(mode!=='priceAsc'&&mode!=='priceDesc')return result;
+  if(mode==='name')return result.sort((a,b)=>availabilityOrder(a,b)||byName(a,b));
+  if(mode==='default'){const order=p=>Number.isFinite(Number(p.sortOrder))?Number(p.sortOrder):99999;return result.sort((a,b)=>availabilityOrder(a,b)||order(a)-order(b))}
+  if(mode!=='priceAsc'&&mode!=='priceDesc')return result.sort(availabilityOrder);
   return result.sort((a,b)=>{
+   const availability=availabilityOrder(a,b);if(availability)return availability;
    const pa=price(a),pb=price(b);
    if(pa===null||pb===null)return pa===pb?byName(a,b):pa===null?1:-1;
    return (mode==='priceDesc'?pb-pa:pa-pb)||byName(a,b);
