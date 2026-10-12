@@ -31,3 +31,7 @@ O usuário aprovou o visual atual e pediu que fosse preservado nas próximas atu
 ## Últimos dois da lista — 04/10/2026
 
 - Lista original concluída: Vulcan Baie 100ml e Shagaf Al Ward 100ml adicionados. Ver `docs/ULTIMOS-DOIS-2026-10-04.md`. Vulcan Baie usa Extrait de Parfum conforme fabricante; não confundir com Vulcan Feu nem substituir foto.
+
+## Foto + “posta no site” — regra permanente de 12/10/2026
+
+Antes de cadastrar/publicar perfume solicitado por foto, ler e aplicar `docs/PROCEDIMENTO-POSTAR-PERFUME.md` integralmente. O pedido autoriza o serviço completo até publicação e conferência, sem comandos intermediários. Regra atual de custo: USD × 5,30 + R$40 ponte + R$20 frete. Conferir fornecimento antes de liberar venda. Sem oferta disponível confirmada: estoque zero, ESGOTADO visível em último, compra/carrinho/checkout bloqueados e Google/feed fora de estoque. Preservar visual e IDs; não inventar custo, GTIN, disponibilidade ou lucro líquido. Bahiya Garnet está esgotado; não reativar automaticamente.
