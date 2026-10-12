@@ -1796,11 +1796,11 @@ async function servirAssets(request,env){
    const fulfillment=merchantFulfillment();
    html=html.replaceAll("__VALENZA_DISPATCH_DATE__",fulfillment.date).replaceAll("__VALENZA_DISPATCH_LABEL__",fulfillment.label);
    try{
-   const id=decodeURIComponent(pm[1]),catalog=await officialCatalog(env),p=catalog[id];
+   const id=decodeURIComponent(pm[1]),catalog=await officialCatalog(env),p=catalog[id],inventory=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=? LIMIT 1").bind(id).first(),stock=inventory?Number(inventory.stock):NaN,sellable=p?.offer!==false&&(!Number.isFinite(stock)||stock>0);
    if(!p)return new Response("Produto não disponível.",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","Cache-Control":"no-store","X-Robots-Tag":"noindex, nofollow"}});
    if(p){
-    html=html.replace(/"availability":"[^"]*"/,'"availability":"'+fulfillment.schemaAvailability+'"');
-    html=html.replace(/"availabilityStarts":"[^"]*"/,'"availabilityStarts":"'+fulfillment.date+'"');
+    html=html.replace(/"availability":"[^"]*"/,'"availability":"'+(sellable?fulfillment.schemaAvailability:"https://schema.org/OutOfStock")+'"');
+    if(sellable)html=html.replace(/"availabilityStarts":"[^"]*"/,'"availabilityStarts":"'+fulfillment.date+'"');else{html=html.replace(/,"availabilityStarts":"[^"]*"/g,"");html=html.replace(/<div class="order">[\s\S]*?<\/div>/,'<div class="order"><strong>ESGOTADO</strong><br>Este perfume está sem estoque no momento.</div>');html=html.replace(/<a class="cta"[^>]*>[\s\S]*?<\/a>/,'<div class="cta" aria-disabled="true">ESGOTADO</div>')}
     html=html.replace(/(<span class="dispatch-estimate">Previsão de postagem até )\d{2}\/\d{2}\/\d{4}/,'$1'+fulfillment.label);
     const price=Number(p.price),pix=pixPrice(price),brl=n=>Number(n).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
     html=html.replace(/"price":"[0-9.]+"/,'"price":"'+price.toFixed(2)+'"');
