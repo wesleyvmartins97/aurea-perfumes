@@ -674,6 +674,16 @@
       "status": "verified_reference",
       "source_url": "https://saudi.alwataniah.com/products/shagaf-al-ward",
       "verified_on": "2026-10-04"
+    },
+    {
+      "id": "bahiya-garnet",
+      "name": "Bahiya Garnet",
+      "brand": "Arabiyat Prestige",
+      "type": "EDP · 100ml",
+      "gtin": "6290361912386",
+      "status": "verified_reference",
+      "source_url": "https://nissei.com/br/perfume-arabiyat-prestige-bahiya-garnet-edp-femenino-100ml",
+      "verified_on": "2026-10-12"
     }
   ],
   "exceptions": [
