@@ -58,7 +58,7 @@ console.log('PASS: delayed GA4 config, failed-load recovery, consent rejection, 
 
 // Run the real checkout entry point: a visible modal must reach tracking and recovery.
 const home=fs.readFileSync('public/index.html','utf8');
-const checkoutSource=home.split('\n').find(line=>line.startsWith('async function openCheckout()'));
+const checkoutSource=home.split('\n').find(line=>line.startsWith('async function openCheckout('));
 assert.ok(checkoutSource);
 async function checkoutScenario({verified=true}={}){
  const events=[],layers=[],sync=[];
