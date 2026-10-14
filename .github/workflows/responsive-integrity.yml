@@ -35,6 +35,12 @@ jobs:
         run: node scripts/test-valenza-payment-success.mjs
       - name: Confirmar comprovante seguro na Minha Conta
         run: node scripts/test-customer-payment-confirmation.mjs
+      - name: Validar contrato do Asaas PIX real sem emitir transações
+        run: |
+          node --check src/worker.js
+          node --check src/payments/asaas-prod.mjs
+          node --check src/payments/asaas-valenza.mjs
+          node scripts/test-asaas-pix-production.mjs
       - name: Conferir ciclo dos destaques
         run: node scripts/test-featured-selection.mjs
       - name: Conferir cabeçalho em celular estreito
