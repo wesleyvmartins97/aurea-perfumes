@@ -21,6 +21,8 @@ jobs:
         run: |
           node scripts/test-catalog-navigation.mjs
           node scripts/test-catalog-pagination.mjs
+      - name: Conferir links compartilháveis dos perfumes
+        run: node scripts/test-product-share-links.mjs
       - name: Conferir ciclo dos destaques
         run: node scripts/test-featured-selection.mjs
       - name: Conferir cabeçalho em celular estreito
