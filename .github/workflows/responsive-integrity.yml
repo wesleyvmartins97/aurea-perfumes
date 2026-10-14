@@ -33,6 +33,8 @@ jobs:
         run: node scripts/test-asaas-api.mjs
       - name: Testar receptor Asaas e duplicidade de webhook sem transações
         run: node scripts/test-asaas-webhook.mjs
+      - name: Verificar regras de conciliação segura do Asaas
+        run: node scripts/test-asaas-reconciliation.mjs
       - name: Conferir ciclo dos destaques
         run: node scripts/test-featured-selection.mjs
       - name: Conferir cabeçalho em celular estreito
