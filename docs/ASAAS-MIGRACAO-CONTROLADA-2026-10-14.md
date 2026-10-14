@@ -18,17 +18,74 @@ Fontes: https://www.asaas.com/precos-e-taxas ; https://docs.asaas.com/docs/check
 
 **Atenção:** requisito PF para antecipação de **cartão** é cadastro aprovado com selfie validada **ou** primeira transferência bancária externa concluída, além da análise da cobrança. A exigência de 90 dias citada em outras páginas refere-se a antecipação de **boletos**, não deve ser aplicada automaticamente ao cartão.
 
-## Integração segura proposta
+## Decisão de UX do proprietário — checkout transparente obrigatório
 
-1. Sem alteração das rotas públicas atuais ou segredos no GitHub. Mercado Pago continua provedor ativo até homologação.
-2. Criar credenciais em **Sandbox** Asaas. Guardar via Secrets Cloudflare de testes, não em chat, arquivos ou commits; usar token distinto para autenticação webhook (header `asaas-access-token`). A chave do Sandbox nunca vai para produção.
-3. Verificar conta e ambiente, testar `POST /v3/checkouts` com `billingTypes: [CREDIT_CARD]`, `chargeTypes: [DETACHED, INSTALLMENT]`, frete/custos validados pelo SERVIDOR e `installment.maxInstallmentCount` escolhido. Redirecionar para `https://asaas.com/checkoutSession/show?id=...`. Não enviar dados de cartão ao Worker; cliente digita no checkout hospedado.
-4. Integrar com segurança: carrinho -> revalidação de estoque/preço/cupom/frete -> reserva limitada e idempotente -> checkout com `externalReference` vinculado ao pedido local -> callback retorna somente navegação.
-5. Implementar **webhook autenticado**, idempotência em D1 por `event.id`, consulta de conferência do pagamento no Asaas e transição de status sem dupla baixa de estoque/duplo envio. `CHECKOUT_PAID` só aprova após validação no servidor; `CHECKOUT_CANCELED` / `CHECKOUT_EXPIRED` devem liberar reserva de estoque conforme política vigente. Repetições, falhas, atrasos, chargeback e estornos precisam de testes.
-6. Não substituir lógica das ordens legadas do Mercado Pago: monitoramento, consulta, conciliação, estorno, webhook, notificações e etiqueta devem continuar funcionando para compras antigas.
-7. Testar sandbox: aprovação, recusa, análise de risco, checkout abandonado, retorno sem pagamento, webhook duplicado, erro de rede, 3/6/12 parcelas, PIX se migrado, e histórico de pedidos. Comparar preço final mostrado antes de pagar.
-8. Ativar o Asaas **somente após** teste fim a fim com credenciais e aprovação explícita de custos de antecipação reais na conta CPF; manter reversão ao Mercado Pago possível.
+**Não utilizar Asaas Checkout hospedado, invoiceUrl ou redirecionamento de pagamento.**
+Somente **PIX** e **cartão de crédito**, sem débito e sem boleto. O cliente
+deve permanecer na URL da VALENZA ao gerar QR Code / copia-e-cola e ao escolher
+as parcelas e enviar o cartão, preservando o visual atual.
 
-**Pendência de operação:** validação de limite/uso real da antecipação **antes de depender da receita para comprar perfume do fornecedor**. Não prometer D+2 a cliente/lojista sem liberação contratada.
+O Asaas confirma possibilidade de checkout transparente por API:
+https://central.ajuda.asaas.com/hc/pt-br/articles/32108011423643-Como-usar-o-checkout-transparente-no-Asaas
+https://docs.asaas.com/docs/cobrancas-via-cartao-de-credito
 
-Módulo `src/payments/asaas-checkout.mjs` apenas prepara carga e estima taxas, NÃO emite transações. Testar `node scripts/test-asaas-checkout.mjs`.
+**Segurança é condicionante, não mero detalhe**:
+https://docs.asaas.com/docs/pci-dss-1
+
+Na API Asaas, dados brutos de cartão enviados pelo front-end ao Worker tornam
+nossa aplicação parte do escopo PCI DSS; nem a certificação do Asaas nem criar
+um token server-side resolvem automaticamente a conformidade.
+A tokenização exige envio inicial dos dados do cartão e habilitação em produção.
+**Não implementar captura improvisada de PAN/CVV** e não registrar dados de
+cartão em D1, logs, erros, GitHub, ferramentas de analytics ou chat. Primeiro
+validar com Asaas e profissional de segurança/PCI os controles e o caminho de
+captura adequados. Se a conta não suportar uma solução compatível, o
+cartão **não poderá ser ligado com segurança sob essa exigência**, mesmo
+que o Pix transparente fique pronto.
+
+Exceção inerente ao cartão: alguns bancos exigem autenticação 3DS, e nesse
+caso pode ser necessário redirecionamento pontual para o emissor. Não
+prometer "nunca sai da Valenza" se 3DS obrigatório:
+https://docs.asaas.com/docs/criar-cobranca-com-3ds
+
+## Integração segura proposta, em ordem
+
+1. **Antes de alterações públicas:** manter checkout Mercado Pago enquanto a
+   nova cobrança for validada e não bloquear a loja nem clientes navegando.
+2. **Credenciais:** configurar secrets em Cloudflare para Asaas, nunca
+   em chat, GitHub ou front-end. Ambientes separados; usuário ajudará
+   a configurar quando solicitado, um passo por vez.
+3. **PIX transparente:** revalidar login/e-mail, preço, estoque, frete e cupom
+   no servidor; criar cliente e cobrança `POST /v3/payments` (`billingType: PIX`)
+   vinculada ao pedido local; obter `/payments/{id}/pixQrCode` e exibir
+   QR/copia-e-cola no modal atual. Garantir referência única e recuperação
+   de chamadas com resultado incerto sem gerar cobranças duplicadas.
+4. **Confirmar pagamento:** webhook Asaas autenticado, deduplicado por ID de evento
+   no D1, com consulta server-side da cobrança e verificação de valor, referência,
+   cliente e método. Marcar um único pedido pago, registrar operação, enviar e-mail
+   e chamar `criarEnvioEnvioEcom` somente após aprovação e uma única vez.
+   PIX pendente/expirado deve liberar estoque de acordo com política atual.
+5. **Crédito transparente:** habilitar só depois do plano PCI DSS revisado.
+   Confirmar operação/cartão/parcelamento na conta Asaas; preço e frete
+   devem ser revalidados no servidor; sem logar PAN/CVV. Preferir método
+   homologado de tokenização/captura, jamais transferir dados brutos para
+   sistemas não preparados. Atualizar layout internamente e manter
+   tratamento de 3DS quando exigido pelo emissor.
+6. **Pedidos e EnvioEcom:** central de pedidos, estoque reservado,
+   expedição, estornos, chargebacks, recuperação e notificações
+   sincronizados. Preservar monitoramento dos pagamentos antigos
+   do Mercado Pago mesmo que não haja compras históricas relatadas.
+7. **Testes:** somente mudança em branch até os fluxos Pix, cartão, webhook
+   repetido/fora de ordem, timeout, reembolso, EnvioEcom, receita/checkout,
+   erro e autenticação passarem. Auditoria final antes da ativação em produção.
+8. **Ativação/reversão:** modo Asaas somente com credenciais verificadas,
+   webhook e conformidade; rollback simples e comprovado. Nada de publicar
+   um checkout que não recebe ou que não entrega.
+
+**Pendência de operação:** confirmar antecipação de recebíveis para conta CPF
+e prazo efetivo, antes de depender da receita para pagar fornecedor.
+
+O módulo `src/payments/asaas-checkout.mjs` oferece **simulação e contrato
+transparente**, não cria pagamentos; `src/payments/asaas-api.mjs` é adapter
+server-only ainda desconectado do Worker público. Não confundir passar nos
+testes estáticos com homologação transacional.
