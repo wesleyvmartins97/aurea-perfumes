@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const worker=fs.readFileSync('src/worker.js','utf8');
+const homepage=fs.readFileSync('public/index.html','utf8');
+const receiptJs=fs.readFileSync('public/payment-receipt.js','utf8');
+
+assert.match(worker,/if\(url\.pathname==="\/api\/account\/payment-confirmation"&&request\.method==="GET"\)return accountPaymentConfirmation\(request,env,url\)/);
+assert.match(homepage,/payment-receipt\.js\?v=20261014/);
+assert.match(homepage,/t==='orders'&&o\.status==='Pago'/);
+assert.match(homepage,/window\.valenzaOpenPaymentReceipt\?\.\(this\.dataset\.orderId\)/);
+assert.match(receiptJs,/credentials:'same-origin',cache:'no-store'/);
+assert.match(receiptJs,/navigator\.canShare/);
+assert.match(receiptJs,/navigator\.share\(/);
+assert.match(receiptJs,/\/\* VALENZA PARFUMS/);
+assert.match(receiptJs,/https:\/\/wa\.me\//);
+assert.match(receiptJs,/N[aã]o substitui comprovante banc[aá]rio/i);
+assert.doesNotMatch(receiptJs,/ASAAS_API_KEY|MERCADOPAGO_ACCESS_TOKEN|creditCard\.number/);
+new vm.Script(receiptJs,{filename:'payment-receipt.js'});
+const start=worker.indexOf('// Comprovante comercial, privado');
+const end=worker.indexOf('async function accountData(',start);
+assert.ok(start>0&&end>start);
+const source=worker.slice(start,end);
+let user={id:'customer_a',email:'customer@example.invalid'};
+let order={id:'order_000001',order_number:'VALENZA-12345',status:'Pago',total:579.9,created_at:'2026-10-14T14:30:00.000Z'};
+let pay={method:'card',installments:6,installment_amount:96.65,total_paid:579.9,status:'approved',updated_at:'2026-10-14T14:33:00.000Z'};
+let seen=[],authChecks=0;
+const DB={prepare(sql){
+ let params=[];
+ return {bind(...values){params=values;return this},async first(){
+  seen.push({sql,params});
+  if(sql.includes('FROM orders WHERE id=? AND customer_id=?'))return params[0]===order?.id&&params[1]===user?.id?order:null;
+  if(sql.includes('FROM order_payments WHERE order_id=?'))return pay;
+  throw Error('Unexpected query');
+ }};
+}};
+const context={URL,Set,Number,String,console:{error(){}},async ensureAuthSchema(){authChecks++},
+ async currentCustomer(){return user},resposta(data,status=200){return new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}})},
+};
+vm.createContext(context);
+vm.runInContext(source+';globalThis.getReceipt=accountPaymentConfirmation;',context);
+const run=async id=>{
+ const res=await context.getReceipt(new Request('https://www.valenzaparfums.com.br/api/account/payment-confirmation?orderId='+encodeURIComponent(id)),{DB},new URL('https://www.valenzaparfums.com.br/api/account/payment-confirmation?orderId='+encodeURIComponent(id)));
+ return {status:res.status,data:await res.json()};
+};
+let v=await run('order_000001');
+assert.equal(v.status,200);
+assert.equal(v.data.confirmation.status,'Pago');
+assert.equal(v.data.confirmation.amount,579.9);
+assert.equal(v.data.confirmation.installments,6);
+assert.equal(v.data.confirmation.paymentMethod,'Cartão de crédito');
+assert.ok(!JSON.stringify(v.data).match(/cpf|address|cardNumber|email/i),'no personal sensitive data in receipt');
+assert.ok(seen[0].sql.includes('customer_id=?')&&seen[0].sql.includes('lower(email)=lower(?)'));
+assert.equal(seen[0].params[1],user.id);
+assert.equal(seen[0].params[3],user.email);
+user=null;
+v=await run('order_000001');assert.equal(v.status,401);
+user={id:'customer_a',email:'customer@example.invalid'};
+v=await run('another_order');assert.equal(v.status,404);
+v=await run('../bad');assert.equal(v.status,400);
+order={...order,status:'Aguardando pagamento'};
+v=await run('order_000001');assert.equal(v.status,409);
+order={...order,status:'Pago'};
+pay={...pay,status:'pending'};
+v=await run('order_000001');assert.equal(v.status,409);
+pay={...pay,status:'refunded'};
+v=await run('order_000001');assert.equal(v.status,409);
+pay={...pay,status:'received',method:'pix',installments:1};
+v=await run('order_000001');assert.equal(v.status,200);
+assert.equal(v.data.confirmation.paymentMethod,'PIX');
+assert.equal(v.data.confirmation.installments,1);
+pay=null;
+v=await run('order_000001');assert.equal(v.status,409);
+assert.ok(authChecks>=8);
+console.log('VALENZA: confirmação na conta paga, PIX/cartão, autenticação, pedido alheio, pendente, estornado, WhatsApp e PNG — PASS');
