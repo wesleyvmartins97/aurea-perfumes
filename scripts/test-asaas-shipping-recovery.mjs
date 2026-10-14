@@ -10,7 +10,8 @@ const env={DB:{prepare(sql){
  assert.ok(sql.includes("a.status='RECEIVED'"),'Do not ship CONFIRMED CPF holds');
  assert.ok(sql.includes("s.carrier<>'Entrega local Valenza'"),'No EnvioEcom for Colatina');
  assert.ok(sql.includes("e.event_type='shipping.network_failed'"),'No double shipment on uncertain network error');
- assert.ok(sql.includes("lk.state IN ('created','admin_deleting')"),'Honor existing shipping locks');
+ assert.ok(sql.includes('NOT EXISTS (SELECT 1 FROM shipment_locks lk WHERE lk.order_id=o.id)'),'Honor ALL existing shipping locks');
+ assert.ok(sql.includes("EnvioEcom respondeu sem identificador da postagem."),'Never duplicate unclear shipment creation');
  return {async all(){
   return {results:shippingId||networkUncertain||local?[]:[{order_id:'pay_PAID_ASAAS_12345'}]};
  }};
