@@ -13,22 +13,17 @@ const section=(start,end)=>{const a=html.indexOf(start);assert.ok(a>=0,'Marcador
 
 // Valida a geração de endereços sem pedir dados privados e sem alterar a loja.
 const shared=section('function productShareUrl(id){','function updateCart(){');
-const notices=[],copied=[];
 const linkContext=vm.createContext({
- CATALOG:products,URL,location:{origin:'https://www.valenzaparfums.com.br'},
- navigator:{clipboard:{writeText:async value=>copied.push(value)}},
- valenzaNotice:msg=>notices.push(msg)
+ CATALOG:products,URL,location:{origin:'https://www.valenzaparfums.com.br'}
 });
-vm.runInContext(shared+';this.getLink=productShareUrl;this.copyLink=copyProductLink;',linkContext);
+vm.runInContext(shared+';this.getLink=productShareUrl;',linkContext);
 for(const p of products.filter(p=>p.active!==false)){
  assert.equal(linkContext.getLink(p.id),'https://www.valenzaparfums.com.br/perfume/'+p.id+'/');
 }
 assert.equal(linkContext.getLink('produto-inexistente'),null);
-await linkContext.copyLink('armaf-club-de-nuit-elite');
-assert.equal(copied.at(-1),'https://www.valenzaparfums.com.br/perfume/armaf-club-de-nuit-elite/');
-assert.ok(notices.at(-1).includes('copiado'));
+assert.doesNotMatch(shared,/copyProductLink/,'Remover recurso antigo de cópia direta');
 
-// Foto, nome e ação de compartilhamento do carrinho não podem mudar quantidade ou pagamento.
+// Foto, nome e carrinho continuam sem botão antigo de copiar; quantidades intactas.
 const updateCart=section('function updateCart(){',';function changeQty(');
 const elements={count:{textContent:''},headerCartValue:{textContent:''},cartContent:{innerHTML:''},shipArea:{style:{}},totalArea:{style:{}}};
 const inCart=[{id:'armaf-club-de-nuit-elite',name:'Club de Nuit Élite',brand:'Armaf',type:'EDP',img:'/img.webp',price:579.90,qty:2}];
@@ -41,7 +36,7 @@ const cartContext=vm.createContext({
 vm.runInContext(updateCart+';updateCart()',cartContext);
 assert.match(elements.cartContent.innerHTML,/href="\/perfume\/armaf-club-de-nuit-elite\/"/);
 assert.doesNotMatch(elements.cartContent.innerHTML,/target="_blank"/);
-assert.match(elements.cartContent.innerHTML,/copyProductLink\('armaf-club-de-nuit-elite'\)/);
+assert.doesNotMatch(elements.cartContent.innerHTML,/Copiar link|copyProductLink/);
 assert.match(elements.cartContent.innerHTML,/changeQty\('armaf-club-de-nuit-elite',-1\)/);
 assert.match(elements.cartContent.innerHTML,/setCartQty\(this.dataset.id,this.value\)/);
 assert.match(elements.cartContent.innerHTML,/removeItem\('armaf-club-de-nuit-elite'\)/);
@@ -61,7 +56,7 @@ const detailsContext=vm.createContext({
  valenzaNotice:msg=>{throw new Error(msg)}
 });
 vm.runInContext(detailCode+';detail("armaf-club-de-nuit-elite")',detailsContext);
-assert.match(detailBox.innerHTML,/COPIAR LINK DESTE PERFUME/);
+assert.doesNotMatch(detailBox.innerHTML,/COPIAR LINK|copyProductLink/);
 assert.match(detailBox.innerHTML,/Compartilhar pelo WhatsApp/);
 assert.match(detailBox.innerHTML,/add\('armaf-club-de-nuit-elite'\);closeDetail\(\)/);
 assert.equal(pushed[0][0],'detail');
@@ -79,4 +74,4 @@ assert.match(html,/function restoreDetailReturn\(\)/);
 for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
  if(m[0].includes('application/ld+json'))JSON.parse(m[1]);else new vm.Script(m[1]);
 }
-console.log('OK: links individuais dos '+products.length+' perfumes, cópia, modal, catálogo e carrinho; fluxo de compra preservado.');
+console.log('OK: links dos '+products.length+' perfumes e compartilhamento pelo WhatsApp; botões de cópia removidos, compra e carrinho preservados.');
