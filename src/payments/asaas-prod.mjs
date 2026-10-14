@@ -111,15 +111,23 @@ export async function handleAsaasWebhook(req,env,ctx,onPayment){
  if(!String(req.headers.get('content-type')||'').includes('application/json'))return new Response('Unsupported Media Type',{status:415});
  if(Number(req.headers.get('content-length')||0)>65536)return new Response('Payload too large',{status:413});
  let event;try{const raw=await req.text();if(raw.length>65536)return new Response('Payload too large',{status:413});event=JSON.parse(raw)}catch{return new Response('Invalid JSON',{status:400})}
- const id=String(event?.id||''),type=String(event?.event||''),pid=String(event?.payment?.id||'');
- if(!paymentId(id)||!/^[A-Z][A-Z0-9_]{2,99}$/.test(type))return new Response('Invalid event',{status:400});
+ const id=event?.id,type=event?.event,pid=event?.payment?.id;
+ // Real Asaas IDs may contain "&" followed by digits. Treat an event ID
+ // as an opaque idempotency key, not as an API payment ID.
+ const validEventId=typeof id==='string'&&id.length>=8&&id.length<=255;
+ if(!validEventId||typeof type!=='string'||!/^[A-Z][A-Z0-9_]{2,99}$/.test(type))return new Response('Invalid event',{status:400});
+ // Manual Asaas charges have externalReference:null; acknowledge and store
+ // them without trying to create a VALENZA order or shipping.
+ const externalReference=event?.payment?.externalReference;
+ const isValenzaPayment=paymentId(pid)&&typeof externalReference==='string'&&externalReference.startsWith('AUREA-')&&paymentId(externalReference);
+ const shouldQueue=isValenzaPayment&&type.startsWith('PAYMENT_');
  const now=new Date().toISOString();
  try{
   await ensureAsaasTables(env);
   await env.DB.prepare('INSERT OR IGNORE INTO asaas_webhook_events(id,event_type,payment_id,external_reference,state,received_at,updated_at) VALUES(?,?,?,?,?,?,?)')
-   .bind(id,type,paymentId(pid)?pid:null,paymentId(event?.payment?.externalReference)?event.payment.externalReference:null,paymentId(pid)&&type.startsWith('PAYMENT_')?'queued':'ignored',now,now).run();
+   .bind(id,type,paymentId(pid)?pid:null,paymentId(externalReference)?externalReference:null,shouldQueue?'queued':'ignored',now,now).run();
  }catch{return new Response('Write unavailable',{status:503})}
  // Asaas retries on 5xx. Once persisted, process out-of-band and retry from cron.
- if(paymentId(pid)&&type.startsWith('PAYMENT_')&&ctx?.waitUntil)ctx.waitUntil(Promise.resolve(onPayment(pid)).catch(()=>{}));
+ if(shouldQueue&&ctx?.waitUntil)ctx.waitUntil(Promise.resolve().then(()=>onPayment(pid)).catch(()=>{}));
  return new Response(JSON.stringify({ok:true}),{status:200,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 }
