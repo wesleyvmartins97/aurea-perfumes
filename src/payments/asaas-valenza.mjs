@@ -137,7 +137,7 @@ export function createValenzaAsaasBridge(dep){
   try{
    const gw=createAsaasGateway(env),remote=await gw.getPayment(link.payment_id),dec=classifyAsaasPix(remote,link);
    if(dec.status==='paid'||dec.reason==='precautionary_hold')return {ok:false,error:'Este PIX já foi confirmado ou está em análise.'};
-   if(dec.status==='pending'){await gw.cancelPayment(link.payment_id);const after=await gw.getPayment(link.payment_id);if(classifyAsaasPix(after,link).status!=='cancelled')return {ok:false,error:'A exclusão da cobrança ainda não foi confirmada pelo Asaas.'};await reconcile(env,link.order_id)}
+   if(dec.status==='pending'){const removed=await gw.cancelPayment(link.payment_id);if(removed?.deleted!==true)return {ok:false,error:'O Asaas ainda não confirmou a exclusão do PIX.'};await env.DB.prepare("UPDATE asaas_payment_links SET status='DELETED',updated_at=? WHERE payment_id=?").bind(new Date().toISOString(),link.payment_id).run()}
    else if(dec.status!=='cancelled')return {ok:false,error:'Este PIX precisa de revisão antes de cancelar.'};
    return {ok:true};
   }catch{return {ok:false,error:'Não foi possível cancelar a cobrança no Asaas. Tente mais tarde.'}}
