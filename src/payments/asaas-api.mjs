@@ -41,6 +41,13 @@ export function asaasClient({apiKey,mode='sandbox',fetchImpl=fetch,timeoutMs=200
   }finally{clearTimeout(timeout)}
  }
  return Object.freeze({
+  // Consulta apenas de leitura: confirma que a chave está válida e pertence
+  // ao ambiente correto. Nunca devolver agência, conta ou chave ao navegador.
+  async checkCredentials(){
+   const data=await call('GET','/myAccount/accountNumber');
+   if(!data||typeof data!=='object')throw new AsaasRequestError('Não foi possível conferir credenciais.',502);
+   return {ok:true,provider:'asaas',mode};
+  },
   async createCustomer({name,cpfCnpj,email,mobilePhone,reference}){
    if(typeof name!=='string'||name.trim().length<3||name.length>150)throw new TypeError('Nome inválido');
    if(typeof cpfCnpj!=='string'||!/^\d{11}(?:\d{3})?$/.test(cpfCnpj))throw new TypeError('CPF/CNPJ inválido');
