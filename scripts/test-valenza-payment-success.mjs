@@ -46,6 +46,7 @@ assert.equal(timers.size,1,'new confirmation cancels stale timeout');
 assert.ok(!timers.has(firstTimer));
 assert.equal(closeCount,0);
 const callback=timers.get(active);
+timers.delete(active); // timer is removed from the browser queue when it fires
 callback();
 assert.equal(closeCount,1);
 assert.equal(visible,false);
@@ -54,7 +55,9 @@ assert.equal(timers.size,0);
 visible=true;
 assert.equal(show({orderId:'PAY444444'}),true);
 visible=false;
-timers.get(active)();
+const closedCallback=timers.get(active);
+timers.delete(active);
+closedCallback();
 assert.equal(closeCount,1,'timer must never close checkout that was already dismissed');
 
 const pixAt=html.indexOf('function watchPixPayment(');
