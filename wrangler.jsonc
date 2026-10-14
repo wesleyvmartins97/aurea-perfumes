@@ -60,6 +60,9 @@
   },
   "vars": {
     "MERCADOPAGO_MODE": "production",
+    // PIX transparente Asaas aprovado após evento real PAYMENT_CREATED/DELETED com HTTP 200.
+    // Para rollback imediato, alterar somente esta variável para "false".
+    "ASAAS_PIX_ENABLED": "true",
     "ADMIN_EMAILS": "wesleyvmartins97@gmail.com,jjessitrindade@gmail.com",
     "ADMIN_USERNAME": "wesleymartins",
     // Valores não secretos necessários em produção. Segredos continuam somente no painel da Cloudflare.
