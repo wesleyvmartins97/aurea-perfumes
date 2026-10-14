@@ -1887,7 +1887,7 @@ const AUREA_CATALOG={
 "designer-miss-dior":{name:"Miss Dior",brand:"Dior",type:"EDP · 100ml",price:929.9,weight:.6,length:20,height:12,width:16},
 "designer-linterdit":{name:"L'Interdit",brand:"Givenchy",type:"EDP · 80ml",price:849.9,weight:.6,length:20,height:12,width:16},
 "armaf-club-de-nuit-maleka":{name:"Club de Nuit Maleka",brand:"Armaf",type:"EDP · 105ml",price:449.90,weight:.6,length:20,height:12,width:16},
-"armaf-club-de-nuit-elite":{name:"Club de Nuit Élite",brand:"Armaf",type:"EDP · 105ml",price:549.90,weight:.75,length:20,height:12,width:16}
+"armaf-club-de-nuit-elite":{name:"Club de Nuit Élite",brand:"Armaf",type:"EDP · 105ml",price:579.90,weight:.75,length:20,height:12,width:16}
 };
 async function disabledProductSet(env){
  await ensureAuthSchema(env);
