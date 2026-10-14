@@ -103,7 +103,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/pagamento/status"&&request.method==="GET")return statusMercadoPago(env);
  if(url.pathname==="/api/pagamento/webhook"&&request.method==="POST")return webhookMercadoPago(request,env,ctx);
  if(url.pathname==="/api/asaas/webhook"&&request.method==="POST")return asaasBridge.webhook(request,env,ctx);
- if(url.pathname==="/api/pagamento/config"&&request.method==="GET"){const mp=mpConfig(env);return resposta({ok:true,cardEnabled:Boolean(mp.publicKey),publicKey:mp.publicKey||"",testMode:mp.testMode})}
+ if(url.pathname==="/api/pagamento/config"&&request.method==="GET"){const mp=mpConfig(env);return resposta({ok:true,cardEnabled:Boolean(mp.publicKey),publicKey:mp.publicKey||"",testMode:mp.testMode,pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago"})}
  if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
  if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(request,url.pathname.slice("/api/pagamento/".length).trim(),env);
