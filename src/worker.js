@@ -88,6 +88,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/notifications/read"&&request.method==="POST")return adminNotificationsRead(request,env);
  if(url.pathname==="/api/admin/orders/delete-tests"&&request.method==="POST")return adminDeleteTestOrders(request,env);
  if(url.pathname==="/api/account"&&request.method==="GET")return accountData(request,env);
+ if(url.pathname==="/api/account/payment-confirmation"&&request.method==="GET")return accountPaymentConfirmation(request,env,url);
  if(url.pathname==="/api/account/profile"&&request.method==="POST")return accountProfile(request,env);
  if(url.pathname==="/api/account/password"&&request.method==="POST")return accountPasswordChange(request,env);
  if(url.pathname==="/api/account/order/cancel"&&request.method==="POST")return accountCancelOrder(request,env);
@@ -1631,6 +1632,43 @@ async function adminDashboard(request,env){
   if(opportunityCandidates.length)operationalAlerts.push({type:"opportunity",severity:"info",title:"Oportunidades de recuperação",message:opportunityCandidates.length+" carrinho(s) recuperável(is) · "+Number(opportunityValue).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})+" em potencial."});
   return resposta({ok:true,admin:{name:admin.name},generatedAt:new Date().toISOString(),analytics,finance,shipping,system,auditLog:auditRows.results||[],promotions:promotions.results||[],productPromotions:productPromotions.results||[],productSettings:productSettings.results||[],disabledProducts:disabledProducts.results||[],opportunities:opportunityRows,notifications:notificationRows,operationalAlerts,stockIntelligence:{reorderThreshold:STOCK_REORDER_THRESHOLD,criticalThreshold:STOCK_CRITICAL_THRESHOLD,items:stockIntelligence},metrics:{customers:Number(customers?.total||0),verifiedCustomers:Number(customers?.verified||0),orders:totalOrders,paidOrders,revenue:Number(revenue.toFixed(2)),averageTicket:paidOrders?Number((revenue/paidOrders).toFixed(2)):0,pendingOrders:Number(fin.pending_real||0),rejectedOrders:Number(orders?.rejected_orders||0),closedOrders:Number(orders?.closed_orders||0),inventoryUnits:activeStockRows.reduce((sum,x)=>sum+Number(x.stock||0),0),lowStockProducts:lowStock,outOfStockProducts:outStock,criticalStockProducts:criticalStock,reorderStockProducts:reorderStock,restockProducts:stockIntelligence.length,deletedTestOrders:Number(deletedTests?.total||0),unreadNotifications,opportunityCandidates:opportunityCandidates.length,opportunityValue:Number(opportunityValue.toFixed(2)),recoveredOpportunities},recentOrders:recent,recentCustomers:recentCustomers.results||[],inventory:stockRows,topProducts:topProducts.results||[],productSales:productSales.results||[]});
  }catch(e){console.error("Admin dashboard:",e);return resposta({ok:false,error:"Não foi possível carregar o painel administrativo."},500)}
+}
+// Comprovante comercial, privado, sem revelar CPF, endereço ou dados do cartão.
+// Confirma o pedido contra D1 a cada abertura: não confia no status do navegador.
+// Não representa comprovante de transferência bancária emitido pelo provedor.
+async function accountPaymentConfirmation(request,env,url){
+ try{
+  await ensureAuthSchema(env);
+  const u=await currentCustomer(request,env);
+  if(!u)return resposta({ok:false,error:"Entre na sua conta para visualizar a confirmação."},401);
+  const id=String(url.searchParams.get("orderId")||"").trim();
+  if(!/^[A-Za-z0-9_-]{1,160}$/.test(id))return resposta({ok:false,error:"Pedido inválido."},400);
+  const order=await env.DB.prepare("SELECT id,order_number,status,total,created_at FROM orders WHERE id=? AND customer_id=? UNION ALL SELECT id,order_number,status,total,created_at FROM guest_orders WHERE id=? AND lower(email)=lower(?) LIMIT 1")
+   .bind(id,u.id,id,u.email).first();
+  if(!order)return resposta({ok:false,error:"Pedido não encontrado na sua conta."},404);
+  if(String(order.status)!=="Pago")return resposta({ok:false,error:"A confirmação fica disponível depois da aprovação do pagamento."},409);
+  const pay=await env.DB.prepare("SELECT method,installments,installment_amount,total_paid,status,updated_at FROM order_payments WHERE order_id=? LIMIT 1").bind(order.id).first();
+  const allowed=new Set(["approved","processed","received","confirmed"]);
+  if(!pay||!allowed.has(String(pay.status||"").toLowerCase()))return resposta({ok:false,error:"A confirmação deste pagamento ainda não está disponível."},409);
+  const total=Number(order.total);
+  if(!Number.isFinite(total)||total<=0)return resposta({ok:false,error:"Dados do pedido incompletos."},409);
+  const method=String(pay.method||"").toLowerCase();
+  const installments=Math.max(1,Math.min(21,Number(pay.installments)||1));
+  return resposta({ok:true,confirmation:{
+   orderNumber:String(order.order_number||order.id),
+   amount:Number(total.toFixed(2)),
+   paymentMethod:method==="pix"?"PIX":"Cartão de crédito",
+   installments:method==="pix"?1:installments,
+   installmentAmount:Math.max(0,Number(pay.installment_amount)||0),
+   orderCreatedAt:String(order.created_at||""),
+   lastPaymentUpdate:String(pay.updated_at||""),
+   status:"Pago",issuer:"VALENZA PARFUMS",
+   disclaimer:"Confirmação de pedido emitida pela VALENZA PARFUMS. Não substitui comprovante bancário."
+  }});
+ }catch(error){
+  console.error("Confirmação de pedido:",error?.name||"error");
+  return resposta({ok:false,error:"Não foi possível consultar a confirmação agora."},503);
+ }
 }
 async function accountData(request,env){try{
  const u=await currentCustomer(request,env);if(!u)return resposta({ok:false,error:"Faça login para acessar sua conta."},401);
