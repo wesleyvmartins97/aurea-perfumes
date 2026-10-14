@@ -4,6 +4,10 @@ import {webcrypto} from 'node:crypto';
 import {createAsaasGateway,asaasPixEnabled,asaasReady,classifyAsaasPix,storeAsaasLink,readAsaasLink,handleAsaasWebhook} from '../src/payments/asaas-prod.mjs';
 
 const worker=fs.readFileSync('src/worker.js','utf8');
+const wrangler=fs.readFileSync('wrangler.jsonc','utf8');
+assert.match(wrangler,/"ASAAS_PIX_ENABLED": "true"/,'PIX Asaas deve estar habilitado somente no Worker Valenza de produção');
+assert.match(worker,/pixGateway:asaasPixEnabled\(env\)\?"asaas":"mercadopago"/,'Provedor PIX deve ser consultável sem expor segredos');
+assert.match(worker,/cardGateway:"mercadopago"/,'Cartão deve continuar isolado no Mercado Pago');
 assert.match(worker,/if\(asaasPixEnabled\(env\)\)return asaasBridge\.startPix/);
 assert.match(worker,/if\(url\.pathname===\"\/api\/asaas\/webhook\"&&request\.method===\"POST\"\)return asaasBridge\.webhook/);
 assert.match(worker,/reconcileUncertainPayments\(env\),reconcileStalePixReservations\(env\),asaasBridge\.cron\(env\)/);
