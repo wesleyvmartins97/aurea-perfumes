@@ -448,7 +448,7 @@ async function adminAsaasStatus(request,env){
    });
    // O Asaas retorna agência e número bancário, portanto descartamos o corpo.
    if(!result.ok)return resposta({ok:false,provider:"asaas",mode:"production",status:"validation_failed",httpStatus:result.status,chargesCreated:0,error:"A chave não pôde ser validada no Asaas."},502);
-   return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0});
+   return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0,webhookConfigured:String(env.ASAAS_WEBHOOK_TOKEN||"").length>=32,pixEnabled:asaasPixEnabled(env),pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago",cardAsaasReady:false});
   }finally{clearTimeout(timer)}
  }catch(error){
   return resposta({ok:false,provider:"asaas",mode:"production",status:"unavailable",chargesCreated:0,error:"Verificação temporariamente indisponível."},503);
