@@ -684,6 +684,16 @@
       "status": "verified_reference",
       "source_url": "https://nissei.com/br/perfume-arabiyat-prestige-bahiya-garnet-edp-femenino-100ml",
       "verified_on": "2026-10-12"
+    },
+    {
+      "id": "armaf-club-de-nuit-elite",
+      "name": "Club de Nuit Élite",
+      "brand": "Armaf",
+      "type": "EDP · 105ml",
+      "gtin": "6295199829110",
+      "status": "verified_reference",
+      "source_url": "https://novaluxeurope.com/en/product/armaf-club-de-nuit-elite-105-ml/",
+      "verified_on": "2026-10-14"
     }
   ],
   "exceptions": [
