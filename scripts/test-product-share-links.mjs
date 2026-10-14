@@ -22,7 +22,8 @@ assert.match(detail,/pushLayer\('detail','\/perfume\/'\+encodeURIComponent\(p\.i
 assert.match(detail,/if\(fromHistory\)/);
 assert.match(detail,/rememberDetailReturn\(\)/);
 const back=pick("window.addEventListener('popstate',()=>{",'function updateSummary(){');
-assert.match(back,/history\.state\?\.aureaLayer==='detail'/);
+assert.match(back,/const target=history\.state\?\.aureaLayer/);
+assert.match(back,/if\(target==='detail'\)/);
 assert.match(back,/detail\(id,true\)/);
 assert.match(back,/else if\(layer==='detail'\)closeDetail\(true\)/);
 assert.match(html,/href=\"\/perfume\/\$\{esc\(p\.id\)\}\/\"/);

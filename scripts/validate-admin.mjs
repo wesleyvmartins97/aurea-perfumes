@@ -10,7 +10,7 @@ const wrangler=read('wrangler.jsonc');
 const customerRawErrors=['accountMsg(e.message)','out.textContent=e.message','out.textContent=err.message','showError(err.message','valenzaNotice(e.message)','esc(e.message)','Load failed','Failed to fetch'];
 for(const raw of customerRawErrors)if(home.includes(raw))fail.push('Mensagem técnica crua visível ao cliente: '+raw);
 if(!home.includes('function clientErrorMessage('))fail.push('Site sem normalizador de mensagens amigáveis para o cliente.');
-const checkoutStart=home.indexOf('async function openCheckout(){');
+const checkoutStart=home.indexOf('async function openCheckout(');
 const closeCheckoutStart=home.indexOf('function closeCheckout',checkoutStart);
 if(checkoutStart<0||closeCheckoutStart<0||!home.slice(checkoutStart,closeCheckoutStart).trimEnd().endsWith('}'))fail.push('openCheckout não fecha antes de closeCheckout; isso derruba catálogo, conta e botões da loja.');
 

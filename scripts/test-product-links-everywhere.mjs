@@ -40,7 +40,7 @@ const cartContext=vm.createContext({
 });
 vm.runInContext(updateCart+';updateCart()',cartContext);
 assert.match(elements.cartContent.innerHTML,/href="\/perfume\/armaf-club-de-nuit-elite\/"/);
-assert.match(elements.cartContent.innerHTML,/target="_blank" rel="noopener noreferrer"/);
+assert.doesNotMatch(elements.cartContent.innerHTML,/target="_blank"/);
 assert.match(elements.cartContent.innerHTML,/copyProductLink\('armaf-club-de-nuit-elite'\)/);
 assert.match(elements.cartContent.innerHTML,/changeQty\('armaf-club-de-nuit-elite',-1\)/);
 assert.match(elements.cartContent.innerHTML,/setCartQty\(this.dataset.id,this.value\)/);
@@ -69,7 +69,7 @@ assert.equal(pushed[0][1],'/perfume/armaf-club-de-nuit-elite/');
 
 // Comprar deve manter a operação original: adicionar, salvar e abrir o carrinho.
 const buy=section('function buyNow(id){','let accountUser=');
-assert.match(buy,/saveCart\(\);openCart\(\)/);
+assert.match(buy,/saveCart\(\);openCart\(id\)/);
 assert.match(buy,/if\(!av.sellable\)/);
 assert.match(html,/data-product-id="\$\{esc\(p.id\)\}"/);
 assert.match(html,/class="name"><a href="\/perfume\/\$\{esc\(p.id\)\}\//);

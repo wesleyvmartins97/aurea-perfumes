@@ -25,6 +25,8 @@ jobs:
         run: node scripts/test-product-share-links.mjs
       - name: Conferir compartilhamento em catálogo, detalhes e carrinho
         run: node scripts/test-product-links-everywhere.mjs
+      - name: Conferir rotas do carrinho, checkout e botão Voltar
+        run: node scripts/test-shop-routes.mjs
       - name: Conferir ciclo dos destaques
         run: node scripts/test-featured-selection.mjs
       - name: Conferir cabeçalho em celular estreito
