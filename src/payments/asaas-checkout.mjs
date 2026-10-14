@@ -21,39 +21,30 @@ export function estimateAsaasFees(total, installments, monthlyAdvanceRate=0.017)
     notAnOffer:true
   };
 }
-export function buildAsaasCheckoutPayload({reference,items,maxInstallments=6,origin,expiresMinutes=60}) {
-  if(typeof reference!=='string'||!/^[-A-Za-z0-9_]{6,160}$/.test(reference))throw new TypeError('Referência inválida');
-  if(!Array.isArray(items)||!items.length||items.length>30)throw new TypeError('Itens inválidos');
-  if(!Number.isInteger(maxInstallments)||maxInstallments<1||maxInstallments>12)throw new RangeError('Parcelas inválidas');
-  if(!Number.isInteger(expiresMinutes)||expiresMinutes<10||expiresMinutes>1440)throw new RangeError('Expiração inválida');
-  const url=new URL(origin);
-  if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw new TypeError('Origem inválida');
-  const safeItems=items.map(item=>{
-    if(!item||typeof item.name!=='string'||!item.name.trim()||item.name.length>180)throw new TypeError('Nome inválido');
-    if(!Number.isInteger(item.quantity)||item.quantity<1||item.quantity>10)throw new TypeError('Quantidade inválida');
-    if(!Number.isFinite(item.value)||item.value<=0||item.value>100000)throw new TypeError('Preço inválido');
-    return {name:item.name.trim(),quantity:item.quantity,value:round2(item.value)};
-  });
-  return {
-    billingTypes:['CREDIT_CARD'],chargeTypes:['DETACHED','INSTALLMENT'],
-    installment:{maxInstallmentCount:maxInstallments},
-    minutesToExpire:expiresMinutes,externalReference:reference,
-    items:safeItems,callback:{
-      successUrl:new URL('/pagamento/retorno/?status=concluido',url).href,
-      cancelUrl:new URL('/checkout/?status=cancelado',url).href,
-      expiredUrl:new URL('/checkout/?status=expirado',url).href
-    }
-  };
+// Contrato de checkout transparente: mantém cliente no endereço da VALENZA.
+// NÃO captura PAN, validade ou CVV: o processamento por API exige segurança
+// PCI DSS comprovada antes de aceitar cartões reais. Este módulo prepara
+// somente o plano de pagamento; ainda não é uma rota de cobrança.
+export const VALENZA_ASAAS_PAYMENT_METHODS=Object.freeze(['pix','credit_card']);
+export function buildValenzaTransparentPaymentPlan({reference,method,total,installments=1,creditCardToken=null}={}){
+ if(typeof reference!=='string'||!/^[-A-Za-z0-9_]{6,160}$/.test(reference))throw new TypeError('Referência inválida');
+ if(!VALENZA_ASAAS_PAYMENT_METHODS.includes(method))throw new TypeError('Meio de pagamento não suportado');
+ if(!Number.isFinite(total)||total<=0||total>100000||Math.abs(total*100-Math.round(total*100))>1e-6)throw new TypeError('Valor inválido');
+ if(!Number.isInteger(installments)||installments<1||installments>12||(method==='pix'&&installments!==1))throw new TypeError('Parcelamento inválido');
+ if(method==='credit_card'&&(typeof creditCardToken!=='string'||!/^[-A-Za-z0-9_]{20,150}$/.test(creditCardToken)))
+  throw new TypeError('Token seguro de cartão necessário');
+ if(method==='pix'&&creditCardToken!==null)throw new TypeError('PIX não aceita cartão');
+ return Object.freeze({
+  provider:'asaas',checkoutType:'transparent',redirectToProvider:false,
+  billingType:method==='pix'?'PIX':'CREDIT_CARD',
+  reference,total,installments,
+  // Token só é aceito após habilitação da tokenização e revisão da captura;
+  // nunca exibir em interface, logs ou D1.
+  cardTokenRequired:method==='credit_card',
+  readyToCharge:false
+ });
 }
-export function asaasHostedCheckoutUrl(checkoutId) {
-  if(typeof checkoutId!=='string'||!/^[-a-zA-Z0-9]{10,90}$/.test(checkoutId))throw new TypeError('Checkout inválido');
-  return 'https://asaas.com/checkoutSession/show?id='+encodeURIComponent(checkoutId);
-}
-export function classifyAsaasCheckoutEvent(eventName) {
-  if(eventName==='CHECKOUT_PAID')return 'verify_payment_server_side';
-  if(eventName==='CHECKOUT_CANCELED')return 'canceled';
-  if(eventName==='CHECKOUT_EXPIRED')return 'expired';
-  return 'ignore';
-}
-// IMPORTANTE: callbacks de navegador e criação de checkout nunca aprovam
-// pedidos. Somente webhook autenticado, verificação no Asaas e idempotência.
+// PIX: /payments -> /payments/:id/pixQrCode -> código e QR na Valenza.
+// Crédito: apenas capturador seguro homologado -> token ligado ao cliente
+// Asaas -> /payments; sem certificação/revisão PCI, opção desabilitada.
+// Webhook autenticado e consulta da cobrança confirmam pedido/estoque/envio.
