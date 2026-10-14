@@ -1,7 +1,7 @@
 # Valenza: Club de Nuit Élite (14/10/2026)
 
 Produto `armaf-club-de-nuit-elite` cadastrado por solicitação do proprietário.
-Preço normal R$ 549,90; Pix -5% R$ 522,41. Oferta sujeita a confirmação de fornecedor antes de venda.
+Preço inicial R$ 549,90; em 14/10/2026 o proprietário solicitou reajuste somente deste produto para **R$ 579,90**; Pix -5% **R$ 550,91**. Oferta sujeita a confirmação de fornecedor antes de venda.
 
 ## Referências
 - Fotos originais (frasco, caixa e grupo) + pirâmide: https://www.armaf.ae/collections/new-arrivals-2/products/club-de-nuit-elite
