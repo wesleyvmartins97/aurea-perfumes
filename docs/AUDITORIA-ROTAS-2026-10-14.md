@@ -8,3 +8,5 @@ Preparação isolada, sem publicação.
 - `popstate` precisa restaurar overlays ao voltar do checkout.
 - Páginas transacionais não podem ser indexadas.
 - Preservar checkout, dados pessoais, preços, estoque, carrinho e layout.
+
+Status: análise prévia concluída; validação de rotas pendente.
