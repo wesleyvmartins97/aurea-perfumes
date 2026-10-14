@@ -1,5 +1,6 @@
 import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
+import {asaasClient,AsaasRequestError} from './payments/asaas-api.mjs';
 const securityHeaders={"Strict-Transport-Security":"max-age=31536000; includeSubDomains","X-Content-Type-Options":"nosniff","X-Frame-Options":"SAMEORIGIN","Content-Security-Policy":"frame-ancestors 'self'","Referrer-Policy":"strict-origin-when-cross-origin","Permissions-Policy":"camera=(), microphone=(), geolocation=(self)"};
 const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS",...securityHeaders};
 
@@ -53,6 +54,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/auth/verify"&&request.method==="GET")return authVerify(url,env);
  if(url.pathname==="/api/auth/resend-verification"&&request.method==="POST")return authResendVerification(request,env);
  if(url.pathname==="/api/admin/status"&&request.method==="GET")return adminStatus(request,env);
+ if(url.pathname==="/api/admin/asaas/status"&&request.method==="GET")return adminAsaasStatus(request,env);
  if(url.pathname==="/api/admin/setup"&&request.method==="POST")return adminSetup(request,env);
  if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
  if(url.pathname==="/api/admin/password"&&request.method==="POST")return adminPasswordChange(request,env);
@@ -424,6 +426,26 @@ async function adminRateState(request,env){
 async function adminRegisterFailure(key,failures,env){
  const next=Number(failures||0)+1,now=new Date(),block=next>=5?new Date(now.getTime()+15*60e3).toISOString():null,count=next>=5?0:next;
  await env.DB.prepare("INSERT INTO admin_login_attempts(key,failures,blocked_until,updated_at) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET failures=excluded.failures,blocked_until=excluded.blocked_until,updated_at=excluded.updated_at").bind(key,count,block,now.toISOString()).run();
+}
+// Diagnóstico administrado: consulta somente leitura e nunca retorna a
+// chave, a agência, o número bancário, o saldo ou resposta bruta do Asaas.
+// Endpoint inacessível para clientes e visitantes sem sessão admin.
+async function adminAsaasStatus(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const admin=await currentAdmin(request,env);
+  if(!admin)return resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+  const key=String(env.ASAAS_API_KEY||"").trim();
+  if(!key)return resposta({ok:false,provider:"asaas",mode:"production",status:"not_configured",error:"Secret ASAAS_API_KEY não encontrado no Worker."},503);
+  // A chave pertence à conta de produção; não testar chave real no Sandbox.
+  const api=asaasClient({apiKey:key,mode:"production",timeoutMs:12000});
+  await api.checkCredentials();
+  return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0});
+ }catch(error){
+  // Os valores internos da resposta não devem vazar para logs públicos.
+  if(error instanceof AsaasRequestError)return resposta({ok:false,provider:"asaas",mode:"production",status:"validation_failed",httpStatus:Number(error.status)||null,chargesCreated:0,error:"Não foi possível confirmar a chave de produção no Asaas."},502);
+  return resposta({ok:false,provider:"asaas",mode:"production",status:"unavailable",chargesCreated:0,error:"Verificação temporariamente indisponível."},503);
+ }
 }
 async function adminStatus(request,env){
  try{
