@@ -96,6 +96,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname.startsWith("/api/account/addresses/")&&request.method==="POST")return accountAddressDelete(request,env,url.pathname.split("/").pop());
  if(url.pathname==="/api/frete"&&request.method==="POST")return calcularFrete(request,env);
  if(url.pathname==="/api/estoque"&&request.method==="GET")return consultarEstoque(env);
+ if(url.pathname==="/api/asaas/webhook"&&request.method==="POST")return receiveAsaasWebhook(request,env);
  if(url.pathname==="/api/pagamento/status"&&request.method==="GET")return statusMercadoPago(env);
  if(url.pathname==="/api/pagamento/webhook"&&request.method==="POST")return webhookMercadoPago(request,env,ctx);
  if(url.pathname==="/api/pagamento/config"&&request.method==="GET"){const mp=mpConfig(env);return resposta({ok:true,cardEnabled:Boolean(mp.publicKey),publicKey:mp.publicKey||"",testMode:mp.testMode})}
@@ -426,6 +427,52 @@ async function adminRegisterFailure(key,failures,env){
  const next=Number(failures||0)+1,now=new Date(),block=next>=5?new Date(now.getTime()+15*60e3).toISOString():null,count=next>=5?0:next;
  await env.DB.prepare("INSERT INTO admin_login_attempts(key,failures,blocked_until,updated_at) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET failures=excluded.failures,blocked_until=excluded.blocked_until,updated_at=excluded.updated_at").bind(key,count,block,now.toISOString()).run();
 }
+// ASAAS_WEBHOOK_START — receptor isolado. Nunca aprovar pedido no ato
+// de recebimento: autenticar, validar e persistir evento para conciliação.
+// Só habilitar webhook no painel Asaas quando o processamento estiver pronto.
+async function receiveAsaasWebhook(request,env){
+ const headers={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
+ const reply=(body,status)=>new Response(JSON.stringify(body),{status,headers});
+ const secret=String(env.ASAAS_WEBHOOK_TOKEN||"");
+ if(secret.length<32)return reply({ok:false,error:"Webhook não configurado."},503);
+ const provided=String(request.headers.get("asaas-access-token")||"");
+ if(provided.length!==secret.length||provided.length>256)return reply({ok:false,error:"Acesso negado."},401);
+ const encoder=new TextEncoder();
+ const [x,y]=await Promise.all([
+  crypto.subtle.digest("SHA-256",encoder.encode(secret)),
+  crypto.subtle.digest("SHA-256",encoder.encode(provided))
+ ]);
+ const a=new Uint8Array(x),b=new Uint8Array(y);let diff=0;
+ for(let i=0;i<a.length;i++)diff|=a[i]^b[i];
+ if(diff!==0)return reply({ok:false,error:"Acesso negado."},401);
+ const size=Number(request.headers.get("content-length")||0);
+ if(size>65536)return reply({ok:false,error:"Evento muito grande."},413);
+ if(!String(request.headers.get("content-type")||"").toLowerCase().includes("application/json"))return reply({ok:false,error:"Formato inválido."},415);
+ try{
+  const raw=await request.text();
+  if(raw.length>65536)return reply({ok:false,error:"Evento muito grande."},413);
+  let event;
+  try{event=JSON.parse(raw)}catch{return reply({ok:false,error:"JSON inválido."},400)}
+  const id=String(event?.id||"");
+  const type=String(event?.event||"");
+  const paymentId=String(event?.payment?.id||"");
+  const reference=String(event?.payment?.externalReference||"");
+  if(!/^[a-zA-Z0-9_-]{8,120}$/.test(id)||!/^[A-Z][A-Z0-9_]{2,99}$/.test(type))
+   return reply({ok:false,error:"Evento inválido."},400);
+  const keepPayment=/^[a-zA-Z0-9_-]{6,100}$/.test(paymentId)?paymentId:null;
+  const keepReference=/^[a-zA-Z0-9_-]{6,160}$/.test(reference)?reference:null;
+  // Não armazenar payload integral, dados bancários ou dados pessoais.
+  // Tabela isolada para não modificar pedidos ou integridade do estoque.
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS asaas_webhook_events (id TEXT PRIMARY KEY,event_type TEXT NOT NULL,payment_id TEXT,external_reference TEXT,state TEXT NOT NULL,received_at TEXT NOT NULL,updated_at TEXT NOT NULL)").run();
+  const now=new Date().toISOString();
+  await env.DB.prepare("INSERT OR IGNORE INTO asaas_webhook_events(id,event_type,payment_id,external_reference,state,received_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+   .bind(id,type,keepPayment,keepReference,keepPayment&&type.startsWith("PAYMENT_")?"queued":"ignored",now,now).run();
+  // 200 somente depois de gravar. Sem confirmar pagamento ou criar expedição
+  // até conciliação server-side da referência, valor e cliente com Asaas.
+  return reply({ok:true},200);
+ }catch{return reply({ok:false,error:"Não foi possível registrar o evento."},503)}
+}
+// ASAAS_WEBHOOK_END
 // Diagnóstico administrado: GET somente leitura, restrito à sessão admin.
 // Nunca retorna chave, agência, conta bancária ou payload bruto do Asaas.
 async function adminAsaasStatus(request,env){
