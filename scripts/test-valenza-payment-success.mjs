@@ -69,6 +69,7 @@ assert.match(payment,/if\(approved\)\{showValenzaPaymentSuccess\(\{orderId:d\.or
 assert.match(payment,/PAGAMENTO EM ANÁLISE/);
 assert.match(payment,/PAGAMENTO NÃO APROVADO/);
 assert.match(payment,/pending_challenge/);
-assert.match(html,/function closeCheckout\(fromHistory=false\)\{stopPaymentPoll\(\);clearValenzaPaymentSuccessTimer\(\);/);
-assert.match(html,/async function openCheckout\(fromDirectRoute=false\)\{stopPaymentPoll\(\);clearValenzaPaymentSuccessTimer\(\);/);
+assert.match(html,/function closeCheckout\(fromHistory=false\)\{stopPaymentPoll\(\);/);
+assert.match(html,/async function openCheckout\(fromDirectRoute=false\)\{stopPaymentPoll\(\);/);
+assert.match(html,/function stopPaymentPoll\(\)\{[^}]*\}clearValenzaPaymentSuccessTimer\(\)\}/);
 console.log('VALENZA: OK, auto-fechar em 5s, pedido aprovado, pendente, recusado e 3DS — PASS');
