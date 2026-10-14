@@ -53,6 +53,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/auth/verify"&&request.method==="GET")return authVerify(url,env);
  if(url.pathname==="/api/auth/resend-verification"&&request.method==="POST")return authResendVerification(request,env);
  if(url.pathname==="/api/admin/status"&&request.method==="GET")return adminStatus(request,env);
+ if(url.pathname==="/api/admin/asaas/status"&&request.method==="GET")return adminAsaasStatus(request,env);
  if(url.pathname==="/api/admin/setup"&&request.method==="POST")return adminSetup(request,env);
  if(url.pathname==="/api/admin/login"&&request.method==="POST")return adminLogin(request,env);
  if(url.pathname==="/api/admin/password"&&request.method==="POST")return adminPasswordChange(request,env);
@@ -424,6 +425,29 @@ async function adminRateState(request,env){
 async function adminRegisterFailure(key,failures,env){
  const next=Number(failures||0)+1,now=new Date(),block=next>=5?new Date(now.getTime()+15*60e3).toISOString():null,count=next>=5?0:next;
  await env.DB.prepare("INSERT INTO admin_login_attempts(key,failures,blocked_until,updated_at) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET failures=excluded.failures,blocked_until=excluded.blocked_until,updated_at=excluded.updated_at").bind(key,count,block,now.toISOString()).run();
+}
+// Diagnóstico administrado: GET somente leitura, restrito à sessão admin.
+// Nunca retorna chave, agência, conta bancária ou payload bruto do Asaas.
+async function adminAsaasStatus(request,env){
+ const denied=resposta({ok:false,error:"Confirme sua senha administrativa para continuar."},401);
+ try{
+  await ensureAuthSchema(env);
+  const admin=await currentAdmin(request,env);
+  if(!admin)return denied;
+  const key=String(env.ASAAS_API_KEY||"").trim();
+  if(!key)return resposta({ok:false,provider:"asaas",mode:"production",status:"not_configured",error:"Secret ASAAS_API_KEY não encontrado no Worker.",chargesCreated:0},503);
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  try{
+   const result=await fetch("https://api.asaas.com/v3/myAccount/accountNumber",{
+    method:"GET",headers:{"access_token":key,"accept":"application/json","User-Agent":"ValenzaParfums/1.0"},signal:controller.signal
+   });
+   // O Asaas retorna agência e número bancário, portanto descartamos o corpo.
+   if(!result.ok)return resposta({ok:false,provider:"asaas",mode:"production",status:"validation_failed",httpStatus:result.status,chargesCreated:0,error:"A chave não pôde ser validada no Asaas."},502);
+   return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0});
+  }finally{clearTimeout(timer)}
+ }catch(error){
+  return resposta({ok:false,provider:"asaas",mode:"production",status:"unavailable",chargesCreated:0,error:"Verificação temporariamente indisponível."},503);
+ }
 }
 async function adminStatus(request,env){
  try{
