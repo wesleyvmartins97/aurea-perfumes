@@ -620,7 +620,7 @@ async function copyProductLink(id){
   valenzaNotice('Link do perfume copiado! Envie para quem desejar.');
  }catch(e){valenzaNotice('Não foi possível copiar o link. Abra a página do perfume e copie o endereço.');}
 }
-function updateCart(){document.getElementById('count').textContent=cart.reduce((a,x)=>a+x.qty,0);const hv=document.getElementById('headerCartValue');if(hv)hv.textContent=money(cartSubtotal());const box=document.getElementById('cartContent');if(!cart.length){box.innerHTML='<p style="color:#888;font-size:11px">Seu carrinho está vazio.</p>';document.getElementById('shipArea').style.display='none';document.getElementById('totalArea').style.display='none';selectedShipping=null;return}document.getElementById('shipArea').style.display='block';document.getElementById('totalArea').style.display='block';box.innerHTML=cart.map(x=>{const max=cartQtyLimit(x.id);return `<div class="cart-item"><a href="/perfume/${esc(encodeURIComponent(x.id))}/" target="_blank" rel="noopener noreferrer" aria-label="Abrir página de ${esc(x.name)} em nova aba"><img src="${esc(x.img)}" alt="${esc(x.brand+' '+x.name)}"></a><div class="cart-info"><a href="/perfume/${esc(encodeURIComponent(x.id))}/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none" aria-label="Ver página de ${esc(x.name)}"><strong>${esc(x.name)}</strong></a><br><small>${esc(x.brand)} · ${esc(x.type)}</small><br>${money(x.price)}<div class="qty"><button type="button" aria-label="Diminuir quantidade" onclick="changeQty('${x.id}',-1)">−</button><input type="number" inputmode="numeric" min="1" max="${max}" step="1" value="${x.qty}" aria-label="Quantidade de ${esc(x.name)}" data-id="${esc(x.id)}" onchange="setCartQty(this.dataset.id,this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"><button type="button" aria-label="Aumentar quantidade" onclick="changeQty('${x.id}',1)">+</button></div><button class="remove" onclick="removeItem('${x.id}')">Remover</button><button type="button" style="margin-left:12px;border:0;background:transparent;color:#655341;text-decoration:underline;font-size:10px;cursor:pointer;padding:5px 0" onclick="copyProductLink('${x.id}')">Copiar link</button></div></div>`}).join('');refreshTotal()};function changeQty(id,d){const i=cart.find(x=>x.id===id);if(!i)return;const p=CATALOG.find(x=>x.id===id);if(d>0&&p&&Number.isFinite(Number(p.stock))&&i.qty>=Math.min(10,Number(p.stock))){valenzaNotice('Quantidade máxima disponível atingida.');return}i.qty+=d;if(i.qty<1)cart=cart.filter(x=>x.id!==id);saveCart()};function removeItem(id){cart=cart.filter(x=>x.id!==id);saveCart()};let aureaLayers=[];
+function updateCart(){document.getElementById('count').textContent=cart.reduce((a,x)=>a+x.qty,0);const hv=document.getElementById('headerCartValue');if(hv)hv.textContent=money(cartSubtotal());const box=document.getElementById('cartContent');if(!cart.length){box.innerHTML='<p style="color:#888;font-size:11px">Seu carrinho está vazio.</p>';document.getElementById('shipArea').style.display='none';document.getElementById('totalArea').style.display='none';selectedShipping=null;return}document.getElementById('shipArea').style.display='block';document.getElementById('totalArea').style.display='block';box.innerHTML=cart.map(x=>{const max=cartQtyLimit(x.id);return `<div class="cart-item"><a href="/perfume/${esc(encodeURIComponent(x.id))}/" aria-label="Abrir página de ${esc(x.name)} na aba atual"><img src="${esc(x.img)}" alt="${esc(x.brand+' '+x.name)}"></a><div class="cart-info"><a href="/perfume/${esc(encodeURIComponent(x.id))}/" style="color:inherit;text-decoration:none" aria-label="Ver página de ${esc(x.name)}"><strong>${esc(x.name)}</strong></a><br><small>${esc(x.brand)} · ${esc(x.type)}</small><br>${money(x.price)}<div class="qty"><button type="button" aria-label="Diminuir quantidade" onclick="changeQty('${x.id}',-1)">−</button><input type="number" inputmode="numeric" min="1" max="${max}" step="1" value="${x.qty}" aria-label="Quantidade de ${esc(x.name)}" data-id="${esc(x.id)}" onchange="setCartQty(this.dataset.id,this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"><button type="button" aria-label="Aumentar quantidade" onclick="changeQty('${x.id}',1)">+</button></div><button class="remove" onclick="removeItem('${x.id}')">Remover</button><button type="button" style="margin-left:12px;border:0;background:transparent;color:#655341;text-decoration:underline;font-size:10px;cursor:pointer;padding:5px 0" onclick="copyProductLink('${x.id}')">Copiar link</button></div></div>`}).join('');refreshTotal()};function changeQty(id,d){const i=cart.find(x=>x.id===id);if(!i)return;const p=CATALOG.find(x=>x.id===id);if(d>0&&p&&Number.isFinite(Number(p.stock))&&i.qty>=Math.min(10,Number(p.stock))){valenzaNotice('Quantidade máxima disponível atingida.');return}i.qty+=d;if(i.qty<1)cart=cart.filter(x=>x.id!==id);saveCart()};function removeItem(id){cart=cart.filter(x=>x.id!==id);saveCart()};let aureaLayers=[];
 function pushLayer(name,url=location.href,data={}){
  if(aureaLayers[aureaLayers.length-1]===name)return;
  aureaLayers.push(name);
@@ -639,8 +639,28 @@ function dropLayer(name,fromHistory=false){
 if(!history.state||(!history.state.aureaBase&&!history.state.aureaLayer)){
  history.replaceState({aureaBase:true},'',location.href);
 }
-function openCart(){document.getElementById('cart').classList.add('open');pushLayer('cart')};if(sessionStorage.getItem('aurea_open_cart')==='1'){sessionStorage.removeItem('aurea_open_cart');setTimeout(()=>{updateCart();openCart()},0)}
-function closeCart(fromHistory=false){document.getElementById('cart').classList.remove('open');dropLayer('cart',fromHistory)}
+let shopDirectEntry=false;
+function openCart(productId=null,fromHistory=false){
+ document.getElementById('cart').classList.add('open');
+ if(fromHistory){if(aureaLayers.at(-1)!=='cart')aureaLayers.push('cart');return}
+ const id=productId&&CATALOG.some(p=>p.id===productId&&p.active!==false)?productId:null;
+ const url='/carrinho/'+(id?'?produto='+encodeURIComponent(id):'');
+ if(aureaLayers.at(-1)==='cart'&&history.state?.aureaLayer==='cart'){
+  if(id)history.replaceState({aureaLayer:'cart',aureaProductId:id},'',url);
+  return
+ }
+ pushLayer('cart',url,id?{aureaProductId:id}:{});
+}
+if(sessionStorage.getItem('aurea_open_cart')==='1'){sessionStorage.removeItem('aurea_open_cart');setTimeout(()=>{updateCart();openCart()},0)}
+function closeCart(fromHistory=false){
+ document.getElementById('cart').classList.remove('open');
+ if(!fromHistory&&shopDirectEntry&&history.state?.aureaLayer==='cart'){
+  const i=aureaLayers.lastIndexOf('cart');if(i>=0)aureaLayers.splice(i,1);
+  history.replaceState({aureaBase:true},'','/');
+  shopDirectEntry=false;return
+ }
+ dropLayer('cart',fromHistory)
+}
 // Keep the catalogue view while product details are open.
 let valenzaDetailReturn=null;
 function rememberDetailReturn(){
@@ -695,20 +715,26 @@ function clientErrorMessage(err,fallback='Não foi possível concluir agora. Ten
 async function shipping(){const cep=document.getElementById('cep').value.replace(/\D/g,'');const out=document.getElementById('shipOptions');if(cep.length!==8){out.textContent='Informe um CEP válido.';return}if(!await refreshProductPromotions({redraw:true})){out.textContent='Não foi possível atualizar os preços agora. Tente novamente.';return}selectedShipping=null;refreshTotal();out.textContent='Consultando...';try{const r=await fetch('/api/frete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cep,produtos:cart})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Não foi possível calcular o frete.');const fs=d.fretes||[];out.innerHTML=fs.map((x,i)=>`<label style="display:flex;gap:10px;align-items:flex-start;padding:12px 4px;border-bottom:1px solid #eee;cursor:pointer"><input type="radio" name="aureaShipping" value="${i}" onchange="selectShipping(${i})" style="margin-top:3px"><span><strong>${esc(x.name)}</strong><br><span style="font-size:11px;color:#666">${String(x.id||'')==='local-colatina'?'<strong>GRÁTIS · ENTREGA LOCAL EM COLATINA</strong><br><span style="font-size:10px;color:#8a735f">Sob encomenda · preparação em até 10 dias úteis</span>':money(x.price)+' · Transporte: '+(Number(x.delivery_time)||0)+' '+(Number(x.delivery_time)===1?'dia útil':'dias úteis')+' após a postagem<br><span style="font-size:10px;color:#8a735f">+ preparação: até 10 dias úteis</span>'}</span></span></label>`).join('')||'Nenhuma opção disponível.';window.aureaFretes=fs}catch(e){out.textContent=clientErrorMessage(e,'Não foi possível calcular o frete agora. Tente novamente.')}}
 function selectShipping(i){const x=(window.aureaFretes||[])[i];if(!x)return;selectedShipping={id:String(x.id||''),name:x.name,carrier:x.carrier||x.name,price:Number(x.price)||0,delivery_time:Number(x.delivery_time)||0};refreshTotal()}
 async function lookupCep(){const cep=document.getElementById('checkoutCep').value.replace(/\D/g,'');if(cep.length!==8)return;try{const d=await (await fetch(`https://viacep.com.br/ws/${cep}/json/`)).json();if(d.erro)return;document.getElementById('street').value=d.logradouro||'';document.getElementById('neighborhood').value=d.bairro||'';document.getElementById('cityState').value=[d.localidade,d.uf].filter(Boolean).join(' - ')}catch(e){}}
-async function openCheckout(){stopPaymentPoll();const modal=document.getElementById('checkoutModal'),tpl=document.getElementById('valenzaCheckoutTemplate');if(tpl&&modal&&!modal.querySelector('#name')){const old=modal.querySelector('.checkout-body');if(old)old.replaceWith(tpl.content.firstElementChild.cloneNode(true));selectedShipping=null}if(!cart.length){openCart();return}if(!await refreshProductPromotions({redraw:true})){valenzaNotice('Não foi possível atualizar os preços agora. Tente novamente em alguns instantes.');return}try{const r=await fetch('/api/auth/me',{cache:'no-store',credentials:'include'});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok||!d.user){accountUser=null;renderAccount();document.getElementById('accountModal').classList.add('open');pushLayer('account');accountMsg('Entre ou crie sua conta VALENZA para finalizar a compra.');return}if(!d.user.emailVerified){accountUser=null;renderAccount();document.getElementById('accountModal').classList.add('open');pushLayer('account');accountMsg('Confirme seu e-mail e entre na sua conta para finalizar a compra.');return}accountUser=d.user;renderAccount()}catch(e){showError('Não foi possível confirmar seu login agora. Tente novamente.');return}document.getElementById('checkoutModal').classList.add('open');updateSummary();setTimeout(()=>ensureMercadoPagoSecurity().catch(()=>{}),0);if(document.getElementById('cart').classList.contains('open')){document.getElementById('cart').classList.remove('open');const i=aureaLayers.lastIndexOf('cart');if(i>=0)aureaLayers.splice(i,1)}pushLayer('checkout');window.valenzaTrackBeginCheckout?.();queueOpportunitySync('checkout',{},0)}
+async function openCheckout(fromDirectRoute=false){stopPaymentPoll();const modal=document.getElementById('checkoutModal'),tpl=document.getElementById('valenzaCheckoutTemplate');if(tpl&&modal&&!modal.querySelector('#name')){const old=modal.querySelector('.checkout-body');if(old)old.replaceWith(tpl.content.firstElementChild.cloneNode(true));selectedShipping=null}if(!cart.length){if(fromDirectRoute){history.replaceState({aureaLayer:'cart'},'','/carrinho/');openCart(null,true)}else openCart();return}if(!await refreshProductPromotions({redraw:true})){valenzaNotice('Não foi possível atualizar os preços agora. Tente novamente em alguns instantes.');return}try{const r=await fetch('/api/auth/me',{cache:'no-store',credentials:'include'});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok||!d.user){accountUser=null;renderAccount();document.getElementById('accountModal').classList.add('open');pushLayer('account');accountMsg('Entre ou crie sua conta VALENZA para finalizar a compra.');return}if(!d.user.emailVerified){accountUser=null;renderAccount();document.getElementById('accountModal').classList.add('open');pushLayer('account');accountMsg('Confirme seu e-mail e entre na sua conta para finalizar a compra.');return}accountUser=d.user;renderAccount()}catch(e){showError('Não foi possível confirmar seu login agora. Tente novamente.');return}document.getElementById('checkoutModal').classList.add('open');updateSummary();setTimeout(()=>ensureMercadoPagoSecurity().catch(()=>{}),0);if(document.getElementById('cart').classList.contains('open')){document.getElementById('cart').classList.remove('open');const i=aureaLayers.lastIndexOf('cart');if(i>=0)aureaLayers.splice(i,1)}if(fromDirectRoute){history.replaceState({aureaLayer:'checkout'},'','/checkout/');if(aureaLayers.at(-1)!=='checkout')aureaLayers.push('checkout')}else pushLayer('checkout','/checkout/');window.valenzaTrackBeginCheckout?.();queueOpportunitySync('checkout',{},0)}
 function closeCheckout(fromHistory=false){stopPaymentPoll();const modal=document.getElementById('checkoutModal');const completed=!!modal?.querySelector('.eyebrow')&&modal.querySelector('.eyebrow').textContent.trim()==='PAGAMENTO CONFIRMADO';modal?.classList.remove('open');if(completed){cart=[];selectedShipping=null;localStorage.removeItem('aurea_cart');updateCart();document.getElementById('cart')?.classList.remove('open');const ci=aureaLayers.lastIndexOf('cart');if(ci>=0)aureaLayers.splice(ci,1);window.scrollTo({top:0,behavior:'smooth'})}dropLayer('checkout',fromHistory)}
 window.addEventListener('popstate',()=>{
- // Reabrir o produto ao usar Avançar sem recriar histórico nem perder filtros.
- if(history.state?.aureaLayer==='detail'&&aureaLayers.at(-1)!=='detail'){
-  const id=history.state.aureaProductId;
-  if(id&&CATALOG.some(p=>p.id===id&&p.active!==false)){detail(id,true);return}
- }
+ const target=history.state?.aureaLayer;
+ // A tela anterior é fechada primeiro; depois a URL de destino é reaberta.
  const layer=aureaLayers.pop();
  if(layer==='checkout')document.getElementById('checkoutModal').classList.remove('open');
  else if(layer==='detail')closeDetail(true);
  else if(layer==='cart')document.getElementById('cart').classList.remove('open');
  else if(layer==='account')document.getElementById('accountModal').classList.remove('open');
  else if(layer==='client'){const cc=document.getElementById('clientCenter');if(cc)cc.style.display='none';document.body.style.overflow='';}
+ if(target==='detail'){
+  const id=history.state.aureaProductId;
+  if(id&&CATALOG.some(p=>p.id===id&&p.active!==false)){detail(id,true);return}
+ }
+ if(target==='cart'){openCart(null,true);return}
+ if(target==='checkout'&&cart.length){
+  document.getElementById('checkoutModal').classList.add('open');
+  if(aureaLayers.at(-1)!=='checkout')aureaLayers.push('checkout');
+ }
 });
 function updateSummary(){const s=document.getElementById('summary');if(!s)return;const isPix=selectedPayment==='pix',unit=x=>isPix?pixUnitPrice(x.price):Number(x.price),sub=cart.reduce((a,x)=>a+unit(x)*x.qty,0),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(unit(x)*x.qty)}</strong></div>`).join('')+(isPix?'<div class="summary-row"><span>Desconto Pix nos produtos</span><strong>5%</strong></div>':'')+(selectedShipping?`<div class="summary-row"><span>Frete · ${selectedShipping.id==='local-colatina'?'Entrega local grátis em Colatina':esc(selectedShipping.name)+' (transporte: '+selectedShipping.delivery_time+' '+(selectedShipping.delivery_time===1?'dia útil':'dias úteis')+' após a postagem)'}</span><strong>${money(frete)}</strong></div><div class="summary-row" style="align-items:flex-start"><span><strong>Sob encomenda</strong><br><small>Preparação em até 10 dias úteis antes da postagem.</small></span><strong>—</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
 async function checkoutShipping(){
@@ -913,7 +939,7 @@ async function loadPublishedSiteVisual(){
 }
 
 let slideIndex=0,slideTimer=null;function drawSlider(){const s=document.getElementById('slides');if(!s)return;const n=s.children.length,dots=document.getElementById('slideDots');if(!n){s.style.transform='';if(dots)dots.innerHTML='';return}slideIndex=Math.max(0,Math.min(slideIndex,n-1));s.style.transform='translateX(-'+(slideIndex*100)+'%)';if(dots){if(dots.children.length!==n)dots.innerHTML=Array.from({length:n},(_,i)=>'<button class="slide-dot" aria-label="Ir para slide '+(i+1)+'" onclick="goSlide('+i+')"></button>').join('');[...dots.children].forEach((d,i)=>d.classList.toggle('active',i===slideIndex))}}function moveSlide(d){const s=document.getElementById('slides');if(!s||!s.children.length)return;slideIndex=(slideIndex+d+s.children.length)%s.children.length;drawSlider();resetSlideTimer()}function goSlide(i){const s=document.getElementById('slides');if(!s||!s.children.length)return;slideIndex=Math.max(0,Math.min(Number(i)||0,s.children.length-1));drawSlider();resetSlideTimer()}function resetSlideTimer(){clearInterval(slideTimer);const s=document.getElementById('slides');if(s&&s.children.length>1)slideTimer=setInterval(()=>moveSlide(1),5000)}function initSlider(){const s=document.getElementById('slides');if(!s||!s.children.length)return;drawSlider();resetSlideTimer();if(s.dataset.touchReady)return;s.dataset.touchReady='1';let x=0;s.addEventListener('touchstart',e=>x=e.touches[0].clientX,{passive:true});s.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-x;if(Math.abs(dx)>45)moveSlide(dx<0?1:-1)},{passive:true})}
-function buyNow(id){const p=CATALOG.find(x=>x.id===id);if(!p||p.active===false){valenzaNotice('Este perfume não está mais disponível.');return}const av=productAvailability(p);if(!av.sellable){valenzaNotice(av.message);return}const i=cart.find(x=>x.id===id);if(i){if(Number.isFinite(Number(p.stock))&&i.qty>=Math.min(10,Number(p.stock))){valenzaNotice('Quantidade máxima disponível atingida.');return}i.qty++}else cart.push({id:p.id,name:p.name,brand:p.brand,type:p.type,price:p.price,img:p.img,qty:1});saveCart();openCart();setTimeout(()=>document.getElementById('cep')?.focus(),180)}
+function buyNow(id){const p=CATALOG.find(x=>x.id===id);if(!p||p.active===false){valenzaNotice('Este perfume não está mais disponível.');return}const av=productAvailability(p);if(!av.sellable){valenzaNotice(av.message);return}const i=cart.find(x=>x.id===id);if(i){if(Number.isFinite(Number(p.stock))&&i.qty>=Math.min(10,Number(p.stock))){valenzaNotice('Quantidade máxima disponível atingida.');return}i.qty++}else cart.push({id:p.id,name:p.name,brand:p.brand,type:p.type,price:p.price,img:p.img,qty:1});saveCart();openCart(id);setTimeout(()=>document.getElementById('cep')?.focus(),180)}
 let accountUser=null;
 async function openAccount(){await loadAccount();if(accountUser&&typeof openClient==='function'){openClient();return}const modal=document.getElementById('accountModal');if(!modal)return;modal.classList.add('open');if(!aureaLayers.includes('account'))pushLayer('account');renderAccount()}
 function closeAccount(fromHistory=false){document.getElementById('accountModal').classList.remove('open');dropLayer('account',fromHistory)}
@@ -1123,9 +1149,31 @@ async function saveClientPassword(){
 initClientCenter();
 
 function openProductFromUrl(){
+ if(!/^\/(?:catalogo\/?)?$/.test(location.pathname))return;
  const id=new URLSearchParams(location.search).get('produto');
  if(!id||!CATALOG.some(x=>x.id===id&&x.active!==false))return;
  detail(id);
+}
+function restoreShopFlowFromUrl(){
+ const pathname=location.pathname;
+ if(!/^\/(?:carrinho|checkout)\/?$/.test(pathname))return;
+ // Rotas privadas de compra não devem receber resultados de busca.
+ const robots=document.querySelector('meta[name="robots"]');
+ if(robots)robots.setAttribute('content','noindex,nofollow');
+ if(/^\/carrinho\/?$/.test(pathname)){
+  document.title='Seu carrinho | VALENZA PARFUMS';
+  shopDirectEntry=true;
+  history.replaceState({aureaLayer:'cart',aureaProductId:new URLSearchParams(location.search).get('produto')||null},'',location.href);
+  openCart(null,true);
+  return
+ }
+ document.title='Finalizar compra | VALENZA PARFUMS';
+ if(!cart.length){
+  history.replaceState({aureaLayer:'cart'},'','/carrinho/');
+  shopDirectEntry=true;openCart(null,true);return
+ }
+ // O checkout só abre após autenticação, sem iniciar pagamentos automaticamente.
+ Promise.resolve(openCheckout(true)).catch(e=>console.error('VALENZA reabrir checkout:',e))
 }
 
 async function bootAurea(){
@@ -1134,6 +1182,7 @@ async function bootAurea(){
  try{openProductFromUrl()}catch(e){console.error('VALENZA produto URL',e)}
  try{enableOutsideModalClose()}catch(e){console.error('AUREA modal',e)}
  try{updateCart()}catch(e){console.error('AUREA carrinho',e)}
+ try{restoreShopFlowFromUrl()}catch(e){console.error('VALENZA rota de compra',e)}
  try{await loadPublishedSiteVisual()}catch(e){console.error('VALENZA visual',e)}
  try{initSlider()}catch(e){console.error('AUREA slider',e)}
  try{initBannerProductLinks()}catch(e){console.error('AUREA banners',e)}
