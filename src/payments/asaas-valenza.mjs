@@ -142,6 +142,20 @@ export function createValenzaAsaasBridge(dep){
    return {ok:true};
   }catch{return {ok:false,error:'Não foi possível cancelar a cobrança no Asaas. Tente mais tarde.'}}
  }
+ // Recovery is separate from payment status transitions. EnvioEcom may fail
+ // after the order was committed as paid; retries must not re-charge or resend.
+ // The existing shipment_locks and shipping_id make create idempotent.
+ async function retryPaidShipments(env){
+  const rows=await env.DB.prepare("SELECT s.order_id FROM order_shipping s JOIN orders o ON o.id=s.order_id JOIN asaas_payment_links a ON a.order_id=o.id WHERE o.status='Pago' AND a.status='RECEIVED' AND s.carrier<>'Entrega local Valenza' AND COALESCE(s.shipping_id,'')='' ORDER BY o.created_at ASC LIMIT 12").all();
+  let attempted=0;
+  for(const row of rows.results||[]){
+   try{
+    attempted++;
+    await criarEnvioEnvioEcom(env,row.order_id);
+   }catch(e){console.error('Asaas EnvioEcom retry:',String(row.order_id||''),e?.name||'error')}
+  }
+  return attempted;
+ }
  async function cron(env){
   if(!asaasReady(env))return;
   try{
@@ -159,6 +173,7 @@ export function createValenzaAsaasBridge(dep){
    }
    const links=await env.DB.prepare("SELECT payment_id FROM asaas_payment_links WHERE status NOT IN ('RECEIVED','DELETED','CANCELED','REFUNDED') ORDER BY updated_at LIMIT 20").all();
    for(const item of links.results||[])try{await reconcile(env,item.payment_id)}catch{}
+   await retryPaidShipments(env);
    const queued=await env.DB.prepare("SELECT id,payment_id FROM asaas_webhook_events WHERE state='queued' ORDER BY received_at LIMIT 20").all();
    for(const e of queued.results||[])try{
     if(e.payment_id&&await reconcile(env,e.payment_id))
@@ -167,5 +182,5 @@ export function createValenzaAsaasBridge(dep){
   }catch(e){console.error('Conciliação Asaas:',e?.name||'error')}
  }
  const webhook=(req,env,ctx)=>handleAsaasWebhook(req,env,ctx,pid=>reconcile(env,pid));
- return Object.freeze({startPix,reconcile,status,accountPix,cancelPrior,cron,webhook,readLink:readAsaasLink});
+ return Object.freeze({startPix,reconcile,status,accountPix,cancelPrior,retryPaidShipments,cron,webhook,readLink:readAsaasLink});
 }
