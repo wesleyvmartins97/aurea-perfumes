@@ -6,7 +6,8 @@ const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Contr
 const PRODUCT_IMAGE_SOURCES={
  "/produto-img/asad-zanzibar.jpg":"https://cdn-shopkit.com/usercontent/arabiaperfumes/media/images/660bbd3-174337-asad-zanzibar-1-1080x1080.jpg",
  "/produto-img/asad-elixir.png":"https://www.perfumenz.co.nz/cdn/shop/files/lattafa-asad-elixir_1400x1400.png?v=1770958603",
- "/produto-img/club-de-nuit-elite.jpg":"https://www.armaf.ae/cdn/shop/files/Cdnelitebottlefront_1000x1000.jpg?v=1788757531"
+ "/produto-img/club-de-nuit-elite.jpg":"https://www.armaf.ae/cdn/shop/files/Cdnelitebottlefront_1000x1000.jpg?v=1788757531",
+ "/produto-img/club-de-nuit-elite-caixa-frasco.jpg":"https://www.armaf.ae/cdn/shop/files/CdneliteGroup_1000x1000.jpg?v=1788757515"
 };
 async function productCatalogImage(request,path){
  const source=PRODUCT_IMAGE_SOURCES[path];if(!source)return new Response("Not Found",{status:404});
