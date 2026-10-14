@@ -78,7 +78,7 @@ await assert.rejects(storeAsaasLink({DB:db},{...link,payment_id:'pay_000000000'}
   return {bind(...a){vals=a;return this},async run(){if(sql.startsWith('INSERT OR IGNORE INTO asaas_webhook_events'))inserted++;return {meta:{changes:1}}},async first(){return null}}
  },async batch(arr){for(const s of arr)await s.run();return []}};
  webhookEnv.DB=webDb;
- const ctx={waitUntil(p){wait.push(p)}},event={id:'evt_12345678',event:'PAYMENT_RECEIVED',payment:{id:link.payment_id}};
+ const ctx={waitUntil(p){wait.push(p)}},event={id:'evt_12345678',event:'PAYMENT_RECEIVED',payment:{id:link.payment_id,externalReference:link.reference}};
  const request=(payload,provided=token)=>new Request('https://www.valenzaparfums.com.br/api/asaas/webhook',{
   method:'POST',headers:{'asaas-access-token':provided,'Content-Type':'application/json'},body:JSON.stringify(payload)
  });
@@ -86,5 +86,27 @@ await assert.rejects(storeAsaasLink({DB:db},{...link,payment_id:'pay_000000000'}
  assert.equal(inserted,0);
  assert.equal((await handleAsaasWebhook(request(event),webhookEnv,ctx,()=>{handled++})).status,200);
  await Promise.all(wait);assert.equal(handled,1);assert.equal(inserted,1);
+ // Real Asaas webhook event IDs are opaque and can contain & followed by digits.
+ // Manual charge has null externalReference and billingType BOLETO/Pix.
+ // Authenticated event must be acknowledged without associating a customer order.
+ const manualAsaasEvent={
+  id:'evt_05b708f961d739ea7eba7e4db318f621&1569162907',
+  event:'PAYMENT_CREATED',
+  dateCreated:'2026-10-14 17:10:55',
+  account:{id:'test_account_id',ownerId:null},
+  payment:{
+   object:'payment',id:'pay_l6awp5n4d5qun04p',customer:'cus_000206808792',
+   value:10.0,billingType:'BOLETO',status:'PENDING',
+   externalReference:null,checkoutSession:null,subscription:null,
+   refundStatus:null,unknownAttribute:{futureValue:true}
+  }
+ };
+ assert.equal((await handleAsaasWebhook(request(manualAsaasEvent),webhookEnv,ctx,()=>{handled++})).status,200,
+   'Real-world & event ID and null optional fields must never trigger HTTP 400');
+ await Promise.all(wait);
+ assert.equal(handled,1,'Manual Asaas charge must not trigger Valenza order reconciliation');
+ assert.equal(inserted,2,'Manual event must still be logged in D1 for deduplication');
+ assert.equal((await handleAsaasWebhook(request({...manualAsaasEvent,id:'bad'}),webhookEnv,ctx,()=>{})).status,400);
+ assert.equal((await handleAsaasWebhook(request({...manualAsaasEvent,id:null}),webhookEnv,ctx,()=>{})).status,400);
 }
 console.log('ASAAS PIX: flag off, provider isolated, CPF blocked CONFIRMED, D1 mapping, QR, webhook signed and MP unchanged PASS');
