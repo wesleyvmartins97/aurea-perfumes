@@ -41,6 +41,7 @@ jobs:
           node --check src/payments/asaas-prod.mjs
           node --check src/payments/asaas-valenza.mjs
           node scripts/test-asaas-pix-production.mjs
+          node scripts/test-asaas-valenza-lifecycle.mjs
       - name: Conferir ciclo dos destaques
         run: node scripts/test-featured-selection.mjs
       - name: Conferir cabeçalho em celular estreito
