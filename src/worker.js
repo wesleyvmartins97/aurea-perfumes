@@ -1,7 +1,10 @@
 import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
+import {asaasPixEnabled,asaasReady} from './payments/asaas-prod.mjs';
+import {createValenzaAsaasBridge} from './payments/asaas-valenza.mjs';
 const securityHeaders={"Strict-Transport-Security":"max-age=31536000; includeSubDomains","X-Content-Type-Options":"nosniff","X-Frame-Options":"SAMEORIGIN","Content-Security-Policy":"frame-ancestors 'self'","Referrer-Policy":"strict-origin-when-cross-origin","Permissions-Policy":"camera=(), microphone=(), geolocation=(self)"};
 const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS",...securityHeaders};
+const asaasBridge=createValenzaAsaasBridge({ensureAuthSchema,guardedPaymentCreate,restorePaymentAttempt,closePaymentAttempt,recordOperationalEvent,recordPaymentStatusEvent,sendOrderOperationalEmail,criarEnvioEnvioEcom,notifyPaidOrder,releaseReservedStock,resposta});
 
 const PRODUCT_IMAGE_SOURCES={
  "/produto-img/asad-zanzibar.jpg":"https://cdn-shopkit.com/usercontent/arabiaperfumes/media/images/660bbd3-174337-asad-zanzibar-1-1080x1080.jpg",
@@ -99,6 +102,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/estoque"&&request.method==="GET")return consultarEstoque(env);
  if(url.pathname==="/api/pagamento/status"&&request.method==="GET")return statusMercadoPago(env);
  if(url.pathname==="/api/pagamento/webhook"&&request.method==="POST")return webhookMercadoPago(request,env,ctx);
+ if(url.pathname==="/api/asaas/webhook"&&request.method==="POST")return asaasBridge.webhook(request,env,ctx);
  if(url.pathname==="/api/pagamento/config"&&request.method==="GET"){const mp=mpConfig(env);return resposta({ok:true,cardEnabled:Boolean(mp.publicKey),publicKey:mp.publicKey||"",testMode:mp.testMode})}
  if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
  if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
@@ -107,7 +111,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileUncertainPayments(env),reconcileStalePixReservations(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),processCheckoutRecovery(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileUncertainPayments(env),reconcileStalePixReservations(env),asaasBridge.cron(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),processCheckoutRecovery(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -1708,6 +1712,7 @@ async function accountOrderPix(request,env){
   const d=await request.json().catch(()=>({})),id=String(d.orderId||"").trim();if(!id)return resposta({ok:false,error:"Pedido inválido."},400);
   const ord=await env.DB.prepare("SELECT id,status,total FROM orders WHERE id=? AND customer_id=?").bind(id,u.id).first();if(!ord)return resposta({ok:false,error:"Pedido não encontrado na sua conta."},404);
   const payrow=await env.DB.prepare("SELECT method FROM order_payments WHERE order_id=?").bind(id).first();if(String(payrow?.method||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Este pedido não possui pagamento Pix."},409);
+  if(id.startsWith('pay_')){const link=await asaasBridge.readLink(env,id);if(link)return asaasBridge.accountPix(env,ord,link)}
   const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
   const mr=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}}),raw=await mr.text();let md;try{md=JSON.parse(raw)}catch{md={}}if(!mr.ok)return resposta({ok:false,error:"Não foi possível consultar este Pix agora."},502);
   const tx=md?.transactions?.payments?.[0]||{},st=String(tx.status||md.status||""),detail=String(tx.status_detail||md.status_detail||""),approved=["processed","approved"].includes(st)||detail==="accredited",pix=tx?.payment_method?.qr_code||tx?.payment_method?.ticket_url?tx.payment_method:(tx?.payment_method||{});
@@ -1731,11 +1736,15 @@ async function accountCancelOrder(request,env){
   const d=await request.json().catch(()=>({})),id=String(d.orderId||"").trim();if(!id)return resposta({ok:false,error:"Pedido inválido."},400);
   const ord=await env.DB.prepare("SELECT id,status FROM orders WHERE id=? AND customer_id=?").bind(id,u.id).first();if(!ord)return resposta({ok:false,error:"Pedido não encontrado na sua conta."},404);
   if(!["Aguardando pagamento","Processando"].includes(String(ord.status)))return resposta({ok:false,error:"Este pedido não pode mais ser cancelado."},409);
+  const asaasLink=id.startsWith('pay_')?await asaasBridge.readLink(env,id):null;
+  if(asaasLink){const check=await asaasBridge.cancelPrior(env,asaasLink);if(!check.ok)return resposta({ok:false,error:check.error},409)}
+  else{
   const cfg=mpConfig(env);if(cfg.accessToken){
    try{
     const mr=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});
     if(mr.ok){const md=await mr.json(),tx=md?.transactions?.payments?.[0]||{},st=String(tx.status||md.status||"");if(["processed","approved"].includes(st)||String(tx.status_detail||md.status_detail||"")==="accredited")return resposta({ok:false,error:"O pagamento já foi aprovado e o pedido não pode ser cancelado."},409)}
    }catch(e){console.error("Consulta antes do cancelamento:",e)}
+  }
   }
   const now=new Date().toISOString();await releaseReservedStock(env,id,now);
   await env.DB.batch([env.DB.prepare("UPDATE orders SET status='Cancelado',updated_at=? WHERE id=? AND customer_id=?").bind(now,id,u.id),env.DB.prepare("UPDATE order_payments SET status='cancelled',status_detail='cancelled_by_customer',updated_at=? WHERE order_id=?").bind(now,id),env.DB.prepare("UPDATE checkout_opportunities SET status='dismissed',last_error='Pedido cancelado pelo cliente',updated_at=? WHERE customer_id=? AND status='active'").bind(now,u.id)]);
@@ -2210,6 +2219,7 @@ async function reconcileUncertainPayments(env){
   await ensureAuthSchema(env);const cfg=mpConfig(env);if(!cfg.accessToken)return;
   const cutoff=new Date(Date.now()-2*60e3).toISOString(),rows=await env.DB.prepare("SELECT * FROM payment_attempts WHERE state IN ('sending','uncertain') AND created_at<? ORDER BY created_at LIMIT 10").bind(cutoff).all();
   for(const row of rows.results||[])try{
+   if(JSON.parse(row.snapshot_json||'{}').provider==='asaas')continue;
    const url=new URL("https://api.mercadopago.com/v1/orders");url.searchParams.set("begin_date",new Date(Date.parse(row.created_at)-60e3).toISOString());url.searchParams.set("end_date",new Date().toISOString());url.searchParams.set("external_reference",row.reference);url.searchParams.set("page_size","20");
    const r=await fetch(url.toString(),{headers:{Authorization:`Bearer ${cfg.accessToken}`,Accept:"application/json"}});if(!r.ok)continue;
    const data=await r.json();for(const remote of Array.isArray(data.data)?data.data:[])if(await restorePaymentAttempt(env,row,remote))break;
@@ -2219,7 +2229,7 @@ async function reconcileUncertainPayments(env){
 async function criarPagamentoPix(request,env){
  let attemptReference="";
  try{
-  if(!mpConfig(env).accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+  if(!asaasPixEnabled(env)&&!mpConfig(env).accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
   const dados=await request.json(),deviceId=String(dados.deviceId||"").trim().slice(0,256),nome=String(dados.name||"").trim(),email=String(dados.email||"").trim().toLowerCase(),cpf=String(dados.cpf||"").replace(/\D/g,""),telefone=String(dados.phone||"").replace(/\D/g,""),shipping=dados.shipping&&typeof dados.shipping==="object"?dados.shipping:{};
   if(String(dados.paymentMethod||"").toLowerCase()!=="pix")return resposta({ok:false,error:"Método de pagamento não disponível."},400);
   if(nome.length<3)return resposta({ok:false,error:"Informe seu nome completo."},400);if(!validEmail(email))return resposta({ok:false,error:"Informe um e-mail válido."},400);if(!cpfValido(cpf))return resposta({ok:false,error:"Informe um CPF válido."},400);
@@ -2238,6 +2248,7 @@ async function criarPagamentoPix(request,env){
   if(rr.some(x=>(x.meta?.changes||0)<1)){for(let i=0;i<items.length;i++)if((rr[i]?.meta?.changes||0)>0)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(items[i].qty,reserveAt,items[i].id).run();return resposta({ok:false,error:"O estoque mudou durante a compra. Tente novamente."},409)}
   const releaseReservation=async()=>{for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,new Date().toISOString(),it.id).run()};
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
+  if(asaasPixEnabled(env))return asaasBridge.startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation});
   const payload={type:"online",total_amount:total.toFixed(2),external_reference:referencia,processing_mode:"automatic",transactions:{payments:[{amount:total.toFixed(2),payment_method:{id:"pix",type:"bank_transfer"},expiration_time:"PT30M"}]},payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
   attemptReference=referencia;
   const mp=await guardedPaymentCreate(env,{reference:referencia,customerId:u.id,items,shipping:{...shipping,carrier,freight_cost:freight,delivery_time:Number(chosen.delivery_time??chosen.delivery_days??0)},name:nome,email,cpf,phone:telefone,total,method:"pix",installments:1},"https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
@@ -2334,7 +2345,7 @@ async function reconcileStalePixReservations(env){
  try{
   await ensureAuthSchema(env);const cfg=mpConfig(env);if(!cfg.accessToken)return;
   const cutoff=new Date(Date.now()-40*60e3).toISOString();
-  const rows=await env.DB.prepare("SELECT order_id FROM order_payments WHERE lower(method)='pix' AND created_at<? AND lower(COALESCE(status,'')) IN ('','created','pending','processing','action_required') ORDER BY created_at ASC LIMIT 20").bind(cutoff).all();
+  const rows=await env.DB.prepare("SELECT order_id FROM order_payments WHERE lower(method)='pix' AND order_id NOT LIKE 'pay_%' AND created_at<? AND lower(COALESCE(status,'')) IN ('','created','pending','processing','action_required') ORDER BY created_at ASC LIMIT 20").bind(cutoff).all();
   for(const row of (rows.results||[])){
    const id=String(row.order_id||"");if(!id)continue;
    try{
@@ -2470,7 +2481,8 @@ async function consultarPagamento(request,orderId,env){
  }catch(e){console.error("Autorização consulta pagamento:",e);return resposta({ok:false,error:"Não foi possível consultar este pagamento."},500)}
 }
 async function consultarPagamentoCore(orderId,env){
- if(!orderId)return resposta({ok:false,error:"ID de pagamento inválido."},400);const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
+ if(!orderId)return resposta({ok:false,error:"ID de pagamento inválido."},400);
+ if(String(orderId).startsWith('pay_')){const link=await asaasBridge.readLink(env,String(orderId)).catch(()=>null);if(link)return asaasBridge.status(env,link)}const cfg=mpConfig(env);if(!cfg.accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
  try{
   await ensureAuthSchema(env);const card=await env.DB.prepare("SELECT order_id FROM order_payments WHERE order_id=?").bind(String(orderId)).first();
   if(card){
