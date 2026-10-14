@@ -68,8 +68,8 @@ await storeAsaasLink({DB:db},link);
 assert.equal(records.size,1,'Persist mapping only once');
 await assert.rejects(storeAsaasLink({DB:db},{...link,payment_id:'pay_000000000'}),/divergentes/);
 
-const oldCrypto=globalThis.crypto;globalThis.crypto=webcrypto;
-try{
+{
+ assert.ok(globalThis.crypto?.subtle,'Node crypto required');
  const token='token-webhook-asaas-for-tests-only-12345678900';
  const webhookEnv={ASAAS_API_KEY:apiKey,ASAAS_WEBHOOK_TOKEN:token,DB:db};
  let handled=0,wait=[],inserted=0;
@@ -86,5 +86,5 @@ try{
  assert.equal(inserted,0);
  assert.equal((await handleAsaasWebhook(request(event),webhookEnv,ctx,()=>{handled++})).status,200);
  await Promise.all(wait);assert.equal(handled,1);assert.equal(inserted,1);
-}finally{globalThis.crypto=oldCrypto}
+}
 console.log('ASAAS PIX: flag off, provider isolated, CPF blocked CONFIRMED, D1 mapping, QR, webhook signed and MP unchanged PASS');
