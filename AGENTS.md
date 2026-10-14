@@ -35,3 +35,9 @@ O usuário aprovou o visual atual e pediu que fosse preservado nas próximas atu
 ## Foto + “posta no site” — regra permanente de 12/10/2026
 
 Antes de cadastrar/publicar perfume solicitado por foto, ler e aplicar `docs/PROCEDIMENTO-POSTAR-PERFUME.md` integralmente. O pedido autoriza o serviço completo até publicação e conferência, sem comandos intermediários. Regra atual de custo: USD × 5,30 + R$40 ponte + R$20 frete. Conferir fornecimento antes de liberar venda. Regra atualizada pelo proprietário em 14/10/2026: produtos novos entram por padrão como SOB ENCOMENDA, sem alegar pronta entrega. Só marcar ESGOTADO quando o proprietário solicitar expressamente. Continuar pesquisando fornecedores e não inventar custo, estoque físico ou prazos garantidos. Preservar visual e IDs; não inventar custo, GTIN, disponibilidade ou lucro líquido. Bahiya Garnet está esgotado; não reativar automaticamente.
+
+## Imagens dos produtos — confirmação do proprietário em 14/10/2026
+
+- A imagem principal de cada perfume deve mostrar **frasco E caixa da apresentação exata**, juntos, em fundo limpo e enquadramento compatível com a vitrine Valenza. Não publicar imagem com frasco sozinho, salvo se o proprietário pedir expressamente.
+- Antes de informar que está concluído, verificar a imagem efetivamente carregada no site publicado, na vitrine e no detalhe/modal no celular. Alterar caminho/versão da imagem para evitar cache antigo e sincronizar catálogo base, página SEO, sitemap e feed.
+- A instrução mais recente do proprietário prevalece sobre qualquer item anterior conflitante em `docs/PROCEDIMENTO-POSTAR-PERFUME.md`: status padrão **SOB ENCOMENDA**, marcar **ESGOTADO** somente a pedido explícito.
