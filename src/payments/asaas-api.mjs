@@ -68,6 +68,27 @@ export function asaasClient({apiKey,mode='sandbox',fetchImpl=fetch,timeoutMs=200
    if(!validId(data.id))throw new AsaasRequestError('Cobrança pendente de conciliação.',502,true);
    return {id:data.id,status:String(data.status||'PENDING'),externalReference:data.externalReference||null};
   },
+  /**
+   * Cartão de crédito SOMENTE por token aprovado pelo Asaas e vinculado
+   * ao cliente. O token vem de um capturador certificado, nunca de campos
+   * caseiros; NÃO habilitar até a validação PCI e habilitação do Asaas.
+   * Credenciais e token somente no servidor, descartados após o envio.
+   */
+  async createTokenizedCreditCharge({customerId,total,dueDate,reference,installments=1,creditCardToken,remoteIp}){
+   if(!validId(customerId)||!validId(reference)||!currency(total)||!dateOK(dueDate))throw new TypeError('Dados da cobrança inválidos');
+   if(!Number.isInteger(installments)||installments<1||installments>12)throw new TypeError('Número de parcelas inválido');
+   if(typeof creditCardToken!=='string'||!/^[-a-zA-Z0-9_]{20,150}$/.test(creditCardToken))throw new TypeError('Token do cartão inválido');
+   if(typeof remoteIp!=='string'||remoteIp.length<7||remoteIp.length>45||!(/^[0-9.]+$/.test(remoteIp)||/^[a-fA-F0-9:]+$/.test(remoteIp)))throw new TypeError('IP do pagador inválido');
+   // Capture from Cloudflare trusted request metadata, not a browser field.
+   const data=await call('POST','/payments',{
+    customer:customerId,billingType:'CREDIT_CARD',dueDate,
+    externalReference:reference,description:'Compra VALENZA PARFUMS',
+    ...(installments===1?{value:Math.round(total*100)/100}:{installmentCount:installments,totalValue:Math.round(total*100)/100}),
+    creditCardToken,remoteIp
+   });
+   if(!validId(data.id))throw new AsaasRequestError('Cobrança pendente de conciliação.',502,true);
+   return {id:data.id,status:String(data.status||'PENDING'),externalReference:data.externalReference||null};
+  },
   async getPixQrCode(paymentId){
    if(!validId(paymentId))throw new TypeError('Cobrança inválida');
    const data=await call('GET','/payments/'+encodeURIComponent(paymentId)+'/pixQrCode');
@@ -80,11 +101,7 @@ export function asaasClient({apiKey,mode='sandbox',fetchImpl=fetch,timeoutMs=200
    return {id:data.id,status:String(data.status||''),billingType:String(data.billingType||''),value:Number(data.value),
     externalReference:String(data.externalReference||''),customer:String(data.customer||''),installmentCount:Number(data.installmentCount||1)};
   },
-  /**
-   * CREDIT_CARD API requires a separately reviewed PCI-compliant data capture.
-   * This adapter intentionally does not accept card numbers or CVV.
-   * To be integrated only after card handling/security plan is validated.
-   */
+  // No raw credit-card methods are exported; only PCI-reviewed tokens.
  });
 }
 /**
