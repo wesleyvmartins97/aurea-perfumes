@@ -19,7 +19,7 @@ Fontes:
 
 - `src/payments/asaas-card-contract.mjs`: bloqueia cartões brutos/PAN/CVV, valida cobrança com token Asaas, valor, IP e parcelas 1 a 12; verifica estados consultados no Asaas e evita concluir pedidos em análise.
 - `src/payments/asaas-prod.mjs`: método interno `newTokenizedCard()` somente para integração com token Asaas proveniente de caminho validado; exige simultaneamente `ASAAS_CARD_ENABLED=true` **e** `ASAAS_CARD_PCI_APPROVED=true`. Nenhuma rota pública utiliza esse método.
-- `src/payments/asaas-valenza.mjs`: reconciliação de links existentes `CREDIT_CARD` faz GET do Asaas, compara ID, cliente, referência e valor. Não libera estoque/EnvioEcom por status pendente ou em análise. O webhook existente continua autenticado.
+- `src/payments/asaas-valenza.mjs`: reconciliação de links existentes `CREDIT_CARD` faz GET do Asaas, compara ID, cliente, referência e valor. Não libera estoque/EnvioEcom por status pendente ou em análise. Se a resposta da cobrança indicar `installment`, `installmentNumber` ou `installmentCount > 1`, fica em revisão até conciliar o parcelamento completo; um `PAYMENT_CONFIRMED` de apenas uma parcela **nunca** confirma o pedido integral. O webhook existente continua autenticado.
 - `scripts/test-asaas-card-contract.mjs`: testes 1x, 3x, valores, estados de risco, recusas, reversões, ausência de PAN/CVV e flag desligada. Não usa dados reais nem cria cobranças.
 
 ## Bloqueios para troca do cartão
