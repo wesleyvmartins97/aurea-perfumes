@@ -40,6 +40,7 @@ const bridge=createValenzaAsaasBridge({
 });
 const env={DB,ASAAS_API_KEY:'test_secret_not_real_1234567',ASAAS_WEBHOOK_TOKEN:'test_webhook_secret_that_is_long_enough_for_auth'};
 await bridge.cron(env);
+if(attempts!==1)console.error('SQL QUERIES BEFORE SHIPPING:',JSON.stringify(seen));
 assert.equal(attempts,1,'failed shipping attempted first time');
 await bridge.cron(env);
 assert.equal(attempts,2,'failed shipping retried');
