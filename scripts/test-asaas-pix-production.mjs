@@ -9,6 +9,20 @@ assert.match(wrangler,/"ASAAS_PIX_ENABLED": "true"/,'PIX Asaas deve estar habili
 assert.match(worker,/pixGateway:asaasPixEnabled\(env\)\?"asaas":"mercadopago"/,'Provedor PIX deve ser consultável sem expor segredos');
 assert.match(worker,/cardGateway:"mercadopago"/,'Cartão deve continuar isolado no Mercado Pago');
 assert.match(worker,/if\(asaasPixEnabled\(env\)\)return asaasBridge\.startPix/);
+const existingOrderRestore=worker.slice(worker.indexOf('async function restorePaymentAttempt('),worker.indexOf('async function reconcileUncertainPayments('));
+assert.match(existingOrderRestore,/if\(snap\.provider==='asaas'\)\{/);
+assert.match(existingOrderRestore,/existingLink\.reference!==row\.reference/);
+assert.match(existingOrderRestore,/existingLink\.customer_id!==snap\.customerId/);
+assert.match(existingOrderRestore,/else\{\s*const checked=await consultarPagamentoCore\(pid,env\)/);
+const asaasBridgeSource=fs.readFileSync('src/payments/asaas-valenza.mjs','utf8');
+assert.match(asaasBridgeSource,/const verified=await reconcile\(env,link\.order_id\)/);
+assert.match(asaasBridgeSource,/if\(!verified\)return resposta\(\{ok:false/);
+assert.match(asaasBridgeSource,/if\(!await reconcile\(env,link\.order_id\)\)return resposta\(\{ok:false/);
+assert.match(asaasBridgeSource,/JOIN orders o ON o\.id=a\.order_id JOIN order_shipping s ON s\.order_id=o\.id/);
+assert.match(asaasBridgeSource,/o\.status='Pago' AND a\.status='RECEIVED'/);
+assert.match(asaasBridgeSource,/COALESCE\(s\.shipping_id,''\)=''/);
+assert.match(asaasBridgeSource,/await criarEnvioEnvioEcom\(env,item\.payment_id\)/);
+
 assert.match(worker,/if\(url\.pathname===\"\/api\/asaas\/webhook\"&&request\.method===\"POST\"\)return asaasBridge\.webhook/);
 assert.match(worker,/reconcileUncertainPayments\(env\),reconcileStalePixReservations\(env\),asaasBridge\.cron\(env\)/);
 assert.match(worker,/asaasBridge\.accountPix\(env,ord,link\)/);

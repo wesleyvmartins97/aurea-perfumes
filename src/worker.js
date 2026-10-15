@@ -2194,7 +2194,17 @@ async function restorePaymentAttempt(env,row,remote){
   const storedItems=(await env.DB.prepare("SELECT product_id,quantity FROM order_items WHERE order_id=?").bind(pid).all()).results||[],storedShipping=await env.DB.prepare("SELECT order_id FROM order_shipping WHERE order_id=?").bind(pid).first(),storedPayment=await env.DB.prepare("SELECT order_id FROM order_payments WHERE order_id=?").bind(pid).first();
   const complete=existing.customer_id===snap.customerId&&existing.order_number===row.reference&&Math.abs(Number(existing.total)-Number(snap.total))<0.009&&storedShipping&&storedPayment&&storedItems.length===snap.items.length&&snap.items.every(it=>storedItems.some(saved=>saved.product_id===it.id&&Number(saved.quantity)===Number(it.qty)));
   if(!complete){await recordOperationalEvent(env,{orderId:pid,eventType:"payment.persistence_incomplete",category:"payment",status:"failed",severity:"error",source:"payment-reconcile",message:"Pedido com gravação incompleta: conferir no provedor antes de liberar estoque ou refazer cobrança.",uniqueKey:"payment-incomplete:"+row.reference});return false}
-  const checked=await consultarPagamentoCore(pid,env);if(!checked.ok)return false;
+  if(snap.provider==='asaas'){
+   // O mesmo pedido é reconferido pelo adaptador Asaas que já consultou
+   // a cobrança real. Chamar consultarPagamentoCore aqui causaria recursão:
+   // status -> reconcile -> restorePaymentAttempt -> status.
+   const existingLink=await asaasBridge.readLink(env,pid);
+   if(!existingLink||existingLink.reference!==row.reference||
+      existingLink.order_id!==pid||existingLink.customer_id!==snap.customerId||
+      Math.round(Number(existingLink.amount)*100)!==Math.round(Number(snap.total)*100))return false;
+  }else{
+   const checked=await consultarPagamentoCore(pid,env);if(!checked.ok)return false;
+  }
   await env.DB.prepare("UPDATE payment_attempts SET provider_id=?,state='saved',updated_at=? WHERE reference=?").bind(pid,now,row.reference).run();
   return true;
  }else{
