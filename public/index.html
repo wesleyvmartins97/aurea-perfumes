@@ -492,13 +492,14 @@ function ensureMercadoPagoSDK(){
 }
 
 let cat='todos',collection='todos',department='todos',catalogSort='default',cart=[];try{const savedCart=JSON.parse(localStorage.getItem('aurea_cart')||'[]');cart=Array.isArray(savedCart)?savedCart:[]}catch(e){localStorage.removeItem('aurea_cart');cart=[]}let selectedShipping=null,selectedPayment='pix';
-const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const pixUnitPrice=n=>{const cents=Math.round(Number(n)*100);return Math.floor((cents*95+50)/100)/100};const VALENZA_ASSET_REV='20261001-1';CATALOG.forEach(p=>{if(/^\/produtos\//.test(String(p.img||''))&&!/[?&]v=/.test(String(p.img||'')))p.img+=(String(p.img).includes('?')?'&':'?')+'v='+VALENZA_ASSET_REV;p.sourcePrice=Number(p.price||0);p.basePrice=p.sourcePrice;p.regularPrice=p.sourcePrice;p.price=p.sourcePrice;p.pix=pixUnitPrice(p.price);p.promoActive=false;p.stock=null;p.active=true});const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});const pixUnitPrice=n=>{const cents=Math.round(Number(n)*100);return Math.floor((cents*95+50)/100)/100};let valenzaOwnerPixTrial=false;const valenzaCartPixUnit=x=>valenzaOwnerPixTrial&&String(x?.id)==='vulcan-baie'?1.00:pixUnitPrice(x.price);const VALENZA_ASSET_REV='20261001-1';CATALOG.forEach(p=>{if(/^\/produtos\//.test(String(p.img||''))&&!/[?&]v=/.test(String(p.img||'')))p.img+=(String(p.img).includes('?')?'&':'?')+'v='+VALENZA_ASSET_REV;p.sourcePrice=Number(p.price||0);p.basePrice=p.sourcePrice;p.regularPrice=p.sourcePrice;p.price=p.sourcePrice;p.pix=pixUnitPrice(p.price);p.promoActive=false;p.stock=null;p.active=true});const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 async function refreshProductPromotions({redraw=false}={}){
  try{
-  const stamp=Date.now(),[runtimeRes,promoRes]=await Promise.all([
+  const stamp=Date.now(),[runtimeRes,promoRes,ownerRes]=await Promise.all([
    fetch('/api/catalog/runtime?t='+stamp,{cache:'no-store'}),
-   fetch('/api/product-promotions/active?t='+stamp,{cache:'no-store'})
-  ]),runtime=await runtimeRes.json().catch(()=>({})),promo=await promoRes.json().catch(()=>({}));
+   fetch('/api/product-promotions/active?t='+stamp,{cache:'no-store'}),
+   fetch('/api/valenza/owner-pix-trial?t='+stamp,{cache:'no-store',credentials:'same-origin'})
+  ]),runtime=await runtimeRes.json().catch(()=>({})),promo=await promoRes.json().catch(()=>({})),ownerInfo=ownerRes.ok?await ownerRes.json().catch(()=>({})):{};
   if(!runtimeRes.ok||!runtime.ok)throw Error(runtime.error||'Não foi possível atualizar preços e estoque.');
   if(!promoRes.ok||!promo.ok)throw Error(promo.error||'Não foi possível atualizar as ofertas.');
   const dynamicCatalog=Array.isArray(runtime.catalog)?runtime.catalog:[];
@@ -513,6 +514,17 @@ async function refreshProductPromotions({redraw=false}={}){
    p.promoActive=!!o&&Number.isFinite(promoPrice)&&promoPrice>0&&promoPrice<p.basePrice;
    p.price=p.promoActive?promoPrice:p.basePrice;p.pix=pixUnitPrice(p.price);
    p.promotionId=p.promoActive?String(o.id||''):'';p.promoStartsAt=p.promoActive?(o.startsAt||null):null;p.promoEndsAt=p.promoActive?(o.endsAt||null):null;
+  }
+  // Price of the private live PIX checkout only appears for the authenticated owner.
+  // Never publish this discount to Merchant Center or change anyone else's catalog.
+  valenzaOwnerPixTrial=ownerInfo?.eligible===true&&ownerInfo?.active===true
+   &&ownerInfo?.productId==='vulcan-baie'&&Number(ownerInfo?.price)===1;
+  if(valenzaOwnerPixTrial){
+   const testProduct=CATALOG.find(p=>p.id==='vulcan-baie');
+   if(testProduct){
+    testProduct.price=1;testProduct.pix=1;
+    testProduct.promoActive=true;testProduct.promotionId='owner-private-pix-verification';
+   }
   }
   let changed=false;
   cart=cart.flatMap(x=>{const p=CATALOG.find(q=>String(q.id)===String(x.id)),av=productAvailability(p);if(!p||p.active===false||!av.sellable){changed=true;return[]}const next=Number(p.price),max=Number.isFinite(Number(p.stock))?Math.max(1,Math.min(10,Number(p.stock))):10,qty=Math.min(Math.max(1,Number(x.qty)||1),max);if(Math.abs(Number(x.price||0)-next)>.009||qty!==Number(x.qty))changed=true;return [{...x,name:p.name,brand:p.brand,type:p.type,img:p.img,price:next,qty}]});
@@ -720,7 +732,7 @@ window.addEventListener('popstate',()=>{
   if(aureaLayers.at(-1)!=='checkout')aureaLayers.push('checkout');
  }
 });
-function updateSummary(){const s=document.getElementById('summary');if(!s)return;const isPix=selectedPayment==='pix',unit=x=>isPix?pixUnitPrice(x.price):Number(x.price),sub=cart.reduce((a,x)=>a+unit(x)*x.qty,0),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(unit(x)*x.qty)}</strong></div>`).join('')+(isPix?'<div class="summary-row"><span>Desconto Pix nos produtos</span><strong>5%</strong></div>':'')+(selectedShipping?`<div class="summary-row"><span>Frete · ${selectedShipping.id==='local-colatina'?'Entrega local grátis em Colatina':esc(selectedShipping.name)+' (transporte: '+selectedShipping.delivery_time+' '+(selectedShipping.delivery_time===1?'dia útil':'dias úteis')+' após a postagem)'}</span><strong>${money(frete)}</strong></div><div class="summary-row" style="align-items:flex-start"><span><strong>Sob encomenda</strong><br><small>Preparação em até 10 dias úteis antes da postagem.</small></span><strong>—</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
+function updateSummary(){const s=document.getElementById('summary');if(!s)return;const isPix=selectedPayment==='pix',unit=x=>isPix?valenzaCartPixUnit(x):Number(x.price),sub=cart.reduce((a,x)=>a+unit(x)*x.qty,0),frete=selectedShipping?.price||0;s.innerHTML=cart.map(x=>`<div class="summary-row"><span>${esc(x.name)} × ${x.qty}</span><strong>${money(unit(x)*x.qty)}</strong></div>`).join('')+(isPix?'<div class="summary-row"><span>Desconto Pix nos produtos</span><strong>5%</strong></div>':'')+(selectedShipping?`<div class="summary-row"><span>Frete · ${selectedShipping.id==='local-colatina'?'Entrega local grátis em Colatina':esc(selectedShipping.name)+' (transporte: '+selectedShipping.delivery_time+' '+(selectedShipping.delivery_time===1?'dia útil':'dias úteis')+' após a postagem)'}</span><strong>${money(frete)}</strong></div><div class="summary-row" style="align-items:flex-start"><span><strong>Sob encomenda</strong><br><small>Preparação em até 10 dias úteis antes da postagem.</small></span><strong>—</strong></div>`:'')+`<div class="summary-total"><strong>Total</strong><strong>${money(sub+frete)}</strong></div>`}
 async function checkoutShipping(){
  const e=document.getElementById('error'),cep=document.getElementById('checkoutCep').value.replace(/\D/g,'');
  e.classList.add('show');e.innerHTML='<b>Escolha o frete para continuar</b><div id="checkoutShipInline" style="margin-top:10px">Consultando opções para o CEP '+esc(document.getElementById('checkoutCep').value)+'...</div>';
@@ -862,7 +874,7 @@ async function payPix(){
  if(!selectedShipping){checkoutShipping();return}
  if(!await refreshProductPromotions({redraw:true})){showError('Não foi possível atualizar os preços agora. Tente novamente.');return}
  window.valenzaTrackPaymentInfo?.('pix');
- const pixSubtotal=cart.reduce((a,x)=>a+pixUnitPrice(x.price)*x.qty,0);const total=Number((pixSubtotal+selectedShipping.price).toFixed(2)),b=document.getElementById('payButton');
+ const pixSubtotal=cart.reduce((a,x)=>a+valenzaCartPixUnit(x)*x.qty,0);const total=Number((pixSubtotal+selectedShipping.price).toFixed(2)),b=document.getElementById('payButton');
  b.disabled=true;b.textContent='GERANDO PIX...';
  const failTimer=setTimeout(()=>{if(b&&b.textContent==='GERANDO PIX...'){b.disabled=false;b.textContent='GERAR PAGAMENTO PIX';showError('O pagamento não respondeu. Tente novamente.');}},22000);
  try{
