@@ -1,6 +1,7 @@
 // VALENZA Asaas bridge; integrates existing D1 order snapshots, inventory and EnvioEcom.
 // Must only be called after canonical cart, address, price, freight and stock validation.
 import {createAsaasGateway,ensureAsaasTables,storeAsaasLink,readAsaasLink,classifyAsaasPix,handleAsaasWebhook,asaasReady} from './asaas-prod.mjs';
+import {classifyAsaasVerifiedCard} from './asaas-card-contract.mjs';
 
 export function createValenzaAsaasBridge(dep){
  const {ensureAuthSchema,guardedPaymentCreate,restorePaymentAttempt,closePaymentAttempt,
@@ -62,7 +63,7 @@ export function createValenzaAsaasBridge(dep){
   if(!/^pay_[A-Za-z0-9_-]{6,120}$/.test(String(id||'')))return false;
   await ensureAuthSchema(env);
   const link=await readAsaasLink(env,id);if(!link)return false;
-  const remote=await createAsaasGateway(env).getPayment(id),decision=classifyAsaasPix(remote,link);
+  const remote=await createAsaasGateway(env).getPayment(id),decision=link.billing_type==='CREDIT_CARD'?classifyAsaasVerifiedCard(remote,link):classifyAsaasPix(remote,link);
   if(decision.status==='review'){
    await recordOperationalEvent(env,{orderId:id,eventType:'payment.asaas_mismatch',category:'payment',status:'failed',severity:'error',source:'asaas',message:'Divergência na cobrança. Revisão manual necessária.',uniqueKey:'asaas-mismatch:'+id+':'+decision.reason});
    return false;
@@ -80,11 +81,11 @@ export function createValenzaAsaasBridge(dep){
     return false;
    }
    await env.DB.batch([
-    env.DB.prepare("UPDATE order_payments SET status='received',status_detail='asaas_received',updated_at=? WHERE order_id=?").bind(now,id),
+    env.DB.prepare("UPDATE order_payments SET status=?,status_detail=?,updated_at=? WHERE order_id=?").bind(link.billing_type==='CREDIT_CARD'?'confirmed':'received',link.billing_type==='CREDIT_CARD'?'asaas_card_confirmed':'asaas_received',now,id),
     env.DB.prepare("UPDATE order_items SET stock_deducted=1 WHERE order_id=? AND stock_deducted=0").bind(id)
    ]);
    if(first){
-    await recordPaymentStatusEvent(env,{orderId:id,rawStatus:'received',label:'Pago',method:'pix',source:'asaas-webhook'});
+    await recordPaymentStatusEvent(env,{orderId:id,rawStatus:String(remote.status||''),label:'Pago',method:link.billing_type==='CREDIT_CARD'?'credit':'pix',source:'asaas-webhook'});
     await sendOrderOperationalEmail(env,id,'payment_confirmed').catch(()=>{});
     await criarEnvioEnvioEcom(env,id).catch(()=>{});
     await notifyPaidOrder(env,id).catch(()=>{});

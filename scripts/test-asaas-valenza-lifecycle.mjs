@@ -49,7 +49,7 @@ const DB={prepare(sql){
   }
   if(sql.startsWith("UPDATE orders SET status='Reembolsado'")){orders.get(args[1]).status='Reembolsado';return {meta:{changes:1}}}
   if(sql.startsWith("UPDATE orders SET status='Cancelado'")){orders.get(args[1]).status='Cancelado';return {meta:{changes:1}}}
-  if(sql.startsWith('UPDATE order_payments SET status=')){payments.get(args[1]).status=sql.includes("'received'")?'received':sql.includes("'refunded'")?'refunded':'cancelled';return {meta:{changes:1}}}
+  if(sql.startsWith('UPDATE order_payments SET status=')){const variable=sql.includes('status=?');const id=variable?args[3]:args[1];const status=variable?args[0]:(sql.includes("'received'")?'received':sql.includes("'refunded'")?'refunded':'cancelled');payments.get(id).status=status;return {meta:{changes:1}}}
   if(sql.startsWith('UPDATE order_items SET stock_deducted='))return {meta:{changes:1}};
   throw Error('Unexpected mutation '+sql);
  }};
