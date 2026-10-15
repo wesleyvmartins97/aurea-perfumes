@@ -86,7 +86,8 @@ export function createValenzaAsaasBridge(dep){
    if(first){
     await recordPaymentStatusEvent(env,{orderId:id,rawStatus:'received',label:'Pago',method:'pix',source:'asaas-webhook'});
     await sendOrderOperationalEmail(env,id,'payment_confirmed').catch(()=>{});
-    await criarEnvioEnvioEcom(env,id).catch(()=>{});
+    const shipment=await criarEnvioEnvioEcom(env,id).catch(()=>null);
+    if(!shipment?.ok)await recordOperationalEvent(env,{orderId:id,eventType:'shipping.asaas_retry_pending',category:'shipping',status:'pending',severity:'warning',source:'asaas',message:'EnvioEcom não confirmou o envio. O pedido pago permanecerá na fila de nova tentativa.',uniqueKey:'asaas-shipping-retry:'+id}).catch(()=>{});
     await notifyPaidOrder(env,id).catch(()=>{});
    }
    return true;
@@ -163,6 +164,17 @@ export function createValenzaAsaasBridge(dep){
   }
   return attempted;
  }
+ // Retoma envio que não foi concluído após o PIX cair como RECEIVED.
+ // A função central do EnvioEcom usa shipment_locks e verifica shipping_id.
+ // Nunca cria postagem para pedido pendente, bloqueado, cancelado ou estornado.
+ async function retryPaidShipping(env){
+  const q=await env.DB.prepare("SELECT l.order_id FROM asaas_payment_links l JOIN orders o ON o.id=l.order_id JOIN order_shipping s ON s.order_id=l.order_id WHERE l.billing_type='PIX' AND l.status='RECEIVED' AND o.status='Pago' AND s.carrier<>'Entrega local Valenza' AND COALESCE(s.shipping_id,'')='' AND COALESCE(s.barcode,'')='' ORDER BY l.updated_at ASC LIMIT 6").all();
+  for(const row of q.results||[])try{
+   const shipping=await criarEnvioEnvioEcom(env,row.order_id);
+   if(!shipping?.ok)continue;
+   await recordOperationalEvent(env,{orderId:row.order_id,eventType:'shipping.asaas_retry_completed',category:'shipping',status:'prepared',severity:'success',source:'asaas',message:'EnvioEcom foi preparado após uma retentativa segura.',uniqueKey:'asaas-shipping-recovered:'+row.order_id});
+  }catch(e){console.error('Retentativa EnvioEcom Asaas:',e?.name||'error')}
+ }
  async function cron(env){
   if(!asaasReady(env))return;
   try{
@@ -198,6 +210,7 @@ export function createValenzaAsaasBridge(dep){
     if(e.payment_id&&await reconcile(env,e.payment_id))
      await env.DB.prepare("UPDATE asaas_webhook_events SET state='processed',updated_at=? WHERE id=?").bind(new Date().toISOString(),e.id).run();
    }catch{}
+   await retryPaidShipping(env);
   }catch(e){console.error('Conciliação Asaas:',e?.name||'error')}
  }
  const webhook=(req,env,ctx)=>handleAsaasWebhook(req,env,ctx,pid=>reconcile(env,pid));
