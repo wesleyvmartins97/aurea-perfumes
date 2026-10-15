@@ -104,7 +104,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/pagamento/webhook"&&request.method==="POST")return webhookMercadoPago(request,env,ctx);
  if(url.pathname==="/api/asaas/webhook"&&request.method==="POST")return asaasBridge.webhook(request,env,ctx);
  if(url.pathname==="/api/pagamento/config"&&request.method==="GET"){const mp=mpConfig(env);return resposta({ok:true,cardEnabled:Boolean(mp.publicKey),publicKey:mp.publicKey||"",testMode:mp.testMode,pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago"})}
- if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env);
+ if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env,ctx);
  if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(request,url.pathname.slice("/api/pagamento/".length).trim(),env);
  if(url.pathname==="/admin"||url.pathname.startsWith("/admin/"))return new Response("Not Found",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","X-Robots-Tag":"noindex, nofollow, noarchive"}});
@@ -2236,7 +2236,7 @@ async function reconcileUncertainPayments(env){
   }catch(e){console.error("Conferência de tentativa de pagamento:",e)}
  }catch(e){console.error("Conferência de pagamentos:",e)}
 }
-async function criarPagamentoPix(request,env){
+async function criarPagamentoPix(request,env,ctx){
  let attemptReference="";
  try{
   if(!asaasPixEnabled(env)&&!mpConfig(env).accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
@@ -2258,7 +2258,7 @@ async function criarPagamentoPix(request,env){
   if(rr.some(x=>(x.meta?.changes||0)<1)){for(let i=0;i<items.length;i++)if((rr[i]?.meta?.changes||0)>0)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(items[i].qty,reserveAt,items[i].id).run();return resposta({ok:false,error:"O estoque mudou durante a compra. Tente novamente."},409)}
   const releaseReservation=async()=>{for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,new Date().toISOString(),it.id).run()};
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
-  if(asaasPixEnabled(env))return asaasBridge.startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation});
+  if(asaasPixEnabled(env))return asaasBridge.startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation,ctx});
   const payload={type:"online",total_amount:total.toFixed(2),external_reference:referencia,processing_mode:"automatic",transactions:{payments:[{amount:total.toFixed(2),payment_method:{id:"pix",type:"bank_transfer"},expiration_time:"PT30M"}]},payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
   attemptReference=referencia;
   const mp=await guardedPaymentCreate(env,{reference:referencia,customerId:u.id,items,shipping:{...shipping,carrier,freight_cost:freight,delivery_time:Number(chosen.delivery_time??chosen.delivery_days??0)},name:nome,email,cpf,phone:telefone,total,method:"pix",installments:1},"https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
