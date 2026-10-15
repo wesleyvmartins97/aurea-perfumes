@@ -1812,6 +1812,13 @@ async function dynamicMerchantFeed(request,env){
     .replace(/<g:description>[\s\S]*?<\/g:description>/,"<g:description>"+xmlEscapeText(desc)+"</g:description>")
     .replace(/<g:brand>[^<]*<\/g:brand>/,"<g:brand>"+xmlEscapeText(p.brand||"VALENZA")+"</g:brand>");
    if(imageUrl)out=out.replace(/<g:image_link>[^<]*<\/g:image_link>/,"<g:image_link>"+xmlEscapeText(imageUrl)+"</g:image_link>");
+   // Clarify this gourmand fragrance as a perfume; avoid algorithmic category confusion.
+   if(id==="tiramisu-coco"){
+    out=out.replace(/<g:title>[^<]*<\/g:title>/,"<g:title>Perfume Tiramisu Coco Zimaya Eau de Parfum 100ml</g:title>");
+    out=out.replace(/<g:description>[\s\S]*?<\/g:description>/,"<g:description>Perfume Eau de Parfum unissex 100ml de Zimaya, fragrancia de uso pessoal com notas olfativas de cafe, amaretto e baunilha.</g:description>");
+   }
+   if(!out.includes("<g:google_product_category>"))out=out.replace("</item>","<g:google_product_category>479</g:google_product_category></item>");
+
    if(validCatalogGtin(gtin)){
     if(/<g:gtin>[^<]*<\/g:gtin>/.test(out))out=out.replace(/<g:gtin>[^<]*<\/g:gtin>/,"<g:gtin>"+gtin+"</g:gtin>");
     else out=out.replace("</item>","<g:gtin>"+gtin+"</g:gtin></item>");
