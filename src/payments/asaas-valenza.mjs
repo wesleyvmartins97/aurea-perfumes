@@ -147,13 +147,16 @@ export function createValenzaAsaasBridge(dep){
    return {ok:true};
   }catch{return {ok:false,error:'Não foi possível cancelar a cobrança no Asaas. Tente mais tarde.'}}
  }
+ // Any EnvioEcom HTTP error (including 5xx) is uncertain: the provider may
+ // have created the shipment before returning an error. Block automatic retry
+ // on every shipping.failed until a human reconciles the provider-side order.
  // Recovery is separate from payment status transitions. EnvioEcom may fail
  // after the order was committed as paid; retries must not re-charge or resend.
  // Existing shipment_locks and shipping_id make create idempotent. Do not
  // auto-retry network-uncertain submissions: EnvioEcom may have created the
  // shipment even if its response was lost. Require manual reconciliation.
  async function retryPaidShipments(env){
-  const rows=await env.DB.prepare("SELECT s.order_id FROM order_shipping s JOIN orders o ON o.id=s.order_id JOIN asaas_payment_links a ON a.order_id=o.id WHERE o.status='Pago' AND a.status='RECEIVED' AND s.carrier<>'Entrega local Valenza' AND COALESCE(s.shipping_id,'')='' AND NOT EXISTS (SELECT 1 FROM shipment_locks lk WHERE lk.order_id=o.id) AND NOT EXISTS (SELECT 1 FROM operational_events e WHERE e.order_id=o.id AND (e.event_type='shipping.network_failed' OR (e.event_type='shipping.failed' AND e.message='EnvioEcom respondeu sem identificador da postagem.'))) ORDER BY o.created_at ASC LIMIT 12").all();
+  const rows=await env.DB.prepare("SELECT s.order_id FROM order_shipping s JOIN orders o ON o.id=s.order_id JOIN asaas_payment_links a ON a.order_id=o.id WHERE o.status='Pago' AND a.status='RECEIVED' AND s.carrier<>'Entrega local Valenza' AND COALESCE(s.shipping_id,'')='' AND NOT EXISTS (SELECT 1 FROM shipment_locks lk WHERE lk.order_id=o.id) AND NOT EXISTS (SELECT 1 FROM operational_events e WHERE e.order_id=o.id AND e.event_type IN ('shipping.network_failed','shipping.failed')) ORDER BY o.created_at ASC LIMIT 12").all();
   let attempted=0;
   for(const row of rows.results||[]){
    try{
