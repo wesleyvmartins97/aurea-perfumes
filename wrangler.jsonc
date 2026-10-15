@@ -63,6 +63,12 @@
     // PIX transparente Asaas aprovado após evento real PAYMENT_CREATED/DELETED com HTTP 200.
     // Para rollback imediato, alterar somente esta variável para "false".
     "ASAAS_PIX_ENABLED": "true",
+    // Verificacao real EXCLUSIVA e TEMPORARIA. Expira automaticamente em 15/10 as 18h (Brasilia).
+    // Reversao instantanea: mudar VALENZA_OWNER_PIX_TRIAL para "false".
+    // NUNCA altera AUREA_CATALOG, banco de produtos, anuncios ou feed Merchant.
+    "VALENZA_OWNER_PIX_TRIAL": "true",
+    "VALENZA_OWNER_PIX_TRIAL_UNTIL": "2026-10-15T21:00:00.000Z",
+    "VALENZA_OWNER_PIX_TRIAL_EMAIL": "wesleyvmartins97@gmail.com",
     "ADMIN_EMAILS": "wesleyvmartins97@gmail.com,jjessitrindade@gmail.com",
     "ADMIN_USERNAME": "wesleymartins",
     // Valores não secretos necessários em produção. Segredos continuam somente no painel da Cloudflare.
