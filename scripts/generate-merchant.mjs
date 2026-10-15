@@ -33,6 +33,7 @@ for(const p of sellable){
  out+='    <g:condition>new</g:condition>\n';
  out+=`    <g:availability>backorder</g:availability>\n    <g:availability_date>${fulfillment.date}</g:availability_date>\n`;
  out+=`    <g:price>${Number(p.price).toFixed(2)} BRL</g:price>\n`;
+ out+='    <g:google_product_category>479</g:google_product_category>\n';
  out+=`    <g:brand>${xml(p.brand)}</g:brand>\n`;
  if(/^\d{8}$|^\d{12,14}$/.test(String(p.gtin||'')))out+=`    <g:gtin>${xml(p.gtin)}</g:gtin>\n`;
  else out+='    <g:identifier_exists>false</g:identifier_exists>\n';
