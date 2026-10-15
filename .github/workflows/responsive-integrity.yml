@@ -44,6 +44,7 @@ jobs:
           node --check src/payments/asaas-valenza.mjs
           node scripts/test-asaas-pix-production.mjs
           node scripts/test-asaas-valenza-lifecycle.mjs
+          node scripts/test-asaas-shipping-retry.mjs
           node scripts/test-asaas-shipping-recovery.mjs
       - name: Garantir bootstrap de estoque sem consultas D1 repetidas
         run: node scripts/test-inventory-bootstrap-one-read.mjs
