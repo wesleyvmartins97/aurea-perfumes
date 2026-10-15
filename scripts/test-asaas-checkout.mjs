@@ -48,7 +48,7 @@ assert.match(worker,/fetch\("https:\/\/api\.asaas\.com\/v3\/myAccount\/accountNu
 assert.match(worker,/"access_token":key/);
 assert.match(worker,/chargesCreated:0/);
 assert.match(worker,/const admin=await currentAdmin\(request,env\)/);
-assert.match(worker,/if\(url\.pathname==="\/api\/pagamento"&&request\.method==="POST"\)return criarPagamentoPix\(request,env\)/);
+assert.match(worker,/if\(url\.pathname==="\/api\/pagamento"&&request\.method==="POST"\)return criarPagamentoPix\(request,env,ctx\)/);
 assert.match(worker,/if\(url\.pathname==="\/api\/pagamento\/cartao"&&request\.method==="POST"\)return criarPagamentoCartao\(request,env\)/);
 assert.doesNotMatch(page,/\bASAAS_API_KEY\b/);
 assert.doesNotMatch(page,/api\.asaas\.com/);
