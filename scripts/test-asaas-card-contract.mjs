@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {createAsaasGateway} from '../src/payments/asaas-prod.mjs';
 import {asaasCardProductionEnabled,buildAsaasTokenizedCardPayment,classifyAsaasVerifiedCard,isAsaasCardWebhookEvent} from '../src/payments/asaas-card-contract.mjs';
 
 const base={customer:'cus_123456789',reference:'AUREA-1720000000-xyzabc12',
@@ -58,4 +59,25 @@ const live=fs.readFileSync('src/worker.js','utf8'),web=fs.readFileSync('public/i
 assert.match(live,/if\(!mpConfig\(env\)\.accessToken\)return resposta\(\{ok:false,error:"Pagamento temporariamente indisponível."\},503\);/);
 assert.match(web,/new MercadoPago\(/);
 assert.ok(!live.includes('ASAAS_CARD_ENABLED: "true"'));
+let calls=0,finalBody=null;
+const mock=async (url,init)=>{
+ calls++;assert.equal(url,'https://api.asaas.com/v3/payments');
+ assert.equal(init.headers.access_token,'fake-card-api-token-0123456789');
+ finalBody=JSON.parse(init.body);
+ return Response.json({id:'pay_asaas_card_1234',customer:base.customer,billingType:'CREDIT_CARD',externalReference:base.reference,value:579.9,status:'CONFIRMED'});
+};
+const disabledGateway=createAsaasGateway({ASAAS_API_KEY:'fake-card-api-token-0123456789'},mock);
+await assert.rejects(disabledGateway.newTokenizedCard(base),/não habilitado/);
+assert.equal(calls,0,'Must not send payment while disabled');
+const enabledGateway=createAsaasGateway({ASAAS_API_KEY:'fake-card-api-token-0123456789',
+ ASAAS_CARD_ENABLED:'true',ASAAS_CARD_PCI_APPROVED:'true'},mock);
+const created=await enabledGateway.newTokenizedCard(base);
+assert.equal(created.status,'CONFIRMED');
+assert.equal(finalBody.installmentCount,3);
+assert.equal(finalBody.totalValue,579.9);
+assert.ok(!('creditCard' in finalBody||'ccv' in finalBody));
+assert.equal(calls,1);
+await assert.rejects(enabledGateway.newTokenizedCard({...base,creditCard:{number:'4111111111111111',ccv:'123'}}),/não são aceitos/);
+assert.equal(calls,1,'Reject raw PAN/CVV before contacting provider');
+
 console.log('ASAAS CARD CONTRACT: PCI guard, 1x/3x/12x, no PAN/CVV, refund/risk, no checkout switch PASS');
