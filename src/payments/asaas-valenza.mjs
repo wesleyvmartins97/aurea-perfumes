@@ -181,18 +181,6 @@ export function createValenzaAsaasBridge(dep){
    const links=await env.DB.prepare("SELECT payment_id FROM asaas_payment_links WHERE status NOT IN ('RECEIVED','DELETED','CANCELED','REFUNDED') ORDER BY updated_at LIMIT 20").all();
    for(const item of links.results||[])try{await reconcile(env,item.payment_id)}catch{}
    await retryPaidShipments(env);
-   // Se o pagamento foi reconhecido, mas o provedor de frete falhou,
-   // uma próxima execução do cron tentará novamente. A função original
-   // do EnvioEcom possui lock por pedido e não duplica etiquetas.
-   const pendingShipments=await env.DB.prepare(
-    "SELECT a.payment_id FROM asaas_payment_links a JOIN orders o ON o.id=a.order_id JOIN order_shipping s ON s.order_id=o.id WHERE o.status='Pago' AND a.status='RECEIVED' AND s.carrier<>'Entrega local Valenza' AND COALESCE(s.shipping_id,'')='' ORDER BY o.updated_at ASC LIMIT 10"
-   ).all();
-   for(const item of pendingShipments.results||[]){
-    try{
-     const res=await criarEnvioEnvioEcom(env,item.payment_id);
-     if(!res?.ok)await recordOperationalEvent(env,{orderId:item.payment_id,eventType:'shipping.asaas_retry_pending',category:'shipping',status:'pending',severity:'warning',source:'asaas-cron',message:'A postagem será conferida novamente na próxima execução.',uniqueKey:'shipping-asaas-pending:'+item.payment_id+':'+new Date().toISOString().slice(0,10)});
-    }catch{}
-   }
    const queued=await env.DB.prepare("SELECT id,payment_id FROM asaas_webhook_events WHERE state='queued' ORDER BY received_at LIMIT 20").all();
    for(const e of queued.results||[])try{
     if(e.payment_id&&await reconcile(env,e.payment_id))

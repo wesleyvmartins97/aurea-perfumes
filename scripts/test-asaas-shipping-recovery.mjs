@@ -16,6 +16,11 @@ const env={DB:{prepare(sql){
   return {results:shippingId||networkUncertain||local?[]:[{order_id:'pay_PAID_ASAAS_12345'}]};
  }};
 }}};
+import fs from 'node:fs';
+const asaasSource=fs.readFileSync('src/payments/asaas-valenza.mjs','utf8');
+const cronCode=asaasSource.slice(asaasSource.indexOf(' async function cron(env)'),asaasSource.indexOf(' const webhook=',asaasSource.indexOf(' async function cron(env)')));
+assert.equal((cronCode.match(/retryPaidShipments\(env\)/g)||[]).length,1,'cron must use only one shipping retry with strict protections');
+assert.ok(!cronCode.includes('pendingShipments'),'No duplicate shipping routine bypassing shipment locks or uncertain network errors');
 const bridge=createValenzaAsaasBridge({
  async criarEnvioEnvioEcom(_,id){
   assert.equal(id,'pay_PAID_ASAAS_12345');

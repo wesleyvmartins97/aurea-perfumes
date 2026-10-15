@@ -18,10 +18,12 @@ const asaasBridgeSource=fs.readFileSync('src/payments/asaas-valenza.mjs','utf8')
 assert.match(asaasBridgeSource,/const verified=await reconcile\(env,link\.order_id\)/);
 assert.match(asaasBridgeSource,/if\(!verified\)return resposta\(\{ok:false/);
 assert.match(asaasBridgeSource,/if\(!await reconcile\(env,link\.order_id\)\)return resposta\(\{ok:false/);
-assert.match(asaasBridgeSource,/JOIN orders o ON o\.id=a\.order_id JOIN order_shipping s ON s\.order_id=o\.id/);
+assert.match(asaasBridgeSource,/JOIN orders o ON o\.id=s\.order_id JOIN asaas_payment_links a ON a\.order_id=o\.id/);
 assert.match(asaasBridgeSource,/o\.status='Pago' AND a\.status='RECEIVED'/);
 assert.match(asaasBridgeSource,/COALESCE\(s\.shipping_id,''\)=''/);
-assert.match(asaasBridgeSource,/await criarEnvioEnvioEcom\(env,item\.payment_id\)/);
+assert.match(asaasBridgeSource,/NOT EXISTS \(SELECT 1 FROM shipment_locks/);
+assert.match(asaasBridgeSource,/shipping\.network_failed/);
+assert.match(asaasBridgeSource,/await criarEnvioEnvioEcom\(env,row\.order_id\)/);
 
 assert.match(worker,/if\(url\.pathname===\"\/api\/asaas\/webhook\"&&request\.method===\"POST\"\)return asaasBridge\.webhook/);
 assert.match(worker,/reconcileUncertainPayments\(env\),reconcileStalePixReservations\(env\),asaasBridge\.cron\(env\)/);
