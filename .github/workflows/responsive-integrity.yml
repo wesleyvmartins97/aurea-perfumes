@@ -42,6 +42,7 @@ jobs:
           node --check src/payments/asaas-valenza.mjs
           node scripts/test-asaas-pix-production.mjs
           node scripts/test-asaas-valenza-lifecycle.mjs
+          node scripts/test-asaas-card-contract.mjs
           node scripts/test-asaas-shipping-recovery.mjs
       - name: Conferir ciclo dos destaques
         run: node scripts/test-featured-selection.mjs
