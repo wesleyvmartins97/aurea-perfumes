@@ -1,3 +1,4 @@
+import {asaasCardProductionEnabled,buildAsaasTokenizedCardPayment} from './asaas-card-contract.mjs';
 // Asaas production payment adapter. Server-only. Never expose or log API keys.
 // The checkout is NOT active until explicit server feature flag is enabled.
 const paymentId=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{6,128}$/.test(x);
@@ -50,6 +51,13 @@ export function createAsaasGateway(env,fetcher=fetch){
   async newPix({customer,total,reference,dueDate}){
    if(!paymentId(customer)||!paymentId(reference)||!money(total)||!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))throw TypeError('PIX inválido.');
    return request('POST','/payments',{customer,billingType:'PIX',value:Number(total.toFixed(2)),dueDate,externalReference:reference,description:'Compra VALENZA PARFUMS'});
+  },
+  // Exige duas autorizações explícitas; NÃO existe rota pública para este método.
+  // Sem captura PCI-compliant e tokenização habilitada pelo Asaas, não chamar.
+  async newTokenizedCard(input){
+   if(!asaasCardProductionEnabled(env))throw new Error('Cartão Asaas não habilitado para esta operação.');
+   const payload=buildAsaasTokenizedCardPayment(input);
+   return request('POST','/payments',payload);
   },
   async findPixByReference(reference){
    if(!paymentId(reference))throw TypeError('Referência inválida.');
