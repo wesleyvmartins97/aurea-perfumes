@@ -1,0 +1,20 @@
+name: Asaas Sandbox Isolation
+on:
+  pull_request:
+    paths:
+      - 'src/payments/asaas-sandbox-client.mjs'
+      - 'scripts/test-asaas-sandbox-client.mjs'
+      - '.github/workflows/asaas-sandbox-tests.yml'
+  workflow_dispatch:
+jobs:
+  sandbox-isolation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test sandbox isolation (no production keys or charges)
+        run: node scripts/test-asaas-sandbox-client.mjs
