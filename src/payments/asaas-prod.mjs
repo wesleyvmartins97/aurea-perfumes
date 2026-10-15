@@ -92,11 +92,11 @@ export async function readAsaasLink(env,id){
 export async function storeAsaasLink(env,link){
  await ensureAsaasTables(env);
  const now=new Date().toISOString();
- if(!paymentId(link.payment_id)||!paymentId(link.order_id)||!paymentId(link.reference)||!paymentId(link.customer_id)||!paymentId(link.asaas_customer_id)||link.billing_type!=='PIX'||!money(link.amount))throw TypeError('Vínculo inválido.');
+ if(!paymentId(link.payment_id)||!paymentId(link.order_id)||!paymentId(link.reference)||!paymentId(link.customer_id)||!paymentId(link.asaas_customer_id)||!['PIX','CREDIT_CARD'].includes(link.billing_type)||!money(link.amount))throw TypeError('Vínculo inválido.');
  await env.DB.prepare("INSERT OR IGNORE INTO asaas_payment_links(payment_id,order_id,reference,customer_id,asaas_customer_id,billing_type,amount,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
-  .bind(link.payment_id,link.order_id,link.reference,link.customer_id,link.asaas_customer_id,'PIX',link.amount,'PENDING',now,now).run();
+  .bind(link.payment_id,link.order_id,link.reference,link.customer_id,link.asaas_customer_id,link.billing_type,link.amount,'PENDING',now,now).run();
  const saved=await readAsaasLink(env,link.order_id);
- if(!saved||saved.payment_id!==link.payment_id||saved.customer_id!==link.customer_id||saved.reference!==link.reference||Math.round(saved.amount*100)!==Math.round(link.amount*100))throw Error('Vínculo de cobrança já existente com dados divergentes.');
+ if(!saved||saved.payment_id!==link.payment_id||saved.customer_id!==link.customer_id||saved.reference!==link.reference||saved.billing_type!==link.billing_type||Math.round(saved.amount*100)!==Math.round(link.amount*100))throw Error('Vínculo de cobrança já existente com dados divergentes.');
  return saved;
 }
 export async function handleAsaasWebhook(req,env,ctx,onPayment){
