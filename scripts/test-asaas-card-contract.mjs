@@ -40,6 +40,11 @@ const remote={id:link.payment_id,externalReference:link.reference,customer:base.
  billingType:'CREDIT_CARD',value:579.9,status:'CONFIRMED'};
 assert.deepEqual(classifyAsaasVerifiedCard(remote,link),{status:'paid',reason:'confirmed'});
 assert.equal(classifyAsaasVerifiedCard({...remote,status:'RECEIVED'},link).status,'paid');
+assert.deepEqual(classifyAsaasVerifiedCard({...remote,value:193.30,installment:'inst_abcdefghi',installmentNumber:1},link),
+ {status:'review',reason:'installment_verification_required'},
+ 'Uma parcela de 3 não pode disparar envio do pedido completo');
+assert.equal(classifyAsaasVerifiedCard({...remote,installmentCount:3},link).status,'review');
+
 for(const status of ['PENDING','AUTHORIZED','AWAITING_RISK_ANALYSIS','APPROVED_BY_RISK_ANALYSIS']){
  assert.equal(classifyAsaasVerifiedCard({...remote,status},link).status,'pending',status);
 }
