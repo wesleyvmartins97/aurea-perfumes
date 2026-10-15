@@ -9,7 +9,6 @@ const env={DB:{prepare(sql){
  assert.ok(sql.includes("o.status='Pago'"),'Never ship a pending or cancelled order');
  assert.ok(sql.includes("a.status='RECEIVED'"),'Do not ship CONFIRMED CPF holds');
  assert.ok(sql.includes("s.carrier<>'Entrega local Valenza'"),'No EnvioEcom for Colatina');
- assert.ok(sql.includes("e.event_type='shipping.network_failed'"),'No double shipment on uncertain network error');
  assert.ok(sql.includes('NOT EXISTS (SELECT 1 FROM shipment_locks lk WHERE lk.order_id=o.id)'),'Honor ALL existing shipping locks');
  assert.ok(sql.includes("e.event_type IN ('shipping.network_failed','shipping.failed')"),'All EnvioEcom failures, including HTTP 500/502/503, require manual reconciliation');
  assert.ok(!sql.includes("e.message='EnvioEcom respondeu sem identificador da postagem.'"),'Do not limit uncertainty guard to only missing-id responses');
