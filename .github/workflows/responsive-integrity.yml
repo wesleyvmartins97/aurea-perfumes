@@ -31,6 +31,8 @@ jobs:
         run: node scripts/test-asaas-checkout.mjs
       - name: Simular Asaas Pix e autenticação de webhook sem dinheiro real
         run: node scripts/test-asaas-api.mjs
+      - name: Garantir PIX limpo e renderização rápida após a cobrança
+        run: node scripts/test-pix-privacy-and-nonblocking.mjs
       - name: Confirmar pagamento com tela VALENZA e fechar em 5 segundos
         run: node scripts/test-valenza-payment-success.mjs
       - name: Confirmar comprovante seguro na Minha Conta

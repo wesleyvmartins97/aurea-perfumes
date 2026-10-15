@@ -7,7 +7,7 @@ export function createValenzaAsaasBridge(dep){
   recordOperationalEvent,recordPaymentStatusEvent,sendOrderOperationalEmail,
   criarEnvioEnvioEcom,notifyPaidOrder,releaseReservedStock,resposta}=dep;
 
- async function startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation}){
+ async function startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation,ctx}){
   if(!asaasReady(env)){await releaseReservation();return resposta({ok:false,error:'Pagamento PIX temporariamente indisponível.'},503)}
   let attemptCreated=false;
   try{
@@ -38,7 +38,11 @@ export function createValenzaAsaasBridge(dep){
    if(!attempt||!await restorePaymentAttempt(env,attempt,shadow))throw Error('Aguardando conciliação');
    await recordOperationalEvent(env,{orderId:created.id,eventType:'order.created',category:'order',status:'created',source:'asaas-pix',message:'Pedido PIX criado.',uniqueKey:'order:'+created.id+':created'});
    await recordPaymentStatusEvent(env,{orderId:created.id,rawStatus:'pending',label:'Aguardando pagamento',method:'pix',source:'asaas-pix'});
-   await sendOrderOperationalEmail(env,created.id,'order_received').catch(()=>{});
+   // Pedido e pagamento já persistidos: manter o e-mail, mas não atrasar o QR
+   // esperando a API do provedor de e-mail. Cloudflare mantém a tarefa viva.
+   const customerEmail=()=>sendOrderOperationalEmail(env,created.id,'order_received').catch(()=>{});
+   if(typeof ctx?.waitUntil==='function')ctx.waitUntil(Promise.resolve().then(customerEmail));
+   else await customerEmail();
    const qr=await gw.getPix(created.id);
    return resposta({ok:true,orderId:created.id,paymentId:created.id,status:'pending',amount:total.toFixed(2),qrCode:qr.qrCode,qrCodeBase64:qr.qrCodeBase64,externalReference:referencia,savedToAccount:true});
   }catch(e){
