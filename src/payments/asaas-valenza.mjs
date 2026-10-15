@@ -7,7 +7,7 @@ export function createValenzaAsaasBridge(dep){
   recordOperationalEvent,recordPaymentStatusEvent,sendOrderOperationalEmail,
   criarEnvioEnvioEcom,notifyPaidOrder,releaseReservedStock,resposta}=dep;
 
- async function startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation,ctx}){
+ async function startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation,ctx,ownerTrial=false}){
   if(!asaasReady(env)){await releaseReservation();return resposta({ok:false,error:'Pagamento PIX temporariamente indisponível.'},503)}
   let attemptCreated=false;
   try{
@@ -16,7 +16,7 @@ export function createValenzaAsaasBridge(dep){
    if(!customer)customer=await gw.createCustomer({name:nome,cpf,email,phone:telefone,reference:ref});
    const snapshot={reference:referencia,provider:'asaas',customerId:u.id,items,shipping:{
     ...shipping,carrier,freight_cost:freight,delivery_time:Number(chosen?.delivery_time??chosen?.delivery_days??0)
-   },name:nome,email,cpf,phone:telefone,total,method:'pix',installments:1};
+   },name:nome,email,cpf,phone:telefone,total,method:'pix',installments:1,ownerPixTrial:ownerTrial};
    const dueDate=new Date(Date.now()+86400000).toISOString().slice(0,10);
    attemptCreated=true;
    const response=await guardedPaymentCreate(env,snapshot,'https://api.asaas.com/v3/payments',{

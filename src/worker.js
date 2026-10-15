@@ -1,6 +1,7 @@
 import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
 import {asaasPixEnabled,asaasReady} from './payments/asaas-prod.mjs';
+import {ownerPixTrialActive,ownerPixTrialEligible,ownerPixTrialCartAllowed,ownerPixTrialPixUnit,OWNER_TRIAL_PRODUCT_ID,OWNER_TRIAL_PRICE} from './payments/owner-pix-trial.mjs';
 import {createValenzaAsaasBridge} from './payments/asaas-valenza.mjs';
 const securityHeaders={"Strict-Transport-Security":"max-age=31536000; includeSubDomains","X-Content-Type-Options":"nosniff","X-Frame-Options":"SAMEORIGIN","Content-Security-Policy":"frame-ancestors 'self'","Referrer-Policy":"strict-origin-when-cross-origin","Permissions-Policy":"camera=(), microphone=(), geolocation=(self)"};
 const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS",...securityHeaders};
@@ -42,6 +43,7 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/promotions/active"&&request.method==="GET")return activePromotionPublic(env);
  if(url.pathname==="/api/product-promotions/active"&&request.method==="GET")return activeProductPromotionsPublic(env);
  if(url.pathname==="/api/catalog/runtime"&&request.method==="GET")return catalogRuntimePublic(env);
+ if(url.pathname==="/api/valenza/owner-pix-trial"&&request.method==="GET")return ownerPixTrialPublic(request,env);
  if(url.pathname==="/api/site/visual"&&request.method==="GET")return siteVisualPublic(env);
  if(request.method==="GET"&&url.pathname.startsWith("/media/site/"))return siteVisualAsset(request,env,url.pathname.slice("/media/site/".length));
  if(request.method==="GET"&&(url.pathname==="/merchant-feed.xml"||url.pathname==="/google-merchant.xml"))return dynamicMerchantFeed(request,env);
@@ -2029,6 +2031,15 @@ async function catalogBase(env,{includeDrafts=false}={}){
  return out
 }
 
+async function ownerPixTrialPublic(request,env){
+ const active=ownerPixTrialActive(env);
+ if(!active)return resposta({ok:true,active:false,eligible:false});
+ try{
+  const u=await currentCustomer(request,env);
+  if(!ownerPixTrialEligible(u,env))return resposta({ok:true,active:true,eligible:false});
+  return resposta({ok:true,active:true,eligible:true,productId:OWNER_TRIAL_PRODUCT_ID,price:OWNER_TRIAL_PRICE,pixPrice:OWNER_TRIAL_PRICE,expiresAt:env.VALENZA_OWNER_PIX_TRIAL_UNTIL});
+ }catch{return resposta({ok:true,active:true,eligible:false})}
+}
 async function officialCatalog(env){
  await ensureAuthSchema(env);
  const out=await catalogBase(env,{includeDrafts:false});
@@ -2115,7 +2126,7 @@ env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?)
 env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("shagaf-al-ward",134.5,now),
 env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v17-last-two-20261005','100',?)").bind(now)
 ])}const doneV18=completedInventoryMigrations.has('catalog-stock-v18-bahiya-garnet-20261012');if(!doneV18){await env.DB.batch([env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("bahiya-garnet",100,now),env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v18-bahiya-garnet-20261012','100',?)").bind(now)])}const unavailableV19=completedInventoryMigrations.has('catalog-stock-v19-bahiya-unavailable-20261012');if(!unavailableV19){await env.DB.batch([env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind("bahiya-garnet",0,now),env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v19-bahiya-unavailable-20261012','0',?)").bind(now)])}const stockV20=completedInventoryMigrations.has('catalog-stock-v20-elite-unconfirmed-20261014');if(!stockV20){await env.DB.batch([env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("armaf-club-de-nuit-elite",0,now),env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v20-elite-unconfirmed-20261014','0',?)").bind(now)])}const stockV21=completedInventoryMigrations.has('catalog-stock-v21-elite-sob-encomenda-20261014');if(!stockV21){await env.DB.batch([env.DB.prepare("INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET stock=excluded.stock,updated_at=excluded.updated_at").bind("armaf-club-de-nuit-elite",100,now),env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v21-elite-sob-encomenda-20261014','100',?)").bind(now)])}const doneV3=completedInventoryMigrations.has('catalog-cleanup-v3');if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
-async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p||p.offer===false)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-price)>0.009;return {id,qty:n,...p,price,regularPrice,promotionId:offer?.id||null,priceChanged,img:String(x.img||"")}})}
+async function canonicalItems(raw,env,{ownerTrial=false}={}){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p||p.offer===false)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,trialPrice=ownerTrial&&id===OWNER_TRIAL_PRODUCT_ID?OWNER_TRIAL_PRICE:price,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-trialPrice)>0.009;return {id,qty:n,...p,price:trialPrice,regularPrice,promotionId:ownerTrial?null:offer?.id||null,priceChanged,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
 const LOCAL_COLATINA={id:"local-colatina",company:"VALENZA",name:"Frete grátis em Colatina",carrier:"Entrega local Valenza",price:0,delivery_time:0,dropoff_points:[]};
@@ -2212,7 +2223,7 @@ async function restorePaymentAttempt(env,row,remote){
  }else{
   const statements=[env.DB.prepare("INSERT OR IGNORE INTO orders(id,customer_id,order_number,status,total,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(pid,snap.customerId,row.reference,status,snap.total,row.created_at,now)];
   for(let i=0;i<snap.items.length;i++){
-   const it=snap.items[i],itemId=row.reference+":"+i,price=snap.method==="pix"?pixPrice(it.price):it.price;
+   const it=snap.items[i],itemId=row.reference+":"+i,price=snap.ownerPixTrial&&it.id===OWNER_TRIAL_PRODUCT_ID?OWNER_TRIAL_PRICE:snap.method==="pix"?pixPrice(it.price):it.price;
    statements.push(env.DB.prepare("INSERT OR IGNORE INTO order_items(id,order_id,product_id,name,brand,type,image,quantity,unit_price,stock_deducted,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(itemId,pid,it.id,it.name,it.brand,it.type,it.img,it.qty,price,approved?1:0,row.created_at));
    statements.push(env.DB.prepare("INSERT OR IGNORE INTO order_item_costs(order_item_id,order_id,product_id,unit_cost,created_at) VALUES(?,?,?,?,?)").bind(itemId,pid,it.id,costs.get(it.id)??null,row.created_at));
   }
@@ -2250,17 +2261,21 @@ async function criarPagamentoPix(request,env,ctx){
   if(!u)return resposta({ok:false,requiresLogin:true,error:"Para finalizar a compra, entre ou crie sua conta VALENZA."},401);
   if(!u.email_verified)return resposta({ok:false,requiresVerification:true,error:"Confirme seu e-mail antes de finalizar a compra."},403);
   if(email!==String(u.email||"").toLowerCase())return resposta({ok:false,error:"O e-mail da compra deve ser o mesmo da sua conta VALENZA."},409);
-  await seedInventory(env);const items=await canonicalItems(dados.items,env);if(items.some(x=>x.priceChanged))return resposta({ok:false,priceChanged:true,error:"Um preço do carrinho foi atualizado. Revise os valores e tente novamente."},409);
+  const ownerTrial=ownerPixTrialActive(env);
+  // Gate ALL purchases while the one-owner live test is active.
+  if(ownerTrial&&!ownerPixTrialEligible(u,env))return resposta({ok:false,error:"Compras temporariamente reservadas para verificação de pagamento da VALENZA."},423);
+  if(ownerTrial&&!ownerPixTrialCartAllowed(dados.items,shipping))return resposta({ok:false,error:"Durante a verificação, somente 1 Vulcan Baie por PIX com entrega local grátis em Colatina está disponível."},423);
+  await seedInventory(env);const items=await canonicalItems(dados.items,env,{ownerTrial});if(items.some(x=>x.priceChanged))return resposta({ok:false,priceChanged:true,error:"Um preço do carrinho foi atualizado. Revise os valores e tente novamente."},409);
   const quoteReq={postal_code_destination:cep,aviso_recebimento:false,include_dropoff_points:true,products:items.map(p=>({weight:p.weight,length:p.length,height:p.height,width:p.width,quantity:p.qty,price:p.price}))};
   const localDelivery=await destinoColatina(cep);
   let chosen,freight;if(localDelivery){if(String(shipping.id||"")!==LOCAL_COLATINA.id)return resposta({ok:false,error:"Calcule o frete novamente para usar a entrega grátis em Colatina."},409);chosen=LOCAL_COLATINA;freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);if(carrierWanted&&String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=localDelivery?"Entrega local Valenza":String(chosen.carrier||chosen.company||"Envio Ecom");
-  const subtotal=items.reduce((s,x)=>s+pixPrice(x.price)*x.qty,0),total=Number((subtotal+freight).toFixed(2));
+  const subtotal=items.reduce((s,x)=>s+(ownerPixTrialPixUnit(x,ownerTrial)??pixPrice(x.price))*x.qty,0),total=Number((subtotal+freight).toFixed(2));
   for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
   const reserveAt=new Date().toISOString(),reserve=items.map(it=>env.DB.prepare("UPDATE inventory SET stock=stock-?,updated_at=? WHERE product_id=? AND stock>=?").bind(it.qty,reserveAt,it.id,it.qty)),rr=await env.DB.batch(reserve);
   if(rr.some(x=>(x.meta?.changes||0)<1)){for(let i=0;i<items.length;i++)if((rr[i]?.meta?.changes||0)>0)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(items[i].qty,reserveAt,items[i].id).run();return resposta({ok:false,error:"O estoque mudou durante a compra. Tente novamente."},409)}
   const releaseReservation=async()=>{for(const it of items)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(it.qty,new Date().toISOString(),it.id).run()};
   const partes=nome.split(/\s+/).filter(Boolean),referencia=`AUREA-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
-  if(asaasPixEnabled(env))return asaasBridge.startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation,ctx});
+  if(asaasPixEnabled(env))return asaasBridge.startPix(env,{u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,referencia,releaseReservation,ctx,ownerTrial});
   const payload={type:"online",total_amount:total.toFixed(2),external_reference:referencia,processing_mode:"automatic",transactions:{payments:[{amount:total.toFixed(2),payment_method:{id:"pix",type:"bank_transfer"},expiration_time:"PT30M"}]},payer:{email,first_name:partes[0],last_name:partes.slice(1).join(" ")||"AUREA",identification:{type:"CPF",number:cpf}}};if(telefone.length>=10)payload.payer.phone={area_code:telefone.slice(0,2),number:telefone.slice(2)};
   attemptReference=referencia;
   const mp=await guardedPaymentCreate(env,{reference:referencia,customerId:u.id,items,shipping:{...shipping,carrier,freight_cost:freight,delivery_time:Number(chosen.delivery_time??chosen.delivery_days??0)},name:nome,email,cpf,phone:telefone,total,method:"pix",installments:1},"https://api.mercadopago.com/v1/orders",{method:"POST",headers:{Authorization:`Bearer ${mpConfig(env).accessToken}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":crypto.randomUUID(),...(deviceId?{"X-meli-session-id":deviceId}:{})},body:JSON.stringify(payload)});
@@ -2286,6 +2301,8 @@ async function criarPagamentoPix(request,env,ctx){
  }catch(e){console.error("Criar PIX:",e);if(attemptReference&&!e.paymentUncertain){const open=await env.DB.prepare("SELECT reference FROM payment_attempts WHERE reference=? AND state IN ('sending','uncertain')").bind(attemptReference).first();if(open){await closePaymentAttempt(env,attemptReference,"uncertain");await recordOperationalEvent(env,{eventType:"payment.persistence_failed",category:"payment",status:"failed",severity:"error",source:"checkout",message:"Falha ao registrar o pagamento. Tentativa preservada para conferência antes de repetir a cobrança.",uniqueKey:"payment-persistence:"+attemptReference});e.paymentUncertain=true}}if(e.paymentUncertain)return resposta({ok:false,paymentUncertain:true,error:"Estamos conferindo a tentativa de pagamento. Não tente pagar novamente agora. Acompanhe Meus Pedidos ou fale com a VALENZA."},409);return resposta({ok:false,error:"Não foi possível gerar o Pix agora. Tente novamente em alguns instantes."},500)}
 }
 async function criarPagamentoCartao(request,env){
+ // No card payments from ANYONE while the owner-only live PIX verification runs.
+ if(ownerPixTrialActive(env))return resposta({ok:false,error:"Cartão temporariamente indisponível durante a verificação de pagamentos da VALENZA."},423);
  let attemptReference="";
  try{
   if(!mpConfig(env).accessToken)return resposta({ok:false,error:"Pagamento temporariamente indisponível."},503);
