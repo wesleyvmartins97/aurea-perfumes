@@ -66,6 +66,11 @@ export function classifyAsaasVerifiedCard(payment,link){
   ||payment.customer!==link.asaas_customer_id
   ||payment.billingType!=='CREDIT_CARD')
   return {status:'review',reason:'payment_identity'};
+ // GET /payments/{id} pode representar apenas UMA parcela.
+ // Conferir um único payment.value não comprova o valor total de uma venda
+ // parcelada; bloquear confirmação até conciliação integral do installment.
+ if(payment.installment||payment.installmentNumber||Number(payment.installmentCount)>1)
+  return {status:'review',reason:'installment_verification_required'};
  const amount=Number(payment.value??payment.totalValue);
  if(!Number.isFinite(amount)||centavos(amount)!==centavos(Number(link.amount)))
   return {status:'review',reason:'payment_amount'};
