@@ -449,7 +449,17 @@ async function adminAsaasStatus(request,env){
    });
    // O Asaas retorna agência e número bancário, portanto descartamos o corpo.
    if(!result.ok)return resposta({ok:false,provider:"asaas",mode:"production",status:"validation_failed",httpStatus:result.status,chargesCreated:0,error:"A chave não pôde ser validada no Asaas."},502);
-   return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0,webhookConfigured:String(env.ASAAS_WEBHOOK_TOKEN||"").length>=32,pixEnabled:asaasPixEnabled(env),pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago",cardAsaasReady:false,cardAsaasKeyConfigured:!!String(env.ASAAS_CARD_API_KEY||env.ASAAS_API_KEY||'').trim(),cardAsaasBackendEnabled:asaasCardProductionEnabled(env),cardAsaasSecureCaptureReady:false,cardAsaasBlocker:'secure_capture_pci_review_pending'});
+   // Conferir também a chave dedicada do cartão, usando apenas GET.
+   // A API devolve dados bancários: descartar integralmente o corpo e nunca registrar secrets.
+   const cardKey=String(env.ASAAS_CARD_API_KEY||'').trim();
+   let cardAsaasCredentialStatus=cardKey?'unavailable':'not_configured';
+   if(cardKey)try{
+    const cardProbe=await fetch("https://api.asaas.com/v3/myAccount/accountNumber",{
+     method:"GET",headers:{"access_token":cardKey,"accept":"application/json","User-Agent":"ValenzaParfums/1.0"},signal:controller.signal
+    });
+    cardAsaasCredentialStatus=cardProbe.ok?'accepted':'rejected';
+   }catch{}
+   return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0,webhookConfigured:String(env.ASAAS_WEBHOOK_TOKEN||"").length>=32,pixEnabled:asaasPixEnabled(env),pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago",cardAsaasReady:false,cardAsaasKeyConfigured:!!String(env.ASAAS_CARD_API_KEY||env.ASAAS_API_KEY||'').trim(),cardAsaasDedicatedKeyConfigured:!!cardKey,cardAsaasCredentialStatus,cardAsaasBackendEnabled:asaasCardProductionEnabled(env),cardAsaasSecureCaptureReady:false,cardAsaasBlocker:'secure_capture_pci_review_pending'});
   }finally{clearTimeout(timer)}
  }catch(error){
   return resposta({ok:false,provider:"asaas",mode:"production",status:"unavailable",chargesCreated:0,error:"Verificação temporariamente indisponível."},503);
