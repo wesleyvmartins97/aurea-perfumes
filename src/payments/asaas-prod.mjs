@@ -59,6 +59,13 @@ export function createAsaasGateway(env,fetcher=fetch){
    const payload=buildAsaasTokenizedCardPayment(input);
    return request('POST','/payments',payload);
   },
+  // Consulta somente leitura para conciliar uma tentativa de cartão cujo POST
+  // possa ter sido aprovado antes de uma falha de rede. Não recria cobranças.
+  async findCardByReference(reference){
+   if(!paymentId(reference))throw TypeError('Referência inválida.');
+   const x=await request('GET','/payments?externalReference='+encodeURIComponent(reference)+'&billingType=CREDIT_CARD&limit=20');
+   return (Array.isArray(x.data)?x.data:[]).find(p=>p.externalReference===reference&&p.billingType==='CREDIT_CARD'&&paymentId(p.id))||null;
+  },
   async findPixByReference(reference){
    if(!paymentId(reference))throw TypeError('Referência inválida.');
    const x=await request('GET','/payments?externalReference='+encodeURIComponent(reference)+'&billingType=PIX&limit=20');

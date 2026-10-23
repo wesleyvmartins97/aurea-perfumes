@@ -45,6 +45,7 @@ jobs:
           node scripts/test-asaas-pix-production.mjs
           node scripts/test-asaas-valenza-lifecycle.mjs
           node scripts/test-asaas-card-contract.mjs
+          node scripts/test-asaas-card-bridge.mjs
           node scripts/test-asaas-shipping-recovery.mjs
       - name: Garantir bootstrap de estoque sem consultas D1 repetidas
         run: node scripts/test-inventory-bootstrap-one-read.mjs
