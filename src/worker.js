@@ -1,6 +1,7 @@
 import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
 import {asaasPixEnabled,asaasReady} from './payments/asaas-prod.mjs';
+import {asaasCardProductionEnabled} from './payments/asaas-card-contract.mjs';
 import {createValenzaAsaasBridge} from './payments/asaas-valenza.mjs';
 const securityHeaders={"Strict-Transport-Security":"max-age=31536000; includeSubDomains","X-Content-Type-Options":"nosniff","X-Frame-Options":"SAMEORIGIN","Content-Security-Policy":"frame-ancestors 'self'","Referrer-Policy":"strict-origin-when-cross-origin","Permissions-Policy":"camera=(), microphone=(), geolocation=(self)"};
 const jsonHeaders={"Content-Type":"application/json; charset=UTF-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET, POST, OPTIONS",...securityHeaders};
@@ -448,7 +449,7 @@ async function adminAsaasStatus(request,env){
    });
    // O Asaas retorna agência e número bancário, portanto descartamos o corpo.
    if(!result.ok)return resposta({ok:false,provider:"asaas",mode:"production",status:"validation_failed",httpStatus:result.status,chargesCreated:0,error:"A chave não pôde ser validada no Asaas."},502);
-   return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0,webhookConfigured:String(env.ASAAS_WEBHOOK_TOKEN||"").length>=32,pixEnabled:asaasPixEnabled(env),pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago",cardAsaasReady:false});
+   return resposta({ok:true,provider:"asaas",mode:"production",status:"credentials_accepted",chargesCreated:0,webhookConfigured:String(env.ASAAS_WEBHOOK_TOKEN||"").length>=32,pixEnabled:asaasPixEnabled(env),pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago",cardAsaasReady:false,cardAsaasKeyConfigured:!!String(env.ASAAS_CARD_API_KEY||env.ASAAS_API_KEY||'').trim(),cardAsaasBackendEnabled:asaasCardProductionEnabled(env),cardAsaasSecureCaptureReady:false,cardAsaasBlocker:'secure_capture_pci_review_pending'});
   }finally{clearTimeout(timer)}
  }catch(error){
   return resposta({ok:false,provider:"asaas",mode:"production",status:"unavailable",chargesCreated:0,error:"Verificação temporariamente indisponível."},503);
