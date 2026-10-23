@@ -8,6 +8,9 @@ assert.match(source,/criarPagamentoCartao\(request,env\)/);
 assert.match(html,/new MercadoPago\(/);
 assert.ok(!source.includes('asaasBridge.startCard('),'Do not expose Asaas card before PCI review');
 assert.ok(!html.includes('tokenizeCreditCard'),'Never improvise PAN/CVV capture in store');
+assert.match(source,/cardAsaasKeyConfigured:/);
+assert.match(source,/cardAsaasSecureCaptureReady:false/);
+
 
 const reference='AUREA-CARD-TEST-0001',pid='pay_test_tokenized_00001';
 const customer='cus_test_tokenized_0001',uid='client_test_123456';
@@ -18,6 +21,7 @@ const attempts=new Map(),orders=new Map(),links=new Map(),paymentRows=new Map();
 const remote=()=>({id:pid,externalReference:reference,customer,billingType:'CREDIT_CARD',
  value:installment?66.63:money,status:gatewayStatus,...(installment?{installment,installmentCount:3}:{})});
 const provider=async (url,request={})=>{
+ if(url.startsWith('https://api.asaas.com/v3/'))assert.equal(request.headers?.access_token,'fake-card-dedicated-key-12345','Only dedicated card API key can be used');
  if(url.includes('/customers?externalReference='))return Response.json({data:[{id:customer,externalReference:'VALENZA-CUSTOMER-'+uid}]});
  if(url.endsWith('/payments')&&request.method==='POST'){
   calls++;createdPayload=JSON.parse(request.body);
@@ -59,7 +63,7 @@ const DB={prepare(sql){
   throw Error('Unknown write: '+sql);
  }};
 },async batch(statements){for(const s of statements)await s.run();return []}};
-const env={DB,ASAAS_API_KEY:'fake-api-key-for-test-0123456789',ASAAS_WEBHOOK_TOKEN:'fake-webhook-secret-test-012345678901234',
+const env={DB,ASAAS_API_KEY:'fake-api-key-for-test-0123456789',ASAAS_CARD_API_KEY:'fake-card-dedicated-key-12345',ASAAS_WEBHOOK_TOKEN:'fake-webhook-secret-test-012345678901234',
  ASAAS_CARD_ENABLED:'true',ASAAS_CARD_PCI_APPROVED:'true'};
 const deps={
  async ensureAuthSchema(){},
