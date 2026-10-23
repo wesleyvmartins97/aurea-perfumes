@@ -5,6 +5,9 @@ const paymentId=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{6,128}$/.test(x);
 const money=x=>Number.isFinite(Number(x))&&Number(x)>0&&Math.abs(Number(x)*100-Math.round(Number(x)*100))<1e-6;
 export const asaasPixEnabled=env=>String(env?.ASAAS_PIX_ENABLED||'').toLowerCase()==='true';
 export const asaasReady=env=>!!env?.ASAAS_API_KEY&&!!env?.ASAAS_WEBHOOK_TOKEN&&String(env.ASAAS_WEBHOOK_TOKEN).length>=32;
+// A chave dedicada ao cartão é opcional; nunca expor seu conteúdo no diagnóstico.
+export const asaasCardApiKey=env=>typeof env?.ASAAS_CARD_API_KEY==='string'&&env.ASAAS_CARD_API_KEY.trim()?env.ASAAS_CARD_API_KEY:env?.ASAAS_API_KEY;
+
 
 export async function ensureAsaasTables(env){
  await env.DB.batch([
@@ -13,15 +16,17 @@ export async function ensureAsaasTables(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS asaas_webhook_events (id TEXT PRIMARY KEY,event_type TEXT NOT NULL,payment_id TEXT,external_reference TEXT,state TEXT NOT NULL,received_at TEXT NOT NULL,updated_at TEXT NOT NULL)")
  ]);
 }
-export function createAsaasGateway(env,fetcher=fetch){
- if(!env?.ASAAS_API_KEY||typeof env.ASAAS_API_KEY!=='string'||env.ASAAS_API_KEY.length<15)throw Error('Gateway Asaas não configurado.');
+export function createAsaasGateway(env,fetcher=fetch,channel='pix'){
+ if(!['pix','card'].includes(channel))throw TypeError('Canal de pagamento inválido.');
+ const apiKey=channel==='card'?asaasCardApiKey(env):env?.ASAAS_API_KEY;
+ if(!apiKey||typeof apiKey!=='string'||apiKey.length<15)throw Error('Gateway Asaas não configurado.');
  const base='https://api.asaas.com/v3';
  async function request(method,path,payload){
   // Calls are owned by this adapter. Do not allow user-controlled URLs.
   const controller=new AbortController(),abort=setTimeout(()=>controller.abort(),method==='POST'?75000:20000);
   try{
    const response=await fetcher(base+path,{
-    method,headers:{'access_token':env.ASAAS_API_KEY,'Accept':'application/json','Content-Type':'application/json','User-Agent':'ValenzaParfums/1.0'},
+    method,headers:{'access_token':apiKey,'Accept':'application/json','Content-Type':'application/json','User-Agent':'ValenzaParfums/1.0'},
     ...(payload?{body:JSON.stringify(payload)}:{}),signal:controller.signal
    });
    const data=await response.json().catch(()=>({}));
