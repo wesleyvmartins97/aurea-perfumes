@@ -91,7 +91,7 @@ export function classifyAsaasVerifiedInstallmentGroup(first,group,link,expectedC
   ||!group||!Array.isArray(group.data)||group.hasMore!==false
   ||group.data.length!==expectedCount)
   return {status:'review',reason:'installment_count'};
- const seen=new Set();let cents=0,firstFound=false,needsReview=false;
+ const seen=new Set();let cents=0,firstFound=false,needsReview=false,reversed=false;
  for(const p of group.data){
   if(!p||!isId(p.id)||seen.has(p.id)||p.installment!==first.installment
    ||p.customer!==link.asaas_customer_id||p.externalReference!==link.reference
@@ -107,11 +107,12 @@ export function classifyAsaasVerifiedInstallmentGroup(first,group,link,expectedC
   if(['REFUNDED','PARTIALLY_REFUNDED','CHARGEBACK_REQUESTED',
    'CHARGEBACK_DISPUTE','REFUND_REQUESTED','REFUND_IN_PROGRESS',
    'AWAITING_CHARGEBACK_REVERSAL'].includes(status))
-   return {status:'reversed',reason:'installment_reversal'};
+   reversed=true;
   if(!['CONFIRMED','RECEIVED'].includes(status))needsReview=true;
  }
  if(!firstFound||cents!==centavos(Number(link.amount)))
   return {status:'review',reason:'installment_total'};
+ if(reversed)return {status:'reversed',reason:'installment_reversal'};
  if(needsReview)return {status:'pending',reason:'installment_not_all_confirmed'};
  return {status:'paid',reason:'installment_verified'};
 }
