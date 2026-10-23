@@ -30,7 +30,7 @@ export function asaasCardProductionEnabled(env){
  // Flag alone NEVER enables capture in an application without PCI validation.
  return String(env?.ASAAS_CARD_ENABLED||'').toLowerCase()==='true'
    && String(env?.ASAAS_CARD_PCI_APPROVED||'').toLowerCase()==='true'
-   && !!env?.ASAAS_API_KEY;
+   && !!(env?.ASAAS_CARD_API_KEY||env?.ASAAS_API_KEY);
 }
 function rejectRawCard(data){
  if(!data||typeof data!=='object'||Array.isArray(data))throw new TypeError('Dados inválidos.');
