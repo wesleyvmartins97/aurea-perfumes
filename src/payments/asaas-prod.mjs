@@ -82,6 +82,15 @@ export function createAsaasGateway(env,fetcher=fetch,channel='pix'){
    if(typeof x.payload!=='string'||x.payload.length<20||x.payload.length>3500)throw Error('PIX não disponível.');
    return {qrCode:x.payload,qrCodeBase64:typeof x.encodedImage==='string'?x.encodedImage:'',expirationDate:x.expirationDate||null};
   },
+  // Leitura completa do grupo. Limite 50 cobre 1-12 parcelas da VALENZA.
+  // Respostas paginadas/incompletas são recusadas pelo validador.
+  async getCardInstallmentPayments(installmentId){
+   if(!paymentId(installmentId))throw TypeError('Parcelamento inválido.');
+   const x=await request('GET','/payments?installment='+encodeURIComponent(installmentId)+'&limit=50&offset=0');
+   if(!Array.isArray(x.data)||typeof x.hasMore!=='boolean')
+    throw Error('Lista de parcelas não confirmada pelo Asaas.');
+   return {data:x.data,hasMore:x.hasMore};
+  },
   async getPayment(id){
    if(!paymentId(id))throw TypeError('Identificador inválido.');
    return request('GET','/payments/'+encodeURIComponent(id));

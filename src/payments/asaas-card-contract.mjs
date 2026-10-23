@@ -79,6 +79,43 @@ export function classifyAsaasVerifiedCard(payment,link){
  const status=allowedCardStatuses[raw]||'review';
  return {status,reason:status==='review'?'unknown_status':raw.toLowerCase()};
 }
+// Uma parcela confirmada não comprova o pagamento de todo o pedido.
+// A lista vem de consulta autenticada ao Asaas, não do navegador/webhook.
+export function classifyAsaasVerifiedInstallmentGroup(first,group,link,expectedCount){
+ const isId=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{6,160}$/.test(x);
+ if(!first||!link||link.billing_type!=='CREDIT_CARD'||!isId(first.installment)
+  ||first.id!==link.payment_id||first.customer!==link.asaas_customer_id
+  ||first.externalReference!==link.reference||first.billingType!=='CREDIT_CARD')
+  return {status:'review',reason:'installment_identity'};
+ if(!Number.isInteger(expectedCount)||expectedCount<2||expectedCount>12
+  ||!group||!Array.isArray(group.data)||group.hasMore!==false
+  ||group.data.length!==expectedCount)
+  return {status:'review',reason:'installment_count'};
+ const seen=new Set();let cents=0,firstFound=false,needsReview=false,reversed=false;
+ for(const p of group.data){
+  if(!p||!isId(p.id)||seen.has(p.id)||p.installment!==first.installment
+   ||p.customer!==link.asaas_customer_id||p.externalReference!==link.reference
+   ||p.billingType!=='CREDIT_CARD')
+   return {status:'review',reason:'installment_payment_identity'};
+  seen.add(p.id);
+  if(p.id===first.id)firstFound=true;
+  if(!Number.isFinite(Number(p.value))||Number(p.value)<=0
+   ||Math.abs(Number(p.value)*100-Math.round(Number(p.value)*100))>1e-6)
+   return {status:'review',reason:'installment_amount'};
+  cents+=Math.round(Number(p.value)*100);
+  const status=String(p.status||'').toUpperCase();
+  if(['REFUNDED','PARTIALLY_REFUNDED','CHARGEBACK_REQUESTED',
+   'CHARGEBACK_DISPUTE','REFUND_REQUESTED','REFUND_IN_PROGRESS',
+   'AWAITING_CHARGEBACK_REVERSAL'].includes(status))
+   reversed=true;
+  if(!['CONFIRMED','RECEIVED'].includes(status))needsReview=true;
+ }
+ if(!firstFound||cents!==centavos(Number(link.amount)))
+  return {status:'review',reason:'installment_total'};
+ if(reversed)return {status:'reversed',reason:'installment_reversal'};
+ if(needsReview)return {status:'pending',reason:'installment_not_all_confirmed'};
+ return {status:'paid',reason:'installment_verified'};
+}
 export function isAsaasCardWebhookEvent(type){
  return typeof type==='string'&&/^PAYMENT_[A-Z0-9_]+$/.test(type);
 }

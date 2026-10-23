@@ -1,7 +1,7 @@
 // VALENZA Asaas bridge; integrates existing D1 order snapshots, inventory and EnvioEcom.
 // Must only be called after canonical cart, address, price, freight and stock validation.
 import {createAsaasGateway,asaasCardApiKey,ensureAsaasTables,storeAsaasLink,readAsaasLink,classifyAsaasPix,handleAsaasWebhook,asaasReady} from './asaas-prod.mjs';
-import {asaasCardProductionEnabled,buildAsaasTokenizedCardPayment,classifyAsaasVerifiedCard} from './asaas-card-contract.mjs';
+import {asaasCardProductionEnabled,buildAsaasTokenizedCardPayment,classifyAsaasVerifiedCard,classifyAsaasVerifiedInstallmentGroup} from './asaas-card-contract.mjs';
 
 export function createValenzaAsaasBridge(dep){
  const {ensureAuthSchema,guardedPaymentCreate,restorePaymentAttempt,closePaymentAttempt,
@@ -144,7 +144,23 @@ export function createValenzaAsaasBridge(dep){
   await ensureAuthSchema(env);
   const link=await readAsaasLink(env,id);if(!link)return false;
   const card=link.billing_type==='CREDIT_CARD';
-  const remote=await createAsaasGateway(env,fetch,card?'card':'pix').getPayment(id),decision=card?classifyAsaasVerifiedCard(remote,link):classifyAsaasPix(remote,link);
+  const gateway=createAsaasGateway(env,fetch,card?'card':'pix');
+  const remote=await gateway.getPayment(id);
+  let decision=card?classifyAsaasVerifiedCard(remote,link):classifyAsaasPix(remote,link);
+  if(card&&remote?.installment){
+   // Cada parcela é uma cobrança separada. Só considerar pago após
+   // verificar todas as parcelas no Asaas, seu total e vínculo com o pedido.
+   const attempt=await env.DB.prepare('SELECT snapshot_json FROM payment_attempts WHERE reference=?').bind(link.reference).first();
+   let count=0;
+   try{
+    const snapshot=JSON.parse(attempt?.snapshot_json||'{}');
+    if(snapshot.provider==='asaas'&&snapshot.method==='card')count=Number(snapshot.installments);
+   }catch{}
+   if(Number.isInteger(count)&&count>=2&&count<=12){
+    const group=await gateway.getCardInstallmentPayments(remote.installment);
+    decision=classifyAsaasVerifiedInstallmentGroup(remote,group,link,count);
+   }else decision={status:'review',reason:'installment_snapshot'};
+  }
   if(decision.status==='review'){
    await recordOperationalEvent(env,{orderId:id,eventType:'payment.asaas_mismatch',category:'payment',status:'failed',severity:'error',source:'asaas',message:'Divergência na cobrança. Revisão manual necessária.',uniqueKey:'asaas-mismatch:'+id+':'+decision.reason});
    return false;
