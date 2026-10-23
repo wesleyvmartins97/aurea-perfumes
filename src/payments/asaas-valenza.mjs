@@ -1,7 +1,7 @@
 // VALENZA Asaas bridge; integrates existing D1 order snapshots, inventory and EnvioEcom.
 // Must only be called after canonical cart, address, price, freight and stock validation.
 import {createAsaasGateway,ensureAsaasTables,storeAsaasLink,readAsaasLink,classifyAsaasPix,handleAsaasWebhook,asaasReady} from './asaas-prod.mjs';
-import {classifyAsaasVerifiedCard} from './asaas-card-contract.mjs';
+import {asaasCardProductionEnabled,buildAsaasTokenizedCardPayment,classifyAsaasVerifiedCard} from './asaas-card-contract.mjs';
 
 export function createValenzaAsaasBridge(dep){
  const {ensureAuthSchema,guardedPaymentCreate,restorePaymentAttempt,closePaymentAttempt,
@@ -50,6 +50,86 @@ export function createValenzaAsaasBridge(dep){
    if(attemptCreated){await closePaymentAttempt(env,referencia,'uncertain').catch(()=>{});return resposta({ok:false,paymentUncertain:true,error:'Pagamento em conferência. Verifique Meus Pedidos antes de tentar novamente.'},409)}
    await releaseReservation();
    return resposta({ok:false,error:'Não foi possível preparar o PIX com o Asaas.'},503);
+  }
+ }
+ // Preparação INTERNA: sem rota pública, sem coleta de número/CVV.
+ // Chamar somente quando houver token Asaas originado em um fluxo PCI validado.
+ // As flags ASAAS_CARD_ENABLED e ASAAS_CARD_PCI_APPROVED permanecem desligadas.
+ async function startCard(env,args){
+  const {u,items,shipping,chosen,carrier,freight,total,nome,email,cpf,telefone,
+   referencia,releaseReservation,ctx,creditCardToken,remoteIp,installments}=args;
+  if(!asaasCardProductionEnabled(env)){
+   await releaseReservation();
+   return resposta({ok:false,error:'Cartão Asaas ainda não está habilitado no checkout.'},503);
+  }
+  let attemptCreated=false;
+  try{
+   const gw=createAsaasGateway(env);
+   const customerRef='VALENZA-CUSTOMER-'+u.id.replace(/[^A-Za-z0-9_-]/g,'');
+   let customer=await gw.findCustomer(customerRef);
+   if(!customer)customer=await gw.createCustomer({name:nome,cpf,email,phone:telefone,reference:customerRef});
+   // Essa validação aceita apenas token Asaas; dados brutos nunca entram no Worker.
+   const dueDate=new Date(Date.now()+86400000).toISOString().slice(0,10);
+   const payload=buildAsaasTokenizedCardPayment({
+    customer,reference:referencia,total,installments,creditCardToken,remoteIp,dueDate
+   });
+   const snapshot={reference:referencia,provider:'asaas',customerId:u.id,items,
+    shipping:{...shipping,carrier,freight_cost:freight,
+     delivery_time:Number(chosen?.delivery_time??chosen?.delivery_days??0)},
+    name:nome,email,cpf,phone:telefone,total,method:'card',installments};
+   // Token só existe no payload efêmero, nunca em snapshot_json, D1 ou logs.
+   attemptCreated=true;
+   const response=await guardedPaymentCreate(env,snapshot,'https://api.asaas.com/v3/payments',{
+    method:'POST',headers:{access_token:env.ASAAS_API_KEY,'Content-Type':'application/json',
+     Accept:'application/json','User-Agent':'ValenzaParfums/1.0'},
+    body:JSON.stringify(payload)
+   });
+   if(!response.ok){
+    // POST 400 de cartão recusado não persiste cobrança segundo API Asaas.
+    // Outros estados são mantidos para conferência, sem segunda tentativa.
+    if(response.status===400){
+     await releaseReservation();await closePaymentAttempt(env,referencia,'failed');
+     return resposta({ok:false,error:'Cartão não autorizado. Use outro cartão ou tente outra forma de pagamento.'},400);
+    }
+    await closePaymentAttempt(env,referencia,'uncertain');
+    return resposta({ok:false,paymentUncertain:true,error:'Pagamento em conferência. Não tente novamente agora.'},409);
+   }
+   const created=await response.json();
+   const id=String(created?.id||'');
+   const valid=/^pay_[A-Za-z0-9_-]{6,120}$/.test(id)
+    &&created.customer===customer&&created.externalReference===referencia
+    &&created.billingType==='CREDIT_CARD';
+   const one=installments===1&&Math.round(Number(created.value)*100)===Math.round(total*100);
+   const multi=installments>1&&typeof created.installment==='string'&&created.installment.length>=6;
+   if(!valid||!(one||multi)){
+    await closePaymentAttempt(env,referencia,'uncertain');
+    return resposta({ok:false,paymentUncertain:true,error:'Cobrança em conferência. Não repita a compra.'},409);
+   }
+   await storeAsaasLink(env,{payment_id:id,order_id:id,reference:referencia,
+    customer_id:u.id,asaas_customer_id:customer,billing_type:'CREDIT_CARD',amount:total});
+   const attempt=await env.DB.prepare('SELECT * FROM payment_attempts WHERE reference=?').bind(referencia).first();
+   if(!attempt||!await restorePaymentAttempt(env,attempt,{
+    id,external_reference:referencia,total_amount:total,transactions:{payments:[{status:'created'}]}
+   }))throw Error('Aguardando conciliação do pedido de cartão.');
+   await recordOperationalEvent(env,{orderId:id,eventType:'order.created',category:'order',
+    status:'created',source:'asaas-card',message:'Pedido com cartão Asaas criado.',
+    uniqueKey:'order:'+id+':created'});
+   await recordPaymentStatusEvent(env,{orderId:id,rawStatus:'pending',label:'Aguardando pagamento',
+    method:'credit',source:'asaas-card'});
+   const emailTask=()=>sendOrderOperationalEmail(env,id,'order_received').catch(()=>{});
+   if(typeof ctx?.waitUntil==='function')ctx.waitUntil(Promise.resolve().then(emailTask));
+   else await emailTask();
+   // Não marcar Pago nem postar envio antes da conciliação independente.
+   // Parcelas seguem em revisão até validar o grupo inteiro.
+   return resposta({ok:true,orderId:id,paymentId:id,status:'pending',
+    amount:total.toFixed(2),externalReference:referencia,savedToAccount:true});
+  }catch(e){
+   if(attemptCreated){
+    await closePaymentAttempt(env,referencia,'uncertain').catch(()=>{});
+    return resposta({ok:false,paymentUncertain:true,error:'Pagamento em conferência. Consulte Meus Pedidos antes de tentar novamente.'},409);
+   }
+   await releaseReservation();
+   return resposta({ok:false,error:'Não foi possível preparar o cartão Asaas.'},503);
   }
  }
  async function ensureOrder(env,link){
@@ -177,8 +257,9 @@ export function createValenzaAsaasBridge(dep){
     let snap;try{snap=JSON.parse(attempt.snapshot_json)}catch{continue}
     if(snap.provider!=='asaas')continue;
     try{
-     const remote=await gw.findPixByReference(attempt.reference);if(!remote)continue;
-     await storeAsaasLink(env,{payment_id:remote.id,order_id:remote.id,reference:attempt.reference,customer_id:attempt.customer_id,asaas_customer_id:remote.customer,billing_type:'PIX',amount:Number(snap.total)});
+     const card=snap.method==='card';
+     const remote=card?await gw.findCardByReference(attempt.reference):await gw.findPixByReference(attempt.reference);if(!remote)continue;
+     await storeAsaasLink(env,{payment_id:remote.id,order_id:remote.id,reference:attempt.reference,customer_id:attempt.customer_id,asaas_customer_id:remote.customer,billing_type:card?'CREDIT_CARD':'PIX',amount:Number(snap.total)});
      await reconcile(env,remote.id);
     }catch{}
    }
@@ -193,5 +274,5 @@ export function createValenzaAsaasBridge(dep){
   }catch(e){console.error('Conciliação Asaas:',e?.name||'error')}
  }
  const webhook=(req,env,ctx)=>handleAsaasWebhook(req,env,ctx,pid=>reconcile(env,pid));
- return Object.freeze({startPix,reconcile,status,accountPix,cancelPrior,retryPaidShipments,cron,webhook,readLink:readAsaasLink});
+ return Object.freeze({startPix,startCard,reconcile,status,accountPix,cancelPrior,retryPaidShipments,cron,webhook,readLink:readAsaasLink});
 }
