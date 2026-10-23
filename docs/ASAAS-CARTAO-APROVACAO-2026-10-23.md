@@ -37,3 +37,33 @@ Fontes oficiais:
 6. Manter Mercado Pago como alternativa e Pix intacto até a validação; nunca desligar monitoramento de pagamentos antigos.
 
 **Resultado:** infraestrutura adicional preparada em branch isolada, sem publicar uma tela de cartão não-conforme e sem debitar cliente algum.
+
+## Auditoria complementar — 23/10/2026
+
+### Configuração de produção conferida no Cloudflare Worker
+
+- `ASAAS_API_KEY`: secret configurado; usado pelo Pix. Chave não exibida.
+- `ASAAS_CARD_API_KEY`: secret dedicado configurado; corresponde à chave da tela “CHAVE API CARTAO”. Não significa que a aplicação já tenha homologação PCI.
+- `ASAAS_SANDBOX_API_KEY`: secret configurado para testes, não utilizado pelo Worker de produção.
+- `ASAAS_WEBHOOK_TOKEN`: secret configurado.
+- `ASAAS_PIX_ENABLED=true`, `MERCADOPAGO_MODE=production`.
+- `ASAAS_CARD_ENABLED` e `ASAAS_CARD_PCI_APPROVED` **ausentes**: comportamento fail-closed proposital.
+
+### Código corrigido
+
+- Adaptador Asaas agora aceita canal `card` e usa o secret específico `ASAAS_CARD_API_KEY` quando presente. O canal `pix` continua utilizando `ASAAS_API_KEY`.
+- Preparação de cobrança `startCard`, consulta de status e recuperação de cobranças incertas utilizam a chave do cartão, sem tocar no Pix.
+- Diagnóstico administrativo autenticado mostra se a chave dedicada existe e **valida apenas via GET** se ela é aceita pelo Asaas, descartando o corpo da resposta. Não emite cobranças nem expõe as chaves.
+- O diagnóstico também separa backend preparado de checkout habilitado; enquanto não existir coleta PCI-validada, o cartão público continua Mercado Pago.
+- Testes simulados preservam comportamento Pix e verificam a chave correta por meio de cabeçalhos falsos, sem dados de cartão reais.
+
+### Divergência documental que impede ativação imediata
+
+A gerente Mariana comunicou por e-mail que a certificação do Asaas isenta a Valenza. Porém a documentação do próprio Asaas afirma expressamente, em **Responsabilidade compartilhada** e **Impacto do formato de integração**, que a certificação não cobre automaticamente o backend do lojista que recebe PAN/CVV. HTTPS não remove essa obrigação.
+
+Fontes:
+- https://docs.asaas.com/docs/pci-dss-1
+- https://docs.asaas.com/reference/tokenizacao-de-cartao-de-credito
+- https://docs.asaas.com/docs/cobrancas-via-cartao-de-credito
+
+**Recomendação:** aguardar confirmação por escrito da equipe de integração/PCI com o caminho oficial de captura dentro da Valenza. Enquanto isso, o checkout real não coleta PAN/CVV, não gera token Asaas no navegador e nenhuma flag PCI deve ser ativada.

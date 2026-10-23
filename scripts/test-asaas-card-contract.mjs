@@ -10,6 +10,8 @@ assert.equal(asaasCardProductionEnabled({}),false);
 assert.equal(asaasCardProductionEnabled({ASAAS_CARD_ENABLED:'true',ASAAS_API_KEY:'secret'}),false);
 assert.equal(asaasCardProductionEnabled({ASAAS_CARD_PCI_APPROVED:'true',ASAAS_API_KEY:'secret'}),false);
 assert.equal(asaasCardProductionEnabled({ASAAS_CARD_ENABLED:'true',ASAAS_CARD_PCI_APPROVED:'true',ASAAS_API_KEY:'secret'}),true);
+assert.equal(asaasCardProductionEnabled({ASAAS_CARD_ENABLED:'true',ASAAS_CARD_PCI_APPROVED:'true',ASAAS_CARD_API_KEY:'card-only-test-secret'}),true);
+
 const p=buildAsaasTokenizedCardPayment(base);
 assert.equal(p.billingType,'CREDIT_CARD');
 assert.equal(p.totalValue,579.9);
@@ -85,4 +87,26 @@ assert.equal(calls,1);
 await assert.rejects(enabledGateway.newTokenizedCard({...base,creditCard:{number:'4111111111111111',ccv:'123'}}),/não são aceitos/);
 assert.equal(calls,1,'Reject raw PAN/CVV before contacting provider');
 
+let cardReadCount=0;
+const cardReadMock=async (url,opts)=>{
+ cardReadCount++;
+ assert.equal(opts.headers.access_token,'dedicated-card-test-secret-012345');
+ assert.ok(url.includes('/payments?externalReference='));
+ assert.ok(url.includes('billingType=CREDIT_CARD'));
+ return Response.json({data:[{
+  id:'pay_card_dedicated_123',externalReference:base.reference,billingType:'CREDIT_CARD',customer:base.customer
+ }]});
+};
+const dedicated=createAsaasGateway({
+ ASAAS_API_KEY:'general-pix-secret-012345678901',
+ ASAAS_CARD_API_KEY:'dedicated-card-test-secret-012345'
+},cardReadMock,'card');
+assert.equal((await dedicated.findCardByReference(base.reference)).id,'pay_card_dedicated_123');
+assert.equal(cardReadCount,1,'Read-only card lookup with dedicated key');
+const general=createAsaasGateway({ASAAS_API_KEY:'general-pix-secret-012345678901',
+ ASAAS_CARD_API_KEY:'dedicated-card-test-secret-012345'},async (url,opts)=>{
+ assert.equal(opts.headers.access_token,'general-pix-secret-012345678901');
+ return Response.json({data:[]});
+});
+assert.equal(await general.findPixByReference(base.reference),null,'PIX always uses original key');
 console.log('ASAAS CARD CONTRACT: PCI guard, 1x/3x/12x, no PAN/CVV, refund/risk, no checkout switch PASS');

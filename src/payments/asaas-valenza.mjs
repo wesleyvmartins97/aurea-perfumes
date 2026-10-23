@@ -1,6 +1,6 @@
 // VALENZA Asaas bridge; integrates existing D1 order snapshots, inventory and EnvioEcom.
 // Must only be called after canonical cart, address, price, freight and stock validation.
-import {createAsaasGateway,ensureAsaasTables,storeAsaasLink,readAsaasLink,classifyAsaasPix,handleAsaasWebhook,asaasReady} from './asaas-prod.mjs';
+import {createAsaasGateway,asaasCardApiKey,ensureAsaasTables,storeAsaasLink,readAsaasLink,classifyAsaasPix,handleAsaasWebhook,asaasReady} from './asaas-prod.mjs';
 import {asaasCardProductionEnabled,buildAsaasTokenizedCardPayment,classifyAsaasVerifiedCard} from './asaas-card-contract.mjs';
 
 export function createValenzaAsaasBridge(dep){
@@ -64,7 +64,7 @@ export function createValenzaAsaasBridge(dep){
   }
   let attemptCreated=false;
   try{
-   const gw=createAsaasGateway(env);
+   const gw=createAsaasGateway(env,fetch,'card');
    const customerRef='VALENZA-CUSTOMER-'+u.id.replace(/[^A-Za-z0-9_-]/g,'');
    let customer=await gw.findCustomer(customerRef);
    if(!customer)customer=await gw.createCustomer({name:nome,cpf,email,phone:telefone,reference:customerRef});
@@ -80,7 +80,7 @@ export function createValenzaAsaasBridge(dep){
    // Token só existe no payload efêmero, nunca em snapshot_json, D1 ou logs.
    attemptCreated=true;
    const response=await guardedPaymentCreate(env,snapshot,'https://api.asaas.com/v3/payments',{
-    method:'POST',headers:{access_token:env.ASAAS_API_KEY,'Content-Type':'application/json',
+    method:'POST',headers:{access_token:asaasCardApiKey(env),'Content-Type':'application/json',
      Accept:'application/json','User-Agent':'ValenzaParfums/1.0'},
     body:JSON.stringify(payload)
    });
@@ -143,7 +143,8 @@ export function createValenzaAsaasBridge(dep){
   if(!/^pay_[A-Za-z0-9_-]{6,120}$/.test(String(id||'')))return false;
   await ensureAuthSchema(env);
   const link=await readAsaasLink(env,id);if(!link)return false;
-  const remote=await createAsaasGateway(env).getPayment(id),decision=link.billing_type==='CREDIT_CARD'?classifyAsaasVerifiedCard(remote,link):classifyAsaasPix(remote,link);
+  const card=link.billing_type==='CREDIT_CARD';
+  const remote=await createAsaasGateway(env,fetch,card?'card':'pix').getPayment(id),decision=card?classifyAsaasVerifiedCard(remote,link):classifyAsaasPix(remote,link);
   if(decision.status==='review'){
    await recordOperationalEvent(env,{orderId:id,eventType:'payment.asaas_mismatch',category:'payment',status:'failed',severity:'error',source:'asaas',message:'Divergência na cobrança. Revisão manual necessária.',uniqueKey:'asaas-mismatch:'+id+':'+decision.reason});
    return false;
@@ -258,7 +259,7 @@ export function createValenzaAsaasBridge(dep){
     if(snap.provider!=='asaas')continue;
     try{
      const card=snap.method==='card';
-     const remote=card?await gw.findCardByReference(attempt.reference):await gw.findPixByReference(attempt.reference);if(!remote)continue;
+     const remote=card?await createAsaasGateway(env,fetch,'card').findCardByReference(attempt.reference):await gw.findPixByReference(attempt.reference);if(!remote)continue;
      await storeAsaasLink(env,{payment_id:remote.id,order_id:remote.id,reference:attempt.reference,customer_id:attempt.customer_id,asaas_customer_id:remote.customer,billing_type:card?'CREDIT_CARD':'PIX',amount:Number(snap.total)});
      await reconcile(env,remote.id);
     }catch{}
