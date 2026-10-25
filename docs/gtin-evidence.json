@@ -694,6 +694,21 @@
       "status": "verified_reference",
       "source_url": "https://novaluxeurope.com/en/product/armaf-club-de-nuit-elite-105-ml/",
       "verified_on": "2026-10-14"
+    },
+    {
+      "id": "raneen",
+      "name": "Raneen",
+      "brand": "Asdaaf",
+      "type": "EDP · 80ml",
+      "gtin": "6290362340492",
+      "status": "verified_reference",
+      "source_url": "https://www.jomashop.com/lattafa-ladies-raneen-edp-spray-2-7-oz-fragrances-6290362340492.html",
+      "verified_on": "2026-10-24",
+      "additional_sources": [
+        "https://www.easycosmeticos.com.br/arabes/raneen-asdaaf-eau-de-parfum-feminino-80ml",
+        "https://lattafa.com/product/raneen/"
+      ],
+      "note": "80ml e EAN associados em Jomashop/Easy. Lattafa global confirma 80ML, mas a foto atual e a variante USA mostram 100ml; imagem de 100ml descartada. Usada imagem real Asdaaf 80ml do fornecedor, volume legível na caixa."
     }
   ],
   "exceptions": [
