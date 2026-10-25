@@ -1906,7 +1906,7 @@ async function servirAssets(request,env){
 }
 async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
 const AUREA_CATALOG={
-"raneen":{"name": "Raneen", "brand": "Asdaaf", "type": "EDP · 80ml", "price": 259.9, "weight": 0.6, "length": 20, "height": 12, "width": 16},
+"raneen":{"name": "Raneen", "brand": "Asdaaf", "type": "EDP · 80ml", "price": 299.9, "weight": 0.6, "length": 20, "height": 12, "width": 16},
 "bahiya-garnet":{"name": "Bahiya Garnet", "brand": "Arabiyat Prestige", "type": "EDP · 100ml", "price": 499.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
 "vulcan-baie":{"name": "Vulcan Baie", "brand": "French Avenue", "type": "Extrait de Parfum · 100ml · Unissex", "price": 289.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
 "shagaf-al-ward":{"name": "Shagaf Al Ward", "brand": "Al Wataniah", "type": "EDP · 100ml", "price": 219.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
