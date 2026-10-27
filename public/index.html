@@ -838,7 +838,7 @@ async function initCardBrick(){
   });
  }catch(err){
   loading.textContent='';
-  const sdkFailed=/sdk\\.mercadopago\\.com\\/js\\/v2|Não foi possível inicializar o pagamento seguro do Mercado Pago/i.test(String(err?.message||''));
+  const failureText=String(err?.message||'');const sdkFailed=failureText.includes('sdk.mercadopago.com/js/v2')||failureText.includes('Não foi possível inicializar o pagamento seguro do Mercado Pago');
   if(!sdkFailed){showError(clientErrorMessage(err,'Não foi possível abrir o pagamento por cartão agora. Tente novamente.'));return}
   showError('O formulário seguro do cartão não carregou. Tente novamente ou desative temporariamente bloqueadores de scripts para este site.');
   const area=document.getElementById('error');
