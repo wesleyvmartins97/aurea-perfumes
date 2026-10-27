@@ -464,21 +464,30 @@ body.checkout-open .aurea-wa{display:none}
 
 const valenzaExternalScripts=new Map();
 function loadValenzaScript(src,attrs={}){
- if(valenzaExternalScripts.has(src))return valenzaExternalScripts.get(src);
- const existing=[...document.scripts].find(s=>s.src===src);
+ const cached=valenzaExternalScripts.get(src);if(cached)return cached;
+ let existing=[...document.scripts].find(s=>s.src===src);
  if(existing){
   if(src.includes('sdk.mercadopago.com')&&window.MercadoPago)return Promise.resolve(existing);
   if(src.includes('mercadopago.com/v2/security.js')&&window.MP_DEVICE_SESSION_ID)return Promise.resolve(existing);
+  existing.remove();
  }
  const p=new Promise((resolve,reject)=>{
-  const s=existing||document.createElement('script');
-  if(!existing){
-   s.src=src;s.async=true;s.dataset.valenzaExternal='1';
-   for(const [k,v] of Object.entries(attrs))s.setAttribute(k,v);
-   document.head.appendChild(s);
-  }
-  s.addEventListener('load',()=>resolve(s),{once:true});
-  s.addEventListener('error',()=>reject(new Error('Falha ao carregar '+src)),{once:true});
+  const script=document.createElement('script');let finished=false,timer=null;
+  const finish=error=>{
+   if(finished)return;
+   finished=true;clearTimeout(timer);
+   script.removeEventListener('load',onload);script.removeEventListener('error',onerror);
+   if(error){script.remove();valenzaExternalScripts.delete(src);reject(error)}
+   else resolve(script);
+  };
+  const onload=()=>finish(null);
+  const onerror=()=>finish(new Error('Falha ao carregar '+src));
+  script.addEventListener('load',onload,{once:true});
+  script.addEventListener('error',onerror,{once:true});
+  timer=setTimeout(()=>finish(new Error('Tempo esgotado ao carregar '+src)),9000);
+  script.src=src;script.async=true;script.dataset.valenzaExternal='1';
+  for(const [key,value] of Object.entries(attrs))script.setAttribute(key,value);
+  document.head.appendChild(script);
  });
  valenzaExternalScripts.set(src,p);return p;
 }
@@ -486,9 +495,16 @@ function ensureMercadoPagoSecurity(){
  if(window.MP_DEVICE_SESSION_ID)return Promise.resolve();
  return loadValenzaScript('https://www.mercadopago.com/v2/security.js',{view:'checkout'});
 }
-function ensureMercadoPagoSDK(){
- if(window.MercadoPago)return Promise.resolve();
- return loadValenzaScript('https://sdk.mercadopago.com/js/v2');
+async function ensureMercadoPagoSDK(){
+ if(window.MercadoPago)return;
+ const src='https://sdk.mercadopago.com/js/v2';let lastError=null;
+ for(let attempt=0;attempt<2;attempt++){
+  try{await loadValenzaScript(src);if(window.MercadoPago)return}catch(error){lastError=error}
+  valenzaExternalScripts.delete(src);
+  const old=[...document.scripts].find(s=>s.src===src&&s.dataset.valenzaExternal==='1');if(old)old.remove();
+  if(attempt===0)await new Promise(resolve=>setTimeout(resolve,300));
+ }
+ throw lastError||new Error('Não foi possível inicializar o pagamento seguro do Mercado Pago.');
 }
 
 let cat='todos',collection='todos',department='todos',catalogSort='default',cart=[];try{const savedCart=JSON.parse(localStorage.getItem('aurea_cart')||'[]');cart=Array.isArray(savedCart)?savedCart:[]}catch(e){localStorage.removeItem('aurea_cart');cart=[]}let selectedShipping=null,selectedPayment='pix';
@@ -820,7 +836,18 @@ async function initCardBrick(){
     onError:(err)=>{console.error('Mercado Pago Brick:',err);showError('Não foi possível carregar o formulário do cartão. Tente novamente.')}
    }
   });
- }catch(err){loading.textContent='';showError(clientErrorMessage(err,'Não foi possível abrir o pagamento por cartão agora. Tente novamente.'))}
+ }catch(err){
+  loading.textContent='';
+  const sdkFailed=/sdk\\.mercadopago\\.com\\/js\\/v2|Não foi possível inicializar o pagamento seguro do Mercado Pago/i.test(String(err?.message||''));
+  if(!sdkFailed){showError(clientErrorMessage(err,'Não foi possível abrir o pagamento por cartão agora. Tente novamente.'));return}
+  showError('O formulário seguro do cartão não carregou. Tente novamente ou desative temporariamente bloqueadores de scripts para este site.');
+  const area=document.getElementById('error');
+  if(area&&!area.querySelector('[data-card-retry]')){
+   const retry=document.createElement('button');retry.type='button';retry.className='final';retry.dataset.cardRetry='1';retry.textContent='TENTAR CARTÃO NOVAMENTE';
+   retry.style.marginTop='12px';retry.addEventListener('click',()=>{retry.disabled=true;area.classList.remove('show');initCardBrick().catch(()=>{})});
+   area.appendChild(retry);
+  }
+ }
 }
 async function submitCardPayment(formData){
  const buyer=checkoutBuyerData();if(!buyer)throw new Error('Dados do comprador incompletos.');
