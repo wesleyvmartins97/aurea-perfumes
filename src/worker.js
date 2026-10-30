@@ -32,6 +32,7 @@ export default{async fetch(request,env,ctx){
  const url=new URL(request.url);
  if(url.protocol!=="https:"){const target=new URL(request.url);target.protocol="https:";if(target.hostname==="valenzaparfums.com.br"&&(request.method==="GET"||request.method==="HEAD")&&!target.pathname.startsWith("/api/"))target.hostname="www.valenzaparfums.com.br";return Response.redirect(target.toString(),308)}
  if(url.hostname==="valenzaparfums.com.br"&&(request.method==="GET"||request.method==="HEAD")&&!url.pathname.startsWith("/api/")){const target=new URL(request.url);target.protocol="https:";target.hostname="www.valenzaparfums.com.br";return Response.redirect(target.toString(),308)}
+ if((request.method==="GET"||request.method==="HEAD")&&/^\/(?:carrinho|checkout|minha-conta(?:\/(?:pedidos|rastreamentos|enderecos|dados|administracao))?)$/.test(url.pathname)){const target=new URL(request.url);target.pathname+='/';return Response.redirect(target.toString(),308)}
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(request.method==="GET"&&(/^\/(?:src|scripts|docs|\.git)(?:\/|$)/i.test(url.pathname)||/^\/(?:wrangler(?:\.jsonc)?|AGENTS\.md)$/i.test(url.pathname)))return new Response("Not Found",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","Cache-Control":"no-store",...securityHeaders}});
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
@@ -1869,16 +1870,24 @@ function siteVisualGlobalHtml(html,config){
  return out
 }
 async function servirAssets(request,env){
- const pathname=new URL(request.url).pathname,isCatalog=/^\/catalogo\/?$/.test(pathname);let assetRequest=request;
+ const pathname=new URL(request.url).pathname,isCatalog=/^\/catalogo\/?$/.test(pathname),isPrivatePage=/^\/(?:carrinho|checkout|minha-conta(?:\/(?:pedidos|rastreamentos|enderecos|dados|administracao))?)\/?$/.test(pathname);let assetRequest=request;
  const customMatch=pathname.match(/^\/perfume\/([^/]+)\/?$/);
  if(customMatch){try{const id=decodeURIComponent(customMatch[1]),[catalog,row,inv,visual]=await Promise.all([officialCatalog(env),env.DB.prepare("SELECT product_id FROM catalog_products WHERE product_id=? LIMIT 1").bind(id).first(),env.DB.prepare("SELECT stock FROM inventory WHERE product_id=? LIMIT 1").bind(id).first(),siteVisualState(env).catch(()=>null)]),p=catalog[id];if(p&&row){let html=customProductPageHtml(id,{...p,_stock:Number(inv?.stock)});if(visual?.customized)html=siteVisualGlobalHtml(html,visual.published);return new Response(html,{status:200,headers:{"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store, max-age=0, must-revalidate",...securityHeaders}})}}catch(e){console.error("Página dinâmica do produto:",e)}}
- if(isCatalog){const url=new URL(request.url);url.pathname='/';assetRequest=new Request(url,request)}
+ if(isCatalog||isPrivatePage){const url=new URL(request.url);url.pathname='/';assetRequest=new Request(url,request)}
  const response=await env.ASSETS.fetch(assetRequest),headers=new Headers(response.headers);
  for(const [key,value] of Object.entries(securityHeaders))headers.set(key,value);
+  if(isPrivatePage){headers.set('X-Robots-Tag','noindex, nofollow, noarchive');headers.set('Cache-Control','private, no-store')}
  const contentType=headers.get("content-type")||"";
  if(contentType.includes("text/html")){
   let html=await response.text();
   if(isCatalog)html=catalogPageHtml(html);
+   if(isPrivatePage){
+    const titles={'/carrinho/':'Seu carrinho','/checkout/':'Finalizar compra','/minha-conta/':'Minha conta','/minha-conta/pedidos/':'Meus pedidos','/minha-conta/rastreamentos/':'Rastreamentos','/minha-conta/enderecos/':'Meus endereços','/minha-conta/dados/':'Meus dados','/minha-conta/administracao/':'Administração'};
+    const pageTitle=titles[pathname.endsWith('/')?pathname:pathname+'/']||'Minha conta';
+    html=html.replace(/<title>[^<]*<\/title>/i,'<title>'+pageTitle+' | VALENZA PARFUMS</title>');
+    html=html.replace(/<meta name="robots" content="[^"]*">/i,'<meta name="robots" content="noindex,nofollow">');
+    html=html.replace(/<link rel="canonical" href="[^"]*">/i,'');
+   }
   try{const visual=await siteVisualState(env);if(visual.customized)html=siteVisualGlobalHtml(html,visual.published)}catch(e){console.error("Visual global dinâmico:",e)}
   // VALENZA preço dinâmico da página individual: o mesmo preço normal salvo no D1 alimenta página, PIX e dados estruturados.
   const pm=pathname.match(/^\/perfume\/([^/]+)\/?$/);
