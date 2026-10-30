@@ -1881,6 +1881,13 @@ async function servirAssets(request,env){
  if(contentType.includes("text/html")){
   let html=await response.text();
   if(isCatalog)html=catalogPageHtml(html);
+   if(isPrivatePage){
+    const titles={'/carrinho/':'Seu carrinho','/checkout/':'Finalizar compra','/minha-conta/':'Minha conta','/minha-conta/pedidos/':'Meus pedidos','/minha-conta/rastreamentos/':'Rastreamentos','/minha-conta/enderecos/':'Meus endereços','/minha-conta/dados/':'Meus dados','/minha-conta/administracao/':'Administração'};
+    const pageTitle=titles[pathname.endsWith('/')?pathname:pathname+'/']||'Minha conta';
+    html=html.replace(/<title>[^<]*<\/title>/i,'<title>'+pageTitle+' | VALENZA PARFUMS</title>');
+    html=html.replace(/<meta name="robots" content="[^"]*">/i,'<meta name="robots" content="noindex,nofollow">');
+    html=html.replace(/<link rel="canonical" href="[^"]*">/i,'');
+   }
   try{const visual=await siteVisualState(env);if(visual.customized)html=siteVisualGlobalHtml(html,visual.published)}catch(e){console.error("Visual global dinâmico:",e)}
   // VALENZA preço dinâmico da página individual: o mesmo preço normal salvo no D1 alimenta página, PIX e dados estruturados.
   const pm=pathname.match(/^\/perfume\/([^/]+)\/?$/);
