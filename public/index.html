@@ -1005,15 +1005,20 @@ let valenzaClientReturnPath=null;
 const valenzaDirectAccountRoute=/^\/minha-conta\//.test(location.pathname);
 const valenzaPublicTitle=valenzaDirectAccountRoute?'VALENZA PARFUMS | Perfumes Árabes e Fragrâncias Selecionadas':document.title;
 const valenzaPublicRobots=valenzaDirectAccountRoute?'index,follow,max-image-preview:large':document.querySelector('meta[name="robots"]')?.getAttribute('content')??null;
+const valenzaPublicCanonical=valenzaDirectAccountRoute?'https://www.valenzaparfums.com.br/':document.querySelector('link[rel="canonical"]')?.getAttribute('href')??null;
 function clientRestorePublicMeta(path){
  document.title=valenzaPublicTitle;
  const robots=document.querySelector('meta[name="robots"]');
  if(/^\/(?:carrinho|checkout)\/?/.test(path)){if(robots)robots.content='noindex,nofollow';return}
  if(valenzaPublicRobots===null)robots?.remove();
- else if(robots)robots.setAttribute('content',valenzaPublicRobots)
+ else if(robots)robots.setAttribute('content',valenzaPublicRobots);
+ if(!/^\/(?:carrinho|checkout|minha-conta)\/?/.test(path)){
+  let canonical=document.querySelector('link[rel="canonical"]');
+  if(valenzaPublicCanonical){if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical)}canonical.href=valenzaPublicCanonical}
+ }
 }
 function clientTabFromPath(path=location.pathname){return Object.keys(VALENZA_CLIENT_ROUTES).find(t=>VALENZA_CLIENT_ROUTES[t]===path)||null}
-function clientRouteMeta(tab){document.title=(VALENZA_CLIENT_TITLES[tab]||'Minha conta')+' | VALENZA PARFUMS';let r=document.querySelector('meta[name="robots"]');if(!r){r=document.createElement('meta');r.name='robots';document.head.appendChild(r)}r.content='noindex,nofollow'}
+function clientRouteMeta(tab){document.title=(VALENZA_CLIENT_TITLES[tab]||'Minha conta')+' | VALENZA PARFUMS';let r=document.querySelector('meta[name="robots"]');if(!r){r=document.createElement('meta');r.name='robots';document.head.appendChild(r)}r.content='noindex,nofollow';document.querySelector('link[rel="canonical"]')?.remove()}
 let accountUser=null;
 async function openAccount(){await loadAccount();if(accountUser&&typeof openClient==='function'){await openClient('home');return}const modal=document.getElementById('accountModal');if(!modal)return;if(!clientTabFromPath()){valenzaClientReturnPath=location.pathname+location.search;pushLayer('account','/minha-conta/')}modal.classList.add('open');clientRouteMeta('home');if(!aureaLayers.includes('account'))aureaLayers.push('account');renderAccount()}
 function closeAccount(fromHistory=false){document.getElementById('accountModal')?.classList.remove('open');if(!fromHistory&&clientTabFromPath()){const i=aureaLayers.lastIndexOf('account');if(i>=0)aureaLayers.splice(i,1);const target=valenzaClientReturnPath||'/';history.replaceState({aureaBase:true},'',target);clientRestorePublicMeta(target);valenzaClientReturnPath=null;return}dropLayer('account',fromHistory)}
@@ -1136,7 +1141,7 @@ async function continuePendingOrder(id){
 function clientTab(t,fromHistory=false){
  if(!clientData)return;
  const path=VALENZA_CLIENT_ROUTES[t];if(path){if(!fromHistory&&location.pathname!==path)history.pushState({aureaLayer:'client',aureaClientTab:t},'',path);clientRouteMeta(t)}
- document.querySelectorAll('.ccNav button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+ document.querySelectorAll('.ccNav button[data-tab]').forEach(b=>{const selected=b.dataset.tab===t;b.classList.toggle('active',selected);if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
  const m=document.getElementById('ccMain');
  if(t==='admin'){if(window.valenzaAdminRender)window.valenzaAdminRender();else m.innerHTML='<div class="ccEmpty">Carregando administração...</div>';return}
  if(t==='home'){m.innerHTML='<h2 class="ccTitle">Minha conta</h2><div class="ccCards"><div class="ccCard"><b>Meus pedidos</b><p>'+clientData.orders.length+' pedido(s)</p><button class="ccBtn" onclick="clientTab(\'orders\')">VER PEDIDOS</button></div><div class="ccCard"><b>Endereços</b><p>'+clientData.addresses.length+' endereço(s) salvo(s)</p><button class="ccBtn" onclick="clientTab(\'addresses\')">GERENCIAR</button></div><div class="ccCard"><b>Meus dados</b><p>Atualize suas informações pessoais.</p><button class="ccBtn" onclick="clientTab(\'profile\')">EDITAR DADOS</button></div></div>';return}
