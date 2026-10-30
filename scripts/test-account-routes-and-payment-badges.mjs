@@ -27,7 +27,10 @@ const tile=(html.match(/class="vf-paymark" role="img"/g)||[]).length;
 assert.equal(tile,5,'Esperadas cinco bandeiras com SVG acessível');
 const iconGroup=html.match(/<div class="vf-payments"[^>]*>([\s\S]*?)<\/div>/);
 assert.ok(iconGroup,'Grupo das bandeiras não encontrado');
-assert.equal((iconGroup[1].match(/viewBox="0 0 38 24"/g)||[]).length,5,'As cinco bandeiras devem usar as proporções originais de 38x24');
+assert.equal((iconGroup[1].match(/viewBox="0 0 38 24"/g)||[]).length,3,'Visa, Mastercard e Elo preservados');
+assert.equal((iconGroup[1].match(/viewBox="0 0 512 512"/g)||[]).length,1,'Logo Pix completo');
+assert.ok(iconGroup[1].includes('class="valenza-pix-wordmark"'),'Exibir nome Pix');
+assert.ok(iconGroup[1].includes('AMERICAN<br>EXPRESS'),'Exibir American Express por inteiro');
 assert.doesNotMatch(iconGroup[1],/viewBox="0 0 64 36"/,'Bandeiras desenhadas à mão foram removidas');
 for(const label of ['Pix','Visa','Mastercard','Elo','American Express']){
  assert.match(iconGroup[1],new RegExp('aria-label="'+label+'"'),'Marca de pagamento ausente');
