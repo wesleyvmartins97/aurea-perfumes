@@ -18,6 +18,8 @@
       "/carrinho/*",
       "/checkout",
       "/checkout/*",
+      "/minha-conta",
+      "/minha-conta/*",
       "/api/*",
       "/media/products/*",
       "/produto-img/*",
