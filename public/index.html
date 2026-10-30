@@ -1002,8 +1002,9 @@ function buyNow(id){const p=CATALOG.find(x=>x.id===id);if(!p||p.active===false){
 const VALENZA_CLIENT_ROUTES=Object.freeze({home:'/minha-conta/',orders:'/minha-conta/pedidos/',tracking:'/minha-conta/rastreamentos/',addresses:'/minha-conta/enderecos/',profile:'/minha-conta/dados/',admin:'/minha-conta/administracao/'});
 const VALENZA_CLIENT_TITLES={home:'Minha conta',orders:'Meus pedidos',tracking:'Rastreamentos',addresses:'Meus endereços',profile:'Meus dados',admin:'Administração'};
 let valenzaClientReturnPath=null;
-const valenzaPublicTitle=document.title;
-const valenzaPublicRobots=document.querySelector('meta[name="robots"]')?.getAttribute('content')??null;
+const valenzaDirectAccountRoute=/^\/minha-conta\//.test(location.pathname);
+const valenzaPublicTitle=valenzaDirectAccountRoute?'VALENZA PARFUMS | Perfumes Árabes e Fragrâncias Selecionadas':document.title;
+const valenzaPublicRobots=valenzaDirectAccountRoute?'index,follow,max-image-preview:large':document.querySelector('meta[name="robots"]')?.getAttribute('content')??null;
 function clientRestorePublicMeta(path){
  document.title=valenzaPublicTitle;
  const robots=document.querySelector('meta[name="robots"]');
