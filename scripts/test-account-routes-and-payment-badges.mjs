@@ -25,17 +25,17 @@ assert.match(worker,/if\(isCatalog\|\|isPrivatePage\)/,'Rotas devem servir SPA a
 for(const name of ['Pix','Visa','Mastercard','Elo','American Express'])assert.ok(html.includes('aria-label="'+name+'"'),'Falta bandeira visual '+name);
 const tile=(html.match(/class="vf-paymark" role="img"/g)||[]).length;
 assert.equal(tile,5,'Esperadas cinco bandeiras com SVG acessível');
-const iconGroup=html.match(/<div class="vf-payments"[^>]*>([\\s\\S]*?)<\\/div>/);
+const iconGroup=html.match(/<div class="vf-payments"[^>]*>([\s\S]*?)<\/div>/);
 assert.ok(iconGroup,'Grupo das bandeiras não encontrado');
-assert.equal((iconGroup[1].match(/viewBox="0 0 38 24"/g)||[]).length,5,'As cinco bandeiras devem usar as proporções oficiais de 38x24');
+assert.equal((iconGroup[1].match(/viewBox="0 0 38 24"/g)||[]).length,5,'As cinco bandeiras devem usar as proporções originais de 38x24');
 assert.doesNotMatch(iconGroup[1],/viewBox="0 0 64 36"/,'Bandeiras desenhadas à mão foram removidas');
 for(const label of ['Pix','Visa','Mastercard','Elo','American Express']){
  assert.match(iconGroup[1],new RegExp('aria-label="'+label+'"'),'Marca de pagamento ausente');
 }
-assert.match(html,/width:clamp\\(46px,5\\.8vw,68px\\)!important/,'Tamanho dos ícones deve ser responsivo');
-assert.match(html,/height:clamp\\(30px,3\\.7vw,43px\\)!important/,'Altura das bandeiras deve preservar proporções');
+assert.match(html,/width:clamp\(46px,5\.8vw,68px\)!important/,'Tamanho dos ícones deve ser responsivo');
+assert.match(html,/height:clamp\(30px,3\.7vw,43px\)!important/,'Altura das bandeiras deve preservar proporções');
 assert.match(html,/row-gap:10px/,'Bandeiras precisam quebrar de linha sem sobreposição');
-assert.match(html,/docs\\/PAYMENT-ICONS-LICENSE\\.txt/,'Manter atribuição da biblioteca MIT');
+assert.match(html,/docs\/PAYMENT-ICONS-LICENSE\.txt/,'Manter atribuição da biblioteca MIT');
 assert.match(html,/aria-label="Fechar carrinho"/);
 assert.match(html,/aria-label="Fechar minha conta"/);
 
