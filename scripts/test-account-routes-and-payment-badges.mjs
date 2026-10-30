@@ -30,6 +30,8 @@ assert.ok(iconGroup,'Grupo das bandeiras não encontrado');
 assert.equal((iconGroup[1].match(/viewBox="0 0 38 24"/g)||[]).length,3,'Visa, Mastercard e Elo preservados');
 assert.equal((iconGroup[1].match(/viewBox="0 0 512 512"/g)||[]).length,1,'Logo Pix completo');
 assert.ok(iconGroup[1].includes('class="valenza-pix-wordmark"'),'Exibir nome Pix');
+assert.match(iconGroup[1],/aria-label="Pix"[^>]*background:#122b29!important;border:1px solid #397b73!important/,'A bandeira Pix deve ter fundo escuro controlado');
+assert.match(iconGroup[1],/class="valenza-pix-wordmark"[^>]*color:#fff!important/,'A escrita Pix deve ser branca e legível');
 assert.ok(iconGroup[1].includes('AMERICAN<br>EXPRESS'),'Exibir American Express por inteiro');
 assert.doesNotMatch(iconGroup[1],/viewBox="0 0 64 36"/,'Bandeiras desenhadas à mão foram removidas');
 for(const label of ['Pix','Visa','Mastercard','Elo','American Express']){
