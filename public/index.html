@@ -909,10 +909,10 @@ async function payPix(){
  if(cep.length!==8)return showError('Informe um CEP válido.');
  if(!document.getElementById('number').value.trim())return showError('Informe o número do endereço.');
  if(!selectedShipping){checkoutShipping();return}
- if(!await refreshProductPromotions({redraw:true})){showError('Não foi possível atualizar os preços agora. Tente novamente.');return}
+ valenzaPixSubmitting=true;
+ if(!await refreshProductPromotions({redraw:true})){valenzaPixSubmitting=false;showError('Não foi possível atualizar os preços agora. Tente novamente.');return}
  window.valenzaTrackPaymentInfo?.('pix');
  const pixSubtotal=cart.reduce((a,x)=>a+pixUnitPrice(x.price)*x.qty,0);const total=Number((pixSubtotal+selectedShipping.price).toFixed(2)),b=document.getElementById('payButton');
- valenzaPixSubmitting=true;
  b.disabled=true;b.textContent='GERANDO PIX...';
 
  try{
