@@ -1,0 +1,50 @@
+name: Integridade de pagamentos Valenza
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/worker.js'
+      - 'src/payments/**'
+      - 'public/index.html'
+      - 'public/payment-receipt.js'
+      - 'scripts/test-pix-timeout-and-recovery.mjs'
+      - 'scripts/test-asaas-*.mjs'
+      - 'scripts/test-checkout-recovery.mjs'
+      - 'scripts/test-valenza-payment-success.mjs'
+      - '.github/workflows/payments-integrity.yml'
+  pull_request:
+    paths:
+      - 'src/worker.js'
+      - 'src/payments/**'
+      - 'public/index.html'
+      - 'scripts/test-pix-timeout-and-recovery.mjs'
+      - 'scripts/test-asaas-*.mjs'
+      - '.github/workflows/payments-integrity.yml'
+  workflow_dispatch:
+
+jobs:
+  payment-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar sintaxe do Worker e dos gateways
+        run: |
+          node --check src/worker.js
+          node --check src/payments/asaas-valenza.mjs
+          node --check src/payments/asaas-prod.mjs
+          node --check src/payments/asaas-api.mjs
+      - name: Proteger Pix contra timeout e pagamento duplicado
+        run: node scripts/test-pix-timeout-and-recovery.mjs
+      - name: Testar operadora, QR, idempotencia e webhook sem dinheiro real
+        run: node scripts/test-asaas-pix-production.mjs
+      - name: Testar ciclo completo Asaas e reconciliacao
+        run: node scripts/test-asaas-valenza-lifecycle.mjs
+      - name: Testar recuperacao de checkout
+        run: node scripts/test-checkout-recovery.mjs
+      - name: Testar tela de aprovacao
+        run: node scripts/test-valenza-payment-success.mjs
