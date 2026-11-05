@@ -897,7 +897,9 @@ async function submitCardPayment(formData){
   return d;
  }catch(err){const msg=clientErrorMessage(err,'Não foi possível processar o cartão agora. Tente novamente.');showError(msg);queueOpportunitySync('payment_error',{paymentMethod:'card',lastError:msg},0);throw new Error(msg)}
 }
+let valenzaPixSubmitting=false;
 async function payPix(){
+ if(valenzaPixSubmitting)return;
  stopPaymentPoll();
  const e=document.getElementById('error');e.classList.remove('show');
  const name=document.getElementById('name').value.trim(),email=document.getElementById('email').value.trim().toLowerCase(),cpf=document.getElementById('cpf').value,birthDate=document.getElementById('birthDate').value,cep=document.getElementById('checkoutCep').value.replace(/\D/g,'');
@@ -910,10 +912,11 @@ async function payPix(){
  if(!await refreshProductPromotions({redraw:true})){showError('Não foi possível atualizar os preços agora. Tente novamente.');return}
  window.valenzaTrackPaymentInfo?.('pix');
  const pixSubtotal=cart.reduce((a,x)=>a+pixUnitPrice(x.price)*x.qty,0);const total=Number((pixSubtotal+selectedShipping.price).toFixed(2)),b=document.getElementById('payButton');
+ valenzaPixSubmitting=true;
  b.disabled=true;b.textContent='GERANDO PIX...';
 
  try{
-  const controller=new AbortController();const abortTimer=setTimeout(()=>controller.abort(),18000);
+  const controller=new AbortController();const abortTimer=setTimeout(()=>controller.abort(),110000);
   let r;
   try{r=await fetch('/api/pagamento?v=2',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentMethod:'pix',deviceId:String(window.MP_DEVICE_SESSION_ID||''),name,email,cpf:cpf.replace(/\D/g,''),phone:document.getElementById('phone').value.replace(/\D/g,''),birthDate,total,items:cart.map(x=>({id:x.id,name:x.name,brand:x.brand,type:x.type,img:x.img,qty:x.qty,price:x.price})),shipping:{id:selectedShipping.id,name:selectedShipping.name,carrier:selectedShipping.carrier,price:selectedShipping.price,delivery_time:selectedShipping.delivery_time,cep,street:document.getElementById('street').value,number:document.getElementById('number').value,complement:document.getElementById('complement')?.value||'',neighborhood:document.getElementById('neighborhood').value,cityState:document.getElementById('cityState').value}}),signal:controller.signal})}
   finally{clearTimeout(abortTimer)}
@@ -928,7 +931,7 @@ async function payPix(){
   document.querySelector('.checkout-body').innerHTML=`<div style="grid-column:1/-1;background:#fff;padding:35px;text-align:center"><div class="eyebrow">PAGAMENTO</div><h2 class="serif">Pix gerado</h2><p style="font-size:12px;color:#666">Escaneie o QR Code ou copie o código Pix.</p><div style="display:inline-block;margin:8px auto 2px;padding:10px 22px;border-top:1px solid #e6e0d8;border-bottom:1px solid #e6e0d8"><div style="font-size:9px;letter-spacing:1.8px;color:#999;margin-bottom:4px">VALOR A PAGAR</div><div class="serif" style="font-size:22px;color:#171717">${money(d.amount)}</div></div>${d.qrCodeBase64?`<img src="data:image/png;base64,${d.qrCodeBase64}" alt="QR Code Pix" style="display:block;width:min(260px,80vw);height:auto;margin:18px auto;padding:10px;background:#fff;border:1px solid #ddd">`:''}<div class="pix-box" style="text-align:center;padding:16px"><button type="button" class="copy" id="copyPixButton" aria-label="Copiar código PIX completo">COPIAR CÓDIGO PIX</button></div><p style="font-size:10px;color:#888">Pedido VALENZA-${esc(shortOrderNumber(d.orderId||''))}</p><button class="final" onclick="closeCheckout()">VOLTAR À LOJA</button></div>`;const copyBtn=document.getElementById('copyPixButton');if(copyBtn)copyBtn.onclick=async()=>{try{await navigator.clipboard.writeText(d.qrCode);copyBtn.textContent='COPIADO ✓'}catch{const ta=document.createElement('textarea');ta.value=d.qrCode;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();copyBtn.textContent='COPIADO ✓'}};
   watchPixPayment(d.orderId||d.paymentId);/* O carrinho só é limpo quando o pagamento for confirmado; se o cliente voltar sem pagar, os itens permanecem. */
  }catch(err){const uncertain=err?.name==='AbortError'||/conex[aã]o|resposta|tempo|demorou|confer[eê]ncia|verifique meus pedidos/i.test(String(err?.message||''));const msg=uncertain?'Não foi possível confirmar a resposta. O Pix pode ter sido criado. Confira Meus Pedidos antes de tentar novamente, para evitar cobrança duplicada.':clientErrorMessage(err,'Não foi possível gerar o Pix agora. Tente novamente.');showError(msg);if(uncertain){const hint=document.createElement('a');hint.href='/meus-pedidos/';hint.textContent='CONSULTAR MEUS PEDIDOS E RECUPERAR PIX';hint.style.cssText='display:block;margin-top:12px;text-decoration:underline;color:inherit;font-weight:bold';e.appendChild(hint)}queueOpportunitySync('payment_error',{paymentMethod:'pix',lastError:msg},0);b.disabled=uncertain;b.textContent=uncertain?'CONSULTE MEUS PEDIDOS':'GERAR PAGAMENTO PIX'}
- finally{}
+ finally{valenzaPixSubmitting=false}
 }
 
 async function loadAureaBanners(){
