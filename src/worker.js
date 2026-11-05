@@ -2286,6 +2286,20 @@ async function criarPagamentoPix(request,env,ctx){
   const localDelivery=await destinoColatina(cep);
   let chosen,freight;if(localDelivery){if(String(shipping.id||"")!==LOCAL_COLATINA.id)return resposta({ok:false,error:"Calcule o frete novamente para usar a entrega grátis em Colatina."},409);chosen=LOCAL_COLATINA;freight=0}else{const qr=await fetch("https://envioecom.com.br/api/v1/whitelabel/shipping/quote",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json","X-Partner-Token":env.ENVIOECOM_TOKEN},body:JSON.stringify(quoteReq)});const qraw=await qr.text();let qd;try{qd=JSON.parse(qraw)}catch{qd=null}if(!qr.ok)return resposta({ok:false,error:"Não foi possível validar o frete."},502);const quotes=Array.isArray(qd?.quotes)?qd.quotes:(Array.isArray(qd)?qd:[]),quoteWanted=String(shipping.id||""),carrierWanted=String(shipping.carrier||shipping.name||"");chosen=quoteWanted?quotes.find(x=>quoteKey(x)===quoteWanted):null;if(!chosen)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);if(carrierWanted&&String(chosen.carrier||chosen.company||"")!==carrierWanted)return resposta({ok:false,error:"A opção de frete mudou. Calcule o frete novamente."},409);const quotedFreight=Number(chosen.price??chosen.freight_cost);if(!Number.isFinite(quotedFreight)||quotedFreight<0)return resposta({ok:false,error:"Frete inválido."},409);freight=quotedFreight}const carrier=localDelivery?"Entrega local Valenza":String(chosen.carrier||chosen.company||"Envio Ecom");
   const subtotal=items.reduce((s,x)=>s+pixPrice(x.price)*x.qty,0),total=Number((subtotal+freight).toFixed(2));
+  // Recovery before stock validation: the prior order already reserved stock.
+  // Reuse matching pending PIX within two hours instead of charging twice.
+  if(asaasPixEnabled(env)){
+   const recent=await env.DB.prepare("SELECT a.order_id,a.amount FROM asaas_payment_links a JOIN orders o ON o.id=a.order_id WHERE o.customer_id=? AND o.status IN ('Aguardando pagamento','Processando') AND a.billing_type='PIX' AND a.created_at>=? AND ABS(a.amount-?)<0.011 ORDER BY a.created_at DESC LIMIT 5")
+    .bind(u.id,new Date(Date.now()-2*60*60*1000).toISOString(),total).all();
+   for(const previous of recent.results||[]){
+    const lines=(await env.DB.prepare("SELECT product_id,quantity FROM order_items WHERE order_id=?").bind(previous.order_id).all()).results||[];
+    if(lines.length!==items.length||!items.every(it=>lines.some(row=>row.product_id===it.id&&Number(row.quantity)===Number(it.qty))))continue;
+    const ord=await env.DB.prepare("SELECT id,status,total FROM orders WHERE id=? AND customer_id=?").bind(previous.order_id,u.id).first();
+    if(!ord)continue;
+    const link=await asaasBridge.readLink(env,previous.order_id);
+    if(link)return asaasBridge.accountPix(env,ord,link);
+   }
+  }
   for(const it of items){const inv=await env.DB.prepare("SELECT stock FROM inventory WHERE product_id=?").bind(it.id).first();if(Number(inv?.stock||0)<it.qty)return resposta({ok:false,error:it.name+" está sem estoque suficiente."},409)}
   const reserveAt=new Date().toISOString(),reserve=items.map(it=>env.DB.prepare("UPDATE inventory SET stock=stock-?,updated_at=? WHERE product_id=? AND stock>=?").bind(it.qty,reserveAt,it.id,it.qty)),rr=await env.DB.batch(reserve);
   if(rr.some(x=>(x.meta?.changes||0)<1)){for(let i=0;i<items.length;i++)if((rr[i]?.meta?.changes||0)>0)await env.DB.prepare("UPDATE inventory SET stock=stock+?,updated_at=? WHERE product_id=?").bind(items[i].qty,reserveAt,items[i].id).run();return resposta({ok:false,error:"O estoque mudou durante a compra. Tente novamente."},409)}
