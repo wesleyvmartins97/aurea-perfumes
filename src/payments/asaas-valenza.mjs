@@ -44,7 +44,13 @@ export function createValenzaAsaasBridge(dep){
    const customerEmail=()=>sendOrderOperationalEmail(env,created.id,'order_received').catch(()=>{});
    if(typeof ctx?.waitUntil==='function')ctx.waitUntil(Promise.resolve().then(customerEmail));
    else await customerEmail();
-   const qr=await gw.getPix(created.id);
+   // A cobranca ja existe: falha ao buscar o QR nao deve parecer falha em criar o pagamento.
+   // O cliente pode recupera-lo com seguranca em Meus Pedidos.
+   let qr;
+   try{qr=await gw.getPix(created.id)}catch{
+    await recordOperationalEvent(env,{orderId:created.id,eventType:'payment.qr_unavailable',category:'payment',status:'pending',severity:'warning',source:'asaas-pix',message:'PIX criado, mas QR indisponivel na resposta inicial; recuperar em Meus Pedidos.',uniqueKey:'asaas-qr-unavailable:'+created.id}).catch(()=>{});
+    return resposta({ok:true,orderId:created.id,paymentId:created.id,status:'pending',amount:total.toFixed(2),qrUnavailable:true,externalReference:referencia,savedToAccount:true});
+   }
    return resposta({ok:true,orderId:created.id,paymentId:created.id,status:'pending',amount:total.toFixed(2),qrCode:qr.qrCode,qrCodeBase64:qr.qrCodeBase64,externalReference:referencia,savedToAccount:true});
   }catch(e){
    if(attemptCreated){await closePaymentAttempt(env,referencia,'uncertain').catch(()=>{});return resposta({ok:false,paymentUncertain:true,error:'Pagamento em conferência. Verifique Meus Pedidos antes de tentar novamente.'},409)}
