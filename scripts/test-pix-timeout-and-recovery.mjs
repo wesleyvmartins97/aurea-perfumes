@@ -23,4 +23,13 @@ assert.match(asaas,/qrUnavailable:true/, 'Falha QR depois da cobranca nao pode s
 assert.match(asaas,/await storeAsaasLink/, 'Vinculo com cobranca deve ser salvo antes de retornar');
 assert.match(bridge,/if\(decision\.status==='paid'\)/, 'Aprovacao exige confirmacao do Asaas');
 assert.match(bridge,/if\(!first&&ord\.status!=='Pago'\)/, 'Eventos tardios nao podem reabrir pedidos cancelados');
+// Frete selecionado no carrinho deve chegar ao checkout sem pedir nova selecao.
+assert.match(page,/function valenzaShippingCartKey\(\)/);
+assert.match(page,/function valenzaShippingMatches\(cep\)/);
+assert.match(page,/function selectShipping\(i\)[^\n]+cep,cartKey:valenzaShippingCartKey\(\)/);
+assert.match(page,/function selectCheckoutShipping\(i\)[^\n]+cep,cartKey:valenzaShippingCartKey\(\)/);
+assert.match(page,/if\(!valenzaShippingMatches\(cep\)\)\{selectedShipping=null;checkoutShipping\(\);return\}/);
+const open=page.slice(page.indexOf('async function openCheckout('),page.indexOf('function closeCheckout('));
+assert.ok(open.includes('checkoutCep.value=cartCep.slice(0,5)'), 'CEP do carrinho transferido ao checkout');
+assert.ok(!open.includes('old.replaceWith(tpl.content.firstElementChild.cloneNode(true));selectedShipping=null'), 'Nao apagar frete ao abrir');
 console.log('PASS: timeouts, protecao de duplo clique, recuperacao de Pix, status e QR sem cobrar novamente');
