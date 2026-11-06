@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 const root=new URL('../',import.meta.url);
 const worker=fs.readFileSync(new URL('src/worker.js',root),'utf8');
 const admin=fs.readFileSync(new URL('public/admin-account.js',root),'utf8');
-const match=worker.match(/function fxRoundUp\\(price\\)\\{[\\s\\S]*?\\n\\}/);
+const match=worker.match(/function fxRoundUp\(price\)\{[\s\S]*?\n\}/);
 assert.ok(match,'Arredondamento cambial ausente');
 const fxRoundUp=Function('return ('+match[0]+')')();
 const rounded=(price,oldRate=5.3,newRate=5.6)=>fxRoundUp(price*newRate/oldRate);
