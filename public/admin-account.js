@@ -678,7 +678,7 @@ function renderAdminBody(){
    '<p style="font-size:10px;color:#6c625a;line-height:1.6">O cálculo parte do preço de venda atual, corrige proporcionalmente pela cotação e arredonda <b>sempre para cima</b> até terminar em <b>9,90</b>. Ex.: R$ 211,22 → R$ 219,90. Ofertas também são atualizadas. O Pix continua com 5% de desconto. Custos reais, estoque e pedidos antigos não mudam.</p>'+
    '<div class="vaGrid"><div><div class="vaField"><label>NOVA COTAÇÃO (R$ POR US$ 1)</label><input id="vaFxRate" type="text" inputmode="decimal" value="5,60" placeholder="5,60"></div><button class="ccBtn" id="vaFxPreviewBtn" type="button">SIMULAR NOVOS PREÇOS</button></div><div><div class="vaField"><label>COTAÇÃO APLICADA</label><b id="vaFxCurrent">Consultando...</b></div><div id="vaFxMessage" style="font-size:10px;color:#746a61;line-height:1.6">Nenhuma alteração será feita antes da confirmação.</div></div></div>'+
    '<div id="vaFxResults" style="margin-top:12px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="ccBtn" type="button" id="vaFxApply" style="display:none">CONFIRMAR E ATUALIZAR TODOS</button><button type="button" id="vaFxUndo" class="vaDeleteOne" style="display:none">DESFAZER ÚLTIMA ATUALIZAÇÃO</button></div>';
-  body.insertBefore(fxPanel,body.children[1]||null);
+  body.insertBefore(fxPanel,body.children[0]||null);
   const fxEl=id=>fxPanel.querySelector('#'+id),fxMoney=money,fxRate=fxEl('vaFxRate');
   let fxPreview=null,fxBusy=false;
   const fxMessage=(text,bad=false)=>{fxEl('vaFxMessage').textContent=text;fxEl('vaFxMessage').style.color=bad?'#8b403a':'#746a61'};
