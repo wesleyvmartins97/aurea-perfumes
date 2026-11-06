@@ -670,6 +670,65 @@ function renderAdminBody(){
   };
   const options=activeRows.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'pt-BR')).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' · '+money(x.price)+'</option>').join('');
   body.innerHTML='<div class="vaPanel" style="margin-bottom:12px"><h3>Produtos & estoque</h3><p style="font-size:9px;color:#777;line-height:1.6;margin:0">Preço, estoque e custo ficam salvos no banco D1. Você também pode excluir um perfume da loja por aqui. A exclusão retira o item da vitrine, busca, carrinho, checkout, PIX, cartão, Google Merchant, sitemap e página pública, mas preserva pedidos e histórico financeiro antigos para não quebrar vendas já realizadas.</p></div><div class="vaMetrics"><div class="vaMetric"><span>ATIVOS</span><b>'+activeRows.length+'</b><small>Na loja</small></div><div class="vaMetric"><span>REMOVIDOS</span><b>'+(rows.length-activeRows.length)+'</b><small>Fora da loja</small></div><div class="vaMetric"><span>DISPONÍVEIS</span><b>'+available+'</b><small>Com estoque</small></div><div class="vaMetric"><span>REPOR</span><b>'+reorder+'</b><small>3–'+reorderThreshold+' unidades</small></div><div class="vaMetric"><span>CRÍTICO</span><b>'+critical+'</b><small>1–'+criticalThreshold+' unidades</small></div><div class="vaMetric"><span>ESGOTADOS</span><b>'+out+'</b><small>Sem estoque</small></div><div class="vaMetric"><span>CUSTO INFORMADO/ESTIMADO</span><b>'+withCost+'/'+rows.length+'</b><small>Conferir estimativas</small></div></div><div class="vaPanel" style="margin-bottom:12px;border:1px solid #cdbca8"><h3>Editar produto</h3><div class="vaGrid"><div><div class="vaField"><label>PRODUTO</label><select id="vaEditProduct" style="width:100%;padding:12px;border:1px solid #d8d1ca;background:#fff">'+options+'</select></div><div class="vaField"><label>PREÇO DE VENDA</label><input id="vaEditPrice" inputmode="decimal"></div><div class="vaField"><label>ESTOQUE</label><input id="vaEditStock" inputmode="numeric"></div><div class="vaField"><label>CUSTO UNITÁRIO TOTAL</label><input id="vaEditCost" inputmode="decimal" placeholder="Ex.: 185,50"><small style="display:block;margin-top:4px;color:#8a8178;font-size:8px">Estimado PY indica cotação, não custo real. Substitua pelo valor efetivo de compra, atravessador e frete.</small></div><button class="ccBtn" id="vaEditSave">SALVAR ALTERAÇÕES</button><div id="vaEditMsg" style="font-size:9px;color:#777;margin-top:8px"></div></div><div><div style="padding:16px;border:1px solid #e2d8ce;background:#fbfaf8"><div class="eyebrow">PRÉVIA</div><div id="vaEditPreview" style="margin-top:9px;font-size:11px;line-height:1.8"></div></div><div style="padding:13px;margin-top:10px;border-left:3px solid #171513;background:#f5f1eb;font-size:9px;line-height:1.65;color:#6c625a"><b>SEGURANÇA</b><br>O preço usado no PIX, cartão, frete e pedidos vem do servidor. O estoque é conferido novamente na hora do pagamento. Alterações ficam registradas no histórico administrativo.</div></div></div></div><div class="vaPanel"><h3>Localizar produtos</h3><p style="font-size:9px;color:#777;line-height:1.6;margin:-4px 0 10px">Digite parte do nome. Ex.: <b>Asad</b> mostra todos os perfumes da linha Asad.</p><input class="vaSearch" id="vaProductSearch" placeholder="Buscar por nome, linha, marca ou código..."><div id="vaProductSearchCount" style="font-size:9px;color:#777;margin:-4px 0 10px">Todos os produtos</div><div id="vaProductRows">'+render(rows)+'</div></div>';
+
+  // Reajuste cambial em lote: sem gravação até a confirmação administrativa.
+  const fxPanel=document.createElement('section');
+  fxPanel.className='vaPanel';fxPanel.style.marginBottom='12px';fxPanel.style.border='1px solid #cdbca8';
+  fxPanel.innerHTML='<h3>Atualizar dólar de todos os perfumes</h3>'+
+   '<p style="font-size:10px;color:#6c625a;line-height:1.6">O cálculo parte do preço de venda atual, corrige proporcionalmente pela cotação e arredonda <b>sempre para cima</b> até terminar em <b>9,90</b>. Ex.: R$ 211,22 → R$ 219,90. Ofertas também são atualizadas. O Pix continua com 5% de desconto. Custos reais, estoque e pedidos antigos não mudam.</p>'+
+   '<div class="vaGrid"><div><div class="vaField"><label>NOVA COTAÇÃO (R$ POR US$ 1)</label><input id="vaFxRate" type="text" inputmode="decimal" value="5,60" placeholder="5,60"></div><button class="ccBtn" id="vaFxPreviewBtn" type="button">SIMULAR NOVOS PREÇOS</button></div><div><div class="vaField"><label>COTAÇÃO APLICADA</label><b id="vaFxCurrent">Consultando...</b></div><div id="vaFxMessage" style="font-size:10px;color:#746a61;line-height:1.6">Nenhuma alteração será feita antes da confirmação.</div></div></div>'+
+   '<div id="vaFxResults" style="margin-top:12px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="ccBtn" type="button" id="vaFxApply" style="display:none">CONFIRMAR E ATUALIZAR TODOS</button><button type="button" id="vaFxUndo" class="vaDeleteOne" style="display:none">DESFAZER ÚLTIMA ATUALIZAÇÃO</button></div>';
+  body.insertBefore(fxPanel,body.children[1]||null);
+  const fxEl=id=>fxPanel.querySelector('#'+id),fxMoney=money,fxRate=fxEl('vaFxRate');
+  let fxPreview=null,fxBusy=false;
+  const fxMessage=(text,bad=false)=>{fxEl('vaFxMessage').textContent=text;fxEl('vaFxMessage').style.color=bad?'#8b403a':'#746a61'};
+  const fxRows=(a)=>'<div style="overflow:auto;max-height:400px"><table class="vaTable"><thead><tr><th>PERFUME</th><th>ATUAL</th><th>SUGERIDO</th><th>OFERTA ATUAL</th><th>NOVA OFERTA</th></tr></thead><tbody>'+
+   a.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+fxMoney(x.before)+'</td><td><b>'+fxMoney(x.after)+'</b></td><td>'+(x.promoBefore===null?'—':fxMoney(x.promoBefore))+'</td><td>'+(x.promoAfter===null?'—':fxMoney(x.promoAfter))+'</td></tr>').join('')+'</tbody></table></div>';
+  const fxRequest=async(path,payload={})=>{
+   const r=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw Error(j.error||'Não foi possível concluir.');return j
+  };
+  const fxControls=busy=>{fxBusy=busy;fxEl('vaFxPreviewBtn').disabled=busy;fxEl('vaFxApply').disabled=busy;fxEl('vaFxUndo').disabled=busy};
+  const fxSimulate=async()=>{
+   if(fxBusy)return;fxControls(true);fxPreview=null;fxEl('vaFxApply').style.display='none';fxMessage('Conferindo valores e promoções...');
+   try{
+    const r=await fxRequest('/api/admin/fx/preview',{rate:fxRate.value});
+    fxPreview=r;fxEl('vaFxCurrent').textContent=fxMoney(r.previousRate);
+    fxEl('vaFxResults').innerHTML='<p style="font-size:10px">Cotação simulada: <b>'+fxMoney(r.rate)+'</b> · '+r.changed+' preços alterados de '+r.total+' perfumes. Confira os valores:</p>'+fxRows(r.items);
+    fxEl('vaFxApply').style.display=r.changed?'':'none';
+    fxEl('vaFxUndo').style.display=r.canUndo?'':'none';
+    fxMessage(r.items.some(x=>x.rebased)?'Alguns preços foram editados individualmente e serão tratados como nova referência. Confira a lista antes de aplicar.':'Simulação pronta. Nada foi alterado na loja.');
+   }catch(e){fxMessage(adminErrorMessage(e),true);fxEl('vaFxResults').innerHTML=''}
+   finally{fxControls(false)}
+  };
+  fxEl('vaFxPreviewBtn').onclick=fxSimulate;
+  fxRate.oninput=()=>{fxPreview=null;fxEl('vaFxApply').style.display='none';fxMessage('Cotação alterada: faça nova simulação antes de confirmar.')};
+  fxEl('vaFxApply').onclick=async()=>{
+   if(!fxPreview||fxBusy)return;
+   if(!window.confirm('Confirmar atualização de '+fxPreview.changed+' preços na loja? Cotação '+fxMoney(fxPreview.previousRate)+' → '+fxMoney(fxPreview.rate)+'.'))return;
+   fxControls(true);fxMessage('Aplicando alterações...');
+   try{
+    const j=await fxRequest('/api/admin/fx/apply',{rate:fxPreview.rate,token:fxPreview.token});
+    fxPreview=null;if(typeof window.refreshProductPromotions==='function')await window.refreshProductPromotions({redraw:true});
+    await loadDashboard();adminView='products';renderAdminBody();
+    window.valenzaNotice?.(j.message||'Preços atualizados.');
+   }catch(e){fxMessage(adminErrorMessage(e),true)}
+   finally{fxControls(false)}
+  };
+  fxEl('vaFxUndo').onclick=async()=>{
+   if(fxBusy||!window.confirm('Desfazer a última atualização cambial e restaurar os preços anteriores?'))return;
+   fxControls(true);
+   try{
+    const j=await fxRequest('/api/admin/fx/undo');
+    if(typeof window.refreshProductPromotions==='function')await window.refreshProductPromotions({redraw:true});
+    await loadDashboard();adminView='products';renderAdminBody();
+    window.valenzaNotice?.(j.message||'Preços restaurados.');
+   }catch(e){fxMessage(adminErrorMessage(e),true)}
+   finally{fxControls(false)}
+  };
+  // Consulta sem mudanças no banco de preços.
+  fxSimulate();
+
   const newProductBtn=document.createElement('button');newProductBtn.className='ccBtn';newProductBtn.id='vaNewProduct';newProductBtn.textContent='NOVO PRODUTO';newProductBtn.style.marginTop='12px';newProductBtn.onclick=()=>openFullProductEditor('',{isNew:true}).catch(e=>window.valenzaNotice?.(adminErrorMessage(e)));body.querySelector('.vaPanel')?.appendChild(newProductBtn);
   const parseMoney=v=>{let s=String(v||'').trim().replace(/\s/g,'').replace(/^R\$/i,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=Number(s);return Number.isFinite(n)?n:NaN},sel=document.getElementById('vaEditProduct'),priceEl=document.getElementById('vaEditPrice'),stockEl=document.getElementById('vaEditStock'),costEl=document.getElementById('vaEditCost'),preview=document.getElementById('vaEditPreview'),msg=document.getElementById('vaEditMsg');
   const current=()=>rows.find(x=>String(x.id)===String(sel?.value||''));
