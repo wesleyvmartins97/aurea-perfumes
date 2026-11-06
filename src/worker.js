@@ -85,6 +85,9 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/admin/products/update"&&request.method==="POST")return adminProductUpdate(request,env);
  if(url.pathname==="/api/admin/products/availability"&&request.method==="POST")return adminProductAvailability(request,env);
  if(url.pathname==="/api/admin/prices/update"&&request.method==="POST")return adminPriceUpdate(request,env);
+ if(url.pathname==="/api/admin/fx/preview"&&request.method==="POST")return adminFxPreview(request,env);
+ if(url.pathname==="/api/admin/fx/apply"&&request.method==="POST")return adminFxApply(request,env);
+ if(url.pathname==="/api/admin/fx/undo"&&request.method==="POST")return adminFxUndo(request,env);
  if(url.pathname==="/api/admin/opportunities/email"&&request.method==="POST")return adminOpportunityEmail(request,env);
  if(url.pathname==="/api/admin/opportunities/contacted"&&request.method==="POST")return adminOpportunityContacted(request,env);
  if(url.pathname==="/api/admin/opportunities/archive"&&request.method==="POST")return adminOpportunityArchive(request,env);
@@ -167,6 +170,9 @@ async function ensureAuthSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS site_visual_state (id TEXT PRIMARY KEY, draft_json TEXT NOT NULL DEFAULT '{}', published_json TEXT NOT NULL DEFAULT '{}', updated_by TEXT, updated_at TEXT NOT NULL, published_at TEXT)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS site_visual_assets (asset_key TEXT PRIMARY KEY, content_type TEXT NOT NULL, data BLOB NOT NULL, byte_size INTEGER NOT NULL, updated_by TEXT, updated_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS product_settings (product_id TEXT PRIMARY KEY, price_override REAL, unit_cost REAL, updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS fx_rate_state (key TEXT PRIMARY KEY,rate REAL NOT NULL,updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS fx_product_baseline (product_id TEXT PRIMARY KEY,base_rate REAL NOT NULL,base_price REAL NOT NULL,base_promo REAL,last_price REAL NOT NULL,last_promo REAL,updated_at TEXT NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS fx_rate_history (id TEXT PRIMARY KEY,previous_rate REAL NOT NULL,new_rate REAL NOT NULL,snapshot_json TEXT NOT NULL,created_at TEXT NOT NULL,undone_at TEXT)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS disabled_products (product_id TEXT PRIMARY KEY, disabled_at TEXT NOT NULL, disabled_by TEXT NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS order_item_costs (order_item_id TEXT PRIMARY KEY, order_id TEXT NOT NULL, product_id TEXT NOT NULL, unit_cost REAL, created_at TEXT NOT NULL)"),
   env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_order_item_costs_order ON order_item_costs(order_id)"),
@@ -1310,6 +1316,125 @@ async function siteVisualAsset(request,env,keyRaw){
   const row=await env.DB.prepare("SELECT content_type,data,byte_size FROM site_visual_assets WHERE asset_key=?").bind(key).first();if(!row?.data)return new Response("Not Found",{status:404});
   return new Response(row.data,{status:200,headers:{"Content-Type":String(row.content_type||"image/webp"),"Content-Length":String(row.byte_size||0),"Cache-Control":"public, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"}})
  }catch(e){console.error("Servir imagem visual:",e);return new Response("Not Found",{status:404})}
+}
+
+
+/* Ajuste de preço sobre o preço final, com preço comercial sempre arredondado PARA CIMA.
+   Recalcula a partir da referência original para evitar aumento composto.
+   Custos reais, estoque, pedidos, frete e descontos Pix nunca são alterados. */
+function fxRoundUp(price){
+ const cents=Math.ceil((Number(price)*100-990-0.00001)/1000);
+ return Number((Math.max(0,cents)*10+9.9).toFixed(2));
+}
+function fxRoundMoney(n){return Number(Number(n).toFixed(2))}
+function fxValidRate(v){const n=typeof v==="string"?Number(v.replace(",",".")):Number(v);return Number.isFinite(n)&&n>=1&&n<=20?n:null}
+async function fxState(env){
+ const [state,stored,settings,promotions,base]=await Promise.all([
+  env.DB.prepare("SELECT rate FROM fx_rate_state WHERE key='current'").first(),
+  env.DB.prepare("SELECT * FROM fx_product_baseline").all(),
+  env.DB.prepare("SELECT product_id,price_override FROM product_settings").all(),
+  env.DB.prepare("SELECT product_id,promo_price FROM product_promotions").all(),
+  catalogBase(env,{includeDrafts:true})
+ ]);
+ const rate=fxValidRate(state?.rate)||5.30;
+ const oldMap=new Map((stored.results||[]).map(x=>[String(x.product_id),x]));
+ const prices=new Map((settings.results||[]).map(x=>[String(x.product_id),x]));
+ const promos=new Map((promotions.results||[]).map(x=>[String(x.product_id),x]));
+ const products=Object.entries(base).map(([id,p])=>{
+  const current=fxRoundMoney(Number(prices.get(id)?.price_override??p.price));
+  const currentPromo=promos.has(id)?fxRoundMoney(Number(promos.get(id).promo_price)):null;
+  const old=oldMap.get(id);
+  const changed=old&&(Math.abs(Number(old.last_price)-current)>0.011||
+    ((old.last_promo===null)!==(currentPromo===null))||
+    (currentPromo!==null&&Math.abs(Number(old.last_promo)-currentPromo)>0.011));
+  const baseline=(!old||changed)?{product_id:id,base_rate:rate,base_price:current,base_promo:currentPromo}:old;
+  return {id,name:String(p.name||id),current,currentPromo,baseline,rebased:Boolean(changed)};
+ }).filter(p=>Number.isFinite(p.current)&&p.current>0);
+ return {rate,products};
+}
+function fxCalculate(state,newRate){
+ return state.products.map(p=>{
+  const b=p.baseline,k=newRate/Number(b.base_rate),normal=fxRoundUp(Number(b.base_price)*k);
+  let promo=b.base_promo===null?null:fxRoundUp(Number(b.base_promo)*k);
+  if(promo!==null&&promo>=normal){
+   const gap=Math.max(10,Math.ceil((Number(b.base_price)-Number(b.base_promo))*k/10)*10);
+   promo=fxRoundMoney(normal-gap);
+   if(promo<=0)promo=null;
+  }
+  return {...p,newPrice:normal,newPromo:promo,changed:Math.abs(normal-p.current)>0.011||
+    (promo!==null&&Math.abs(promo-Number(p.currentPromo))>0.011)};
+ });
+}
+async function fxSignature(state){
+ const payload=JSON.stringify({rate:state.rate,products:state.products.map(x=>[x.id,x.current,x.currentPromo,x.baseline.base_rate,x.baseline.base_price,x.baseline.base_promo])});
+ return await sha256(payload);
+}
+async function adminFxPreview(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const admin=await currentAdmin(request,env);
+  if(!admin)return resposta({ok:false,error:"Sessão administrativa necessária."},401);
+  const data=await request.json().catch(()=>({})),rate=fxValidRate(data.rate);
+  if(rate===null)return resposta({ok:false,error:"Informe a cotação entre R$ 1,00 e R$ 20,00."},400);
+  const state=await fxState(env),items=fxCalculate(state,rate),token=await fxSignature(state);
+  const history=await env.DB.prepare("SELECT id,previous_rate,new_rate,created_at FROM fx_rate_history WHERE undone_at IS NULL ORDER BY created_at DESC LIMIT 1").first();
+  return resposta({ok:true,previousRate:state.rate,rate,token,items:items.map(p=>({
+   id:p.id,name:p.name,before:p.current,after:p.newPrice,promoBefore:p.currentPromo,promoAfter:p.newPromo,changed:p.changed,rebased:p.rebased
+  })),changed:items.filter(x=>x.changed).length,total:items.length,canUndo:!!history,lastApplied:history?.created_at||null});
+ }catch(e){console.error("Prévia cambial:",e);return resposta({ok:false,error:"Falha ao calcular a prévia cambial."},500)}
+}
+async function adminFxApply(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const admin=await currentAdmin(request,env);
+  if(!admin)return resposta({ok:false,error:"Sessão administrativa necessária."},401);
+  const data=await request.json().catch(()=>({})),rate=fxValidRate(data.rate);
+  if(rate===null||typeof data.token!=="string")return resposta({ok:false,error:"Faça uma nova simulação primeiro."},400);
+  const state=await fxState(env),token=await fxSignature(state);
+  if(token!==data.token)return resposta({ok:false,error:"Os preços mudaram desde a prévia. Simule novamente antes de confirmar."},409);
+  const items=fxCalculate(state,rate);
+  if(items.some(x=>x.newPromo===null&&x.currentPromo!==null))return resposta({ok:false,error:"Uma oferta não permite reajuste seguro. Revise o cadastro."},409);
+  if(items.length>500)return resposta({ok:false,error:"Volume acima do limite de segurança."},409);
+  const now=new Date().toISOString(),snapshot=items.map(x=>({id:x.id,price:x.current,promo:x.currentPromo,after:x.newPrice,promoAfter:x.newPromo,baseline:x.baseline})),ops=[];
+  for(const p of items){
+   ops.push(env.DB.prepare("INSERT INTO fx_product_baseline(product_id,base_rate,base_price,base_promo,last_price,last_promo,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET base_rate=excluded.base_rate,base_price=excluded.base_price,base_promo=excluded.base_promo,last_price=excluded.last_price,last_promo=excluded.last_promo,updated_at=excluded.updated_at").bind(p.id,Number(p.baseline.base_rate),Number(p.baseline.base_price),p.baseline.base_promo,p.newPrice,p.newPromo,now));
+   if(p.changed){
+    ops.push(env.DB.prepare("INSERT INTO product_settings(product_id,price_override,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO UPDATE SET price_override=excluded.price_override,updated_at=excluded.updated_at").bind(p.id,p.newPrice,now));
+    if(p.newPromo!==null)ops.push(env.DB.prepare("UPDATE product_promotions SET promo_price=?,updated_at=? WHERE product_id=?").bind(p.newPromo,now,p.id));
+   }
+  }
+  ops.push(env.DB.prepare("INSERT INTO fx_rate_history(id,previous_rate,new_rate,snapshot_json,created_at) VALUES(?,?,?,?,?)").bind(crypto.randomUUID(),state.rate,rate,JSON.stringify(snapshot),now));
+  ops.push(env.DB.prepare("INSERT INTO fx_rate_state(key,rate,updated_at) VALUES('current',?,?) ON CONFLICT(key) DO UPDATE SET rate=excluded.rate,updated_at=excluded.updated_at").bind(rate,now));
+  await env.DB.batch(ops);
+  await recordAdminAudit(env,admin,"fx_rate_apply",{from:state.rate,to:rate,total:items.length,changed:items.filter(x=>x.changed).length});
+  return resposta({ok:true,message:"Cotação aplicada. Os preços da loja foram atualizados.",rate,changed:items.filter(x=>x.changed).length});
+ }catch(e){console.error("Aplicar câmbio:",e);return resposta({ok:false,error:"Não foi possível aplicar a cotação. Confira o painel antes de tentar novamente."},500)}
+}
+async function adminFxUndo(request,env){
+ try{
+  await ensureAuthSchema(env);
+  const admin=await currentAdmin(request,env);
+  if(!admin)return resposta({ok:false,error:"Sessão administrativa necessária."},401);
+  const history=await env.DB.prepare("SELECT * FROM fx_rate_history WHERE undone_at IS NULL ORDER BY created_at DESC LIMIT 1").first();
+  if(!history)return resposta({ok:false,error:"Não há atualização cambial para desfazer."},404);
+  const state=await fxState(env),items=JSON.parse(history.snapshot_json);
+  if(Math.abs(state.rate-Number(history.new_rate))>0.00001||items.some(x=>{
+   const p=state.products.find(y=>y.id===x.id);
+   return !p||Math.abs(p.current-x.after)>0.011||
+    (x.promoAfter===null?p.currentPromo!==null:Math.abs(Number(p.currentPromo)-x.promoAfter)>0.011);
+  }))return resposta({ok:false,error:"Os preços foram editados após a atualização. Desfazer foi bloqueado para preservar alterações posteriores."},409);
+  const now=new Date().toISOString(),ops=[];
+  for(const x of items){
+   ops.push(env.DB.prepare("UPDATE product_settings SET price_override=?,updated_at=? WHERE product_id=?").bind(x.price,now,x.id));
+   if(x.promo!==null)ops.push(env.DB.prepare("UPDATE product_promotions SET promo_price=?,updated_at=? WHERE product_id=?").bind(x.promo,now,x.id));
+   ops.push(env.DB.prepare("INSERT INTO fx_product_baseline(product_id,base_rate,base_price,base_promo,last_price,last_promo,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(product_id) DO UPDATE SET base_rate=excluded.base_rate,base_price=excluded.base_price,base_promo=excluded.base_promo,last_price=excluded.last_price,last_promo=excluded.last_promo,updated_at=excluded.updated_at").bind(x.id,x.baseline.base_rate,x.baseline.base_price,x.baseline.base_promo,x.price,x.promo,now));
+  }
+  ops.push(env.DB.prepare("UPDATE fx_rate_history SET undone_at=? WHERE id=?").bind(now,history.id));
+  ops.push(env.DB.prepare("INSERT INTO fx_rate_state(key,rate,updated_at) VALUES('current',?,?) ON CONFLICT(key) DO UPDATE SET rate=excluded.rate,updated_at=excluded.updated_at").bind(history.previous_rate,now));
+  await env.DB.batch(ops);
+  await recordAdminAudit(env,admin,"fx_rate_undo",{history:history.id,rate:history.previous_rate});
+  return resposta({ok:true,rate:history.previous_rate,message:"Última cotação desfeita; preços anteriores restaurados."});
+ }catch(e){console.error("Desfazer câmbio:",e);return resposta({ok:false,error:"Não foi possível desfazer a última cotação."},500)}
 }
 
 async function adminPriceUpdate(request,env){
