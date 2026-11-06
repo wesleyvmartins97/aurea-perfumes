@@ -229,6 +229,10 @@ body{
 .aurea-wa-icon svg{width:26px;height:26px;fill:#fff}
 @media(max-width:520px){.aurea-wa{right:12px;bottom:16px}.aurea-wa-text{padding:8px 10px}.aurea-wa-icon{width:46px;height:46px}}
 body.checkout-open .aurea-wa{display:none}
+/* O WhatsApp publico nao deve cobrir telefones, botoes e tabelas da area do cliente/admin. */
+body:has(#clientCenter[style*="display: block"]) .aurea-wa,
+body:has(#clientCenter[style*="display:block"]) .aurea-wa{display:none!important}
+
 
 /* VALENZA: composição categorias + catálogo */
 @media(min-width:701px){
