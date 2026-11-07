@@ -270,6 +270,21 @@ export function createValenzaAsaasBridge(dep){
   }
   return attempted;
  }
+ // Cancel old unpaid PIX only after verification and cancellation at Asaas.
+ // Keeping the order for audit avoids losing customer history and payment reconciliation.
+ async function expireOldUnpaidPix(env){
+  const cutoff=new Date(Date.now()-48*60*60*1000).toISOString();
+  const q=await env.DB.prepare("SELECT a.payment_id,a.order_id FROM asaas_payment_links a JOIN orders o ON o.id=a.order_id LEFT JOIN order_shipping s ON s.order_id=o.id WHERE a.billing_type='PIX' AND a.created_at<=? AND o.status='Aguardando pagamento' AND lower(COALESCE(a.status,'')) NOT IN ('received','confirmed','deleted','canceled','cancelled','refunded') AND COALESCE(s.shipping_id,'')='' ORDER BY a.created_at ASC LIMIT 12").bind(cutoff).all();
+  for(const row of q.results||[]){
+   try{
+    const link=await readAsaasLink(env,row.order_id);
+    if(!link||link.billing_type!=='PIX')continue;
+    const result=await cancelPrior(env,link);
+    if(!result.ok)continue; // Never locally cancel when provider verification fails.
+    await reconcile(env,row.payment_id); // Provider-confirmed deletion updates order and payment status.
+   }catch(e){console.error('Auto-expiração PIX (48h):',String(row.order_id||''),e?.name||'error')}
+  }
+ }
  async function cron(env){
   if(!asaasReady(env))return;
   try{
@@ -288,6 +303,7 @@ export function createValenzaAsaasBridge(dep){
    }
    const links=await env.DB.prepare("SELECT payment_id FROM asaas_payment_links WHERE status NOT IN ('RECEIVED','DELETED','CANCELED','REFUNDED') ORDER BY updated_at LIMIT 20").all();
    for(const item of links.results||[])try{await reconcile(env,item.payment_id)}catch{}
+   await expireOldUnpaidPix(env);
    await retryPaidShipments(env);
    const queued=await env.DB.prepare("SELECT id,payment_id FROM asaas_webhook_events WHERE state='queued' ORDER BY received_at LIMIT 20").all();
    for(const e of queued.results||[])try{
