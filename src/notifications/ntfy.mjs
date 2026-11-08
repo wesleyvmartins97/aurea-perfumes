@@ -16,12 +16,15 @@ export async function sendValenzaNtfy(env,{kind,id}){
  try{
   // No message body, email sender, subject, customer details or payment values leave the Worker.
   const res=await fetch('https://ntfy.sh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,...payload})});
-  if(!res.ok)throw Error('ntfy status '+res.status);
+  if(!res.ok)throw Error('ntfy status '+res.status+' '+(await res.text()).slice(0,120));
   await env.DB.prepare("UPDATE admin_ntfy_deliveries SET status='sent',attempts=attempts+1,updated_at=? WHERE notification_key=?").bind(now,key).run();
   return {ok:true};
  }catch(error){
   await env.DB.prepare("UPDATE admin_ntfy_deliveries SET status='failed',attempts=attempts+1,updated_at=? WHERE notification_key=?").bind(now,key).run();
-  console.error('Aviso ntfy nao entregue:',kind,String(error).slice(0,100));
+  console.error('Aviso ntfy nao entregue:',kind,String(error).slice(0,180));
+  // Operational log contains only error status, never customer information.
+  await env.DB.prepare('CREATE TABLE IF NOT EXISTS admin_ntfy_diagnostics (notification_key TEXT PRIMARY KEY,last_error TEXT NOT NULL,updated_at TEXT NOT NULL)').run().catch(()=>{});
+  await env.DB.prepare('INSERT INTO admin_ntfy_diagnostics(notification_key,last_error,updated_at) VALUES(?,?,?) ON CONFLICT(notification_key) DO UPDATE SET last_error=excluded.last_error,updated_at=excluded.updated_at').bind(key,String(error).slice(0,180),now).run().catch(()=>{});
   return {ok:false,reason:'delivery_error'};
  }
 }
