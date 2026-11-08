@@ -7,6 +7,7 @@ on:
       - 'src/worker.js'
       - 'src/notifications/**'
       - 'scripts/test-resend-whatsapp-alerts.mjs'
+      - 'scripts/test-ntfy-alerts.mjs'
       - 'src/payments/**'
       - 'public/index.html'
       - 'public/payment-receipt.js'
@@ -20,6 +21,7 @@ on:
       - 'src/worker.js'
       - 'src/notifications/**'
       - 'scripts/test-resend-whatsapp-alerts.mjs'
+      - 'scripts/test-ntfy-alerts.mjs'
       - 'src/payments/**'
       - 'public/index.html'
       - 'scripts/test-pix-timeout-and-recovery.mjs'
@@ -42,6 +44,8 @@ jobs:
           node --check src/payments/asaas-valenza.mjs
           node --check src/payments/asaas-prod.mjs
           node --check src/payments/asaas-api.mjs
+      - name: Testar ntfy sem dados pessoais nem compras reais
+        run: node scripts/test-ntfy-alerts.mjs
       - name: Testar webhook Resend autenticado antes de ligar WhatsApp
         run: node scripts/test-resend-whatsapp-alerts.mjs
       - name: Proteger Pix contra timeout e pagamento duplicado
