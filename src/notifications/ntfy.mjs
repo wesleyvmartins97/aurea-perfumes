@@ -3,7 +3,7 @@
 export async function sendValenzaNtfy(env,{kind,id}){
  const topic=String(env.NTFY_TOPIC||'').trim();
  if(!/^[a-zA-Z0-9_-]{24,64}$/.test(topic))return {ok:false,reason:'not_configured'};
- const allowed={sale:{title:'VALENZA - Venda confirmada',message:'Pagamento aprovado. Confira os pedidos no painel.',priority:4,click:'https://www.valenzaparfums.com.br/admin/'},email:{title:'VALENZA - Novo e-mail',message:'Chegou um e-mail no atendimento. Confira a caixa de entrada.',priority:4,click:'https://resend.com/inboxes'}};
+ const allowed={test:{title:'VALENZA - Teste de notificacoes',message:'Conexao ntfy configurada. Os avisos de novas vendas usam este canal.',priority:3,click:'https://www.valenzaparfums.com.br/admin/'},sale:{title:'VALENZA - Venda confirmada',message:'Pagamento aprovado. Confira os pedidos no painel.',priority:4,click:'https://www.valenzaparfums.com.br/admin/'},email:{title:'VALENZA - Novo e-mail',message:'Chegou um e-mail no atendimento. Confira a caixa de entrada.',priority:4,click:'https://resend.com/inboxes'}};
  const payload=allowed[kind];if(!payload)return {ok:false,reason:'unsupported'};
  const key=kind+':'+String(id||'').slice(0,180);
  if(!id)return {ok:false,reason:'missing_id'};
