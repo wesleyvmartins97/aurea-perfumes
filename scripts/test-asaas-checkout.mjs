@@ -48,8 +48,8 @@ assert.match(worker,/fetch\("https:\/\/api\.asaas\.com\/v3\/myAccount\/accountNu
 assert.match(worker,/"access_token":key/);
 assert.match(worker,/chargesCreated:0/);
 assert.match(worker,/const admin=await currentAdmin\(request,env\)/);
-assert.match(worker,/if\(url\.pathname==="\/api\/pagamento"&&request\.method==="POST"\)return criarPagamentoPix\(request,env,ctx\)/);
-assert.match(worker,/if\(url\.pathname==="\/api\/pagamento\/cartao"&&request\.method==="POST"\)return criarPagamentoCartao\(request,env\)/);
+assert.match(worker,/if\(url\.pathname==="\/api\/pagamento"&&request\.method==="POST"\)return (?:criarPagamentoPix\(request,env,ctx\)|monitorPaymentStage\(await criarPagamentoPix\(request,env,ctx\),env,ctx,"pix_created"\))/);
+assert.match(worker,/if\(url\.pathname==="\/api\/pagamento\/cartao"&&request\.method==="POST"\)return (?:criarPagamentoCartao\(request,env\)|monitorPaymentStage\(await criarPagamentoCartao\(request,env\),env,ctx,"card_created"\))/);
 assert.doesNotMatch(page,/\bASAAS_API_KEY\b/);
 assert.doesNotMatch(page,/api\.asaas\.com/);
 console.log('ASAAS transparente: PIX, crédito tokenizado, 3/6/12x, segurança e ausência de redirecionamento — PASS');
