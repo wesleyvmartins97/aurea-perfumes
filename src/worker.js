@@ -116,7 +116,7 @@ export default{async fetch(request,env,ctx){
  if(env.ASSETS)return servirAssets(request,env);
  return new Response("VALENZA",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8"}});
 },
-async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileUncertainPayments(env),reconcileStalePixReservations(env),asaasBridge.cron(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),processCheckoutRecovery(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
+async scheduled(controller,env,ctx){ctx.waitUntil(Promise.all([reconcileUncertainPayments(env),reconcileStalePixReservations(env),asaasBridge.cron(env),cleanupExpiredPendingCustomers(env),retryPendingSaleNotifications(env),sendInitialNtfyTest(env),retryPendingOperationalEmails(env),retryPendingOperationalErrorAlerts(env),processCheckoutRecovery(env),syncShipmentTracking(env),maybeSendDailyReport(env)]))}
 };
 
 let authSchemaReady=null;
@@ -914,6 +914,7 @@ async function orderBelongsToAdmin(env,row){
  }
  return false
 }
+async function sendInitialNtfyTest(env){if(!env.NTFY_TOPIC)return;try{await import('./notifications/ntfy.mjs').then(m=>m.sendValenzaNtfy(env,{kind:'test',id:'first-install'}))}catch(e){console.error('ntfy test:',e)}}
 async function ctxNtfyAfterSale(env,id){return import('./notifications/ntfy.mjs').then(m=>m.sendValenzaNtfy(env,{kind:'sale',id}))}
 async function notifyPaidOrder(env,orderId){
  try{
