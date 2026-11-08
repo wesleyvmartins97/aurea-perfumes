@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { webcrypto } from 'node:crypto';
+import {verifyResendInboxWebhook,handleResendInboxAlert} from '../src/notifications/resend-inbox-whatsapp.mjs';
+if(!globalThis.crypto)globalThis.crypto=webcrypto;
+const secret='whsec_'+Buffer.from('local test secret value').toString('base64');
+const raw=JSON.stringify({type:'inbox.email.received',created_at:new Date().toISOString(),data:{inbox_id:'98635c0f-8652-4196-9fc4-cae963faa9ca',email_id:'test-id',email:{from:'sender@example.com',subject:'Example'}}});
+const timestamp=Math.floor(Date.now()/1000),id='msg_test_1';
+const key=await crypto.subtle.importKey('raw',Buffer.from('local test secret value'),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+const signed=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(id+'.'+timestamp+'.'+raw)));
+const headers=new Headers({'svix-id':id,'svix-timestamp':String(timestamp),'svix-signature':'v1,'+Buffer.from(signed).toString('base64')});
+assert.equal(await verifyResendInboxWebhook(raw,headers,secret),true);
+assert.equal(await verifyResendInboxWebhook(raw+' ',headers,secret),false);
+assert.equal(await verifyResendInboxWebhook(raw,new Headers({...Object.fromEntries(headers),'svix-timestamp':String(timestamp-3600)}),secret),false);
+assert.equal((await handleResendInboxAlert(new Request('https://valenzaparfums.com.br/api/notifications/resend/inbox',{method:'POST',headers,body:raw}),{RESEND_INBOX_WEBHOOK_SECRET:secret})).status,200);
+assert.equal((await handleResendInboxAlert(new Request('https://valenzaparfums.com.br/api/notifications/resend/inbox',{method:'POST',body:raw}),{RESEND_INBOX_WEBHOOK_SECRET:secret})).status,401);
+assert.equal((await handleResendInboxAlert(new Request('https://valenzaparfums.com.br/api/notifications/resend/inbox',{method:'POST',body:raw}),{})).status,503);
+console.log('Resend webhook: assinatura, replay window, rejeicao e modo seguro PASS');
