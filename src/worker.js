@@ -924,7 +924,7 @@ async function notifyPaidOrder(env,orderId){
   if(Number(ins.meta?.changes||0)<1)return;
   const n=await env.DB.prepare("SELECT id FROM admin_notifications WHERE unique_key=?").bind(key).first();
   if(!n)return;
-  const [sentEmail,sentWhatsApp]=await Promise.all([sendAdminSaleEmail(env,row),sendAdminSaleWhatsApp(env,row,n.id)]);
+  const [sentEmail,sentWhatsApp]=await Promise.all([sendAdminSaleEmail(env,row),sendAdminSaleWhatsApp(env,row,n.id),import('./notifications/ntfy.mjs').then(m=>m.sendValenzaNtfy(env,{kind:'sale',id:n.id}))]);
   if(sentEmail.ok)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
   if(sentWhatsApp.configured&&!sentWhatsApp.ok)console.error("WhatsApp de venda ficou pendente para retry:",id,sentWhatsApp.failed);
  }catch(e){console.error("Notificação compra:",e)}
@@ -940,6 +940,10 @@ async function retryPendingSaleNotifications(env){
    if(sent.ok)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
   }
   await retryPendingSaleWhatsApp(env);
+  if(env.NTFY_TOPIC){
+   const pending=await env.DB.prepare("SELECT n.id FROM admin_notifications n LEFT JOIN admin_ntfy_deliveries d ON d.notification_key=('sale:'||n.id) WHERE n.type='sale' AND (d.status IS NULL OR (d.status='failed' AND d.attempts<4)) ORDER BY n.created_at DESC LIMIT 10").all().catch(()=>({results:[]}));
+   for(const n of (pending.results||[]))await import('./notifications/ntfy.mjs').then(m=>m.sendValenzaNtfy(env,{kind:'sale',id:n.id}));
+  }
  }catch(e){console.error("Retry aviso venda:",e)}
 }
 async function adminNotificationsPoll(request,env){
