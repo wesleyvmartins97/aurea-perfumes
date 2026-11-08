@@ -26,7 +26,7 @@ const start=bridge.slice(begin,end);
 assert.ok(start.indexOf('await restorePaymentAttempt(')<start.indexOf('ctx.waitUntil('),'O pedido deve ser persistido antes do e-mail');
 assert.ok(start.indexOf('ctx.waitUntil(')<start.indexOf('await gw.getPix('),'O QR não pode esperar o serviço de e-mails');
 assert.match(start,/else await customerEmail\(\)/,'Fallback seguro sem contexto do Worker');
-assert.match(worker,/return criarPagamentoPix\(request,env,ctx\)/);
+assert.match(worker,/return (?:criarPagamentoPix\(request,env,ctx\)|monitorPaymentStage\(await criarPagamentoPix\(request,env,ctx\),env,ctx,"pix_created"\))/);
 assert.match(worker,/async function criarPagamentoPix\(request,env,ctx\)/);
 assert.match(worker,/releaseReservation,ctx\}/);
 assert.match(worker,/shipping\/quote/,'O frete segue validado no checkout');
