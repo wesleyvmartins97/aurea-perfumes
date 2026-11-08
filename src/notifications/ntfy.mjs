@@ -1,5 +1,21 @@
 // Only generic operational alerts may be sent through ntfy.sh.
 // Public ntfy topics are NOT access-controlled and must never receive customer data.
+// ntfy.sh may reject Cloudflare shared egress IPs. Email-to-topic is the
+// official ntfy alternative, using the store's already-configured Resend key.
+async function publishNtfyViaResend(env,topic,payload,key){
+ if(!env.RESEND_API_KEY)return {ok:false,error:'resend_unconfigured'};
+ const from=String(env.AUREA_EMAIL_FROM||'VALENZA PARFUMS <contato@valenzaparfums.com.br>');
+ const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{
+  'Authorization':'Bearer '+String(env.RESEND_API_KEY),
+  'Content-Type':'application/json',
+  'Idempotency-Key':('ntfy-'+key).slice(0,200)
+ },body:JSON.stringify({
+  from,to:['ntfy-'+topic+'@ntfy.sh'],subject:payload.title,
+  text:payload.message
+ })});
+ if(!r.ok)throw Error('resend_to_ntfy HTTP '+r.status+' '+(await r.text()).slice(0,120));
+ return {ok:true,via:'email'};
+}
 export async function sendValenzaNtfy(env,{kind,id}){
  const topic=String(env.NTFY_TOPIC||'').trim();
  if(!/^[a-zA-Z0-9_-]{24,64}$/.test(topic))return {ok:false,reason:'not_configured'};
@@ -15,10 +31,18 @@ export async function sendValenzaNtfy(env,{kind,id}){
  if(!row)await env.DB.prepare('INSERT OR IGNORE INTO admin_ntfy_deliveries(notification_key,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?)').bind(key,'pending',0,now,now).run();
  try{
   // No message body, email sender, subject, customer details or payment values leave the Worker.
-  const res=await fetch('https://ntfy.sh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,...payload})});
-  if(!res.ok)throw Error('ntfy status '+res.status+' '+(await res.text()).slice(0,120));
+  let result={ok:true,via:'http'};
+  try{
+   const res=await fetch('https://ntfy.sh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,...payload}),signal:AbortSignal.timeout(12000)});
+   if(!res.ok)throw Error('ntfy HTTP '+res.status+' '+(await res.text()).slice(0,120));
+  }catch(directError){
+   // A failed direct request is retried once through Resend's SMTP delivery.
+   // Content is always generic; no customer names, order or email details.
+   console.warn('ntfy direct failed; trying email delivery:',String(directError).slice(0,130));
+   result=await publishNtfyViaResend(env,topic,payload,key);
+  }
   await env.DB.prepare("UPDATE admin_ntfy_deliveries SET status='sent',attempts=attempts+1,updated_at=? WHERE notification_key=?").bind(now,key).run();
-  return {ok:true};
+  return result;
  }catch(error){
   await env.DB.prepare("UPDATE admin_ntfy_deliveries SET status='failed',attempts=attempts+1,updated_at=? WHERE notification_key=?").bind(now,key).run();
   console.error('Aviso ntfy nao entregue:',kind,String(error).slice(0,180));
