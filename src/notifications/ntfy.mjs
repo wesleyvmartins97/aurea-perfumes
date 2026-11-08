@@ -31,15 +31,16 @@ export async function sendValenzaNtfy(env,{kind,id}){
  if(!row)await env.DB.prepare('INSERT OR IGNORE INTO admin_ntfy_deliveries(notification_key,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?)').bind(key,'pending',0,now,now).run();
  try{
   // No message body, email sender, subject, customer details or payment values leave the Worker.
-  let result={ok:true,via:'http'};
+  let result={ok:true,via:'email'};
   try{
-   const res=await fetch('https://ntfy.sh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,...payload}),signal:AbortSignal.timeout(12000)});
-   if(!res.ok)throw Error('ntfy HTTP '+res.status+' '+(await res.text()).slice(0,120));
-  }catch(directError){
-   // A failed direct request is retried once through Resend's SMTP delivery.
-   // Content is always generic; no customer names, order or email details.
-   console.warn('ntfy direct failed; trying email delivery:',String(directError).slice(0,130));
+   // Prefer the Resend gateway: direct Cloudflare -> ntfy.sh egress has
+   // documented IP bans, and HTTP retries could slow payment confirmation.
    result=await publishNtfyViaResend(env,topic,payload,key);
+  }catch(emailError){
+   console.warn('Resend-to-ntfy failed; trying direct HTTP:',String(emailError).slice(0,130));
+   const res=await fetch('https://ntfy.sh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,...payload}),signal:AbortSignal.timeout(6000)});
+   if(!res.ok)throw Error('ntfy HTTP '+res.status+' '+(await res.text()).slice(0,120));
+   result={ok:true,via:'http'};
   }
   await env.DB.prepare("UPDATE admin_ntfy_deliveries SET status='sent',attempts=attempts+1,updated_at=? WHERE notification_key=?").bind(now,key).run();
   return result;
