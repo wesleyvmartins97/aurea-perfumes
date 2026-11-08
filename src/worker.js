@@ -48,7 +48,7 @@ export default{async fetch(request,env,ctx){
  if(request.method==="GET"&&url.pathname.startsWith("/media/site/"))return siteVisualAsset(request,env,url.pathname.slice("/media/site/".length));
  if(request.method==="GET"&&(url.pathname==="/merchant-feed.xml"||url.pathname==="/google-merchant.xml"))return dynamicMerchantFeed(request,env);
  if(request.method==="GET"&&url.pathname==="/sitemap.xml")return dynamicSitemap(request,env);
- if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env);
+ if(url.pathname==="/api/analytics/event"&&request.method==="POST")return analyticsEvent(request,env,ctx);
  if(url.pathname==="/api/analytics/location"&&request.method==="POST")return analyticsLocation(request,env);
  if(url.pathname==="/api/opportunities/sync"&&request.method==="POST")return opportunitySync(request,env);
  if(url.pathname==="/api/auth/register"&&request.method==="POST")return authRegister(request,env);
@@ -109,8 +109,8 @@ export default{async fetch(request,env,ctx){
  if(url.pathname==="/api/pagamento/webhook"&&request.method==="POST")return webhookMercadoPago(request,env,ctx);
  if(url.pathname==="/api/asaas/webhook"&&request.method==="POST")return asaasBridge.webhook(request,env,ctx);
  if(url.pathname==="/api/pagamento/config"&&request.method==="GET"){const mp=mpConfig(env);return resposta({ok:true,cardEnabled:Boolean(mp.publicKey),publicKey:mp.publicKey||"",testMode:mp.testMode,pixGateway:asaasPixEnabled(env)?"asaas":"mercadopago",cardGateway:"mercadopago"})}
- if(url.pathname==="/api/pagamento"&&request.method==="POST")return criarPagamentoPix(request,env,ctx);
- if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return criarPagamentoCartao(request,env);
+ if(url.pathname==="/api/pagamento"&&request.method==="POST")return monitorPaymentStage(await criarPagamentoPix(request,env,ctx),env,ctx,"pix_created");
+ if(url.pathname==="/api/pagamento/cartao"&&request.method==="POST")return monitorPaymentStage(await criarPagamentoCartao(request,env),env,ctx,"card_created");
  if(url.pathname.startsWith("/api/pagamento/")&&request.method==="GET")return consultarPagamento(request,url.pathname.slice("/api/pagamento/".length).trim(),env);
  if(url.pathname==="/admin"||url.pathname.startsWith("/admin/"))return new Response("Not Found",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","X-Robots-Tag":"noindex, nofollow, noarchive"}});
  if(env.ASSETS)return servirAssets(request,env);
@@ -348,7 +348,26 @@ async function metaEvent(request,env){
 }
 
 function analyticsText(v,max=120){return String(v||"").trim().slice(0,max)}
-async function analyticsEvent(request,env){
+// Push notifications are best-effort and cannot change checkout responses.
+function queueValenzaNtfy(env,ctx,kind,id){
+ if(!env.NTFY_TOPIC||!id||!ctx||typeof ctx.waitUntil!=="function")return;
+ const task=import('./notifications/ntfy.mjs').then(m=>m.sendValenzaNtfy(env,{kind,id})).catch(e=>console.error('Push aviso '+kind+':',String(e).slice(0,140)));
+ ctx.waitUntil(task);
+}
+async function monitorPaymentStage(response,env,ctx,kind){
+ if(!env.NTFY_TOPIC||!response?.ok)return response;
+ try{
+  const result=await response.clone().json();
+  const orderId=String(result?.orderId||'');
+  if(!result?.ok||!orderId)return response;
+  const status=String(result?.status||'').toLowerCase();
+  // Rejected/failed credit card attempts are not counted as successful orders.
+  if(kind==="card_created"&&(/fail|reject|cancel|recusad/.test(status)))return response;
+  queueValenzaNtfy(env,ctx,kind,orderId);
+ }catch(e){console.error('Aviso etapa de pagamento:',String(e).slice(0,100))}
+ return response;
+}
+async function analyticsEvent(request,env,ctx){
  try{
   await ensureAuthSchema(env);
   const origin=request.headers.get("Origin")||"";
@@ -363,6 +382,8 @@ async function analyticsEvent(request,env){
   const cf=request.cf||{},pagePath=analyticsText(d.pagePath,300),value=Math.max(0,Math.min(1000000,Number(d.value)||0)),now=new Date().toISOString();
   await env.DB.prepare("INSERT OR IGNORE INTO analytics_events(id,event_key,visitor_id,session_id,event_name,page_path,product_id,product_name,value,transaction_id,source,medium,campaign,referrer_host,country,region,region_code,city,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
    .bind(crypto.randomUUID(),eventKey,visitorId,sessionId,eventName,pagePath.startsWith("/")?pagePath:"/",analyticsText(d.productId),analyticsText(d.productName),value,transactionId,analyticsText(d.source,80),analyticsText(d.medium,80),analyticsText(d.campaign,120),analyticsText(d.referrerHost,160),analyticsText(cf.country,8),analyticsText(cf.region,100),analyticsText(cf.regionCode,20),analyticsText(cf.city,120),now).run();
+  // One interest notification per analytics session, never per item clicked.
+  if(eventName==="add_to_cart"&&Number(eventInsert.meta?.changes||0)>0)queueValenzaNtfy(env,ctx,"cart",sessionId);
   return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
  }catch(e){console.error("Analytics event:",e);return resposta({ok:false},500)}
 }
