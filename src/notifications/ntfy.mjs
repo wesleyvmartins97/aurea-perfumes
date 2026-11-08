@@ -15,7 +15,7 @@ export async function sendValenzaNtfy(env,{kind,id}){
  if(!row)await env.DB.prepare('INSERT OR IGNORE INTO admin_ntfy_deliveries(notification_key,status,attempts,created_at,updated_at) VALUES(?,?,?,?,?)').bind(key,'pending',0,now,now).run();
  try{
   // No message body, email sender, subject, customer details or payment values leave the Worker.
-  const res=await fetch('https://ntfy.sh/'+topic,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const res=await fetch('https://ntfy.sh/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,...payload})});
   if(!res.ok)throw Error('ntfy status '+res.status);
   await env.DB.prepare("UPDATE admin_ntfy_deliveries SET status='sent',attempts=attempts+1,updated_at=? WHERE notification_key=?").bind(now,key).run();
   return {ok:true};
