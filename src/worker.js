@@ -926,7 +926,7 @@ async function notifyPaidOrder(env,orderId){
   const n=await env.DB.prepare("SELECT id FROM admin_notifications WHERE unique_key=?").bind(key).first();
   if(!n)return;
   const [sentEmail,sentWhatsApp]=await Promise.all([sendAdminSaleEmail(env,row),sendAdminSaleWhatsApp(env,row,n.id)]);
-  if(env.NTFY_TOPIC)ctxNtfyAfterSale(env,n.id).catch(e=>console.error('ntfy sale:',e));
+  if(env.NTFY_TOPIC)await ctxNtfyAfterSale(env,n.id).catch(e=>console.error('ntfy sale:',e));
   if(sentEmail.ok)await env.DB.prepare("UPDATE admin_notifications SET email_sent=1 WHERE id=?").bind(n.id).run();
   if(sentWhatsApp.configured&&!sentWhatsApp.ok)console.error("WhatsApp de venda ficou pendente para retry:",id,sentWhatsApp.failed);
  }catch(e){console.error("Notificação compra:",e)}
