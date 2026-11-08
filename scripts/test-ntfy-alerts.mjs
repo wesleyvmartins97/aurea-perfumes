@@ -18,5 +18,20 @@ try{
  assert.equal((await sendValenzaNtfy(env,{kind:'email',id:'mail-abc'})).ok,true);
  assert.equal(requests.length,3);
  assert.equal((await sendValenzaNtfy({...env,NTFY_TOPIC:undefined},{kind:'sale',id:'x'})).ok,false);
+ // Cloudflare-to-ntfy egress failure must use the existing Resend account.
+ env.RESEND_API_KEY='test-key';
+ globalThis.fetch=async(url,init)=>{
+  if(url==='https://ntfy.sh/')return new Response('error code: 522',{status:522});
+  if(url==='https://api.resend.com/emails'){requests.push({url,body:JSON.parse(init.body),headers:init.headers});return new Response(JSON.stringify({id:'test-resend'}),{status:200})}
+  throw Error('unexpected URL');
+ };
+ const fallback=await sendValenzaNtfy(env,{kind:'email',id:'email-fallback-test'});
+ assert.equal(fallback.ok,true);
+ assert.equal(fallback.via,'email');
+ const last=requests.at(-1);
+ assert.equal(last.url,'https://api.resend.com/emails');
+ assert.equal(last.body.to[0],'ntfy-'+env.NTFY_TOPIC+'@ntfy.sh');
+ assert.ok(!JSON.stringify(last.body).includes('email-fallback-test'));
+ assert.equal((await sendValenzaNtfy(env,{kind:'email',id:'email-fallback-test'})).alreadySent,true);
  console.log('ntfy: JSON endpoint, privacidade, idempotencia, teste e aviso de email PASS');
 }finally{globalThis.fetch=original}
