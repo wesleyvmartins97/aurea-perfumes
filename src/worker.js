@@ -1,5 +1,4 @@
 import {catalogPageHtml} from './catalog-page.mjs';
-import {handleResendInboxAlert} from './notifications/resend-inbox-whatsapp.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
 import {asaasPixEnabled,asaasReady} from './payments/asaas-prod.mjs';
 import {createValenzaAsaasBridge} from './payments/asaas-valenza.mjs';
@@ -36,7 +35,7 @@ export default{async fetch(request,env,ctx){
  if((request.method==="GET"||request.method==="HEAD")&&/^\/(?:carrinho|checkout|minha-conta(?:\/(?:pedidos|rastreamentos|enderecos|dados|administracao))?)$/.test(url.pathname)){const target=new URL(request.url);target.pathname+='/';return Response.redirect(target.toString(),308)}
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:jsonHeaders});
  if(request.method==="GET"&&(/^\/(?:src|scripts|docs|\.git)(?:\/|$)/i.test(url.pathname)||/^\/(?:wrangler(?:\.jsonc)?|AGENTS\.md)$/i.test(url.pathname)))return new Response("Not Found",{status:404,headers:{"Content-Type":"text/plain; charset=UTF-8","Cache-Control":"no-store",...securityHeaders}});
- if(url.pathname==="/api/notifications/resend/inbox"&&request.method==="POST")return handleResendInboxAlert(request,env);
+ if(url.pathname==="/api/notifications/resend/inbox"&&request.method==="POST")return import("./notifications/resend-inbox-whatsapp.mjs").then(m=>m.handleResendInboxAlert(request,env));
  if(url.pathname==="/api/health"&&request.method==="GET")return resposta({ok:true,service:"aurea-perfumes",timestamp:new Date().toISOString()});
  if(request.method==="GET"&&PRODUCT_IMAGE_SOURCES[url.pathname])return productCatalogImage(request,url.pathname);
  if(url.pathname==="/api/google/config"&&request.method==="GET"){const measurementId=String(env.GA4_MEASUREMENT_ID||"").trim(),valid=/^G-[A-Z0-9]+$/i.test(measurementId);return resposta({ok:true,enabled:valid,measurementId:valid?measurementId:""})}
