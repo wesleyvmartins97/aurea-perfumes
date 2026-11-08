@@ -34,6 +34,7 @@ export async function handleResendInboxAlert(request,env){
  if(String(d.inbox_id||'')!=='98635c0f-8652-4196-9fc4-cae963faa9ca'||!String(d.email_id||'').trim())return response(200,'Ignored');
  const email={from:d.email?.from||d.from,subject:d.email?.subject||d.subject,received_at:d.email?.received_at||event.created_at};
  // The email body and links are intentionally never fetched or executed.
+ if(env.NTFY_TOPIC)await import('./ntfy.mjs').then(m=>m.sendValenzaNtfy(env,{kind:'email',id:String(d.email_id)}));
  const cfg=config(env);
  if(!cfg.ready)return response(200,'Received; WhatsApp setup pending');
  await env.DB.prepare('CREATE TABLE IF NOT EXISTS admin_inbox_whatsapp_alerts (email_id TEXT NOT NULL,recipient_hash TEXT NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(email_id,recipient_hash))').run();
