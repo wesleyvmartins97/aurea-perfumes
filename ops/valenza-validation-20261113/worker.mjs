@@ -1607,6 +1607,7 @@ const VQ_SOURCE="https://www.comprasparaguai.com.br";
 function vqNormal(value){
  return String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().slice(0,130);
 }
+function vqAliasName(name){return vqWords(String(name||"").replace(/\b\d{2,3}\s*ml\b/gi,"")).join("-")}
 function vqKey(name,volume){return VQ_PREFIX+"offer:"+vqNormal(name).replace(/\s+/g,"-")+":"+Number(volume)}
 function vqMoney(v){return Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
 function vqPrice(usd,margin=40){
@@ -1636,12 +1637,12 @@ async function vqExtract(env,msg,history=[]){
   if(!found)return null;
   parsed=JSON.parse(found[0]);
  }catch{return null}
- const name=String(parsed?.name||"").trim().slice(0,95);
+ const name=String(parsed?.name||"").trim().replace(/^(?:(?:o|a|um|uma)\s+)?(?:perfume|fragr[aâ]ncia)\s+/i,"").slice(0,95);
  const volume=Number(parsed?.volume||0);
  const expanded=vqNormal(context).replace(/\s+/g,"");
  const check=vqNormal(name).replace(/\s+/g,"");
  if(!name||name.length<3||check.length<3||!expanded.includes(check))return null;
- if(!vqaIdentityWords(name,volume).length||/^(?:perfume|fragrancia|um perfume|doce|floral|para minha esposa)/i.test(name))return null;
+ if(!vqaIdentityWords(name,volume).length||/^(?:perfume|fragrancia|um perfume|doce|floral|para minha esposa)$/i.test(name))return null;
  return{name,volume:Number.isInteger(volume)&&volume>=10&&volume<=250?volume:0};
 }
 async function vqCatalog(env,name,volume){
@@ -1764,7 +1765,7 @@ async function vqaRead(env,url){
  return vqaParse(value);
 }
 async function vqaFind(env,name,volume){
- const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),"json");
+ const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(name),"json");
  if(alias?.offerPolicy==="exact-offer-v2"&&alias?.validUntil>Date.now()&&Number(alias.volume)===Number(volume)&&vqaMatch(name,volume,alias.name))return alias;
  const key=VQA_PREFIX+"auto:"+vqNormal(name).replace(/\s+/g,"-")+":"+volume;
  const cached=await env.PRIVATE_KV.get(key,"json");
@@ -1786,7 +1787,7 @@ async function vqaFind(env,name,volume){
  const price=vqPrice(Number(offer.preco_dolar),40);
  const q={name:details.nome,volume:Number(volume),usd:Number(offer.preco_dolar),salePrice:price.price,pixPrice:price.pix,store:offer.loja.nome,productUrl:"https://www.comprasparaguai.com.br"+model.link,verifiedAt:new Date().toISOString(),sourceLastUpdate:details.data_ultima_disponibilidade,validUntil:Date.now()+21600000,preliminary:true,offerPolicy:"exact-offer-v2"};
  await env.PRIVATE_KV.put(key,JSON.stringify(q),{expirationTtl:3600});
- await env.PRIVATE_KV.put(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),JSON.stringify(q),{expirationTtl:3600});
+ await env.PRIVATE_KV.put(VQA_PREFIX+"verified-name:"+vqAliasName(name),JSON.stringify(q),{expirationTtl:3600});
  return q;
 }
 async function vqaReply(env,name,volume){
@@ -1940,7 +1941,7 @@ function vcNameCandidates(name,volume,rows){
  });
 }
 async function vcQueryMissingVolume(env,name){
- const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),"json");
+ const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(name),"json");
  if(alias?.offerPolicy==="exact-offer-v2"&&alias?.validUntil>Date.now()&&vqaMatch(name,alias.volume,alias.name))return{status:"quote",offer:alias};
  const searchName=String(name).replace(/\b(?:eau de parfum|eau de toilette|edp|edt)\b/gi,"").replace(/\b\d{2,3}\s*ml\b/gi,"").replace(/\s+/g," ").trim();
  const res=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(searchName));
@@ -1966,7 +1967,7 @@ async function vcPrepareQuote(env,name,volume){
    const salePrice=Math.max(Number(q.salePrice),Number(market?.price||0));
    const pixPrice=Number((salePrice*(1-VQ_PIX_DISCOUNT)).toFixed(2));
    const finalOffer={...q,salePrice,pixPrice,pricingPolicy:'br-average-v3',marketVerified:market?.marketVerified===true,market:market||null};
-   await env.PRIVATE_KV.put(VQA_PREFIX+'verified-name:'+vqWords(name).join('-'),JSON.stringify(finalOffer),{expirationTtl:3600});
+   await env.PRIVATE_KV.put(VQA_PREFIX+'verified-name:'+vqAliasName(name),JSON.stringify(finalOffer),{expirationTtl:3600});
    return{status:"quote",photo:{name:q.name,volume:q.volume,productUrl:q.productUrl},text:"Consegui conferir o "+q.name+"! A estimativa fica em "+vqMoney(salePrice)+" (ou "+vqMoney(pixPrice)+" no Pix). 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Gostou dessa opção?"};
   }
   return{status:"unverified",text:"Procurei esse perfume, mas ainda não consegui confirmar uma oferta confiável. 💛 Posso encaminhar para nossa equipe conferir a versão e a disponibilidade com você."};
@@ -2063,6 +2064,10 @@ async function vcCatalogAbbreviation(env,message){
  if(!candidates.length)return null;const names=candidates.map(p=>vcDisplay(p.id));return{type:'draft',text:names.length===1?'Você quer o '+names[0]+'? Me confirma para eu te passar o valor da versão certa. 💛':'Essa abreviação pode ser '+names.join(' ou ')+'. Qual deles você procura? 💛'};
 }
 
+function vcExplicitProduct(message){
+ const m=String(message||'').match(/\b(?:perfume|fragr[aâ]ncia)\s+([^?!;\n]{3,110}?)\s+(\d{2,3})\s*ml\b(?:\s+(EDP|EDT)\b)?/i);if(!m)return null;
+ const volume=Number(m[2]);if(volume<10||volume>250)return null;const name=m[1].trim()+(m[3]?' '+m[3].toUpperCase():'');if(vqaIdentityWords(name,volume).length<1)return null;return{name,volume};
+}
 async function vcIncoming(env,message,history,chatId,recipient,messageId){
  const txt=vliTxt(message);
  const normalized=vcPlain(txt);
@@ -2079,14 +2084,15 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
   const quick=await vcFastCatalog(env,txt,switching?[]:history);if(quick)return {draft:quick,pending:null};
   const abbreviated=await vcCatalogAbbreviation(env,txt);if(abbreviated)return{draft:abbreviated,pending:null};
   const generic=/baunilha|docinho|doce|floral|amadeirad|minha esposa|meu marido|indica|opcoes|sugest|recomend|edt|edp/.test(normalized)&&!/(?:tem|preco|valor|custa|ml|lattafa|armaf|dior|chanel|eclaire|million)/.test(normalized);
-  if(!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,!switching&&/preco|valor|custa|ml|versao|tamanho/.test(normalized)?history:[])}catch{}}
+  product=vcExplicitProduct(txt);
+  if(!product&&!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,!switching&&/preco|valor|custa|ml|versao|tamanho/.test(normalized)?history:[])}catch{}}
  }
  if(product?.name){
   product.name=product.name.replace(/\bsuga\b/gi,"Sugar");
   const found=await vcCatalogCheckForQuote(env,product);
   if(found.status==="in_catalog"&&found.draft)return{draft:found.draft,pending:null};
   if(found.status==="off_catalog"){
-   const recent=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(product.name).join("-"),"json");
+   const recent=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(product.name),"json");
    if(recent?.offerPolicy==="exact-offer-v2"&&recent?.validUntil>Date.now()&&recent.pricingPolicy==="br-average-v3"&&(!product.volume||Number(product.volume)===Number(recent.volume))&&vqaMatch(product.name,recent.volume,recent.name))return{draft:{type:"draft",photo:{name:recent.name,volume:recent.volume,productUrl:recent.productUrl},text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
    const waiting={at:new Date().toISOString(),stage:"queued",sourceMessage:String(messageId),chatId:String(chatId),recipient:String(recipient),name:product.name,volume:Number(product.volume)||0};
    return{draft:{type:"draft",text:"Só um minutinho, vou conferir o "+product.name+(product.volume?" de "+product.volume+" ml":"")+" e já volto com as opções certinhas pra você! 💛"},pending:waiting};
