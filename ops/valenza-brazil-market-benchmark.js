@@ -115,7 +115,7 @@ function vbmDecide(minimumPrice,offers){
  const difference=low-floor;
  // For a large difference, target R$30 under the cheapest retailer; else R$20 or R$10.
  const discount=difference>=45?30:difference>=32?20:difference>=21?10:0;
- const target=discount?Number((Math.floor((low-discount-9.9)/10)*10+9.9).toFixed(2)):floor;
+ const target=discount?Number((Math.ceil((low-discount-9.9)/10)*10+9.9).toFixed(2)):floor;
  const price=Math.max(floor,target);
  return{price,competitive:price<low,cheapest:low,mean:Number((offers.reduce((sum,x)=>sum+Number(x.price),0)/3).toFixed(2)),discountBelowCheapest:Number(Math.max(0,low-price).toFixed(2)),reason:price>=low?"price_floor_above_competitor":"perfumery_market_benchmark"};
 }
