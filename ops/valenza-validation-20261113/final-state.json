@@ -1,0 +1,17 @@
+{
+  "version": [
+    {
+      "version_id": "9207bda7-87cf-4531-978c-a7b0de9a5bbc",
+      "percentage": 100
+    }
+  ],
+  "sourceHash": "44da5df86d60a0b6b9aa5ff3db35d6d96efe733d4c91fe4c2e94e7bf01fbefcf",
+  "install": {
+    "at": "2026-11-13T20:20:00.753Z",
+    "stage": "complete",
+    "app": true,
+    "page": true,
+    "verified": true,
+    "instagram": true
+  }
+}

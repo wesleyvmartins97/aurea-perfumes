@@ -1518,6 +1518,13 @@ async function vliInstallWebhook(env){
    const out=await res.json();
    if(!res.ok||out.success===false)throw Error("Meta recusou assinatura do aplicativo ("+String(out.error?.code||res.status)+") "+String(out.error?.message||"").slice(0,105));
   }
+  const instagram=subs.find(x=>x.object==="instagram");
+  if(instagram&&instagram.callback_url!==BASE+"/webhooks/valenza-direct")throw Error("Existe webhook Instagram em outro endereço; integração preservada para revisão");
+  if(!instagram||!(instagram.fields||[]).some(x=>x.name==="messages")){
+   const fields=[...(instagram?.fields||[]).map(f=>f.name),"messages"].filter((x,i,a)=>x&&a.indexOf(x)===i);
+   const res=await fetch(graph+APP_ID+"/subscriptions",{method:"POST",headers:appHeaders,body:new URLSearchParams({object:"instagram",callback_url:BASE+"/webhooks/valenza-direct",verify_token:verify,fields:fields.join(",")}),signal:AbortSignal.timeout(25000)});
+   const out=await res.json();if(!res.ok||out.success===false)throw Error("Meta recusou webhook Instagram ("+String(out.error?.code||res.status)+") "+String(out.error?.message||"").slice(0,105));
+  }
   summary.app=true;summary.stage="page";
   await env.PRIVATE_KV.put(stateKey,JSON.stringify(summary));
   const raw=await env.PRIVATE_KV.get(VLI+"page_token");
@@ -1539,7 +1546,8 @@ async function vliInstallWebhook(env){
   const fa=await finalApp.json();
   const appInstalled=Array.isArray(fa.data)&&fa.data.some(x=>x.object==="page"&&x.callback_url===BASE+"/webhooks/valenza-direct"&&(x.fields||[]).some(f=>f.name==="messages"));
   const pgInstalled=(finalPage.data?.data||[]).some(x=>String(x.id)===APP_ID&&(x.subscribed_fields||[]).includes("messages"));
-  summary.verified=!!(finalApp.ok&&finalPage.ok&&appInstalled&&pgInstalled);
+  summary.instagram=Array.isArray(fa.data)&&fa.data.some(x=>x.object==="instagram"&&x.callback_url===BASE+"/webhooks/valenza-direct"&&(x.fields||[]).some(f=>f.name==="messages"));
+  summary.verified=!!(finalApp.ok&&finalPage.ok&&appInstalled&&pgInstalled&&summary.instagram);
   summary.stage=summary.verified?"complete":"verification_pending";
   await env.PRIVATE_KV.put(stateKey,JSON.stringify(summary));
   if(summary.verified)await env.PRIVATE_KV.delete(VLI+"setup_requested");
@@ -2765,7 +2773,7 @@ const conciergeResult=await vliRoute(request,env,path,method);if(conciergeResult
 
  async scheduled(controller,env,ctx){
  env=vcScopedEnv(env);
- ctx.waitUntil(vcOneTimeAudit(env));ctx.waitUntil(vliSelfAudit(env));ctx.waitUntil(vliInstallWebhook(env));ctx.waitUntil((async()=>{await vcPendingQuotes(env);await vliDirectCycle(env)})());if(new Date().getUTCMinutes()%5===0){ctx.waitUntil(vgCron(env));ctx.waitUntil(vaAutoCron(env));ctx.waitUntil(vhRun(env));await ownRun(env);}return;
+ ctx.waitUntil(vcOneTimeAudit(env));ctx.waitUntil(vliSelfAudit(env));ctx.waitUntil(vliInstallWebhook(env));ctx.waitUntil(vcPendingQuotes(env));ctx.waitUntil(vliDirectCycle(env));if(new Date().getUTCMinutes()%5===0){ctx.waitUntil(vgCron(env));ctx.waitUntil(vaAutoCron(env));ctx.waitUntil(vhRun(env));await ownRun(env);}return;
  const ITEMS=[{"key":"haya","title":"HAYA PERFUME MIST","caption":"✨ HAYA PERFUME MIST | LATTAFA · 250 ML\n\nUma bruma corporal floral e frutada, com abertura efervescente, flores elegantes e uma base acolhedora. Um toque feminino para o dia a dia.\n\n🌿 PIRÂMIDE OLFATIVA\n• Saída: champanhe, morango, tangerina, laranja-sanguínea e rosa.\n• Coração: gardênia, jasmim e orquídea-baunilha.\n• Fundo: âmbar, sândalo e castanha.\n\n💗 Preço: R$ 119,90 por unidade.\n📦 Sob encomenda: preparo em até 10 dias úteis antes do transporte.\n🚚 Enviamos para todo o Brasil. Consulte o frete pelo CEP.\n\n💬 Peça pelo WhatsApp:\nhttps://wa.me/5527997962708\n\nVALENZA PARFUMS · Colatina/ES\nBody Mist de 250 ml — não confundir com Eau de Parfum.","imageOriginal":"https://static.metricool.com/planner/202611/7958226-file-10433518168040736988.png","imageUrl":"https://valenza-social-admin.aureaperfumes.workers.dev/social-assets/haya.jpg","metricoolId":421139220},{"key":"fakhar-rose","title":"FAKHAR ROSE PERFUME MIST","caption":"✨ FAKHAR ROSE PERFUME MIST | LATTAFA · 250 ML\n\nDelicado e sofisticado, combina frutas luminosas, um buquê de flores brancas e rosas e uma base macia de baunilha e almíscar.\n\n🌿 PIRÂMIDE OLFATIVA\n• Saída: frutas, lírio, romã e aldeídos.\n• Coração: tuberosa, jasmim, gardênia, ylang-ylang, madressilva, rosa e peônia.\n• Fundo: baunilha, almíscar branco, sândalo e ambroxan.\n\n💗 Preço: R$ 119,90 por unidade.\n📦 Sob encomenda: preparo em até 10 dias úteis antes do transporte.\n🚚 Enviamos para todo o Brasil. Consulte o frete pelo CEP.\n\n💬 Peça pelo WhatsApp:\nhttps://wa.me/5527997962708\n\nVALENZA PARFUMS · Colatina/ES\nBody Mist de 250 ml — não confundir com Eau de Parfum.","imageOriginal":"https://static.metricool.com/planner/202611/7958226-file-17282215950127550511.png","imageUrl":"https://valenza-social-admin.aureaperfumes.workers.dev/social-assets/fakhar-rose.jpg","metricoolId":421139244},{"key":"teriaq","title":"TERIAQ PERFUME MIST","caption":"✨ TERIAQ PERFUME MIST | LATTAFA · 250 ML\n\nUm body mist gourmand marcante, com caramelo e frutas na abertura, mel e flores no coração e uma base elegante com baunilha e notas amadeiradas.\n\n🌿 PIRÂMIDE OLFATIVA\n• Saída: caramelo, amêndoa amarga, damasco e pimenta-rosa.\n• Coração: mel, ruibarbo, flores brancas e rosa.\n• Fundo: couro, baunilha, almíscar, vetiver e ládano.\n\n💗 Preço: R$ 119,90 por unidade.\n📦 Sob encomenda: preparo em até 10 dias úteis antes do transporte.\n🚚 Enviamos para todo o Brasil. Consulte o frete pelo CEP.\n\n💬 Peça pelo WhatsApp:\nhttps://wa.me/5527997962708\n\nVALENZA PARFUMS · Colatina/ES\nBody Mist de 250 ml — não confundir com Eau de Parfum.","imageOriginal":"https://static.metricool.com/planner/202611/7958226-file-17647462259890786724.png","imageUrl":"https://valenza-social-admin.aureaperfumes.workers.dev/social-assets/teriaq.jpg","metricoolId":421139273}];
  const P="valenza:ig:bodymist-rescue:20261108:";
  const stamp=()=>new Date().toISOString();

@@ -1,0 +1,121 @@
+{
+  "evidence": {
+    "valenza:concierge:v2:one_time_audit:providers_result": {
+      "at": "2026-11-13T20:16:01.037Z",
+      "models": [
+        {
+          "name": "groq",
+          "ok": true,
+          "http": 200,
+          "model": "groq/qwen3.8-27b",
+          "timeMs": 328,
+          "example": "Bom dia! Tudo ótimo, e com você?"
+        },
+        {
+          "name": "gemini",
+          "ok": true,
+          "http": 200,
+          "model": "gemini-3.5-flash-lite",
+          "timeMs": 542,
+          "example": "Bom dia! Tudo ótimo por aqui. Como posso ajudar você a perfumar o seu dia hoje?"
+        },
+        {
+          "name": "cloudflare",
+          "ok": true,
+          "http": null,
+          "model": "@cf/openai/gpt-oss-20b",
+          "timeMs": 983,
+          "example": "Bom dia! Tudo ótimo, e você?"
+        }
+      ],
+      "discovery": {
+        "groq": {
+          "http": 200,
+          "configuredModel": "qwen/qwen3.8-27b",
+          "available": true
+        },
+        "gemini": {
+          "http": 200,
+          "configuredModel": "gemini-3.5-flash-lite",
+          "available": true
+        }
+      }
+    },
+    "valenza:concierge:v2:one_time_audit": {
+      "at": "2026-11-13T20:17:02.438Z",
+      "cases": [
+        {
+          "case": "cumprimento",
+          "type": "draft",
+          "text": "Bom dia! Tudo bem sim, e com você? 😊 No que posso te ajudar hoje?",
+          "queued": false,
+          "name": null,
+          "volume": null
+        },
+        {
+          "case": "recomendacao",
+          "type": "draft",
+          "text": "Entendi perfeitamente! Uma opção mais suave e aconchegante é o caminho ideal para ela.\nPara eu indicar a melhor escolha, ela prefere algo mais cremoso, tipo baunilha, ou gosta de fragrâncias com um toque mais floral?",
+          "queued": false,
+          "name": null,
+          "volume": null
+        },
+        {
+          "case": "produto_catalogo",
+          "type": "draft",
+          "text": "Good Girl está anunciado por R$ 829,90 ou R$ 788,40 no Pix. 💛 Confira a apresentação e disponibilidade: https://valenzaparfums.com.br/perfume/designer-good-girl/",
+          "queued": false,
+          "name": null,
+          "volume": null
+        },
+        {
+          "case": "produto_fora",
+          "type": "draft",
+          "text": "Só um minutinho, vou conferir o Lattafa Eclaire Banoffi de 100 ml e já volto com as opções certinhas pra você! 💛",
+          "queued": true,
+          "name": "Lattafa Eclaire Banoffi",
+          "volume": 100
+        }
+      ],
+      "quote": {
+        "status": "quote",
+        "text": "Consegui conferir o Perfume Lattafa Eclaire Banoffi Eau de Parfum Unissex 100ML! A estimativa fica em R$ 389,90 (ou R$ 370,40 no Pix). 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Gostou dessa opção?"
+      },
+      "health": "complete"
+    }
+  },
+  "bindings": [
+    {
+      "name": "AI",
+      "type": "ai"
+    },
+    {
+      "name": "BROWSER",
+      "type": "browser"
+    },
+    {
+      "name": "DATA_KEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "FB_APP_SECRET",
+      "type": "secret_text"
+    },
+    {
+      "name": "GEMINI_API_KEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "GROQ_API_KEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "OWNER_PIN",
+      "type": "secret_text"
+    },
+    {
+      "name": "PRIVATE_KV",
+      "type": "kv_namespace"
+    }
+  ]
+}
