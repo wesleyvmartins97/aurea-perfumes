@@ -1,33 +1,35 @@
-✔ Groq 429 falls back to Gemini without exposing provider errors (11.853959ms)
-✔ Groq 500 falls back to Gemini without exposing provider errors (4.537809ms)
-✔ Groq timeout falls back to Gemini without exposing provider errors (4.355424ms)
-✔ Groq empty falls back to Gemini without exposing provider errors (4.556817ms)
-✔ Groq and Gemini failures fall back to Cloudflare, preserving order (5.119124ms)
-✔ Cloudflare budget exhaustion does not prevent working Groq provider (3.540678ms)
-✔ Total outage throws; Direct sends human handoff without technical error (1.535571ms)
-✔ External context redacts CPF, phone, email and card and retains conversation context (0.851661ms)
-✔ Greeting with earlier preferences uses one model call, zero extraction or catalog lookup (4.463346ms)
-✔ Known catalog item uses zero AI calls; unknown 100ml is not invented (12.072658ms)
-✔ Social acknowledgements never cancel a pending quote; explicit cancellation does (1.123591ms)
-✔ Request-scoped cache coalesces stable reads and invalidates on write; locks never cached (3.911396ms)
-✔ Idle diagnostics suppress recurring writes; changes persist immediately (3.826639ms)
-✔ Pending quote completes after thanks and stale running stage recovers; sending never auto-retries (3.623533ms)
-✔ Commercial floor preserves 40% after 5% Pix discount (0.848787ms)
-✔ Scheduler social publishing functions preserved byte-for-byte (0.496718ms)
-✔ Duplicate already-attempted message is not sent again after restart (3.772667ms)
-✔ Human requests and outage handoff do not expose technical errors (4.736938ms)
-✔ Webhook refuses invalid signatures and accepts signed harmless fixture without sending (8.416897ms)
-✔ Webhook setup adds Instagram messages object and preserves existing Page subscription (1.678736ms)
-✔ Durable claim serializes concurrent attempts and survives object restart (2.296766ms)
-✔ Targeted webhook reads one mapped conversation without scanning inbox or repeating permission request (4.509906ms)
-✔ Accepting human handoff never restarts the earlier product quote (3.284933ms)
-✔ Verified recent quote supplies exact known size when customer omitted volume (1.380207ms)
-✔ Recent verified quote replies immediately instead of queuing the same research again (1.632116ms)
-ℹ tests 25
+✔ Groq 429 falls back to Gemini without exposing provider errors (11.562942ms)
+✔ Groq 500 falls back to Gemini without exposing provider errors (3.979608ms)
+✔ Groq timeout falls back to Gemini without exposing provider errors (4.298355ms)
+✔ Groq empty falls back to Gemini without exposing provider errors (4.208962ms)
+✔ Groq and Gemini failures fall back to Cloudflare, preserving order (5.588457ms)
+✔ Cloudflare budget exhaustion does not prevent working Groq provider (1.051905ms)
+✔ Total outage throws; Direct sends human handoff without technical error (1.505424ms)
+✔ External context redacts CPF, phone, email and card and retains conversation context (3.464608ms)
+✔ Greeting with earlier preferences uses one model call, zero extraction or catalog lookup (3.997294ms)
+✔ Known catalog item uses zero AI calls; unknown 100ml is not invented (12.054829ms)
+✔ Social acknowledgements never cancel a pending quote; explicit cancellation does (2.986261ms)
+✔ Request-scoped cache coalesces stable reads and invalidates on write; locks never cached (3.222635ms)
+✔ Idle diagnostics suppress recurring writes; changes persist immediately (0.857774ms)
+✔ Pending quote completes after thanks and stale running stage recovers; sending never auto-retries (1.226276ms)
+✔ Commercial floor preserves 40% after 5% Pix discount (3.562524ms)
+✔ Scheduler social publishing functions preserved byte-for-byte (2.941414ms)
+✔ Duplicate already-attempted message is not sent again after restart (4.792395ms)
+✔ Human requests and outage handoff do not expose technical errors (1.72256ms)
+✔ Webhook refuses invalid signatures and accepts signed harmless fixture without sending (10.438649ms)
+✔ Webhook setup adds Instagram messages object and preserves existing Page subscription (4.373919ms)
+✔ Durable claim serializes concurrent attempts and survives object restart (1.076893ms)
+✔ Targeted webhook reads one mapped conversation without scanning inbox or repeating permission request (1.371834ms)
+✔ Accepting human handoff never restarts the earlier product quote (3.758497ms)
+✔ Verified recent quote supplies exact known size when customer omitted volume (3.174343ms)
+✔ Recent verified quote replies immediately instead of queuing the same research again (1.274247ms)
+✔ Asking to look at another perfume never reuses previous quote despite mentioning its price (2.336918ms)
+✔ Explicit new catalog perfume overrides old product when switching (4.056864ms)
+ℹ tests 27
 ℹ suites 0
-ℹ pass 25
+ℹ pass 27
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 200.543158
+ℹ duration_ms 204.613646

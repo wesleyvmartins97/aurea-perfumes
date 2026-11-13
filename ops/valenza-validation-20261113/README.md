@@ -51,3 +51,6 @@ Baseline real: replyLagSeconds16, draftMs1939, durationMs13214, triggerwebhook. 
 -25 testes aprovados, incluindo dez tentativas simultâneas de claim, retomada, caminho direcionado de uma consultaMeta e aceite humano sem nova cotação.
 - Respostas pausadas temporariamente durante manutenção; reativar somente após teste real do binding. Registrar medição pós-atualização com nova mensagem voluntária; não prometer tempo ainda não medido.
 - Rollback seguro após esta migration: manter export ValenzaMessageClaim e binding; não subir worker.pre-speed.mjs removendo a classe ativa sem planejamento. Para desativar atendimento, remover somente flag enabled (reversível), preservando dados e histórico.
+
+## Troca de produto — 17:38
+Reprodução: 'top gostei do valor poderia olhar outro' resgatava Eclaire do histórico por conter 'valor'. Corrigido: intenção de trocar produto tem prioridade sobre reaproveitamento de histórico; catálogo e extrator recebem somente a mensagem atual nesse caso. Se o novo perfume ainda não foi informado, a IA pergunta o nome do próximo, sem repetir cotação anterior. Se já informar Good Girl, resolve Good Girl.27 testes aprovados, incluindo os dois cenários. Binding de claim persistente preservado.
