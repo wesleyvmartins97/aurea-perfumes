@@ -1309,7 +1309,7 @@ if(!env.GROQ_API_KEY&&!env.GEMINI_API_KEY&&!env.AI?.run)throw Error("Motor de IA
  if(readyToBuy&&!linkInHistory&&!/valenzaparfums\.com\.br|wa\.me\//i.test(t)){
   t="Claro! "+(/pix/i.test(msg)?"No Pix, você tem 5% de desconto. ":"")+"Você pode finalizar pelo site "+VLI_SITE+" ou chamar a gente pelo WhatsApp "+VLI_WA+" que ajudamos a concluir 💛";
  }
- if(/\b(?:olhei|pesquisei|conferi|verifiquei|n[aã]o temos|n[aã]o encontrei|n[aã]o est[aá] dispon[ií]vel)\b/i.test(t))t="Ainda não tenho uma confirmação de disponibilidade desse perfume. Me passa o nome completo e o tamanho que você procura?";
+ if(/\b(?:olhei|pesquisei|conferi|verifiquei|n[aã]o temos|n[aã]o encontrei|n[aã]o consta|n[aã]o faz parte|n[aã]o trabalhamos|n[aã]o est[aá] dispon[ií]vel)\b/i.test(t))t="Ainda não tenho uma confirmação de disponibilidade desse perfume. Me passa o nome completo e o tamanho que você procura?";
  if(/R\$\s?\d|(?:estoque\s+(?:dispon[ií]vel|imediato))|(?:chega\s+(?:amanh[aã]|hoje))|(?:entrega\s+(?:em\s+)?\d+\s+dias)/i.test(t))throw Error("Resposta bloqueada por preço ou prazo não confirmado");
  // Remove untrusted model links without turning an otherwise valid conversation into an outage.
  t=t.replace(/https?:\/\/[^\s),]+/g,link=>{try{const cleaned=link.replace(/[.!?;:]+$/,'');const u=new URL(cleaned);return u.protocol==="https:"&&(u.hostname.replace(/^www\./,"")==="valenzaparfums.com.br"||(u.hostname==="wa.me"&&u.pathname.replace(/\/$/,"")==="/5527997962708"))?cleaned:""}catch{return""}}).replace(/\[([^\]]+)\]\(\s*\)/g,'$1').trim();
@@ -1631,8 +1631,8 @@ async function vqExtract(env,msg,history=[]){
  const volume=Number(parsed?.volume||0);
  const expanded=vqNormal(context).replace(/\s+/g,"");
  const check=vqNormal(name).replace(/\s+/g,"");
- if(!name||name.length<5||check.length<5||!expanded.includes(check))return null;
- if(!vqWords(name).length||/^(?:perfume|fragrancia|um perfume|doce|floral|para minha esposa)/i.test(name))return null;
+ if(!name||name.length<3||check.length<3||!expanded.includes(check))return null;
+ if(!vqaIdentityWords(name,volume).length||/^(?:perfume|fragrancia|um perfume|doce|floral|para minha esposa)/i.test(name))return null;
  return{name,volume:Number.isInteger(volume)&&volume>=10&&volume<=250?volume:0};
 }
 async function vqCatalog(env,name,volume){
@@ -1915,7 +1915,8 @@ async function vcRecommendations(env,msg,history=[]){
 async function vcCatalogCheckForQuote(env,product){
  const res=await vcCatalogFind(env,product.name);
  if(!res.verified)return{status:"unknown"};
- if(res.items.length>0)return{status:"in_catalog",draft:vcCatalogAnswer(res,product.name)};
+ if(res.items.length===1){const fast=await vcFastCatalog(env,vcDisplay(res.items[0].id)+(product.volume?" "+product.volume+" ml":""),[]);return{status:"in_catalog",draft:fast||vcCatalogAnswer(res,product.name)}}
+ if(res.items.length>1)return{status:"in_catalog",draft:vcCatalogAnswer(res,product.name)};
  return{status:"off_catalog"};
 }
 function vcNameCandidates(name,volume,rows){
@@ -2023,7 +2024,7 @@ async function vcFastCatalog(env,message,history=[]){
  const normalized=vcPlain(message).replace(/\bone million\b/g,"1 million");
  if(vcSocialOnly(message))return null;
  const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>6*3600000)return null;
- const matchText=text=>catalog.products.filter(p=>{const n=vcPlain(vcDisplay(p.id)).replace(/\bone million\b/g,"1 million");const padded=" "+text+" ",needle=" "+n+" ",at=padded.indexOf(needle);if(at<0)return false;const tail=padded.slice(at+needle.length).trim().replace(/^\d{2,3}\s*ml\b\s*/,"");return !tail||/^(?:por favor|quanto|preco|valor|custa|para|pra|pro|tem|teria|voces|disponivel|no pix|com desconto|obrigad|seria|esse|essa|o mesmo|a mesma)\b/.test(tail)});
+ const matchText=text=>catalog.products.filter(p=>{const n=vcPlain(vcDisplay(p.id)).replace(/\bone million\b/g,"1 million");const padded=" "+text+" ",needle=" "+n+" ",at=padded.indexOf(needle);if(at<0)return false;const tail=padded.slice(at+needle.length).trim().replace(/^\d{2,3}\s*ml\b\s*/,"");return !tail||/^(?:por favor|qual|quais|quanto|preco|valor|custa|para|pra|pro|tem|teria|voces|disponivel|no pix|com desconto|obrigad|seria|esse|essa|o mesmo|a mesma)\b/.test(tail)});
  let found=matchText(normalized);
  if(!found.length&&/quanto|preco|valor|custa|\bml\b/.test(normalized)){
   for(const h of history.filter(x=>x.role==="user").slice(-4).reverse()){found=matchText(vcPlain(h.content).replace(/\bone million\b/g,"1 million"));if(found.length)break}
@@ -2040,6 +2041,19 @@ async function vcFastCatalog(env,message,history=[]){
  return{type:"draft",photo:{catalogId:p.id,name,volume:p.volume||0},text:name+(p.volume?" · "+p.volume+" ml":"")+" está anunciado por "+vqMoney(price)+" ou "+vqMoney(pix)+" no Pix. 💛 Confira a apresentação e disponibilidade: https://valenzaparfums.com.br/perfume/"+encodeURIComponent(p.id)+"/"};
 }
 
+
+function vcOneEdit(a,b){if(a===b)return false;if(Math.abs(a.length-b.length)>1)return false;let i=0,j=0,errors=0;while(i<a.length&&j<b.length){if(a[i]===b[j]){i++;j++;continue}if(++errors>1)return false;if(a.length>=b.length)i++;if(b.length>=a.length)j++}return errors+(i<a.length||j<b.length?1:0)===1}
+async function vcCatalogAbbreviation(env,message){
+ const text=vcPlain(message),tokens=text.split(' ');if(tokens.length>22)return null;
+ const noise=new Set('oi ola bom boa dia tarde noite gostaria queria quero um uma perfume perfumes o a os as e de do da dos das qual quais quanto preco precos valor valores custa custam tem teria voces voce por favor saber comprar consultar pesquisar ver pra para me ajuda ajudar lattafa armaf dior'.split(' '));
+ const meaningful=tokens.filter(w=>w&&!noise.has(w)&&!/^\d{2,3}(?:ml)?$/.test(w));if(meaningful.length!==1)return null;
+ const query=meaningful[0];if(query.length<3)return null;const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>6*3600000)return null;
+ // An exact name remains authoritative. Approximation only proposes a confirmation, never a price.
+ if(catalog.products.some(p=>vcPlain(vcDisplay(p.id)).split(' ').includes(query)))return null;
+ const candidates=catalog.products.filter(p=>{const words=vcPlain(vcDisplay(p.id)).split(' '),initials=words.map(w=>w[0]).join('');return (initials.length>=3&&initials.startsWith(query))||(words.length===1&&query.length>=4&&words[0].length>=4&&vcOneEdit(query,words[0]))}).slice(0,4);
+ if(!candidates.length)return null;const names=candidates.map(p=>vcDisplay(p.id));return{type:'draft',text:names.length===1?'Você quer o '+names[0]+'? Me confirma para eu te passar o valor da versão certa. 💛':'Essa abreviação pode ser '+names.join(' ou ')+'. Qual deles você procura? 💛'};
+}
+
 async function vcIncoming(env,message,history,chatId,recipient,messageId){
  const txt=vliTxt(message);
  const normalized=vcPlain(txt);
@@ -2054,6 +2068,7 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
 
  if(!shortSocial&&!product){
   const quick=await vcFastCatalog(env,txt,switching?[]:history);if(quick)return {draft:quick,pending:null};
+  const abbreviated=await vcCatalogAbbreviation(env,txt);if(abbreviated)return{draft:abbreviated,pending:null};
   const generic=/baunilha|docinho|doce|floral|amadeirad|minha esposa|meu marido|indica|opcoes|sugest|recomend|edt|edp/.test(normalized)&&!/(?:tem|preco|valor|custa|ml|lattafa|armaf|dior|chanel|eclaire|million)/.test(normalized);
   if(!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,!switching&&/preco|valor|custa|ml|versao|tamanho/.test(normalized)?history:[])}catch{}}
  }
@@ -2092,9 +2107,10 @@ async function vcSpeedAudit(env){
 
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","shortnames"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
+ if(requested==="shortnames"){const r={at:new Date().toISOString(),cases:[]};for(const text of ["Gostaria de um perfume o Yara. Qual valor?","Yara","Queria o CDNIM qual valor?","Yaraa qual valor?","Yara Tous qual valor?"]){const t=Date.now();try{r.cases.push({input:text,...await vcIncoming(env,text,[],"audit","1234567","shortname-audit"),ms:Date.now()-t})}catch(e){r.cases.push({input:text,error:String(e?.message||e).slice(0,100)})}}await env.PRIVATE_KV.put(key+":shortnames",JSON.stringify(r),{expirationTtl:86400});return;}
  if(requested==="photo-test"){const result={at:new Date().toISOString(),cases:[]};for(const product of [{name:"Perfume Al Wataniah Sabah Al Ward Sugar Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/"},{catalogId:"eclaire",name:"Eclaire",volume:100}]){const t=Date.now();try{const photo=await vciPreparePhoto(env,product);result.cases.push({name:product.name,photo,ms:Date.now()-t})}catch(e){result.cases.push({name:product.name,error:String(e?.message||e).slice(0,120),ms:Date.now()-t})}}await env.PRIVATE_KV.put(key+":photo_test",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="photo-discovery"){const d=await vqaRead(env,VQA_BASE+"/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/");const site=await fetch(VLI_SITE+"/api/catalog/runtime").then(r=>r.json()).catch(()=>null);const result={at:new Date().toISOString(),keys:Object.keys(d),photoFields:Object.fromEntries(Object.entries(d).filter(([k])=>/foto|image|imagem|thumb|picture/i.test(k))),siteProduct:site?.products?.[0]};await env.PRIVATE_KV.put(key+":photo_discovery",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="research"||requested==="research-sabah"||requested==="research-afnan"){
