@@ -85,7 +85,7 @@ async function vcRecommendations(env,msg,history=[]){
  const uniques=[...new Set(interests)];
  const picked=uniques.map(id=>catalog.products.find(p=>p.id===id)).filter(Boolean).slice(0,4);
  if(!picked.length)return "";
- return"Produtos efetivamente anunciados no catálogo da Valenza (fonte atualizada): "+picked.map(p=>vcDisplay(p.id)+" — "+vqMoney(p.price)+" — https://valenzaparfums.com.br/perfume/"+p.id+"/").join(" | ")+". Quando a pessoa pede opções, sugira 2 ou 3 desses nomes com uma explicação breve e honesta, sem inventar notas olfativas específicas. Preços acima são do catálogo, não estoque garantido.";
+ return"Produtos efetivamente anunciados no catálogo da Valenza (fonte atualizada): "+picked.map(p=>vcDisplay(p.id)+" — https://valenzaparfums.com.br/perfume/"+p.id+"/").join(" | ")+". Se a pessoa pedir opções, sugira dois ou três modelos dessa lista e explique de modo natural por que combinam com as preferências declaradas, sem inventar pirâmide olfativa ou estoque. Não precisa colocar links de todos no primeiro contato; só mostre links quando a pessoa pedir.";
 }
 async function vcCatalogCheckForQuote(env,product){
  const res=await vcCatalogFind(env,product.name);
@@ -144,7 +144,7 @@ async function vcPendingQuotes(env){
  const token=await ownToken(sealed,env);
  let processed=0;
  for(const item of list.keys){
-  if(processed>=2)break;
+  if(processed>=1)break;
   const task=await env.PRIVATE_KV.get(item.name,"json");
   if(!task||task.stage!=="queued"||!task.sourceMessage||!task.recipient)continue;
   if(Date.now()-Date.parse(task.at)<5000)continue;
