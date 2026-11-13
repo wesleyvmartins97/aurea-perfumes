@@ -25,7 +25,7 @@ function vbmParseMoney(text){
  return Number.isFinite(v)&&v>=25&&v<=15000?v:null;
 }
 function vbmMatch(name,volume,text){
- const norm=vqaClean(text).slice(0,600),required=vqWords(name);
+ const norm=vqaClean(text).slice(0,600),required=vqWords(name).filter(w=>!/^[0-9]{2,3}ml$/.test(w));
  if(!required.length||!required.every(w=>norm.split(" ").includes(w)))return false;
  if(!new RegExp("(?:^|\\s)"+volume+"\\s*ml(?:$|\\s)","i").test(norm))return false;
  const want=vqaClean(name),tokens=norm.split(" ");
@@ -83,7 +83,8 @@ function vbmDecide(basePrice,pixDiscount,offers){
  const low=Math.min(...offers.map(x=>x.price));
  // No price increase unless two INDEPENDENT Brazilian comparators confirm room.
  const desired=Math.floor((low*.95-.01)/10)*10+9.90;
- const protectedPrice=Math.round(Math.max(basePrice,Math.min(desired,basePrice*1.25))*100)/100;
+ const cap=Math.floor((basePrice*1.25-9.90)/10)*10+9.90;
+ const protectedPrice=Number(Math.max(basePrice,Math.min(desired,cap)).toFixed(2));
  return protectedPrice>basePrice+9.99?protectedPrice:basePrice;
 }
 async function vbmCompetitivePrice(env,name,volume,base){
