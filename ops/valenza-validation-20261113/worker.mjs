@@ -1718,12 +1718,16 @@ const VQA_BASE="https://api.comprasparaguai.com.br";
 const VQA_NO=/\b(?:kit|body\s*splash|ambientador|aromatizador|desodorante|deodorant|deo|mist|spray\s+de\s+ambiente|perfume\s+de\s+ambiente|decant|amostra|tester|refil|refill|oil|creme|hidratante|freshener|sabonete|shower|gel|hair|miniatura)\b/i;
 const VQA_VARIANTS=["very","blush","elixir","pistache","banoffi","intense","intenso","supreme","glam","glitter","bowtastic","jasmine","absolute","crystal","collector","exclusive","exclusif","legere","platinum","victory","aquatic","nectar","royal","oud","rose","aqua","gold","red","black","white","pink","blue","green"];
 const VQA_SHOPS=["star company","shopping china","cellshop","paris store","mega eletronicos","la petisquera","nissei","intershop importados","multipass","new zone","mega eletro","best shop paraguai","elegancia company","boxi importados"];
-function vqaClean(s){return vqNormal(s).replace(/\s+/g," ").trim()}
+function vqaClean(s){return vqNormal(String(s||"").replace(/&amp;/gi,"&").replace(/&nbsp;/gi," ").replace(/&#(?:0*39|8217);|&#x(?:0*27|2019);|&apos;|&rsquo;|[’‘']/gi,"").replace(/\beau\s+de\s+parfum\b/gi,"edp").replace(/\beau\s+de\s+toilette\b/gi,"edt")).replace(/\bcollector\b/g,"collectors").replace(/\s+/g," ").trim()}
+function vqaIdentityWords(name,volume){return vqaClean(name).replace(/\b\d{2,3}\s*ml\b/g,"").split(" ").filter(w=>w&&w!==String(volume||"")&&!['perfume','fragrancia','masculino','feminino','unissex','masc','fem','edp','edt','eau','de','parfum','toilette','spray','original','al','da','do','a','o','the','for','by','of','ml'].includes(w))}
 function vqaMatch(name,volume,title){
- const want=vqaClean(name),text=vqaClean(title),tokens=text.split(" "),required=vqWords(want);
+ const want=vqaClean(name),text=vqaClean(title),tokens=text.split(" "),required=vqaIdentityWords(want,volume);
  if(!want||!/\bperfume\b/.test(text)||VQA_NO.test(text)||required.length<1)return false;
  if(!new RegExp("(?:^|\\s)"+Number(volume)+"\\s?ml(?:$|\\s)","i").test(text))return false;
  if(required.some(w=>!tokens.includes(w)))return false;
+ // A new suffix is a distinct version even when it was never listed in a variant dictionary.
+ const end=Math.max(...required.map(w=>tokens.lastIndexOf(w)));
+ if(tokens.slice(end+1).some(w=>!want.split(" ").includes(w)&&!['eau','de','parfum','toilette','edp','edt','masculino','feminino','unissex','masc','fem','m','f','ml','spray','original','arabe','arabes','importado','importados'].includes(w)&&!/^\d{2,3}(?:ml)?$/.test(w)))return false;
  for(const w of VQA_VARIANTS){const word=vqaClean(w);if(tokens.includes(word)&&!want.split(" ").includes(word))return false}
  if(/\b(?:edt|eau de toilette)\b/.test(want)&&!/\b(?:edt|eau de toilette)\b/.test(text))return false;
  if(/\b(?:edp|eau de parfum)\b/.test(want)&&!/\b(?:edp|eau de parfum)\b/.test(text))return false;
@@ -1751,11 +1755,12 @@ async function vqaRead(env,url){
 }
 async function vqaFind(env,name,volume){
  const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),"json");
- if(alias?.validUntil>Date.now()&&Number(alias.volume)===Number(volume)&&vqaMatch(name,volume,alias.name))return alias;
+ if(alias?.offerPolicy==="exact-offer-v2"&&alias?.validUntil>Date.now()&&Number(alias.volume)===Number(volume)&&vqaMatch(name,volume,alias.name))return alias;
  const key=VQA_PREFIX+"auto:"+vqNormal(name).replace(/\s+/g,"-")+":"+volume;
  const cached=await env.PRIVATE_KV.get(key,"json");
- if(cached&&cached.validUntil>Date.now()&&Number(cached.salePrice)>0)return cached;
- const list=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(name+" "+volume+"ml"));
+ if(cached?.offerPolicy==="exact-offer-v2"&&cached.validUntil>Date.now()&&Number(cached.salePrice)>0&&vqaMatch(name,volume,cached.name))return cached;
+ const searchName=String(name).replace(/\b(?:eau de parfum|eau de toilette|edp|edt)\b/gi,"").replace(/\b\d{2,3}\s*ml\b/gi,"").replace(/\s+/g," ").trim();
+ const list=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(searchName+" "+volume+"ml"));
  const rows=(Array.isArray(list?.resultados)?list.resultados:[]).filter(x=>x&&!x.ocultar_preco&&vqaMatch(name,volume,x.nome||"")&&Number(x.preco_dolar)>0&&Number(x.preco_dolar)<=2000&&/^\/[a-z0-9_-]+\/$/.test(String(x.link||"")));
  if(!rows.length)throw Error("Nenhum modelo exato encontrado");
  const scores=rows.map(x=>({item:x,score:vqaClean(x.nome).split(" ").length-vqaClean(name).split(" ").length})).sort((a,b)=>a.score-b.score||Number(a.item.preco_dolar)-Number(b.item.preco_dolar));
@@ -1765,11 +1770,11 @@ async function vqaFind(env,name,volume){
  if(!details||!vqaMatch(name,volume,details.nome||""))throw Error("Descrição não corresponde");
  const stamp=Date.parse(details.data_ultima_disponibilidade||"");
  if(!Number.isFinite(stamp)||Date.now()-stamp>259200000||stamp>Date.now()+28800000)throw Error("Cotação antiga");
- const offers=(Array.isArray(details.produtos)?details.produtos:[]).filter(p=>p&&!p.ocultar_preco&&Number(p.preco_dolar)>0&&Number(p.preco_dolar)<=2000&&VQA_SHOPS.includes(vqaClean(p.loja?.nome))&&!VQA_NO.test(String(p.nome||"")));
+ const offers=(Array.isArray(details.produtos)?details.produtos:[]).filter(p=>p&&!p.ocultar_preco&&Number(p.preco_dolar)>0&&Number(p.preco_dolar)<=2000&&VQA_SHOPS.includes(vqaClean(p.loja?.nome))&&!VQA_NO.test(String(p.nome||""))&&vqaMatch(name,volume,"Perfume "+String(p.nome||"")));
  if(!offers.length)throw Error("Não há oferta recente de fornecedor conhecido");
  const offer=offers.sort((a,b)=>Number(a.preco_dolar)-Number(b.preco_dolar))[0];
  const price=vqPrice(Number(offer.preco_dolar),40);
- const q={name:details.nome,volume:Number(volume),usd:Number(offer.preco_dolar),salePrice:price.price,pixPrice:price.pix,store:offer.loja.nome,productUrl:"https://www.comprasparaguai.com.br"+model.link,verifiedAt:new Date().toISOString(),sourceLastUpdate:details.data_ultima_disponibilidade,validUntil:Date.now()+21600000,preliminary:true};
+ const q={name:details.nome,volume:Number(volume),usd:Number(offer.preco_dolar),salePrice:price.price,pixPrice:price.pix,store:offer.loja.nome,productUrl:"https://www.comprasparaguai.com.br"+model.link,verifiedAt:new Date().toISOString(),sourceLastUpdate:details.data_ultima_disponibilidade,validUntil:Date.now()+21600000,preliminary:true,offerPolicy:"exact-offer-v2"};
  await env.PRIVATE_KV.put(key,JSON.stringify(q),{expirationTtl:3600});
  await env.PRIVATE_KV.put(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),JSON.stringify(q),{expirationTtl:3600});
  return q;
@@ -1925,8 +1930,9 @@ function vcNameCandidates(name,volume,rows){
 }
 async function vcQueryMissingVolume(env,name){
  const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),"json");
- if(alias?.validUntil>Date.now()&&vqaMatch(name,alias.volume,alias.name))return{status:"quote",offer:alias};
- const res=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(name));
+ if(alias?.offerPolicy==="exact-offer-v2"&&alias?.validUntil>Date.now()&&vqaMatch(name,alias.volume,alias.name))return{status:"quote",offer:alias};
+ const searchName=String(name).replace(/\b(?:eau de parfum|eau de toilette|edp|edt)\b/gi,"").replace(/\b\d{2,3}\s*ml\b/gi,"").replace(/\s+/g," ").trim();
+ const res=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(searchName));
  const found=vcNameCandidates(name,0,res?.resultados||[]);
  const sizes=[...new Set(found.map(x=>Number((x.nome||"").match(/\b(\d{2,3})\s*ML\b/i)?.[1]||0)).filter(Boolean))].sort((a,b)=>a-b);
  if(sizes.length===0)return {status:"none"};
@@ -1953,7 +1959,7 @@ async function vcPrepareQuote(env,name,volume){
    return{status:"quote",text:"Consegui conferir o "+q.name+"! A estimativa fica em "+vqMoney(salePrice)+" (ou "+vqMoney(pixPrice)+" no Pix). 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Gostou dessa opção?"};
   }
   return{status:"unverified",text:"Procurei esse perfume, mas ainda não consegui confirmar uma oferta confiável. 💛 Posso encaminhar para nossa equipe conferir a versão e a disponibilidade com você."};
- }catch(e){return{status:"unverified",text:"Fui conferir, mas não consegui validar o preço desse perfume agora. 💛 Posso passar para nossa equipe conferir direitinho pelo WhatsApp?"};}
+ }catch(e){return{status:"unverified",reason:String(e?.message||e).slice(0,120),text:"Fui conferir, mas não consegui validar o preço desse perfume agora. 💛 Posso passar para nossa equipe conferir direitinho pelo WhatsApp?"};}
 }
 async function vcFollowupSend(env,token,recipient,text){
  if(!/^\d+$/.test(String(recipient)))throw Error("Destinatário inválido");
@@ -2015,7 +2021,7 @@ async function vcFastCatalog(env,message,history=[]){
  const normalized=vcPlain(message).replace(/\bone million\b/g,"1 million");
  if(vcSocialOnly(message))return null;
  const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>6*3600000)return null;
- const matchText=text=>catalog.products.filter(p=>{const n=vcPlain(vcDisplay(p.id)).replace(/\bone million\b/g,"1 million");return (" "+text+" ").includes(" "+n+" ")});
+ const matchText=text=>catalog.products.filter(p=>{const n=vcPlain(vcDisplay(p.id)).replace(/\bone million\b/g,"1 million");const padded=" "+text+" ",needle=" "+n+" ",at=padded.indexOf(needle);if(at<0)return false;const tail=padded.slice(at+needle.length).trim().replace(/^\d{2,3}\s*ml\b\s*/,"");return !tail||/^(?:por favor|quanto|preco|valor|custa|para|pra|pro|tem|teria|voces|disponivel|no pix|com desconto|obrigad|seria|esse|essa|o mesmo|a mesma)\b/.test(tail)});
  let found=matchText(normalized);
  if(!found.length&&/quanto|preco|valor|custa|\bml\b/.test(normalized)){
   for(const h of history.filter(x=>x.role==="user").slice(-4).reverse()){found=matchText(vcPlain(h.content).replace(/\bone million\b/g,"1 million"));if(found.length)break}
@@ -2055,7 +2061,7 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
   if(found.status==="in_catalog"&&found.draft)return{draft:found.draft,pending:null};
   if(found.status==="off_catalog"){
    const recent=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(product.name).join("-"),"json");
-   if(recent?.validUntil>Date.now()&&recent.pricingPolicy==="br-average-v3"&&(!product.volume||Number(product.volume)===Number(recent.volume))&&vqaMatch(product.name,recent.volume,recent.name))return{draft:{type:"draft",text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
+   if(recent?.offerPolicy==="exact-offer-v2"&&recent?.validUntil>Date.now()&&recent.pricingPolicy==="br-average-v3"&&(!product.volume||Number(product.volume)===Number(recent.volume))&&vqaMatch(product.name,recent.volume,recent.name))return{draft:{type:"draft",text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
    const waiting={at:new Date().toISOString(),stage:"queued",sourceMessage:String(messageId),chatId:String(chatId),recipient:String(recipient),name:product.name,volume:Number(product.volume)||0};
    return{draft:{type:"draft",text:"Só um minutinho, vou conferir o "+product.name+(product.volume?" de "+product.volume+" ml":"")+" e já volto com as opções certinhas pra você! 💛"},pending:waiting};
   }
@@ -2084,16 +2090,17 @@ async function vcSpeedAudit(env){
 
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
- if(requested==="research"||requested==="research-sabah"){
-  const researchName=requested==="research-sabah"?"Sabah Al Ward Sugar":"Hawas Black";
+ if(requested==="research"||requested==="research-sabah"||requested==="research-afnan"){
+  const researchName=requested==="research-afnan"?"Afnan Supremacy Collectors Edition EDP":requested==="research-sabah"?"Sabah Al Ward Sugar":"Hawas Black";
   const result={at:new Date().toISOString()};
   if(requested==="research-sabah"){try{const start=Date.now();result.routing=await vcIncoming(env,"Sabah Al Ward Suga",[],"audit","1234567","audit-sabah");result.routingMs=Date.now()-start;result.confirmation=await vcIncoming(env,"isso esse mesmo",[{role:"assistant",content:"É o Sabah Sugar, certo? É esse frasco rosa de tampa branca?"}],"audit","1234567","audit-confirm")}catch(e){result.routingError=String(e?.message||e).slice(0,120)}}
   try{const start=Date.now();result.extracted=await vqExtract(env,"vcs teriam esse perfume "+researchName,[]);result.extractMs=Date.now()-start}catch(e){result.extractError=String(e?.message||e).slice(0,100)}
-  try{const start=Date.now();const q=await vcPrepareQuote(env,researchName,0);result.quote={...q,ms:Date.now()-start}}catch(e){result.quoteError=String(e?.message||e).slice(0,100)}
+  try{const start=Date.now();const q=await vcPrepareQuote(env,researchName,requested==="research-afnan"?100:0);result.quote={...q,ms:Date.now()-start}}catch(e){result.quoteError=String(e?.message||e).slice(0,100)}
   try{const x=await vliWrite(env,"mais amadeirado o top do momento por favor",[{role:"user",content:"qual perfume vc sugere pra mim?"}],{skipQuote:true});result.recommendation=x}catch(e){result.recommendationError=String(e?.message||e).slice(0,100)}
+  if(requested==="research-afnan"){result.otherPerfumes=[];for(const n of ["Hawas Black","Sabah Al Ward Sugar"]){const start=Date.now();const q=await vcPrepareQuote(env,n,100);result.otherPerfumes.push({name:n,...q,ms:Date.now()-start})}}
   await env.PRIVATE_KV.put(key+":research_result",JSON.stringify(result),{expirationTtl:86400});return;
  }
  if(requested==="speed"){const started=Date.now();try{const result=await vcSpeedAudit(env);await env.PRIVATE_KV.put(key+":speed_result",JSON.stringify({...result,durationMs:Date.now()-started}),{expirationTtl:86400})}catch(e){await env.PRIVATE_KV.put(key+":speed_result",JSON.stringify({ok:false,reason:String(e?.message||e).slice(0,100)}),{expirationTtl:86400})}return;}
@@ -2134,11 +2141,12 @@ const VBM_SHOPS=[
  {id:"zen",domain:"zenperfumaria.com.br",search:"https://zenperfumaria.com.br/search/?q="}
 ];
 function vbmSlug(x){return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}
-function vbmSimple(x){return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}
+function vbmSimple(x){return vqaClean(x)}
 function vbmSameProduct(name,volume,title){
+ if(!vqaMatch(name,volume,"Perfume "+String(title||"")))return false;
  const txt=vbmSimple(title),wanted=vbmSimple(name);
  if(!txt||!wanted||/body splash|body mist|decant|amostra|tester|miniatura|creme|hidratante|desodorante|kit |conjunto|refil|refill/.test(txt))return false;
- const wantedWords=vqWords(name).filter(w=>!(/^\d{2,3}ml$/.test(w)||/^\d{2,3}$/.test(w)));
+ const wantedWords=vqWords(vbmSimple(name)).filter(w=>!(/^\d{2,3}ml$/.test(w)||/^\d{2,3}$/.test(w)));
  if(!wantedWords.length||wantedWords.some(w=>!txt.split(" ").includes(w)))return false;
  const vol=Number(volume);
  if(!Number.isInteger(vol)||vol<10||vol>250||!new RegExp("(?:^|\\s)"+vol+"\\s*ml(?:\\s|$)","i").test(txt))return false;
