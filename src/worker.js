@@ -2111,7 +2111,7 @@ const AUREA_CATALOG={
 "khamrah":{name:"Khamrah",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:249.9,weight:.6,length:20,height:12,width:16},
 "khamrah-qahwa":{name:"Khamrah Qahwa",brand:"Lattafa",type:"EDP · 100ml · Unissex",price:269.9,weight:.6,length:20,height:12,width:16},
 "eclaire":{name:"Eclaire",brand:"Lattafa",type:"EDP · 100ml",price:319.9,weight:.6,length:20,height:12,width:16},
-"liquid-brun":{name:"Liquid Brun",brand:"French Avenue",type:"EDP · 100ml",price:399.9,weight:.6,length:20,height:12,width:16},
+"liquid-brun":{name:"Liquid Brun",brand:"French Avenue",type:"EDP · 100ml",price:349.9,weight:.6,length:20,height:12,width:16},
 "spectre-ghost":{name:"Spectre Ghost",brand:"French Avenue",type:"EDP · 80ml",price:329.9,weight:.6,length:20,height:12,width:16},
 "afnan-9pm":{name:"9 PM",brand:"Afnan",type:"EDP · 100ml",price:299.9,weight:.6,length:20,height:12,width:16},
 "hawas-ice":{name:"Hawas Ice",brand:"Rasasi",type:"EDP · 100ml",price:329.9,weight:.6,length:20,height:12,width:16},
