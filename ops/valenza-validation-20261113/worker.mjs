@@ -1272,7 +1272,7 @@ async function vliWrite(env,message,history=[],options={}){
  
  if(!options.skipQuote){const quotationResponse=await vqAnswer(env,msg,history);if(quotationResponse)return quotationResponse;}
 if(!env.GROQ_API_KEY&&!env.GEMINI_API_KEY&&!env.AI?.run)throw Error("Motor de IA não está disponível");
- const system=["Se o cliente mandar somente oi, bom dia, boa tarde ou boa noite, responda de forma natural, por exemplo: Bom dia! Tudo bem? No que posso te ajudar? Não ofereça perfume antes de saber o que ele quer. Quando pedir sugestões, apresente duas ou três opções reais e explique de maneira breve, usando preferências e histórico. Responda com conteúdo suficiente, sem frases secas.",
+ const system=["Nunca identifique nome ou variante de perfume apenas por cor do líquido, tampa ou embalagem. Se o cliente confirmar uma hipótese sua que ainda não foi verificada, peça o nome escrito na caixa ou no frasco; não transforme sua hipótese em certeza. Use somente links oficiais da Valenza ou o WhatsApp oficial fornecido. Não invente links de produtos.","Se o cliente mandar somente oi, bom dia, boa tarde ou boa noite, responda de forma natural, por exemplo: Bom dia! Tudo bem? No que posso te ajudar? Não ofereça perfume antes de saber o que ele quer. Quando pedir sugestões, apresente duas ou três opções reais e explique de maneira breve, usando preferências e histórico. Responda com conteúdo suficiente, sem frases secas.",
   "Você atende o Direct da Valenza Parfums, perfumaria de Colatina/ES. Você é a assistente virtual da loja. Não se passe por uma pessoa; se perguntarem, responda de modo simples que é a assistente virtual. Não precisa anunciar isso em cada mensagem.",
   "ESCREVA como numa conversa boa de Instagram: português brasileiro natural, leve, gentil, de quem gosta de ajudar. Nada de texto corporativo ou formal. Varie suas palavras conforme a pessoa; não use a mesma saudação ou abertura em todo turno, nem elogios exagerados.",
   "CONTEXTO: leia a mensagem atual e a conversa anterior. Continue exatamente de onde pararam. Não repita perguntas respondidas, não recomece o atendimento, não diga apenas que 'anotou' algo. Se a pessoa mudar de assunto, acompanhe. Se escrever de forma informal, responda informalmente e com educação.",
@@ -1310,8 +1310,9 @@ if(!env.GROQ_API_KEY&&!env.GEMINI_API_KEY&&!env.AI?.run)throw Error("Motor de IA
  }
  if(/\b(?:olhei|pesquisei|conferi|verifiquei|n[aã]o temos|n[aã]o encontrei|n[aã]o est[aá] dispon[ií]vel)\b/i.test(t))t="Ainda não tenho uma confirmação de disponibilidade desse perfume. Me passa o nome completo e o tamanho que você procura?";
  if(/R\$\s?\d|(?:estoque\s+(?:dispon[ií]vel|imediato))|(?:chega\s+(?:amanh[aã]|hoje))|(?:entrega\s+(?:em\s+)?\d+\s+dias)/i.test(t))throw Error("Resposta bloqueada por preço ou prazo não confirmado");
- const links=t.match(/https?:\/\/[^\s),]+/g)||[];
- if(links.some(x=>{try{const u=new URL(x);return u.protocol!=="https:"||!(u.hostname.replace(/^www\./,"")==="valenzaparfums.com.br"||(u.hostname==="wa.me"&&u.pathname.replace(/\/$/,"")==="/5527997962708"))}catch{return true}}))throw Error("Resposta bloqueada por link externo");
+ // Remove untrusted model links without turning an otherwise valid conversation into an outage.
+ t=t.replace(/https?:\/\/[^\s),]+/g,link=>{try{const cleaned=link.replace(/[.!?;:]+$/,'');const u=new URL(cleaned);return u.protocol==="https:"&&(u.hostname.replace(/^www\./,"")==="valenzaparfums.com.br"||(u.hostname==="wa.me"&&u.pathname.replace(/\/$/,"")==="/5527997962708"))?cleaned:""}catch{return""}}).replace(/\[([^\]]+)\]\(\s*\)/g,'$1').trim();
+ if(!t)t="Me confirma o nome escrito no frasco ou na caixa? Assim consigo procurar a versão certa pra você. 💛";
  return {type:"draft",text:t};
 }
 async function vliPerm(env){
