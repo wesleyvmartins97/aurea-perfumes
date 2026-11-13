@@ -38,3 +38,16 @@ Mensagens já tentadas/resultado incerto não são repetidas no teste após reto
 Versão ativa:9207bda7-87cf-4531-978c-a7b0de9a5bbc, 100%.
 SHA256 do código relido da Cloudflare:44da5df86d60a0b6b9aa5ff3db35d6d96efe733d4c91fe4c2e94e7bf01fbefcf, idêntico ao arquivo validado.
 Meta em13/11/2026 17:20(Brasília):installer complete, Page=true, app=true, Instagram=true, verified=true. As assinaturas agora existem; a recepção de mensagem nova ainda precisa de evento real.
+
+## Correção após teste real no Direct — velocidade e duplicação
+Baseline real: replyLagSeconds16, draftMs1939, durationMs13214, triggerwebhook. O webhook disparava varredura de toda caixa e verificação repetida de token.
+- Associação privada sender→conversation reduz caminho aquecido para uma leitura do histórico, sem listar todas as conversas.
+- Cache de15min da verificação de escopos já concedidos. A Meta continua validando token em leitura/envio. Assinatura HMAC e identidade destinatária mantidas.
+- Novo binding DIRECT_CLAIMS / ValenzaMessageClaim, SQLite Durable Object: coordenação por mensagem, não mutex global. Claim transacional antes de gerar, estado attempt persistido antes do envio; não repete após resultado incerto. Preparação sem tentativa pode recuperar após2min.
+- Nova migration única valenza-message-claim-v1. Atualizações subsequentes usam binding inherit, sem reaplicar migration.
+- Pedidos de WhatsApp/contato e aceite de atendimento humano respondem com contato oficial sem reaproveitar produto antigo na extração.
+- Cotação recente verificada ganhou índice por nome exato, variante e volume. Reutiliza a fonte validada e responde imediatamente, sem repetir busca/espera. Não inventa tamanho.
+- A reprodução do erro mostrou Eclaire sem volume falhando na nova pesquisa, apesar de existir cotação100ml válida; índice da cotação recente foi criado após verificar validade.
+-25 testes aprovados, incluindo dez tentativas simultâneas de claim, retomada, caminho direcionado de uma consultaMeta e aceite humano sem nova cotação.
+- Respostas pausadas temporariamente durante manutenção; reativar somente após teste real do binding. Registrar medição pós-atualização com nova mensagem voluntária; não prometer tempo ainda não medido.
+- Rollback seguro após esta migration: manter export ValenzaMessageClaim e binding; não subir worker.pre-speed.mjs removendo a classe ativa sem planejamento. Para desativar atendimento, remover somente flag enabled (reversível), preservando dados e histórico.

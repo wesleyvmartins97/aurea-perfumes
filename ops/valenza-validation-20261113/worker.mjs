@@ -1,3 +1,4 @@
+import { DurableObject } from "cloudflare:workers";
 const APP_ID = "2774518972985904";
 const PAGE_ID = "1392843810580790";
 const BASE = "https://valenza-social-admin.aureaperfumes.workers.dev";
@@ -1127,6 +1128,13 @@ function vliClassify(message){
 }
 
 
+
+export class ValenzaMessageClaim extends DurableObject {
+ async claim(){return this.ctx.storage.transaction(async tx=>{const old=await tx.get("claim");if(old&&(old.phase!=="preparing"||Date.now()-old.at<120000))return false;await tx.put("claim",{phase:"preparing",at:Date.now()});return true})}
+ async attempt(){await this.ctx.storage.put("claim",{phase:"attempting",at:Date.now()})}
+}
+function vcClaimStub(env,key){return env.DIRECT_CLAIMS?.getByName(key)}
+
 function vcScopedEnv(env){
  const cache=new Map(),kv=env.PRIVATE_KV;
  const allowed=new Set([VLI+"enabled",VLI+"page_token","instagram:identity",V2C_PREFIX+"catalog"]);
@@ -1297,6 +1305,8 @@ if(!env.GROQ_API_KEY&&!env.GEMINI_API_KEY&&!env.AI?.run)throw Error("Motor de IA
  return {type:"draft",text:t};
 }
 async function vliPerm(env){
+ const cached=await env.PRIVATE_KV.get(VLI+"permission_check","json");
+ if(cached?.ok&&Date.now()-Date.parse(cached.at)<900000)return cached;
  const seal=await env.PRIVATE_KV.get(VLI+"page_token");
  if(!seal)return {ok:false,reason:"Aguardando autorização de mensagens da Meta"};
  const userToken=await ownToken(seal,env);
@@ -1307,7 +1317,7 @@ async function vliPerm(env){
  const p=await r.json();
  const scopes=[...(p.data?.scopes||[]),...(p.data?.granular_scopes||[]).map(x=>x.scope)];
  const valid=r.ok&&p.data?.is_valid===true&&String(p.data?.app_id)===APP_ID;
- return {ok:valid&&scopes.includes("pages_messaging")&&scopes.includes("instagram_manage_messages"),reason:valid?"Verificar permissões instagram_manage_messages e pages_messaging":"Token de atendimento inválido"};
+ const result={at:new Date().toISOString(),ok:valid&&scopes.includes("pages_messaging")&&scopes.includes("instagram_manage_messages"),reason:valid?"Verificar permissões instagram_manage_messages e pages_messaging":"Token de atendimento inválido"};if(result.ok)await env.PRIVATE_KV.put(VLI+"permission_check",JSON.stringify(result),{expirationTtl:900});return result;
 }
 async function vliGraph(token,path,query={}){
  const u=new URL("https://graph.facebook.com/"+VERSION+"/"+path);
@@ -1315,14 +1325,14 @@ async function vliGraph(token,path,query={}){
  const r=await fetch(u,{headers:{"Authorization":"Bearer "+token},signal:AbortSignal.timeout(11000)});
  return {ok:r.ok,data:await r.json(),http:r.status};
 }
-async function vliDirectCycle(env,force=false){
+async function vliDirectCycle(env,force=false,event=null){
  const cycleStarted=Date.now();
  const last=await env.PRIVATE_KV.get(VLI+"direct_status","json");
  if(!force&&last?.at&&Date.now()-Date.parse(last.at)<8*1000)return;
  const summary={at:new Date().toISOString(),status:"checking",sent:0,needsHuman:0,scanned:0,chatsFound:0,chatMessagesRead:0,ignored:{noLatest:0,outbound:0,age:0,nonNumeric:0,handled:0},mode:"metadata_only"};
- const key=VLI+"direct_status";
+ const key=VLI+"direct_status";let cachedChat=null;
  try{
-  if(!await env.PRIVATE_KV.get(VLI+"enabled"))throw Error("Aguardando autorização do Direct");
+  if(await env.PRIVATE_KV.get(VLI+"enabled")!=="yes")throw Error("Aguardando autorização do Direct");
   const p=await vliPerm(env);if(!p.ok)throw Error(p.reason);
   const ig=await env.PRIVATE_KV.get("instagram:identity","json");
   const sealed=await env.PRIVATE_KV.get(VLI+"page_token");
@@ -1330,7 +1340,9 @@ async function vliDirectCycle(env,force=false){
   const token=await ownToken(sealed,env);
   try{const sk=VLI+"subscription_diag",prior=await env.PRIVATE_KV.get(sk,"json");try{const ak=VLI+"app_webhook_diag",prev=await env.PRIVATE_KV.get(ak,"json");if(!prev?.at||Date.now()-Date.parse(prev.at)>1800000){const ap=await fetch("https://graph.facebook.com/"+VERSION+"/"+APP_ID+"/subscriptions",{headers:{Authorization:"Bearer "+APP_ID+"|"+env.FB_APP_SECRET},signal:AbortSignal.timeout(11000)});const ad=await ap.json();await env.PRIVATE_KV.put(ak,JSON.stringify({at:new Date().toISOString(),ok:ap.ok,objects:(Array.isArray(ad.data)?ad.data:[]).map(x=>({type:x.object,active:x.active,fields:(x.fields||[]).map(f=>f.name),callbackHost:(()=>{try{return new URL(x.callback_url).host}catch{return null}})()})),code:ad.error?.code||null,subcode:ad.error?.error_subcode||null}));}}catch(e){await env.PRIVATE_KV.put(VLI+"app_webhook_diag",JSON.stringify({at:new Date().toISOString(),ok:false,error:String(e?.message||e).slice(0,130)}));}if(!prior?.at||Date.now()-Date.parse(prior.at)>1800000){const sub=await vliGraph(token,String(PAGE_ID)+"/subscribed_apps",{limit:50});const own=(sub.data?.data||[]).find(x=>String(x.id)===APP_ID);await env.PRIVATE_KV.put(sk,JSON.stringify({at:new Date().toISOString(),queryOk:sub.ok,installed:!!own,messages:(own?.subscribed_fields||[]).includes("messages"),code:sub.data?.error?.code||null}));}}catch(e){}
   const dailyKey=VLI+"sent:"+vliDay();let count=Number(await env.PRIVATE_KV.get(dailyKey)||"0");
-  const r=await vliGraph(token,encodeURIComponent(PAGE_ID)+"/conversations",{platform:"instagram",fields:"id,updated_time",limit:12});
+  if(event&&![String(ig.id),String(PAGE_ID)].includes(String(event.recipientId)))return;
+  cachedChat=event?await env.PRIVATE_KV.get(VLI+"chat_for:"+event.senderId):null;
+  const r=cachedChat?{ok:true,data:{data:[{id:cachedChat}]}}:await vliGraph(token,encodeURIComponent(PAGE_ID)+"/conversations",{platform:"instagram",fields:"id,updated_time",limit:12});
   if(!r.ok)throw Error("Meta recusou a leitura do Direct ("+(r.data?.error?.code||r.http)+")");
   summary.chatsFound=Array.isArray(r.data?.data)?r.data.data.length:0;summary.lastConversationAgeSeconds=r.data?.data?.[0]?.updated_time?Math.round((Date.now()-Date.parse(r.data.data[0].updated_time))/1000):null;
   for(const chat of(r.data?.data||[]).slice(0,12)){
@@ -1345,6 +1357,8 @@ async function vliDirectCycle(env,force=false){
    if(!Number.isFinite(age)||age < -120000||age>23*3600000||!vliTxt(latest.message)){summary.ignored.age++;continue;}
    summary.scanned++;summary.lastInboundAgeSeconds=Math.round(age/1000);
    const recipient=String(latest.from.id),messageId=String(latest.id),idKey=VLI+"seen:"+messageId;
+   if(event&&recipient!==String(event.senderId))continue;
+   const mapKey=VLI+"chat_for:"+recipient;if(await env.PRIVATE_KV.get(mapKey)!==String(chat.id))await env.PRIVATE_KV.put(mapKey,String(chat.id),{expirationTtl:2592000});
    if(!/^\d+$/.test(recipient)){summary.ignored.nonNumeric++;continue;}if(await env.PRIVATE_KV.get(idKey)){summary.ignored.handled++;continue;}
    const type=vliClassify(latest.message);
    if(type!=="safe"){
@@ -1355,11 +1369,13 @@ async function vliDirectCycle(env,force=false){
     await env.PRIVATE_KV.put(idKey,JSON.stringify({state:type,at:new Date().toISOString()}),{expirationTtl:2592000});
     continue;
    }
+   const claim=vcClaimStub(env,"direct:"+messageId);if(claim&&!await claim.claim()){summary.ignored.handled++;continue;}
    const history=messages.slice(1).reverse().map(m=>({role:String(m.from.id)===String(ig.id)?"assistant":"user",content:vliTxt(m.message)})).filter(m=>m.content);
    const draftStarted=Date.now();let draft,pending=null;
    try{const prepared=await vcIncoming(env,latest.message,history,chat.id,recipient,messageId);draft=prepared.draft;pending=prepared.pending;}catch(e){summary.status="ai_unavailable_handoff";summary.error=vliError(e);summary.needsHuman++;draft={type:"draft",text:"Tive uma instabilidade aqui, mas não quero te deixar esperando. 💛 Nossa equipe pode te ajudar pelo WhatsApp: "+VLI_WA}}
    if(draft.type!=="draft")continue;
    // Marcar a tentativa ANTES de enviar: nenhuma repetição automática após erro incerto.
+   if(claim)await claim.attempt();
    await env.PRIVATE_KV.put(idKey,JSON.stringify({state:"attempting",at:new Date().toISOString()}),{expirationTtl:2592000});
    try{
     const u="https://graph.facebook.com/"+VERSION+"/"+encodeURIComponent(PAGE_ID)+"/messages";
@@ -1379,7 +1395,7 @@ async function vliDirectCycle(env,force=false){
   }
   if(summary.status==="checking")summary.status="completed";
  }catch(e){summary.status="blocked";summary.error=vliError(e)}
- summary.durationMs=Date.now()-cycleStarted;summary.trigger=force?"webhook":"poll";await vcWriteDirectStatus(env,key,summary,last);
+ summary.durationMs=Date.now()-cycleStarted;summary.trigger=force?"webhook":"poll";summary.targeted=!!(event&&cachedChat);await vcWriteDirectStatus(env,key,summary,last);
 }
 async function vliRoute(req,env,path,method){
  const url=new URL(req.url);
@@ -1488,7 +1504,9 @@ async function vliMetaWebhook(req,env,ctx,path,method){
  const incoming=(data.entry||[]).flatMap(e=>e.messaging||[]).filter(m=>m?.message?.mid&&!m.message.is_echo&&m.sender?.id&&m.recipient?.id);
  if(incoming.length){
   ctx.waitUntil(env.PRIVATE_KV.put(VLI+"webhook_last",JSON.stringify({at:new Date().toISOString(),inboundEvents:incoming.length,verified:true})));
-  ctx.waitUntil(vliDirectCycle(env,true));
+  // Process only one conversation per sender; still read the authoritative history from Meta.
+  const events=[...new Map(incoming.map(m=>[String(m.sender.id),m])).values()].slice(0,5);
+  for(const m of events)ctx.waitUntil(vliDirectCycle(env,true,{senderId:String(m.sender.id),recipientId:String(m.recipient.id),messageId:String(m.message.mid)}));
  }
  return new Response("EVENT_RECEIVED",{status:200,headers:{"content-type":"text/plain"}});
 }
@@ -1727,6 +1745,8 @@ async function vqaRead(env,url){
  return vqaParse(value);
 }
 async function vqaFind(env,name,volume){
+ const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),"json");
+ if(alias?.validUntil>Date.now()&&Number(alias.volume)===Number(volume)&&vqaMatch(name,volume,alias.name))return alias;
  const key=VQA_PREFIX+"auto:"+vqNormal(name).replace(/\s+/g,"-")+":"+volume;
  const cached=await env.PRIVATE_KV.get(key,"json");
  if(cached&&cached.validUntil>Date.now()&&Number(cached.salePrice)>0)return cached;
@@ -1746,6 +1766,7 @@ async function vqaFind(env,name,volume){
  const price=vqPrice(Number(offer.preco_dolar),40);
  const q={name:details.nome,volume:Number(volume),usd:Number(offer.preco_dolar),salePrice:price.price,pixPrice:price.pix,store:offer.loja.nome,productUrl:"https://www.comprasparaguai.com.br"+model.link,verifiedAt:new Date().toISOString(),sourceLastUpdate:details.data_ultima_disponibilidade,validUntil:Date.now()+21600000,preliminary:true};
  await env.PRIVATE_KV.put(key,JSON.stringify(q),{expirationTtl:3600});
+ await env.PRIVATE_KV.put(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),JSON.stringify(q),{expirationTtl:3600});
  return q;
 }
 async function vqaReply(env,name,volume){
@@ -1901,6 +1922,8 @@ function vcNameCandidates(name,volume,rows){
  });
 }
 async function vcQueryMissingVolume(env,name){
+ const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(name).join("-"),"json");
+ if(alias?.validUntil>Date.now()&&vqaMatch(name,alias.volume,alias.name))return{status:"quote",offer:alias};
  const res=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(name));
  const found=vcNameCandidates(name,0,res?.resultados||[]);
  const sizes=[...new Set(found.map(x=>Number((x.nome||"").match(/\b(\d{2,3})\s*ML\b/i)?.[1]||0)).filter(Boolean))].sort((a,b)=>a-b);
@@ -1967,6 +1990,7 @@ async function vcPendingQuotes(env){
    result=await vcPrepareQuote(env,task.name,task.volume);
   }catch(e){result={status:"unverified",text:"Estou conferindo, mas a pesquisa não conseguiu confirmar esse perfume agora. 💛 Se quiser, nossa equipe pode ajudar pelo WhatsApp."}}
   try{
+   const claim=vcClaimStub(env,"quote:"+task.sourceMessage);if(claim&&!await claim.claim())continue;if(claim)await claim.attempt();
    await env.PRIVATE_KV.put(item.name,JSON.stringify({...task,stage:"sending",attemptedAt:new Date().toISOString()}),{expirationTtl:172800});
    const sent=await vcFollowupSend(env,token,task.recipient,result?.text||"Não consegui confirmar o produto no momento. Posso te encaminhar para nossa equipe? 💛");
    const done={at:new Date().toISOString(),status:sent.ok?"delivered":"rejected",resultStatus:result?.status,code:sent.code};
@@ -2005,17 +2029,21 @@ async function vcFastCatalog(env,message,history=[]){
 async function vcIncoming(env,message,history,chatId,recipient,messageId){
  const txt=vliTxt(message);
  const normalized=vcPlain(txt);
+ const lastAssistant=history.filter(x=>x.role==="assistant").slice(-1)[0]?.content||"";
+ if(/whatsapp|qual (?:o )?contato|qual (?:o )?numero|telefone|falar com (?:uma )?(?:pessoa|humano|atendente)|atendimento humano/.test(normalized)||(/whatsapp/i.test(lastAssistant)&&/^(?:sim|pode|quero|claro|ok|manda|envia)/.test(normalized)))return {draft:{type:"draft",text:"Claro! Pode falar com a nossa equipe pelo WhatsApp: "+VLI_WA+" 💛"},pending:null};
  const shortSocial=vcSocialOnly(txt);
  let product=null;
  if(!shortSocial){
   const quick=await vcFastCatalog(env,txt,history);if(quick)return {draft:quick,pending:null};
   const generic=/baunilha|docinho|doce|floral|amadeirad|minha esposa|meu marido|indica|opcoes|sugest|recomend|edt|edp/.test(normalized)&&!/(?:tem|preco|valor|custa|ml|lattafa|armaf|dior|chanel|eclaire|million)/.test(normalized);
-  if(!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,history)}catch{}}
+  if(!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,/preco|valor|custa|ml|versao|tamanho/.test(normalized)?history:[])}catch{}}
  }
  if(product?.name){
   const found=await vcCatalogCheckForQuote(env,product);
   if(found.status==="in_catalog"&&found.draft)return{draft:found.draft,pending:null};
   if(found.status==="off_catalog"){
+   const recent=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqWords(product.name).join("-"),"json");
+   if(recent?.validUntil>Date.now()&&(!product.volume||Number(product.volume)===Number(recent.volume))&&vqaMatch(product.name,recent.volume,recent.name))return{draft:{type:"draft",text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
    const waiting={at:new Date().toISOString(),stage:"queued",sourceMessage:String(messageId),chatId:String(chatId),recipient:String(recipient),name:product.name,volume:Number(product.volume)||0};
    return{draft:{type:"draft",text:"Só um minutinho, vou conferir o "+product.name+(product.volume?" de "+product.volume+" ml":"")+" e já volto com as opções certinhas pra você! 💛"},pending:waiting};
   }
@@ -2025,11 +2053,29 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
 }
 
 
+
+async function vcSpeedAudit(env){
+ const out={at:new Date().toISOString(),claim:null,mappedChats:0,permission:false};
+ const stub=vcClaimStub(env,"audit:"+crypto.randomUUID());
+ if(!stub)throw Error("Atomic claim binding missing");
+ const attempts=await Promise.all(Array.from({length:10},()=>stub.claim()));await stub.attempt();out.claim={parallelAttempts:10,accepted:attempts.filter(Boolean).length,replayAllowed:await stub.claim()};
+ const perm=await vliPerm(env);out.permission=!!perm.ok;if(!perm.ok)return out;
+ const sealed=await env.PRIVATE_KV.get(VLI+"page_token"),ig=await env.PRIVATE_KV.get("instagram:identity","json");const token=await ownToken(sealed,env);
+ const r=await vliGraph(token,PAGE_ID+"/conversations",{platform:"instagram",fields:"id",limit:12});if(!r.ok)return out;
+ for(const chat of(r.data?.data||[]).slice(0,12)){
+  const x=await vliGraph(token,chat.id+"/messages",{fields:"id,from,created_time",limit:10});if(!x.ok)continue;
+  const person=(x.data?.data||[]).find(m=>/^\d+$/.test(String(m.from?.id))&&String(m.from.id)!==String(ig?.id));if(!person)continue;
+  await env.PRIVATE_KV.put(VLI+"chat_for:"+person.from.id,String(chat.id),{expirationTtl:2592000});out.mappedChats++;
+ }
+ return out;
+}
+
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
+ if(requested==="speed"){const started=Date.now();try{const result=await vcSpeedAudit(env);await env.PRIVATE_KV.put(key+":speed_result",JSON.stringify({...result,durationMs:Date.now()-started}),{expirationTtl:86400})}catch(e){await env.PRIVATE_KV.put(key+":speed_result",JSON.stringify({ok:false,reason:String(e?.message||e).slice(0,100)}),{expirationTtl:86400})}return;}
  const out={at:new Date().toISOString(),cases:[],quote:null,health:"running"};
  const examples=[
   ["cumprimento","Bom dia, tudo bem?"],
