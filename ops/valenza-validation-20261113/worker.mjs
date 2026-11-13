@@ -1140,8 +1140,9 @@ function vcClaimStub(env,key){return env.DIRECT_CLAIMS?.getByName(key)}
 async function vcBrowserRun(env,url,options){
  if(!env.BROWSER?.quickAction)throw Error("Navegador da nuvem indisponível");
  const budget=vcClaimStub(env,"browser-resource-budget");if(!budget)throw Error("Controle de recursos indisponível");
- const lease=await budget.reserveBrowser(),delay=Math.max(0,lease.notBefore-Date.now());if(delay)await new Promise(r=>setTimeout(r,delay));const start=Date.now();
- try{return await env.BROWSER.quickAction("markdown",{url,...options})}finally{await budget.finishBrowser(lease.id,Date.now()-start)}
+ const deadline=Number(options?.deadline||0);const cleanOptions={...options};delete cleanOptions.deadline;
+ const lease=await budget.reserveBrowser(),delay=Math.max(0,lease.notBefore-Date.now());if(deadline&&Date.now()+delay+3000>=deadline){await budget.finishBrowser(lease.id,0);throw Error("Tempo de comparação esgotado");}if(delay)await new Promise(r=>setTimeout(r,delay));const start=Date.now();
+ try{return await env.BROWSER.quickAction("markdown",{url,...cleanOptions})}finally{await budget.finishBrowser(lease.id,Date.now()-start)}
 }
 
 function vcScopedEnv(env){
@@ -2049,6 +2050,7 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
   if(!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,!switching&&/preco|valor|custa|ml|versao|tamanho/.test(normalized)?history:[])}catch{}}
  }
  if(product?.name){
+  product.name=product.name.replace(/\bsuga\b/gi,"Sugar");
   const found=await vcCatalogCheckForQuote(env,product);
   if(found.status==="in_catalog"&&found.draft)return{draft:found.draft,pending:null};
   if(found.status==="off_catalog"){
@@ -2088,6 +2090,7 @@ async function vcOneTimeAudit(env){
  if(requested==="research"||requested==="research-sabah"){
   const researchName=requested==="research-sabah"?"Sabah Al Ward Sugar":"Hawas Black";
   const result={at:new Date().toISOString()};
+  if(requested==="research-sabah"){try{const start=Date.now();result.routing=await vcIncoming(env,"Sabah Al Ward Suga",[],"audit","1234567","audit-sabah");result.routingMs=Date.now()-start;result.confirmation=await vcIncoming(env,"isso esse mesmo",[{role:"assistant",content:"É o Sabah Sugar, certo? É esse frasco rosa de tampa branca?"}],"audit","1234567","audit-confirm")}catch(e){result.routingError=String(e?.message||e).slice(0,120)}}
   try{const start=Date.now();result.extracted=await vqExtract(env,"vcs teriam esse perfume "+researchName,[]);result.extractMs=Date.now()-start}catch(e){result.extractError=String(e?.message||e).slice(0,100)}
   try{const start=Date.now();const q=await vcPrepareQuote(env,researchName,0);result.quote={...q,ms:Date.now()-start}}catch(e){result.quoteError=String(e?.message||e).slice(0,100)}
   try{const x=await vliWrite(env,"mais amadeirado o top do momento por favor",[{role:"user",content:"qual perfume vc sugere pra mim?"}],{skipQuote:true});result.recommendation=x}catch(e){result.recommendationError=String(e?.message||e).slice(0,100)}
@@ -2151,6 +2154,7 @@ function vbmSameProduct(name,volume,title){
 }
 function vbmKnownLinks(name,volume){
  const s=vbmSimple(name);
+ if(volume===100&&s.includes("sabah")&&s.includes("sugar"))return{charme:"https://www.charmeperfumaria.com.br/produtos/sabah-al-ward-sugar-al-wataniah-100ml/",zen:"https://zenperfumaria.com.br/produtos/sabah-al-ward-sugar-al-wataniah-eau-de-parfum-perfume-arabe-feminino-100ml/"};
  if(volume===100&&s.includes("hawas")&&s.includes("black"))return{charme:"https://www.charmeperfumaria.com.br/produtos/hawas-black/",roma:"https://www.romaaroma.com.br/produtos/rasasi-hawas-black-100ml-edp/",zen:"https://zenperfumaria.com.br/produtos/rasasi-hawas-black-eau-de-parfum-100ml/"};
  if(volume===100&&s.includes("lattafa")&&s.includes("eclaire")&&s.includes("banoffi")){
   return{
@@ -2214,12 +2218,13 @@ function vbmHtmlProduct(html){
  return null;
 }
 
-async function vbmOpen(env,url){
+async function vbmOpen(env,url,deadline=0){
+ if(deadline&&Date.now()+1000>=deadline)return null;
  if(!env.BROWSER?.quickAction)return null;
  const u=new URL(url);
  if(u.protocol!=="https:"||!VBM_SHOPS.some(x=>x.domain===u.hostname))return null;
  try{const response=await fetch(u.toString(),{headers:{Accept:"text/html"},signal:AbortSignal.timeout(5000)});if(response.ok){const html=await response.text();if(html.length<800000){const product=vbmHtmlProduct(html);if(product)return product;const links=[...html.matchAll(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)].slice(0,500).map(m=>{try{return '['+m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()+']('+new URL(m[1],u).toString()+')'}catch{return''}}).join('\n');if(/\/(?:search|busca)\//.test(u.pathname)&&links.length>450)return links}}}catch{}
- const r=await vcBrowserRun(env,u.toString(),{gotoOptions:{waitUntil:"domcontentloaded",timeout:12000},actionTimeout:10000});
+ const r=await vcBrowserRun(env,u.toString(),{deadline,gotoOptions:{waitUntil:"domcontentloaded",timeout:Math.min(12000,deadline?Math.max(1000,deadline-Date.now()):12000)},actionTimeout:Math.min(10000,deadline?Math.max(1000,deadline-Date.now()):10000)});
  if(!r?.ok)return null;
  const raw=await r.text();
  let parsed;try{parsed=JSON.parse(raw)}catch(e){parsed={result:raw}}
@@ -2241,19 +2246,20 @@ async function vbmCompetitivePrice(env,name,volume,base){
  if(cached&&cached.validUntil>Date.now()&&cached.floor===floor)return cached;
  const query=encodeURIComponent(name.replace(/\b(?:perfume|unissex|feminino|masculino)\b/gi,"").trim()+" "+volume+"ml");
  const known=vbmKnownLinks(name,volume);
- const offers=[];
- for(const shop of VBM_SHOPS){
+ const offers=[],deadline=Date.now()+25000;
+ for(const shop of [...VBM_SHOPS].sort((a,b)=>Number(!!known[b.id])-Number(!!known[a.id]))){
+  if(Date.now()+1000>=deadline)break;
   if(offers.length>=3)break;
   let url=vbmCanonicalUrl(known[shop.id],shop);
   if(!url){
    try{
-    const listing=await vbmOpen(env,shop.search+query);
+    const listing=await vbmOpen(env,shop.search+query,deadline);
     if(listing)url=vbmListingUrl(listing,shop,name,volume);
    }catch(e){}
   }
   if(!url)continue;
   try{
-   const page=await vbmOpen(env,url);
+   const page=await vbmOpen(env,url,deadline);
    const offer=page?vbmRetailOffer(page,shop,name,volume,url):null;
    if(offer)offers.push(offer);
   }catch(e){}
