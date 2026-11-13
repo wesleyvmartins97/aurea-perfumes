@@ -1869,7 +1869,7 @@ async function vcCatalogFind(env,name){
   const tokens=id.split(" ");
   const desired=words.every(w=>tokens.includes(w));
   if(!desired)return false;
-  const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice","sugar","black"];
+  const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice","sugar","suga","black"];
   if(extras.some(w=>tokens.includes(w)&&!words.includes(w)))return false;
   return true;
  });
@@ -2019,7 +2019,7 @@ async function vcFastCatalog(env,message,history=[]){
  if(!found.length&&/quanto|preco|valor|custa|\bml\b/.test(normalized)){
   for(const h of history.filter(x=>x.role==="user").slice(-4).reverse()){found=matchText(vcPlain(h.content).replace(/\bone million\b/g,"1 million"));if(found.length)break}
  }
- const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice","banoffi","paradise","sugar","black"];
+ const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice","banoffi","paradise","sugar","suga","black"];
  const context=normalized+" "+history.filter(x=>x.role==="user").slice(-1).map(x=>vcPlain(x.content)).join(" ");
  found=found.filter(p=>!extras.some(w=>context.split(" ").includes(w)&&!vcPlain(p.id).split(" ").includes(w)));
  if(found.length!==1)return null;
@@ -2082,13 +2082,14 @@ async function vcSpeedAudit(env){
 
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
- if(requested==="research"){
+ if(requested==="research"||requested==="research-sabah"){
+  const researchName=requested==="research-sabah"?"Sabah Al Ward Sugar":"Hawas Black";
   const result={at:new Date().toISOString()};
-  try{const start=Date.now();result.extracted=await vqExtract(env,"vcs teriam esse perfume Hawas Black",[]);result.extractMs=Date.now()-start}catch(e){result.extractError=String(e?.message||e).slice(0,100)}
-  try{const start=Date.now();const q=await vcPrepareQuote(env,"Hawas Black",0);result.quote={...q,ms:Date.now()-start}}catch(e){result.quoteError=String(e?.message||e).slice(0,100)}
+  try{const start=Date.now();result.extracted=await vqExtract(env,"vcs teriam esse perfume "+researchName,[]);result.extractMs=Date.now()-start}catch(e){result.extractError=String(e?.message||e).slice(0,100)}
+  try{const start=Date.now();const q=await vcPrepareQuote(env,researchName,0);result.quote={...q,ms:Date.now()-start}}catch(e){result.quoteError=String(e?.message||e).slice(0,100)}
   try{const x=await vliWrite(env,"mais amadeirado o top do momento por favor",[{role:"user",content:"qual perfume vc sugere pra mim?"}],{skipQuote:true});result.recommendation=x}catch(e){result.recommendationError=String(e?.message||e).slice(0,100)}
   await env.PRIVATE_KV.put(key+":research_result",JSON.stringify(result),{expirationTtl:86400});return;
  }
