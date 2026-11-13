@@ -1137,12 +1137,12 @@ export class ValenzaMessageClaim extends DurableObject {
  async finishBrowser(id,elapsed){return this.ctx.storage.transaction(async tx=>{const key=await tx.get("lease:"+id);if(!key)return;const used=Number(await tx.get(key)||0),consumed=Math.min(60000,Math.max(1000,Number(elapsed)||0)+2000);await tx.put(key,Math.max(0,used-60000+consumed));await tx.delete("lease:"+id)})}
 }
 function vcClaimStub(env,key){return env.DIRECT_CLAIMS?.getByName(key)}
-async function vcBrowserRun(env,url,options){
+async function vcBrowserRun(env,url,options,action="markdown"){
  if(!env.BROWSER?.quickAction)throw Error("Navegador da nuvem indisponível");
  const budget=vcClaimStub(env,"browser-resource-budget");if(!budget)throw Error("Controle de recursos indisponível");
  const deadline=Number(options?.deadline||0);const cleanOptions={...options};delete cleanOptions.deadline;
  const lease=await budget.reserveBrowser(),delay=Math.max(0,lease.notBefore-Date.now());if(deadline&&Date.now()+delay+3000>=deadline){await budget.finishBrowser(lease.id,0);throw Error("Tempo de comparação esgotado");}if(delay)await new Promise(r=>setTimeout(r,delay));const start=Date.now();
- try{return await env.BROWSER.quickAction("markdown",{url,...cleanOptions})}finally{await budget.finishBrowser(lease.id,Date.now()-start)}
+ try{return await env.BROWSER.quickAction(action,{url,...cleanOptions})}finally{await budget.finishBrowser(lease.id,Date.now()-start)}
 }
 
 function vcScopedEnv(env){
@@ -2107,11 +2107,11 @@ async function vcSpeedAudit(env){
 
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","shortnames"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","photo-garden","shortnames"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
  if(requested==="shortnames"){const r={at:new Date().toISOString(),cases:[]};for(const text of ["Gostaria de um perfume o Yara. Qual valor?","Yara","Queria o CDNIM qual valor?","Yaraa qual valor?","Yara Tous qual valor?"]){const t=Date.now();try{r.cases.push({input:text,...await vcIncoming(env,text,[],"audit","1234567","shortname-audit"),ms:Date.now()-t})}catch(e){r.cases.push({input:text,error:String(e?.message||e).slice(0,100)})}}await env.PRIVATE_KV.put(key+":shortnames",JSON.stringify(r),{expirationTtl:86400});return;}
- if(requested==="photo-test"){const result={at:new Date().toISOString(),cases:[]};for(const product of [{name:"Perfume Al Wataniah Sabah Al Ward Sugar Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/"},{catalogId:"eclaire",name:"Eclaire",volume:100}]){const t=Date.now();try{const photo=await vciPreparePhoto(env,product);result.cases.push({name:product.name,photo,ms:Date.now()-t})}catch(e){result.cases.push({name:product.name,error:String(e?.message||e).slice(0,120),ms:Date.now()-t})}}await env.PRIVATE_KV.put(key+":photo_test",JSON.stringify(result),{expirationTtl:86400});return;}
+ if(requested==="photo-test"||requested==="photo-garden"){const result={at:new Date().toISOString(),cases:[]};for(const product of (requested==="photo-garden"?[{name:"Perfume Al Wataniah Sabah Al Ward Garden Of Eden Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-garden-of-eden-eau-de-parfum-feminino-100ml_68371/"}]:[{name:"Perfume Al Wataniah Sabah Al Ward Sugar Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/"},{catalogId:"eclaire",name:"Eclaire",volume:100}])){const t=Date.now();try{let probe=null;if(requested==="photo-garden"){const d=await vqaRead(env,VQA_BASE+new URL(product.productUrl).pathname);probe={name:d.nome,identity:vqaMatch(product.name,product.volume,d.nome),principal:d.imagem_principal_url,images:d.imagens_url}}const source=await vciSource(env,product);const photo=await vciPreparePhoto(env,product);let attachmentReady=null;if(requested==="photo-garden"&&photo?.converted){const sealed=await env.PRIVATE_KV.get(VLI+"page_token");const token=await ownToken(sealed,env);attachmentReady=!!await vciUploadPhoto(env,token,photo)}const safePhoto=photo?Object.fromEntries(Object.entries(photo).filter(([k])=>k!=="inline")):null;result.cases.push({name:product.name,probe,source,photo:safePhoto,attachmentReady,ms:Date.now()-t})}catch(e){result.cases.push({name:product.name,error:String(e?.message||e).slice(0,120),ms:Date.now()-t})}}await env.PRIVATE_KV.put(key+":photo_test",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="photo-discovery"){const d=await vqaRead(env,VQA_BASE+"/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/");const site=await fetch(VLI_SITE+"/api/catalog/runtime").then(r=>r.json()).catch(()=>null);const result={at:new Date().toISOString(),keys:Object.keys(d),photoFields:Object.fromEntries(Object.entries(d).filter(([k])=>/foto|image|imagem|thumb|picture/i.test(k))),siteProduct:site?.products?.[0]};await env.PRIVATE_KV.put(key+":photo_discovery",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="research"||requested==="research-sabah"||requested==="research-afnan"){
   const researchName=requested==="research-afnan"?"Afnan Supremacy Collectors Edition EDP":requested==="research-sabah"?"Sabah Al Ward Sugar":"Hawas Black";
@@ -2302,7 +2302,7 @@ async function vbmCompetitivePrice(env,name,volume,base){
 // Original, verified product photos only. No generated artwork or third-party shop branding.
 const VCI_PREFIX='valenza:product-photo:v1:';
 const VCI_ORIGIN='https://valenza-social-admin.aureaperfumes.workers.dev';
-function vciAllowedSource(value){try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;const own=['valenzaparfums.com.br','www.valenzaparfums.com.br'].includes(u.hostname);const cp=u.hostname==='us-ord-10.linodeobjects.com'&&u.pathname.startsWith('/bucket-prod/site/media/fotos/modelos/');if(!own&&!cp)return null;if(!/\.(?:jpe?g|png|webp)$/i.test(u.pathname)||/logo|banner|watermark|marca.d.?agua|anuncio/i.test(u.pathname))return null;return u.toString()}catch{return null}}
+function vciAllowedSource(value){try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;if(u.hostname==='valenza-social-admin.aureaperfumes.workers.dev'&&/^\/product-photo\/[a-f0-9]{64}$/.test(u.pathname))return u.toString();const own=['valenzaparfums.com.br','www.valenzaparfums.com.br'].includes(u.hostname);const cp=u.hostname==='us-ord-10.linodeobjects.com'&&u.pathname.startsWith('/bucket-prod/site/media/fotos/modelos/');if(!own&&!cp)return null;if(!/\.(?:jpe?g|png|webp|avif)$/i.test(u.pathname)||/logo|banner|watermark|marca.d.?agua|anuncio/i.test(u.pathname))return null;return u.toString()}catch{return null}}
 async function vciHash(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function vciMetaImage(html){const tags=String(html||'').match(/<meta\b[^>]+>/gi)||[];for(const tag of tags){const a=Object.fromEntries([...tag.matchAll(/([a-z:_-]+)\s*=\s*["']([^"']*)["']/gi)].map(m=>[m[1].toLowerCase(),m[2]]));if(a.property==='og:image'||a.name==='og:image')return String(a.content||'').replace(/&amp;/g,'&')}return null}
 function vciCPImage(details){return vciAllowedSource(details?.imagens_url?.[0]?.large)||vciAllowedSource(details?.imagem_principal_url)||null}
@@ -2318,11 +2318,28 @@ async function vciSource(env,product){
  const d=await vqaRead(env,VQA_BASE+u.pathname);if(!vqaMatch(product.name,product.volume,d?.nome||''))return null;const url=vciCPImage(d);return url?{name:d.nome,url}:null;
 }
 async function vciReadImage(response){
- const mime=(response.headers.get('content-type')||'').split(';')[0].toLowerCase();if(!response.ok||!['image/jpeg','image/png','image/webp'].includes(mime))return null;
+ const mime=(response.headers.get('content-type')||'').split(';')[0].toLowerCase();if(!response.ok||!['image/jpeg','image/png','image/webp','image/avif'].includes(mime))return null;
  const limit=2500000,announced=Number(response.headers.get('content-length'));if(announced>limit)return null;
  const reader=response.body?.getReader();if(!reader)return null;let size=0;const chunks=[];try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();return null}chunks.push(value)}}finally{reader.releaseLock()}
  if(size<1000)return null;const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length}return{mime,bytes};
 }
+
+async function vciCompatibleImage(env,source,image){
+ if(image?.mime!=='image/avif')return image;
+ // Decode the original image in the browser and encode only that image element as JPEG.
+ // No generative image model, text overlay, page advertisement, or bottle reconstruction.
+ const response=await vcBrowserRun(env,source.url,{selector:'img',viewport:{width:1200,height:1200,deviceScaleFactor:1},screenshotOptions:{type:'jpeg',quality:95},gotoOptions:{waitUntil:'networkidle0',timeout:12000},actionTimeout:10000},'screenshot');
+ const converted=await vciReadImage(response);if(converted?.mime!=='image/jpeg')throw Error('Original photo conversion failed');return{...converted,converted:true};
+}
+async function vciUploadPhoto(env,token,photo){
+ if(!photo.converted)return null;if(!/^[a-f0-9]{64}$/.test(photo.id||''))throw Error('Photo identifier invalid');const key=VCI_PREFIX+'attachment:'+photo.id;
+ const existing=await env.PRIVATE_KV.get(key);if(/^\d+$/.test(existing||''))return existing;
+ const bytes=photo.inline||await env.PRIVATE_KV.get(VCI_PREFIX+'bytes:'+photo.id,'arrayBuffer');if(!bytes)throw Error('Compatible photo bytes unavailable');
+ const form=new FormData();form.append('message',JSON.stringify({attachment:{type:'image',payload:{is_reusable:true}}}));form.append('filedata',new Blob([bytes],{type:'image/jpeg'}),'perfume.jpg');
+ const response=await fetch('https://graph.facebook.com/'+VERSION+'/'+encodeURIComponent(PAGE_ID)+'/message_attachments',{method:'POST',headers:{Authorization:'Bearer '+token},body:form,signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||!/^\d+$/.test(String(result.attachment_id||'')))throw Error('Photo upload rejected '+response.status+' code '+String(result.error?.code||''));
+ const id=String(result.attachment_id);await env.PRIVATE_KV.put(key,id,{expirationTtl:604800});return id;
+}
+
 async function vciVerifyImage(env,source,image){
  if(!env.GEMINI_API_KEY)return false;
  let binary='';for(let i=0;i<image.bytes.length;i+=8192)binary+=String.fromCharCode(...image.bytes.subarray(i,i+8192));
@@ -2334,21 +2351,24 @@ async function vciPreparePhoto(env,product){
  const cached=await env.PRIVATE_KV.get(key,'json');if(cached?.approved===true)return cached;if(cached?.approved===false)return null;
  let source=await vciSource(env,product);if(!source||!vciAllowedSource(source.url))return null;
  let image=await vciReadImage(await fetch(source.url,{signal:AbortSignal.timeout(5000),redirect:'manual'}));if(!image)return null;
- let approved=await vciVerifyImage(env,source,image);if(!approved&&product.catalogId){const fallback=await vciSource(env,{...product,cpOnly:true});if(fallback&&fallback.url!==source.url){source=fallback;image=await vciReadImage(await fetch(source.url,{signal:AbortSignal.timeout(5000),redirect:'manual'}));approved=image?await vciVerifyImage(env,source,image):false}}
+ image=await vciCompatibleImage(env,source,image);
+ let approved=await vciVerifyImage(env,source,image);if(!approved&&product.catalogId){const fallback=await vciSource(env,{...product,cpOnly:true});if(fallback&&fallback.url!==source.url){source=fallback;image=await vciReadImage(await fetch(source.url,{signal:AbortSignal.timeout(5000),redirect:'manual'}));if(image)image=await vciCompatibleImage(env,source,image);approved=image?await vciVerifyImage(env,source,image):false}}
  if(!approved){await env.PRIVATE_KV.put(key,JSON.stringify({approved:false,at:new Date().toISOString()}),{expirationTtl:3600});return null;}
- const meta={approved:true,name:source.name,mime:image.mime,url:source.url,publicPreview:VCI_ORIGIN+'/product-photo/'+id,size:image.bytes.length,at:new Date().toISOString()};
- await env.PRIVATE_KV.put(VCI_PREFIX+'bytes:'+id,image.bytes,{expirationTtl:691200});await env.PRIVATE_KV.put(key,JSON.stringify(meta),{expirationTtl:604800});return meta;
+ const meta={approved:true,id,converted:image.converted===true,name:source.name,mime:image.mime,url:image.converted?VCI_ORIGIN+'/product-photo/'+id:source.url,publicPreview:VCI_ORIGIN+'/product-photo/'+id,size:image.bytes.length,at:new Date().toISOString()};
+ await env.PRIVATE_KV.put(VCI_PREFIX+'bytes:'+id,image.bytes,{expirationTtl:691200});await env.PRIVATE_KV.put(key,JSON.stringify(meta),{expirationTtl:604800});return image.converted?{...meta,inline:image.bytes}:meta;
 }
 async function vciPhotoRoute(request,env,path,method){
  const found=path.match(/^\/product-photo\/([a-f0-9]{64})$/);if(!found)return null;if(!['GET','HEAD'].includes(method))return new Response(null,{status:405});
  const m=await env.PRIVATE_KV.get(VCI_PREFIX+'approval:'+found[1],'json');if(m?.approved!==true)return new Response(null,{status:404});const bytes=await env.PRIVATE_KV.get(VCI_PREFIX+'bytes:'+found[1],'arrayBuffer');if(!bytes)return new Response(null,{status:404});return new Response(method==='HEAD'?null:bytes,{headers:{'Content-Type':m.mime,'Cache-Control':'public,max-age=86400','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'",'Content-Length':String(m.size)}});
 }
 async function vciSendPhoto(env,token,recipient,product,messageId){
+ let phase='prepare';
  try{if(!product||!/^\d+$/.test(String(recipient))||await env.PRIVATE_KV.get(VCI_PREFIX+'enabled')!=='yes')return {status:'skipped'};
- const photo=await vciPreparePhoto(env,product);if(!photo?.approved||!vciAllowedSource(photo.url))return {status:'no_verified_photo'};
+ const photo=await vciPreparePhoto(env,product);if(!photo?.approved||!vciAllowedSource(photo.url)){const state={at:new Date().toISOString(),status:'no_verified_photo',name:product.name};await env.PRIVATE_KV.put(VCI_PREFIX+'last_send',JSON.stringify(state),{expirationTtl:86400});return state;}
+ const attachmentId=photo.converted?await vciUploadPhoto(env,token,photo):null;
  const claim=vcClaimStub(env,'product-photo:'+messageId);if(!claim||!await claim.claim())return {status:'duplicate'};await claim.attempt();
- const r=await fetch('https://graph.facebook.com/'+VERSION+'/'+encodeURIComponent(PAGE_ID)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),body:JSON.stringify({recipient:{id:String(recipient)},messaging_type:'RESPONSE',message:{attachment:{type:'image',payload:{url:photo.url}}}})});const result=await r.json();const state={at:new Date().toISOString(),status:r.ok&&result.message_id?'sent':'rejected',code:result.error?.code||null};await env.PRIVATE_KV.put(VCI_PREFIX+'last_send',JSON.stringify(state),{expirationTtl:86400});return state;
- }catch{return {status:'photo_unavailable'}}
+ phase='send';const r=await fetch('https://graph.facebook.com/'+VERSION+'/'+encodeURIComponent(PAGE_ID)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),body:JSON.stringify({recipient:{id:String(recipient)},messaging_type:'RESPONSE',message:{attachment:{type:'image',payload:attachmentId?{attachment_id:attachmentId}:{url:photo.url}}}})});const result=await r.json();const state={at:new Date().toISOString(),status:r.ok&&result.message_id?'sent':'rejected',code:result.error?.code||null};await env.PRIVATE_KV.put(VCI_PREFIX+'last_send',JSON.stringify(state),{expirationTtl:86400});return state;
+ }catch(e){const state={at:new Date().toISOString(),status:'photo_unavailable',phase,name:String(product?.name||'').slice(0,160),reason:String(e?.message||e).slice(0,150)};try{await env.PRIVATE_KV.put(VCI_PREFIX+'last_send',JSON.stringify(state),{expirationTtl:86400})}catch{}return state;}
 }
 
 export default {async fetch(request,env,ctx) {
