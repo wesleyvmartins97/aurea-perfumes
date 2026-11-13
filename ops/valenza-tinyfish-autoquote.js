@@ -3,7 +3,7 @@ const VQA_PREFIX="valenza:quotation:v1:";
 const VQA_BASE="https://api.comprasparaguai.com.br";
 const VQA_FETCH="https://api.fetch.tinyfish.ai";
 const VQA_NO=/\b(?:kit|body\s*splash|ambientador|aromatizador|desodorante|deodorant|deo|mist|spray\s+de\s+ambiente|perfume\s+de\s+ambiente|decant|amostra|tester|refil|refill|oil|creme|hidratante|freshener|sabonete|shower|gel|hair|miniatura)\b/i;
-const VQA_VARIANTS=["very","blush","elixir","pistache","banoffi","intense","intenso","supreme","glam","glitter","bowtastic","jasmine","absolute","crystal","collector","exclusive","exclusif","legere","parfum","platinum","victory","aquatic","nectar","royal","oud","rose","aqua","gold","red","black","white","pink","blue","green"];
+const VQA_VARIANTS=["very","blush","elixir","pistache","banoffi","intense","intenso","supreme","glam","glitter","bowtastic","jasmine","absolute","crystal","collector","exclusive","exclusif","legere","platinum","victory","aquatic","nectar","royal","oud","rose","aqua","gold","red","black","white","pink","blue","green"];
 const VQA_SHOPS=["star company","shopping china","cellshop","paris store","mega eletronicos","la petisquera","nissei","intershop importados","multipass","new zone","mega eletro","best shop paraguai","elegancia company","boxi importados"];
 function vqaClean(s){return vqNormal(s).replace(/\s+/g," ").trim()}
 function vqaMatch(name,volume,title){
