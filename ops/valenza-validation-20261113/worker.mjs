@@ -1869,7 +1869,7 @@ async function vcCatalogFind(env,name){
   const tokens=id.split(" ");
   const desired=words.every(w=>tokens.includes(w));
   if(!desired)return false;
-  const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice"];
+  const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice","sugar","black"];
   if(extras.some(w=>tokens.includes(w)&&!words.includes(w)))return false;
   return true;
  });
@@ -2019,7 +2019,7 @@ async function vcFastCatalog(env,message,history=[]){
  if(!found.length&&/quanto|preco|valor|custa|\bml\b/.test(normalized)){
   for(const h of history.filter(x=>x.role==="user").slice(-4).reverse()){found=matchText(vcPlain(h.content).replace(/\bone million\b/g,"1 million"));if(found.length)break}
  }
- const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice","banoffi","paradise"];
+ const extras=["very","blush","elixir","intense","intenso","candy","qahwa","victory","platinum","rose","ice","banoffi","paradise","sugar","black"];
  const context=normalized+" "+history.filter(x=>x.role==="user").slice(-1).map(x=>vcPlain(x.content)).join(" ");
  found=found.filter(p=>!extras.some(w=>context.split(" ").includes(w)&&!vcPlain(p.id).split(" ").includes(w)));
  if(found.length!==1)return null;
@@ -2038,9 +2038,12 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
  const switching=/outro (?:perfume|produto|modelo)|(?:olhar|ver|conferir|pesquisar|consultar|quero|queria) (?:um )?outro\b/.test(normalized);
  if(/whatsapp|qual (?:o )?contato|qual (?:o )?numero|telefone|falar com (?:uma )?(?:pessoa|humano|atendente)|atendimento humano/.test(normalized)||(/whatsapp/i.test(lastAssistant)&&/^(?:sim|pode|quero|claro|ok|manda|envia)/.test(normalized)))return {draft:{type:"draft",text:"Claro! Pode falar com a nossa equipe pelo WhatsApp: "+VLI_WA+" 💛"},pending:null};
  if(/^(?:(?:oi|ola|oie|opa|bom dia|boa tarde|boa noite|tudo bem|tudo bom|e voce|com voce)\s*)+$/.test(normalized)){const greeting=/bom dia/.test(normalized)?"Bom dia":/boa tarde/.test(normalized)?"Boa tarde":/boa noite/.test(normalized)?"Boa noite":"Oi";return{draft:{type:"draft",text:greeting+"! Tudo bem? 😊 Como posso te ajudar?"},pending:null};}
+ const confirmed=/^(?:isso(?: ai)?(?: esse)?(?: mesmo)?|esse mesmo|essa mesma|sim(?: esse| essa)?(?: mesmo| mesma)?|exatamente|e esse(?: mesmo)?)(?: por favor)?$/.test(normalized)&&/\?|certo|confirma|esse|essa/i.test(lastAssistant)&&!/R\$|wa\.me|instabilidade/i.test(lastAssistant);
  const shortSocial=vcSocialOnly(txt);
  let product=null;
- if(!shortSocial){
+ if(confirmed){try{product=await vqExtract(env,"Confirmo o perfume mencionado: "+lastAssistant,[])}catch{}}
+
+ if(!shortSocial&&!product){
   const quick=await vcFastCatalog(env,txt,switching?[]:history);if(quick)return {draft:quick,pending:null};
   const generic=/baunilha|docinho|doce|floral|amadeirad|minha esposa|meu marido|indica|opcoes|sugest|recomend|edt|edp/.test(normalized)&&!/(?:tem|preco|valor|custa|ml|lattafa|armaf|dior|chanel|eclaire|million)/.test(normalized);
   if(!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,!switching&&/preco|valor|custa|ml|versao|tamanho/.test(normalized)?history:[])}catch{}}
