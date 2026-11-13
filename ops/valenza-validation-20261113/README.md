@@ -1,0 +1,1 @@
+Isolated concierge validation and recovery checkpoint. No credentials or customer data.

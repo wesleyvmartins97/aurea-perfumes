@@ -1,0 +1,13 @@
+{
+  "scenario": "30 idle cron cycles, fake clock and synthetic Meta responses; not production usage",
+  "before": {
+    "get": 240,
+    "put": 30,
+    "list": 30
+  },
+  "after": {
+    "get": 240,
+    "put": 2,
+    "list": 2
+  }
+}
