@@ -9,7 +9,7 @@ Backup para rollback Cloudflare anterior ao app: versão 2836b17d-c92d-4015-8955
 deployment e6185ec3-5d19-44ea-b1b2-f462c74d43ac. Rollback remove o download, não os
 clientes/pedidos: nenhuma migração de banco executada nesta tarefa.
 
-APK SHA-256: 054db8faed6f5cb5b0421ae954c5d18f6245d22d0e0ae5c6aeaa9f1090744f4f
+APK SHA-256: a50d1b26c7e02464b199fcc038aaa045c9dea78edb9aae91479a812a8f5cc8dd
 Certificado SHA-256: 05a9300008b966015918649db7923bca94f69dce15ff7b73e5fd7b84b90eceba
 
 Rotas: /api/app/install, /api/app/download, /api/app/version, /api/app/client.js.

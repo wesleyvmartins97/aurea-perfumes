@@ -25,6 +25,15 @@ assert.ok(!java.includes('handler.proceed'));
 assert.match(java,/MIXED_CONTENT_NEVER_ALLOW/);
 assert.match(java,/setAllowFileAccess\(false\)/);
 assert.match(java,/getPort\(\)==443/);
+const guard=JSON.parse('"'+java.match(/web\.evaluateJavascript\("(.*?)",null\)/)[1]+'"');
+for(const user of [null,{email:'test@example.invalid'}]){
+  let changed=0,login=0;
+  const window={add(){changed++;},buyNow(){changed++;},openCart(){changed++;}};
+  const context=vm.createContext({window,fetch:async()=>({ok:true,json:async()=>({user})}),openAccount:async()=>{login++;},alert(){}});
+  new vm.Script(guard).runInContext(context);
+  for(const name of ['add','buyNow','openCart'])await window[name]('test-product');
+  assert.equal(changed,user?3:0);assert.equal(login,user?0:3);
+}
 const manifest=await readFile(new URL('../android/AndroidManifest.xml',import.meta.url),'utf8');
 assert.match(manifest,/usesCleartextTraffic="false"/);
 assert.deepEqual([...manifest.matchAll(/uses-permission android:name="([^"]+)"/g)].map(m=>m[1]),['android.permission.INTERNET']);
