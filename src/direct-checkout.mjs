@@ -47,4 +47,5 @@ async function vdcCanonicalItems(raw,env,original){
  return [{...vdcProduct(q),qty:1,regularPrice:q.price,promotionId:null,priceChanged:Number(raw[0].price)!==Number(q.price)}];
 }
 async function vdcRuntime(env,original){const response=await original(env);if(!response.ok||!env.__DIRECT_QUOTE)return response;const q=env.__DIRECT_QUOTE,d=await response.json(),inv=await env.DB.prepare('SELECT stock FROM inventory WHERE product_id=?').bind(q.id).first();d.catalog.push(vdcProduct(q));d.products.push({id:q.id,price:q.price,stock:Math.max(0,Number(inv?.stock)||0),active:true});return vdcJson(d);}
-export {vdcPrepare,vdcCanonicalItems,vdcRuntime};
+async function vdcShippingProduct(env,id){if(!vdcToken(id))return null;const row=await env.DB.prepare('SELECT payload FROM direct_checkout_quotes WHERE id=?').bind(id).first();if(!row)return null;return vdcProduct({...JSON.parse(row.payload),id});}
+export {vdcPrepare,vdcCanonicalItems,vdcRuntime,vdcShippingProduct};
