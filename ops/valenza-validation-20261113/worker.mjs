@@ -144,7 +144,7 @@ async function storiesBatch(env){
 const OWN="valenza:own:v1:";
 const ownK=(e,id)=>e.PRIVATE_KV.get(OWN+"post:"+id,"json");
 const ownWrite=(e,p)=>e.PRIVATE_KV.put(OWN+"post:"+p.id,JSON.stringify({...p,updated:new Date().toISOString()}));
-const ownList=async e=>{const k=await e.PRIVATE_KV.list({prefix:OWN+"post:",limit:100});return (await Promise.all(k.keys.map(v=>e.PRIVATE_KV.get(v.name,"json")))).filter(Boolean).sort((a,b)=>a.at.localeCompare(b.at));};
+const ownList=async e=>{let cursor,keys=[];do{const k=await e.PRIVATE_KV.list({prefix:OWN+"post:",limit:1000,...(cursor?{cursor}:{})});keys.push(...k.keys);cursor=k.list_complete?null:k.cursor;}while(cursor);const out=[];for(let i=0;i<keys.length;i+=20)out.push(...await Promise.all(keys.slice(i,i+20).map(v=>e.PRIVATE_KV.get(v.name,"json"))));return out.filter(Boolean).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));};
 const ownDate=s=>new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",dateStyle:"short",timeStyle:"short"}).format(new Date(s));
 function ownImage(s){try{const u=new URL(s);if(u.protocol!=="https:"||u.username||u.password||u.port||s.length>700||/localhost|^127\.|^10\.|^192\.168\./i.test(u.hostname))return null;return u.href;}catch{return null;}}
 async function ownToken(s,e){const b=JSON.parse(s);const k=await crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",new TextEncoder().encode(e.DATA_KEY)),{name:"AES-GCM"},false,["decrypt"]);return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:new Uint8Array(b.iv)},k,new Uint8Array(b.cipher)));}
@@ -152,7 +152,8 @@ async function ownApi(token,path,fields,body){const url=new URL("https://graph.f
 const ownError=x=>String(x.d?.error?.message||"HTTP "+x.http).slice(0,190);
 async function ownNetwork(env,p,network,auth){
  let s=p.net[network], token=network==="facebook"?auth.fb:auth.ig, path=network==="facebook"?PAGE_ID:String(auth.identity.id);
- const save=async()=>{p.net[network]=s;await ownWrite(env,p);};
+ const started=p.net[network],attempts=Number(started.attempts||0)+1;
+ const save=async()=>{s.attempts=attempts;if(s.status==='error'){s.nextRetry=attempts<3?new Date(Date.now()+Math.pow(2,attempts)*300000).toISOString():null;s.retryFrom=s.container?'container':s.photo?'staged':'waiting';}p.net[network]=s;await ownWrite(env,p);await nsLog(env,{event:'platform_state',id:p.id,product:nsProduct(p),platform:network,status:s.status,metaId:s.id||null,attempts});};
  try{
   if(s.status==="waiting"&&p.kind==="POST"){
    const seen=await ownApi(token,path+(network==="facebook"?"/posts":"/media"),network==="facebook"?"id,message,permalink_url":"id,caption,permalink");
@@ -168,6 +169,7 @@ async function ownNetwork(env,p,network,auth){
      if(!up.ok||!up.d?.id){s={status:"error",message:ownError(up)};await save();return;}
      s={status:"staged",photo:String(up.d.id)};await save();
     }else{
+     if(!await nsClaimSideEffect(env,p,network)){s={...s,status:"uncertain",message:"Previous publish attempt retained; verify Meta before retry"};await save();return;}
      s={status:"attempting"};await save();
      const out=await ownApi(token,path+"/photos",null,{url:p.image,caption:p.caption,published:"true"});
      if(!out.ok||!(out.d?.post_id||out.d?.id)){s={status:"uncertain",message:ownError(out)};await save();return;}
@@ -177,7 +179,8 @@ async function ownNetwork(env,p,network,auth){
     }
    }
    if(s.status==="staged"){
-    s={...s,status:"attempting"};await save();
+    if(!await nsClaimSideEffect(env,p,network)){s={...s,status:"uncertain",message:"Previous publish attempt retained; verify Meta before retry"};await save();return;}
+     s={...s,status:"attempting"};await save();
     const v=await ownApi(token,path+"/photo_stories",null,{photo_id:s.photo});
     if(!v.ok||!(v.d?.post_id||v.d?.id)){s={...s,status:"uncertain",message:ownError(v)};await save();return;}
     s={status:"published",id:String(v.d.post_id||v.d.id)};await save();return;
@@ -194,7 +197,8 @@ async function ownNetwork(env,p,network,auth){
     if(!q.ok){s={...s,status:"error",message:ownError(q)};await save();return;}
     if(q.d?.status_code==="IN_PROGRESS")return;
     if(q.d?.status_code!=="FINISHED"){s={...s,status:"error",message:"Mídia: "+String(q.d?.status_code||"desconhecido")};await save();return;}
-    s={...s,status:"attempting"};await save();
+    if(!await nsClaimSideEffect(env,p,network)){s={...s,status:"uncertain",message:"Previous publish attempt retained; verify Meta before retry"};await save();return;}
+     s={...s,status:"attempting"};await save();
     const v=await ownApi(token,path+"/media_publish",null,{creation_id:s.container});
     if(!v.ok||!v.d?.id){s={...s,status:"uncertain",message:ownError(v)};await save();return;}
     const id=String(v.d.id);let link=null;
@@ -204,10 +208,11 @@ async function ownNetwork(env,p,network,auth){
   }
  }catch(err){s={...s,status:["attempting","staging"].includes(s.status)?"uncertain":"error",message:String(err?.message||err).slice(0,190)};await save();}
 }
-async function ownRun(env){
+async function ownRunUnlocked(env){
  try{
   if(await env.PRIVATE_KV.get(OWN+"enabled")!=="yes")return;
   const list=await ownList(env);
+  for(const x of list)if(x.status==='approved'&&x.approved===true)for(const n of ['facebook','instagram']){const q=x.net[n];if(q?.status==='error'&&q.nextRetry&&Date.parse(q.nextRetry)<=Date.now()&&Number(q.attempts)<3){x.net[n]={...q,status:q.retryFrom||'waiting'};await ownWrite(env,x)}}
   const p=list.find(x=>x.status==="approved"&&x.approved===true&&Date.parse(x.at)<=Date.now()&&["facebook","instagram"].some(n=>x.net[n]&&["waiting","container","staged"].includes(x.net[n].status)));
   if(!p)return;
   const [fb,ig,raw]=await Promise.all(["page:token","instagram:token","instagram:identity"].map(k=>env.PRIVATE_KV.get(k)));
@@ -1130,6 +1135,19 @@ function vliClassify(message){
 
 
 export class ValenzaMessageClaim extends DurableObject {
+ async claimOnceSocial(){return this.ctx.storage.transaction(async tx=>{if(await tx.get('socialAttempt'))return false;await tx.put('socialAttempt',{at:Date.now()});return true})}
+ async socialLease(){return this.ctx.storage.transaction(async tx=>{const old=await tx.get('socialLease');if(old&&old.expires>Date.now())return null;const id=crypto.randomUUID();await tx.put('socialLease',{id,expires:Date.now()+300000});return id})}
+ async socialRelease(id){return this.ctx.storage.transaction(async tx=>{const old=await tx.get('socialLease');if(old?.id===id)await tx.delete('socialLease')})}
+ async socialReserve(p,legacy){return this.ctx.storage.transaction(async tx=>{
+  const old=await tx.get('schedule:'+p.id);if(old)return old.fingerprint===p.fingerprint?{ok:true,reused:true,post:old}:{ok:false,error:'Idempotency key payload conflict'};
+  const existing=[...legacy,...(await tx.list({prefix:'schedule:'})).values()].filter(x=>x.status!=='cancelled');
+  if(existing.some(x=>x.id!==p.id&&Math.abs(Date.parse(x.at)-Date.parse(p.at))<20*60000))return {ok:false,error:'Occupied time slot'};
+  if(existing.some(x=>x.id!==p.id&&x.kind===p.kind&&nsDay(x.at)===nsDay(p.at)&&nsProduct(x)===p.productKey))return {ok:false,error:'Product already scheduled for this format and day'};
+  if(existing.some(x=>x.id!==p.id&&x.kind==='POST'&&p.kind==='POST'&&x.image===p.image))return {ok:false,error:'Feed reuse requires separate authorization'};
+  const unique=new Map(existing.map(x=>[x.id,x]));if([...unique.values()].filter(x=>x.kind===p.kind&&nsDay(x.at)===nsDay(p.at)).length>=(p.kind==='POST'?2:3))return {ok:false,error:'Daily publication limit reached'};
+  await tx.put('schedule:'+p.id,p);return {ok:true,reused:false,post:p};
+ })}
+
 
 
  async stagePhoto(meta,input){
@@ -1139,6 +1157,11 @@ export class ValenzaMessageClaim extends DurableObject {
  }
  async stagedPhoto(){const meta=await this.ctx.storage.get('photoStage');if(!meta||meta.expires<Date.now())return null;const chunks=await Promise.all(Array.from({length:meta.parts},(_,i)=>this.ctx.storage.get('photoPart:'+i)));if(chunks.some(x=>!x))return null;const bytes=new Uint8Array(meta.size);let offset=0;for(const part of chunks){const c=new Uint8Array(part);bytes.set(c,offset);offset+=c.length}return{meta,bytes};}
  async alarm(){if(await this.ctx.storage.get('photoStage'))await this.ctx.storage.deleteAll();}
+
+
+ async putChoice(value){if(!value||!Array.isArray(value.items)||!value.items.length||value.items.length>5)throw Error('Invalid product choice');await this.ctx.storage.put('productChoice',{...value,expires:Date.now()+1800000});}
+ async getChoice(){const value=await this.ctx.storage.get('productChoice');if(!value)return null;if(value.expires<Date.now()){await this.ctx.storage.delete('productChoice');return null}return value;}
+ async clearChoice(){await this.ctx.storage.delete('productChoice');}
 
  async claim(){return this.ctx.storage.transaction(async tx=>{const old=await tx.get("claim");if(old&&(old.phase!=="preparing"||Date.now()-old.at<120000))return false;await tx.put("claim",{phase:"preparing",at:Date.now()});return true})}
  async attempt(){await this.ctx.storage.put("claim",{phase:"attempting",at:Date.now()})}
@@ -1166,8 +1189,10 @@ function vcScopedEnv(env){
 }
 function vcSocialOnly(message){return /^(?:(?:oi|ola|oie|opa|bom dia|boa tarde|boa noite|tudo bem|tudo bom|valeu|obrigado|obrigada|tchau|ate mais|ok|certo|beleza|sim|por favor|muito|ta|tudo|e voce|voce|com voce|bom|bem|estou|eu|obg|aguardo|fico no aguardo)\s*)+$/.test(vcPlain(message))}
 function vcQuoteCancelled(messages,task){
- return messages.some(m=>String(m.id)!==String(task.sourceMessage)&&Date.parse(m.created_time)>Date.parse(task.at)&&!vcSocialOnly(m.message)&&/nao quero mais|pode cancelar|cancela (?:a |essa )?(?:cotacao|pesquisa)|desisti|esquece (?:esse|essa|o perfume)|em vez (?:desse|deste)|troca (?:o|esse) perfume/.test(vcPlain(m.message)));
+ const source=messages.find(m=>String(m.id)===String(task.sourceMessage)),cutoff=Date.parse(task.sourceCreatedAt||source?.created_time||task.at);
+ return messages.some(m=>String(m.id)!==String(task.sourceMessage)&&Date.parse(m.created_time)>=cutoff&&!vcSocialOnly(m.message)&&(vliClassify(m.message)!=="safe"||/whatsapp|\bwhats\b|\bzap\b|\bwpp\b|atendente|atendimento humano|nao quero mais|pode cancelar|cancela (?:a |essa )?(?:cotacao|pesquisa)|desisti|esquece (?:esse|essa|o perfume)|em vez (?:desse|deste)|troca (?:o|esse) perfume/.test(vcPlain(m.message))));
 }
+
 async function vcWriteDirectStatus(env,key,summary,previous){
  const signature=x=>JSON.stringify([x?.status,x?.errorCode,x?.errorSubcode,x?.error]);
  if(summary.sent||summary.needsHuman||signature(summary)!==signature(previous)||!previous?.at||Date.now()-Date.parse(previous.at)>=900000)
@@ -1276,6 +1301,7 @@ async function vliOpenModels(env,messages,preferQwen=false){
 }
 
 
+function vcFailureHandoff(){return 'Não consegui concluir essa consulta com segurança agora. 💛 Nossa equipe pode conferir o perfume e continuar seu pedido pelo WhatsApp: '+VLI_WA}
 function vcOfficialService(message){
  const n=vcPlain(message);
  const contact=/\b(?:whats(?:app)?|zap|wpp|whatsapp|whatssapp)\b|qual (?:o )?(?:contato|numero)|telefone|falar com (?:uma? )?(?:pessoa|humano|atendente)|atendimento humano/.test(n);
@@ -1329,7 +1355,7 @@ if(!env.GROQ_API_KEY&&!env.GEMINI_API_KEY&&!env.AI?.run)throw Error("Motor de IA
  if(readyToBuy&&!linkInHistory&&!/valenzaparfums\.com\.br|wa\.me\//i.test(t)){
   t="Claro! "+(/pix/i.test(msg)?"No Pix, você tem 5% de desconto. ":"")+"Você pode finalizar pelo site "+VLI_SITE+" ou chamar a gente pelo WhatsApp "+VLI_WA+" que ajudamos a concluir 💛";
  }
- if(/\b(?:olhei|pesquisei|conferi|verifiquei|n[aã]o temos|n[aã]o encontrei|n[aã]o consta|n[aã]o faz parte|n[aã]o trabalhamos|n[aã]o est[aá] dispon[ií]vel)\b/i.test(t))t="Ainda não tenho uma confirmação de disponibilidade desse perfume. Me passa o nome completo e o tamanho que você procura?";
+ if(/\b(?:olhei|pesquisei|conferi|verifiquei|n[aã]o temos|n[aã]o encontrei|n[aã]o consta|n[aã]o faz parte|n[aã]o trabalhamos|n[aã]o est[aá] dispon[ií]vel)\b/i.test(t))t=vcFailureHandoff();
  if(/R\$\s?\d|(?:estoque\s+(?:dispon[ií]vel|imediato))|(?:chega\s+(?:amanh[aã]|hoje))|(?:entrega\s+(?:em\s+)?\d+\s+dias)/i.test(t))throw Error("Resposta bloqueada por preço ou prazo não confirmado");
  // Remove untrusted model links without turning an otherwise valid conversation into an outage.
  t=t.replace(/https?:\/\/[^\s),]+/g,link=>{try{const cleaned=link.replace(/[.!?;:]+$/,'');const u=new URL(cleaned);return u.protocol==="https:"&&(u.hostname.replace(/^www\./,"")==="valenzaparfums.com.br"||(u.hostname==="wa.me"&&u.pathname.replace(/\/$/,"")==="/5527997962708"))?cleaned:""}catch{return""}}).replace(/\[([^\]]+)\]\(\s*\)/g,'$1').trim();
@@ -1394,18 +1420,11 @@ async function vliDirectCycle(env,force=false,event=null){
    const mapKey=VLI+"chat_for:"+recipient;if(await env.PRIVATE_KV.get(mapKey)!==String(chat.id))await env.PRIVATE_KV.put(mapKey,String(chat.id),{expirationTtl:2592000});
    if(!/^\d+$/.test(recipient)){summary.ignored.nonNumeric++;continue;}if(await env.PRIVATE_KV.get(idKey)){summary.ignored.handled++;continue;}
    const type=vliClassify(latest.message);
-   if(type!=="safe"){
-    if(type==="human"){
-      summary.needsHuman++;
-      await env.PRIVATE_KV.put(VLI+"handoff:"+chat.id,JSON.stringify({at:new Date().toISOString(),reason:"Atendimento humano",conversationId:String(chat.id)}),{expirationTtl:604800});
-    }
-    await env.PRIVATE_KV.put(idKey,JSON.stringify({state:type,at:new Date().toISOString()}),{expirationTtl:2592000});
-    continue;
-   }
+   if(type==="ignore"){await vcSaveChoice(env,chat.id,null);await env.PRIVATE_KV.put(idKey,JSON.stringify({state:type,at:new Date().toISOString()}),{expirationTtl:2592000});continue;}
    const claim=vcClaimStub(env,"direct:"+messageId);if(claim&&!await claim.claim()){summary.ignored.handled++;continue;}
    const history=messages.slice(1).reverse().map(m=>({role:String(m.from.id)===String(ig.id)?"assistant":"user",content:vliTxt(m.message)})).filter(m=>m.content);
-   const draftStarted=Date.now();let draft,pending=null;
-   try{const prepared=await vcIncoming(env,latest.message,history,chat.id,recipient,messageId);draft=prepared.draft;pending=prepared.pending;}catch(e){summary.status="ai_unavailable_handoff";summary.error=vliError(e);await env.PRIVATE_KV.put(VLI+"last_ai_failure",JSON.stringify({at:new Date().toISOString(),reason:summary.error}),{expirationTtl:86400});summary.needsHuman++;draft={type:"draft",text:"Tive uma instabilidade aqui, mas não quero te deixar esperando. 💛 Nossa equipe pode te ajudar pelo WhatsApp: "+VLI_WA}}
+   const draftStarted=Date.now();let draft,pending=null,choice=null,choiceChange=false;
+   try{if(type==="human"){summary.needsHuman++;await env.PRIVATE_KV.put(VLI+"handoff:"+chat.id,JSON.stringify({at:new Date().toISOString(),reason:"Atendimento humano",conversationId:String(chat.id)}),{expirationTtl:604800});draft={type:"draft",text:"Nossa equipe pode te ajudar com isso pelo WhatsApp oficial: "+VLI_WA+" 💛"};choiceChange=true;choice=null;}else{const prepared=await vcIncoming(env,latest.message,history,chat.id,recipient,messageId);draft=prepared.draft;pending=prepared.pending;choice=prepared.choice;choiceChange=!!prepared.choiceChange;}}catch(e){summary.status="ai_unavailable_handoff";summary.error=vliError(e);await env.PRIVATE_KV.put(VLI+"last_ai_failure",JSON.stringify({at:new Date().toISOString(),reason:summary.error}),{expirationTtl:86400});summary.needsHuman++;draft={type:"draft",text:vcFailureHandoff()}}
    if(draft.type!=="draft")continue;
    // Marcar a tentativa ANTES de enviar: nenhuma repetição automática após erro incerto.
    if(claim)await claim.attempt();
@@ -1418,7 +1437,8 @@ async function vliDirectCycle(env,force=false,event=null){
       summary.sent++;count++;summary.draftMs=Date.now()-draftStarted;summary.replyLagSeconds=Math.max(0,Math.round((Date.now()-Date.parse(latest.created_time))/1000));
       await env.PRIVATE_KV.put(dailyKey,String(count),{expirationTtl:172800});
       await env.PRIVATE_KV.put(idKey,JSON.stringify({state:"sent",at:new Date().toISOString(),outId:String(result.message_id)}),{expirationTtl:2592000});
-      if(draft.photo)await vciSendPhoto(env,token,recipient,draft.photo,"direct:"+messageId);if(pending){await env.PRIVATE_KV.put(VLI+"quote_pending:"+messageId,JSON.stringify(pending),{expirationTtl:172800});await env.PRIVATE_KV.put(VLI+"quote_queue_active","yes",{expirationTtl:172800});}
+      if(choiceChange)await vcSaveChoice(env,chat.id,choice);
+      if(draft.photo)await vciSendPhoto(env,token,recipient,draft.photo,"direct:"+messageId);if(pending){pending.sourceCreatedAt=latest.created_time;await env.PRIVATE_KV.put(VLI+"quote_pending:"+messageId,JSON.stringify(pending),{expirationTtl:172800});await env.PRIVATE_KV.put(VLI+"quote_queue_active","yes",{expirationTtl:172800});}
     }else{
       summary.status="send_rejected";summary.error=String(result?.error?.message||post.status).slice(0,160);
       summary.errorCode=Number(result?.error?.code)||null;summary.errorSubcode=Number(result?.error?.error_subcode)||null;summary.httpStatus=post.status;summary.latestInboundAgeSeconds=Math.max(0,Math.round((Date.now()-Date.parse(latest.created_time))/1000));
@@ -1688,12 +1708,12 @@ async function vqAnswer(env,msg,history=[]){
  const key=vqKey(picked.name,picked.volume);
  const quote=await env.PRIVATE_KV.get(key,"json");
  if(quote&&quote.expiresAt>Date.now()&&Number(quote.salePrice)>0){
-  return{type:"draft",text:"Encontrei uma estimativa para "+quote.name+" "+quote.volume+" ml: "+vqMoney(quote.salePrice)+". 💛 É sob encomenda e a disponibilidade precisa ser confirmada. Quer finalizar pelo nosso WhatsApp?"};
+  return{type:"draft",text:"Encontrei uma estimativa para "+quote.name+" "+quote.volume+" ml: "+vqMoney(quote.salePrice)+". 💛 É sob encomenda e a disponibilidade precisa ser confirmada. Fale com a equipe: "+VLI_WA};
  }
  const queue=VQ_PREFIX+"request:"+vqNormal(picked.name).replace(/\s+/g,"-")+":"+picked.volume;
  const current=await env.PRIVATE_KV.get(queue,"json")||{};
  await env.PRIVATE_KV.put(queue,JSON.stringify({name:picked.name,volume:picked.volume,firstAsked:current.firstAsked||new Date().toISOString(),lastAsked:new Date().toISOString(),requests:Math.min(500,Number(current.requests||0)+1)}),{expirationTtl:1209600});
- return{type:"draft",text:"Esse modelo consigo consultar sob encomenda. 💛 Vou confirmar o valor e a disponibilidade direitinho antes de te passar o preço, combinado?"};
+ return{type:"draft",text:vcFailureHandoff()};
 }
 async function vqRoute(req,env,path,method){
  if(!path.startsWith("/social/growth/cotacoes"))return null;
@@ -1795,24 +1815,25 @@ function vqaIndividualOffer(name,volume,row,details){
 async function vqaIndividualFind(env,name,volume,rows){
  const candidates=[];for(const row of rows.slice(0,5)){try{const d=await vqaRead(env,VQA_BASE+row.link);const offer=vqaIndividualOffer(name,volume,row,d);if(offer)candidates.push(offer)}catch{}}
  if(!candidates.length)throw Error('Nenhuma oferta individual recente e verificada');
- if(new Set(candidates.map(x=>x.signature)).size>1){const e=Error('Versões individuais diferentes');e.code='AMBIGUOUS_VARIANTS';e.names=[...new Set(candidates.map(x=>x.name))].slice(0,3);throw e;}
+ if(new Set(candidates.map(x=>x.signature)).size>1){const e=Error('Versões individuais diferentes');e.code='AMBIGUOUS_VARIANTS';e.names=[...new Set(candidates.map(x=>x.name))].slice(0,3);e.options=candidates.slice(0,4).map(x=>({kind:'cp',name:x.name,volume:x.volume,productUrl:x.productUrl}));throw e;}
  const offer=candidates.sort((a,b)=>a.usd-b.usd)[0],price=vqPrice(offer.usd,40);const imageSource=candidates.find(x=>x.photoProductUrl);
  return{name:offer.name,volume,usd:offer.usd,salePrice:price.price,pixPrice:price.pix,store:offer.store,productUrl:offer.productUrl,photoProductUrl:imageSource?.photoProductUrl||null,verifiedAt:new Date().toISOString(),sourceLastUpdate:offer.sourceLastUpdate,validUntil:Date.now()+3600000,preliminary:true,offerPolicy:'exact-offer-v2',sourceKind:'individual',supplierEvidence:{known:offer.knownSupplier,rating:offer.storeRating,reviews:offer.storeReviews},matchedIndividualOffers:candidates.length};
 }
 
+function vqaQuoteUsable(q,name,volume=0){try{if(q?.offerPolicy!=="exact-offer-v2"||!(q.validUntil>Date.now())||!Number.isFinite(Number(q.usd))||Number(q.usd)<=0||volume&&Number(q.volume)!==Number(volume)||!vqaMatch(name,q.volume,q.name))return false;const floor=vqPrice(q.usd,40).price,price=Number(q.salePrice);return Number.isFinite(price)&&price>=floor&&(q.pixPrice===undefined||Math.abs(Number(q.pixPrice)-Number((price*(1-VQ_PIX_DISCOUNT)).toFixed(2)))<0.011)}catch{return false}}
 async function vqaFind(env,name,volume){
  const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(name),"json");
- if(alias?.offerPolicy==="exact-offer-v2"&&alias?.validUntil>Date.now()&&Number(alias.volume)===Number(volume)&&vqaMatch(name,volume,alias.name))return alias;
+ if(vqaQuoteUsable(alias,name,volume))return alias;
  const key=VQA_PREFIX+"auto:"+vqNormal(name).replace(/\s+/g,"-")+":"+volume;
  const cached=await env.PRIVATE_KV.get(key,"json");
- if(cached?.offerPolicy==="exact-offer-v2"&&cached.validUntil>Date.now()&&Number(cached.salePrice)>0&&vqaMatch(name,volume,cached.name))return cached;
+ if(vqaQuoteUsable(cached,name,volume))return cached;
  const searchName=String(name).replace(/\b(?:eau de parfum|eau de toilette|edp|edt)\b/gi,"").replace(/\b\d{2,3}\s*ml\b/gi,"").replace(/\s+/g," ").trim();
  const list=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(searchName+" "+volume+"ml"));
  const rows=(Array.isArray(list?.resultados)?list.resultados:[]).filter(x=>x&&!x.ocultar_preco&&vqaMatch(name,volume,x.nome||"")&&Number(x.preco_dolar)>0&&Number(x.preco_dolar)<=2000&&/^\/[a-z0-9_-]+\/$/.test(String(x.link||"")));
  if(!rows.length)throw Error("Nenhum modelo exato encontrado");
  if(rows.every(r=>/__\d+\/$/.test(r.link))){const q=await vqaIndividualFind(env,name,volume,rows);await env.PRIVATE_KV.put(key,JSON.stringify(q),{expirationTtl:1800});await env.PRIVATE_KV.put(VQA_PREFIX+"verified-name:"+vqAliasName(name),JSON.stringify(q),{expirationTtl:1800});return q;}
  const scores=rows.filter(x=>!/__\d+\/$/.test(x.link)).map(x=>({item:x,score:vqaClean(x.nome).split(" ").length-vqaClean(name).split(" ").length})).sort((a,b)=>a.score-b.score||Number(a.item.preco_dolar)-Number(b.item.preco_dolar));
- if(scores.length>1&&scores[0].score===scores[1].score&&scores[0].item.id!==scores[1].item.id)throw Error("Versões parecidas");
+ if(scores.length>1&&scores[0].score===scores[1].score&&scores[0].item.id!==scores[1].item.id){const e=Error("Versões parecidas");e.code="AMBIGUOUS_VARIANTS";e.names=scores.slice(0,3).map(x=>x.item.nome);e.options=scores.slice(0,4).map(x=>({kind:"cp",name:x.item.nome,volume,productUrl:"https://www.comprasparaguai.com.br"+x.item.link}));throw e;}
  const model=scores[0].item;
  const details=await vqaRead(env,VQA_BASE+model.link);
  if(!details||!vqaMatch(name,volume,details.nome||""))throw Error("Descrição não corresponde");
@@ -1832,7 +1853,7 @@ async function vqaReply(env,name,volume){
  try{
   const q=await vqaFind(env,name,volume);
   await env.PRIVATE_KV.put(VQA_PREFIX+"auto_status",JSON.stringify({at:new Date().toISOString(),state:"quoted",model:q.name}),{expirationTtl:604800});
-  return{type:"draft",text:"Consegui uma cotação para "+q.name+": "+vqMoney(q.salePrice)+"! 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Quer conversar pelo nosso WhatsApp?"};
+  return{type:"draft",text:"Consegui uma cotação para "+q.name+": "+vqMoney(q.salePrice)+"! 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Fale com a equipe: "+VLI_WA};
  }catch(e){
   await env.PRIVATE_KV.put(VQA_PREFIX+"auto_status",JSON.stringify({at:new Date().toISOString(),state:"unverified",error:String(e?.message||e).slice(0,100)}),{expirationTtl:604800});
   return null;
@@ -1876,6 +1897,7 @@ async function vliSelfAudit(env){
 // Valenza Concierge V2 — natural catalog-backed suggestions and safe deferred quotes.
 // No TinyFish, local Windows, paid services, external credentials, or live-message test.
 const V2C_PREFIX="valenza:concierge:v2:";
+const VC_CATALOG_FRESH_MS=15*60*1000;
 const VC_PRODUCTS={
  "eclaire":"Eclaire","yara-elixir":"Yara Elixir","yara-candy":"Yara Candy","yara":"Yara","vanilla-voyage":"Vanilla Voyage","designer-black-opium":"Black Opium","designer-good-girl":"Good Girl","designer-la-vie-est-belle":"La Vie Est Belle","khamrah":"Khamrah","khamrah-qahwa":"Khamrah Qahwa","designer-libre":"Libre","designer-scandal":"Scandal","designer-jadore":"J'adore","designer-my-way":"My Way","delilah":"Delilah","fakhar-rose":"Fakhar Rose","designer-light-blue":"Light Blue","designer-acqua-di-gio":"Acqua di Giò","designer-invictus":"Invictus","designer-sauvage":"Sauvage","designer-versace-eros":"Versace Eros","hawas-ice":"Hawas Ice","club-de-nuit-intense-man":"Club de Nuit Intense Man","designer-miss-dior":"Miss Dior","designer-linterdit":"L'Interdit"
 };
@@ -1884,7 +1906,7 @@ function vcWords(s){return vcPlain(s).split(" ").filter(x=>x.length>2&&!["lattaf
 async function vcCatalog(env){
  const cacheKey=V2C_PREFIX+"catalog";
  const cache=await env.PRIVATE_KV.get(cacheKey,"json");
- if(cache?.at&&Date.now()-Date.parse(cache.at)<6*3600000&&Array.isArray(cache.products)&&cache.products.length>20)return cache;
+ if(cache?.at&&Date.now()-Date.parse(cache.at)<VC_CATALOG_FRESH_MS&&Array.isArray(cache.products)&&cache.products.length>20)return cache;
  let products=null,source="website";
  try{
   const response=await fetch("https://valenzaparfums.com.br/api/catalog/runtime",{headers:{Accept:"application/json"},signal:AbortSignal.timeout(5000)});
@@ -1927,7 +1949,7 @@ async function vcCatalogFind(env,name){
   if(extras.some(w=>tokens.includes(w)&&!words.includes(w)))return false;
   return true;
  });
- return{verified:Date.now()-Date.parse(result.at)<24*3600000,items:matches.slice(0,4),at:result.at};
+ return{verified:Date.now()-Date.parse(result.at)<VC_CATALOG_FRESH_MS,items:matches.slice(0,4),at:result.at};
 }
 function vcDisplay(id){return VC_PRODUCTS[id]||String(id).replace(/^designer-/,"").replace(/-/g," ").replace(/\b\w/g,x=>x.toUpperCase())}
 function vcCatalogAnswer(match,name){
@@ -1953,7 +1975,7 @@ async function vcRecommendations(env,msg,history=[]){
  if(/feminino|esposa|mulher|namorada/.test(text)&&!interests.length)interests.push("designer-good-girl","designer-my-way","designer-la-vie-est-belle");
  if(!interests.length)return "";
  const catalog=await vcCatalog(env);
- if(!catalog||Date.now()-Date.parse(catalog.at)>24*3600000)return "";
+ if(!catalog||Date.now()-Date.parse(catalog.at)>VC_CATALOG_FRESH_MS)return "";
  const uniques=[...new Set(interests)];
  const picked=uniques.map(id=>catalog.products.find(p=>p.id===id)).filter(Boolean).slice(0,4);
  if(!picked.length)return "";
@@ -1979,13 +2001,13 @@ function vcNameCandidates(name,volume,rows){
 }
 async function vcQueryMissingVolume(env,name){
  const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(name),"json");
- if(alias?.offerPolicy==="exact-offer-v2"&&alias?.validUntil>Date.now()&&vqaMatch(name,alias.volume,alias.name))return{status:"quote",offer:alias};
+ if(vqaQuoteUsable(alias,name))return{status:"quote",offer:alias};
  const searchName=String(name).replace(/\b(?:eau de parfum|eau de toilette|edp|edt)\b/gi,"").replace(/\b\d{2,3}\s*ml\b/gi,"").replace(/\s+/g," ").trim();
  const res=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(searchName));
  const found=vcNameCandidates(name,0,res?.resultados||[]);
  const sizes=[...new Set(found.map(x=>Number((x.nome||"").match(/\b(\d{2,3})\s*ML\b/i)?.[1]||0)).filter(Boolean))].sort((a,b)=>a-b);
  if(sizes.length===0)return {status:"none"};
- if(sizes.length>1)return {status:"variants",sizes:sizes.slice(0,4)};
+ if(sizes.length>1)return {status:"variants",sizes:sizes.slice(0,4),options:found.slice(0,4).map(x=>({kind:"cp",name:x.nome,volume:Number((x.nome||"").match(/\b(\d{2,3})\s*ML\b/i)?.[1]||0),productUrl:"https://www.comprasparaguai.com.br"+x.link}))};
  const vol=sizes[0];const offer=await vqaFind(env,name,vol);
  return{status:"quote",offer};
 }
@@ -1993,11 +2015,11 @@ async function vcQueryMissingVolume(env,name){
 async function vcPrepareQuote(env,name,volume){
  const catalog=await vcCatalogCheckForQuote(env,{name,volume});
  if(catalog.status==="in_catalog")return{status:"catalog",text:catalog.draft?.text};
- if(catalog.status==="unknown")return{status:"unverified",text:"Estou conferindo esse perfume, mas não consegui validar o catálogo agora. Prefiro confirmar os detalhes antes de te passar um valor errado. 💛"};
+ if(catalog.status==="unknown")return{status:"unverified",text:vcFailureHandoff()};
 
  try{
   const outcome=volume?{status:"quote",offer:await vqaFind(env,name,volume)}:await vcQueryMissingVolume(env,name);
-  if(outcome.status==="variants")return {status:"variants",text:"Consegui encontrar anúncios de "+name+" nos tamanhos "+outcome.sizes.map(n=>n+" ml").join(", ")+". 💛 Qual deles você prefere? Aí eu confiro o valor certinho dessa versão."};
+  if(outcome.status==="variants")return {status:"variants",options:outcome.options,text:"Consegui encontrar anúncios de "+name+" nos tamanhos "+outcome.sizes.map(n=>n+" ml").join(", ")+". 💛 Qual deles você prefere? Aí eu confiro o valor certinho dessa versão."};
   if(outcome.status==="quote"){
    const q=outcome.offer;
    let market=null;try{market=await vbmCompetitivePrice(env,q.name,q.volume,q)}catch(e){}
@@ -2007,8 +2029,8 @@ async function vcPrepareQuote(env,name,volume){
    await env.PRIVATE_KV.put(VQA_PREFIX+'verified-name:'+vqAliasName(name),JSON.stringify(finalOffer),{expirationTtl:3600});
    return{status:"quote",photo:{name:q.name,volume:q.volume,productUrl:q.productUrl,photoProductUrl:q.photoProductUrl||null},text:"Consegui conferir o "+q.name+"! A estimativa fica em "+vqMoney(salePrice)+" (ou "+vqMoney(pixPrice)+" no Pix). 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Gostou dessa opção?"};
   }
-  return{status:"unverified",text:"Procurei esse perfume, mas ainda não consegui confirmar uma oferta confiável. 💛 Posso encaminhar para nossa equipe conferir a versão e a disponibilidade com você."};
- }catch(e){if(e?.code==="AMBIGUOUS_VARIANTS")return{status:"variants",text:"Encontrei anúncios de versões diferentes: "+e.names.join(" ou ")+". Qual deles você procura? Assim confiro o preço da versão certa. 💛"};return{status:"unverified",reason:String(e?.message||e).slice(0,120),text:"Fui conferir, mas não consegui validar o preço desse perfume agora. 💛 Posso passar para nossa equipe conferir direitinho pelo WhatsApp?"};}
+  return{status:"unverified",text:vcFailureHandoff()};
+ }catch(e){if(e?.code==="AMBIGUOUS_VARIANTS")return{status:"variants",options:e.options,text:"Encontrei anúncios de versões diferentes: "+e.names.join(" ou ")+". Qual deles você procura? Assim confiro o preço da versão certa. 💛"};return{status:"unverified",reason:String(e?.message||e).slice(0,120),text:vcFailureHandoff()};}
 }
 async function vcFollowupSend(env,token,recipient,text){
  if(!/^\d+$/.test(String(recipient)))throw Error("Destinatário inválido");
@@ -2048,12 +2070,15 @@ async function vcPendingQuotes(env){
     result={status:"superseded",at:new Date().toISOString()};await env.PRIVATE_KV.put(VLI+"quote_result:"+task.sourceMessage,JSON.stringify(result),{expirationTtl:604800});
     await env.PRIVATE_KV.delete(item.name);continue;
    }
+   const choiceStub=vcChoiceStub(env,task.chatId);const activeChoice=typeof choiceStub?.getChoice==="function"?await choiceStub.getChoice():null;if(activeChoice&&Date.parse(activeChoice.at)>Date.parse(task.at)){await env.PRIVATE_KV.delete(item.name);continue;}
    result=await vcPrepareQuote(env,task.name,task.volume);
-  }catch(e){result={status:"unverified",text:"Estou conferindo, mas a pesquisa não conseguiu confirmar esse perfume agora. 💛 Se quiser, nossa equipe pode ajudar pelo WhatsApp."}}
+   if(result.options?.length){const choice=vcBeginChoice(result.options);if(choice)result={status:"choice",text:choice.draft.text,photo:choice.draft.photo,choice:choice.choice};}
+  }catch(e){result={status:"unverified",text:vcFailureHandoff()}}
   try{
    const claim=vcClaimStub(env,"quote:"+task.sourceMessage);if(claim&&!await claim.claim())continue;if(claim)await claim.attempt();
    await env.PRIVATE_KV.put(item.name,JSON.stringify({...task,stage:"sending",attemptedAt:new Date().toISOString()}),{expirationTtl:172800});
-   const sent=await vcFollowupSend(env,token,task.recipient,result?.text||"Não consegui confirmar o produto no momento. Posso te encaminhar para nossa equipe? 💛");
+   const sent=await vcFollowupSend(env,token,task.recipient,result?.text||vcFailureHandoff());
+   if(sent.ok&&result?.choice)await vcSaveChoice(env,task.chatId,result.choice);
    if(sent.ok&&result?.photo)await vciSendPhoto(env,token,task.recipient,result.photo,"quote:"+task.sourceMessage);
    const done={at:new Date().toISOString(),status:sent.ok?"delivered":"rejected",resultStatus:result?.status,code:sent.code};
    await env.PRIVATE_KV.put(VLI+"quote_result:"+task.sourceMessage,JSON.stringify(done),{expirationTtl:604800});
@@ -2070,7 +2095,7 @@ async function vcPendingQuotes(env){
 async function vcFastCatalog(env,message,history=[]){
  const normalized=vcPlain(message).replace(/\bone million\b/g,"1 million");
  if(vcSocialOnly(message))return null;
- const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>6*3600000)return null;
+ const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>VC_CATALOG_FRESH_MS)return null;
  const matchText=text=>catalog.products.filter(p=>{const n=vcPlain(vcDisplay(p.id)).replace(/\bone million\b/g,"1 million");const padded=" "+text+" ",needle=" "+n+" ",at=padded.indexOf(needle);if(at<0)return false;const tail=padded.slice(at+needle.length).trim().replace(/^\d{2,3}\s*ml\b\s*/,"");return !tail||/^(?:por favor|qual|quais|quanto|preco|valor|custa|para|pra|pro|tem|teria|voces|disponivel|no pix|com desconto|obrigad|seria|esse|essa|o mesmo|a mesma)\b/.test(tail)});
  let found=matchText(normalized);
  if(!found.length&&/quanto|preco|valor|custa|\bml\b/.test(normalized)){
@@ -2094,11 +2119,38 @@ async function vcCatalogAbbreviation(env,message){
  const text=vcPlain(message),tokens=text.split(' ');if(tokens.length>22)return null;
  const noise=new Set('oi ola bom boa dia tarde noite gostaria queria quero um uma perfume perfumes o a os as e de do da dos das qual quais quanto preco precos valor valores custa custam tem teria voces voce por favor saber comprar consultar pesquisar ver pra para me ajuda ajudar lattafa armaf dior'.split(' '));
  const meaningful=tokens.filter(w=>w&&!noise.has(w)&&!/^\d{2,3}(?:ml)?$/.test(w));if(meaningful.length!==1)return null;
- const query=meaningful[0];if(query.length<3)return null;const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>6*3600000)return null;
+ const query=meaningful[0];if(query.length<3)return null;const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>VC_CATALOG_FRESH_MS)return null;
  // An exact name remains authoritative. Approximation only proposes a confirmation, never a price.
  if(catalog.products.some(p=>vcPlain(vcDisplay(p.id)).split(' ').includes(query)))return null;
  const candidates=catalog.products.filter(p=>{const words=vcPlain(vcDisplay(p.id)).split(' '),initials=words.map(w=>w[0]).join('');return (initials.length>=3&&initials.startsWith(query))||(words.length===1&&query.length>=4&&words[0].length>=4&&vcOneEdit(query,words[0]))}).slice(0,4);
- if(!candidates.length)return null;const names=candidates.map(p=>vcDisplay(p.id));return{type:'draft',text:names.length===1?'Você quer o '+names[0]+'? Me confirma para eu te passar o valor da versão certa. 💛':'Essa abreviação pode ser '+names.join(' ou ')+'. Qual deles você procura? 💛'};
+ if(!candidates.length)return null;const names=candidates.map(p=>vcDisplay(p.id));return{type:'draft',candidates:candidates.map(p=>({kind:'catalog',id:p.id,name:vcDisplay(p.id),volume:p.volume||0})),text:names.length===1?'Você quer o '+names[0]+'? Me confirma para eu te passar o valor da versão certa. 💛':'Essa abreviação pode ser '+names.join(' ou ')+'. Qual deles você procura? 💛'};
+}
+
+
+function vcChoiceStub(env,chatId){return chatId?vcClaimStub(env,'product-choice:'+String(chatId)):null}
+async function vcSaveChoice(env,chatId,choice){const stub=vcChoiceStub(env,chatId);if(choice&&typeof stub?.putChoice==='function')await stub.putChoice(choice);else if(typeof stub?.clearChoice==='function')await stub.clearChoice();}
+function vcChoiceDraft(state){const p=state.items[state.index||0];return{type:'draft',text:'Pode ser o '+p.name+(p.volume?' · '+p.volume+' ml':'')+'? Me confirma se é esse modelo para eu consultar o valor certo. Se não for, posso mostrar outra opção. 💛',photo:p.kind==='catalog'?{catalogId:p.id,name:p.name,volume:p.volume||0}:{name:p.name,volume:p.volume,productUrl:p.productUrl}}}
+function vcBeginChoice(items){const clean=items.filter(x=>x?.name&&(x.kind==='catalog'?/^[a-z0-9-]{2,90}$/.test(x.id||''):x.productUrl&&Number(x.volume)>=10)).slice(0,5);if(!clean.length)return null;const choice={items:clean,index:0,at:new Date().toISOString()};return{draft:vcChoiceDraft(choice),pending:null,choiceChange:true,choice};}
+async function vcResolveChoice(env,message,chatId){
+ const stub=vcChoiceStub(env,chatId);if(typeof stub?.getChoice!=='function')return null;const state=await stub.getChoice();if(!state?.items?.length)return null;const n=vcPlain(message);
+ const yes=/^(?:sim|s|e|isso|isso mesmo|esse|essa|esse mesmo|essa mesma|e esse|e essa|e esse mesmo|e essa mesma|exatamente|confirmo|correto|certinho|sim esse|sim essa|sim esse mesmo|sim essa mesma|sim gostei)(?: ai| por favor)?$/.test(n),no=/^(?:nao|nao e esse|nao e essa|nao esse|nao essa|nao e esse nao|nao e outro|nao e outra|nao mostra outro|nao mostre outro|outro|outra|mostra outro|mostra outra|quero outro|quero outra)$/.test(n);
+ const order=n.match(/^(?:e )?(?:o |a |opcao )?(primeiro|primeira|segundo|segunda|terceiro|terceira|[1-5])(?: mesmo| mesma)?$/);let index=Number(state.index||0);if(order)index=/primeir/.test(order[1])?0:/segund/.test(order[1])?1:/terceir/.test(order[1])?2:Number(order[1])-1;
+ if(yes||order){if(order&&index!==Number(state.index||0)&&state.items[index]){const choice={...state,index};return{draft:vcChoiceDraft(choice),pending:null,choiceChange:true,choice};}const p=state.items[index];if(!p)return{draft:{type:'draft',text:'Qual das opções você quer confirmar? Se preferir, a equipe pode ajudar: '+VLI_WA},pending:null};let draft;if(p.kind==='catalog'){const catalog=await vcCatalog(env),current=catalog?.products?.find(x=>x.id===p.id);draft=current&&Date.now()-Date.parse(catalog.at)<VC_CATALOG_FRESH_MS?await vcFastCatalog(env,vcDisplay(p.id),[]):null;if(!draft)draft={type:'draft',text:vcFailureHandoff()};}else{const q=await vcPrepareQuote(env,p.name,p.volume);draft={type:'draft',text:q.text||vcFailureHandoff(),...(q.photo?{photo:q.photo}:{})};}return{draft,pending:null,choiceChange:true,choice:null};}
+ if(no){const index=Number(state.index||0)+1;if(index<state.items.length){const choice={...state,index};return{draft:vcChoiceDraft(choice),pending:null,choiceChange:true,choice};}return{draft:{type:'draft',text:'Me conta outro detalhe do frasco ou da embalagem para eu procurar outra opção. Nossa equipe também pode conferir com você pelo WhatsApp: '+VLI_WA+' 💛'},pending:null,choiceChange:true,choice:null};}
+ if(/^(?:qual|quanto|e o|o) (?:o )?(?:valor|preco)|^quanto custa|^qual tamanho|foto|imagem|nao apareceu/.test(n))return{draft:vcChoiceDraft(state),pending:null};
+ await stub.clearChoice();return null;
+}
+async function vcAssistedCatalog(env,message){
+ const n=vcPlain(message),explicit=vcExplicitProduct(message),appearance=/\b(?:nao sei|nao lembro|acho que|parece|tampa|frasco|rosinh[oa]|rosa|branc[oa]|cor|embalagem)\b/.test(n);
+ if(explicit&&vqaIdentityWords(explicit.name,explicit.volume).length>=3)return null;
+ const catalog=await vcCatalog(env);if(!catalog||Date.now()-Date.parse(catalog.at)>VC_CATALOG_FRESH_MS)return null;
+ const candidates=catalog.products.filter(p=>{const words=vcWords(vcDisplay(p.id)),family=words.find(w=>w.length>=4);return family&&(' '+n+' ').includes(' '+family+' ')}).sort((a,b)=>vcPlain(vcDisplay(a.id)).split(' ').length-vcPlain(vcDisplay(b.id)).split(' ').length);
+ const exact=candidates.some(p=>(' '+n+' ').includes(' '+vcPlain(vcDisplay(p.id))+' '));if(!appearance&&exact)return null;
+ if(!appearance){const availableWords=new Set(candidates.flatMap(p=>vcPlain(vcDisplay(p.id)).split(' '))),noise=new Set('quero queria gostaria perfume perfumes um uma o a os as de do da dos das e qual quais valor preco quanto custa tem teria teriam voces voce saber esse essa este esta aqui por favor marca lattafa rasasi armaf afnan dior al watan iah para mim'.split(' '));if(n.split(' ').some(w=>w&&!noise.has(w)&&!availableWords.has(w)&&!/^\d{2,3}(?:ml)?$/.test(w)))return null;}
+ let selected=candidates;if(!selected.length&&appearance&&!vcExplicitProduct(message)){
+  try{const ids=catalog.products.map(p=>p.id).slice(0,150);const answer=await vliOpenModels(env,[{role:'system',content:'O cliente não sabe identificar um perfume. Escolha até 3 IDs reais do catálogo como HIPÓTESES para mostrar fotos e pedir confirmação. Não dê preço nem afirme que é a versão certa. Se faltam pistas suficientes, retorne []. Responda somente JSON {"ids":["id"]}. IDs permitidos: '+JSON.stringify(ids)},{role:'user',content:message}]);const raw=String(answer.response||'').match(/\{[\s\S]*?\}/);const parsed=raw?JSON.parse(raw[0]):null;selected=[...new Set(Array.isArray(parsed?.ids)?parsed.ids:[])].slice(0,3).map(id=>catalog.products.find(p=>p.id===id)).filter(Boolean);}catch{return null}
+ }
+ return selected.length?vcBeginChoice(selected.map(p=>({kind:'catalog',id:p.id,name:vcDisplay(p.id),volume:p.volume||0}))):null;
 }
 
 function vcExplicitProduct(message){
@@ -2110,17 +2162,20 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
  const normalized=vcPlain(txt);
  const lastAssistant=history.filter(x=>x.role==="assistant").slice(-1)[0]?.content||"";
  const switching=/outro (?:perfume|produto|modelo)|(?:olhar|ver|conferir|pesquisar|consultar|quero|queria) (?:um )?outro\b/.test(normalized);
- const official=vcOfficialService(txt);if(official)return{draft:official,pending:null};
+ const official=vcOfficialService(txt);if(official){await vcSaveChoice(env,chatId,null);return{draft:official,pending:null};}
  if(/whatsapp/i.test(lastAssistant)&&/^(?:sim|pode(?: sim)?|quero|claro|ok|manda|envia)(?: por favor)?(?: o contato| o numero| o link)?$/.test(normalized))return{draft:{type:"draft",text:"Claro! Pode falar com a nossa equipe pelo WhatsApp: "+VLI_WA+" 💛"},pending:null};
  if(/^(?:(?:oi|ola|oie|opa|bom dia|boa tarde|boa noite|tudo bem|tudo bom|e voce|com voce)\s*)+$/.test(normalized)){const greeting=/bom dia/.test(normalized)?"Bom dia":/boa tarde/.test(normalized)?"Boa tarde":/boa noite/.test(normalized)?"Boa noite":"Oi";return{draft:{type:"draft",text:greeting+"! Tudo bem? 😊 Como posso te ajudar?"},pending:null};}
+ const chosen=await vcResolveChoice(env,txt,chatId);if(chosen)return chosen;
+ if(/^Pode ser o /i.test(lastAssistant)&&/^(?:sim|e|isso|esse|essa|e esse|e essa|esse mesmo|essa mesma|confirmo)$/.test(normalized))return{draft:{type:"draft",text:vcFailureHandoff()},pending:null};
  const confirmed=/^(?:isso(?: ai)?(?: esse)?(?: mesmo)?|esse mesmo|essa mesma|sim(?: esse| essa)?(?: mesmo| mesma)?|exatamente|e esse(?: mesmo)?)(?: por favor)?$/.test(normalized)&&/\?|certo|confirma|esse|essa/i.test(lastAssistant)&&!/R\$|wa\.me|instabilidade/i.test(lastAssistant);
  const shortSocial=vcSocialOnly(txt);
  let product=null;
  if(confirmed){try{product=await vqExtract(env,"Confirmo o perfume mencionado: "+lastAssistant,[])}catch{}}
 
  if(!shortSocial&&!product){
+  const assisted=await vcAssistedCatalog(env,txt);if(assisted)return assisted;
   const quick=await vcFastCatalog(env,txt,switching?[]:history);if(quick)return {draft:quick,pending:null};
-  const abbreviated=await vcCatalogAbbreviation(env,txt);if(abbreviated)return{draft:abbreviated,pending:null};
+  const abbreviated=await vcCatalogAbbreviation(env,txt);if(abbreviated)return vcBeginChoice(abbreviated.candidates)||{draft:abbreviated,pending:null};
   const generic=/baunilha|docinho|doce|floral|amadeirad|minha esposa|meu marido|indica|opcoes|sugest|recomend|edt|edp/.test(normalized)&&!/(?:tem|preco|valor|custa|ml|lattafa|armaf|dior|chanel|eclaire|million)/.test(normalized);
   product=vcExplicitProduct(txt);
   if(!product&&!generic&&txt.length>=3&&txt.length<=240&&/[a-zà-ú]{3}/i.test(txt)){try{product=await vqExtract(env,txt,!switching&&/preco|valor|custa|ml|versao|tamanho/.test(normalized)?history:[])}catch{}}
@@ -2131,11 +2186,11 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
   if(found.status==="in_catalog"&&found.draft)return{draft:found.draft,pending:null};
   if(found.status==="off_catalog"){
    const recent=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(product.name),"json");
-   if(recent?.offerPolicy==="exact-offer-v2"&&recent?.validUntil>Date.now()&&recent.pricingPolicy==="br-average-v3"&&(!product.volume||Number(product.volume)===Number(recent.volume))&&vqaMatch(product.name,recent.volume,recent.name))return{draft:{type:"draft",photo:{name:recent.name,volume:recent.volume,productUrl:recent.productUrl,photoProductUrl:recent.photoProductUrl||null},text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
+   if(vqaQuoteUsable(recent,product.name,product.volume)&&recent.pricingPolicy==="br-average-v3")return{draft:{type:"draft",photo:{name:recent.name,volume:recent.volume,productUrl:recent.productUrl,photoProductUrl:recent.photoProductUrl||null},text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
    const waiting={at:new Date().toISOString(),stage:"queued",sourceMessage:String(messageId),chatId:String(chatId),recipient:String(recipient),name:product.name,volume:Number(product.volume)||0};
    return{draft:{type:"draft",text:"Só um minutinho, vou conferir o "+product.name+(product.volume?" de "+product.volume+" ml":"")+" e já volto com as opções certinhas pra você! 💛"},pending:waiting};
   }
-  if(found.status==="unknown")return{draft:{type:"draft",text:"Quero conferir esse modelo com cuidado, mas nosso catálogo está indisponível agora. 💛 Posso te passar o WhatsApp pra confirmar os detalhes com nossa equipe?"},pending:null};
+  if(found.status==="unknown")return{draft:{type:"draft",text:vcFailureHandoff()},pending:null};
  }
  return{draft:await vliWrite(env,txt,history,{skipQuote:true,switchProduct:switching}),pending:null};
 }
@@ -2160,9 +2215,10 @@ async function vcSpeedAudit(env){
 
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","photo-garden","shortnames","offer-discovery","official-contact"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","photo-garden","shortnames","offer-discovery","official-contact","audit-final"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
+ if(requested==="audit-final"){const result={at:new Date().toISOString(),noCustomerMessages:true};const chat="audit-choice-"+Date.now();try{const request="Não lembro o nome, é um Yara rosinha de tampa branca";const proposal=await vcIncoming(env,request,[],chat,"1234567","audit-proposal");result.proposal={text:proposal.draft?.text,photo:proposal.draft?.photo,hasPrice:/R\$/.test(proposal.draft?.text||"")};if(proposal.choice){await vcSaveChoice(env,chat,proposal.choice);const no=await vcIncoming(env,"não é esse",[{role:"assistant",content:proposal.draft.text}],chat,"1234567","audit-next");result.nextOption={text:no.draft?.text,photo:no.draft?.photo,hasPrice:/R\$/.test(no.draft?.text||"")};await vcSaveChoice(env,chat,proposal.choice);const yes=await vcIncoming(env,"é",[{role:"assistant",content:proposal.draft.text}],chat,"1234567","audit-confirm");result.confirmed={text:yes.draft?.text,photo:yes.draft?.photo};}result.fallback=vcFailureHandoff();await vcProviderAudit(env,key);result.providersKey=key+":providers_result";}catch(e){result.error=String(e?.message||e).slice(0,160)}finally{await vcSaveChoice(env,chat,null)}await env.PRIVATE_KV.put(key+":final_audit",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="official-contact"){const result={at:new Date().toISOString(),cases:[]};for(const text of ["Como faço pra pagar","Qual o whats da equipe?","Me passa o zap","Qual o WhatsApp oficial?"]){const start=Date.now();const answer=await vcIncoming(env,text,[],"audit","1234567","contact-audit");result.cases.push({input:text,...answer,ms:Date.now()-start})}await env.PRIVATE_KV.put(key+":official_contact",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="offer-discovery"){const name="Lune Aurora Scents";const list=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(name));const result={at:new Date().toISOString(),query:name,rows:(list.resultados||[]).slice(0,4).map(r=>({nome:r.nome,link:r.link,nome_loja:r.nome_loja,link_loja:r.link_loja,preco_dolar:r.preco_dolar})),details:[]};for(const row of result.rows.slice(0,2)){try{const d=await vqaRead(env,VQA_BASE+row.link);result.details.push({name:d.nome,available:d.disponivel,lastListed:d.data_ultima_listagem,usd:d.preco_dolar,shop:d.loja?.nome,reviewCount:d.loja?.avaliacoes,rating:d.loja?.nota})}catch(e){result.details.push({error:String(e?.message||e).slice(0,100)})}}result.quote=await vcPrepareQuote(env,name,0);if(result.quote?.photo){try{const photo=await vciPreparePhoto(env,result.quote.photo);result.photo=photo?Object.fromEntries(Object.entries(photo).filter(([k])=>k!=="inline")):null}catch(e){result.photoError=String(e?.message||e).slice(0,120)}}await env.PRIVATE_KV.put(key+":offer_discovery",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="shortnames"){const r={at:new Date().toISOString(),cases:[]};for(const text of ["Gostaria de um perfume o Yara. Qual valor?","Yara","Queria o CDNIM qual valor?","Yaraa qual valor?","Yara Tous qual valor?"]){const t=Date.now();try{r.cases.push({input:text,...await vcIncoming(env,text,[],"audit","1234567","shortname-audit"),ms:Date.now()-t})}catch(e){r.cases.push({input:text,error:String(e?.message||e).slice(0,100)})}}await env.PRIVATE_KV.put(key+":shortnames",JSON.stringify(r),{expirationTtl:86400});return;}
@@ -2432,6 +2488,7 @@ async function vciSendPhoto(env,token,recipient,product,messageId){
 export default {async fetch(request,env,ctx) {
  env=vcScopedEnv(env);
  const url=new URL(request.url), path=url.pathname, method=request.method;
+ const socialResponse=await nsRoute(request,env,path,method);if(socialResponse)return socialResponse;
  const photoResponse=await vciPhotoRoute(request,env,path,method);if(photoResponse)return photoResponse;
  if(path==="/health/quote-source"&&method==="GET")return vqProbe(env);
  const webhookResult=await vliMetaWebhook(request,env,ctx,path,method);if(webhookResult)return webhookResult;
@@ -3128,3 +3185,48 @@ const conciergeResult=await vliRoute(request,env,path,method);if(conciergeResult
  }catch(e){await record({status:"error",message:String(e?.message||e).slice(0,180)});}
  }
 };
+
+async function ownRun(env){const stub=nsStub(env),lease=await stub.socialLease();if(!lease)return;try{await nsFill(env);await ownRunUnlocked(env)}finally{await stub.socialRelease(lease)}}
+// NEXUS social bridge v1: only the existing OWN queue publishes.
+const NS='valenza:nexus-social:v1:';
+const nsDay=at=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at));
+const nsProduct=p=>String(p.productKey||p.title||'').split(/ — | - /)[0].normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+async function nsDigest(s){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function nsAuthorized(req,env){if(!env.NEXUS_SOCIAL_TOKEN)return false;const a=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(req.headers.get('authorization')||'')),b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('Bearer '+env.NEXUS_SOCIAL_TOKEN));return crypto.subtle.timingSafeEqual(a,b)}
+const nsStub=env=>env.DIRECT_CLAIMS.getByName('nexus-social-coordinator-v1');
+async function nsLog(env,event){const item={at:new Date().toISOString(),...event};await env.PRIVATE_KV.put(NS+'log:'+item.at+':'+crypto.randomUUID(),JSON.stringify(item),{expirationTtl:2592000});console.log(JSON.stringify({service:'nexus-social',...item}))}
+async function nsLibrary(env){return await env.PRIVATE_KV.get(NS+'library','json')||[]}
+async function nsCreate(env,data){
+ if(data.approved!==true||!/^[-a-zA-Z0-9_:]{8,100}$/.test(data.key||'')||!['POST','STORY'].includes(data.kind)||typeof data.caption!=='string'||data.caption.length>2200||typeof data.title!=='string'||!data.title||data.title.length>80)throw Error('Invalid approved schedule');
+ if(!Number.isFinite(Date.parse(data.at))||!/(Z|[-+]\d\d:\d\d)$/.test(data.at)||Date.parse(data.at)<Date.now()+120000||Date.parse(data.at)>Date.now()+366*86400000)throw Error('Future datetime with timezone required');
+ const assets=await nsLibrary(env),asset=assets.find(x=>x.id===data.assetId&&x.approved===true&&x.kind===data.kind);if(!asset)throw Error('Approved asset unavailable');
+ if(asset.url.startsWith(BASE+'/nexus-social-assets/v1/')){const bytes=await env.PRIVATE_KV.get(NS+'asset:'+asset.id,'arrayBuffer');if(!bytes||bytes.byteLength!==asset.bytes||new Uint8Array(bytes)[0]!==255||new Uint8Array(bytes)[1]!==216)throw Error('Approved JPEG bytes unavailable')}else{let image=await fetch(asset.url,{method:'HEAD',redirect:'manual',signal:AbortSignal.timeout(8000)});if(image.status===405)image=await fetch(asset.url,{method:'GET',redirect:'manual',signal:AbortSignal.timeout(8000)});const available=image.ok&&String(image.headers.get('content-type')).startsWith('image/jpeg');if(image.body)await image.body.cancel();if(!available)throw Error('Asset not publicly available as JPEG')}
+ const posts=await ownList(env),active=posts.filter(p=>p.status!=='cancelled');
+ const fingerprint=await nsDigest(JSON.stringify({key:data.key,at:new Date(data.at).toISOString(),asset:asset.id,caption:data.caption,kind:data.kind,title:data.title}));
+ const p={id:(await nsDigest('nexus-social:'+data.key)).slice(0,8)+'-'+(await nsDigest('nexus-social:'+data.key)).slice(8,12)+'-4'+(await nsDigest('nexus-social:'+data.key)).slice(13,16)+'-8'+(await nsDigest('nexus-social:'+data.key)).slice(17,20)+'-'+(await nsDigest('nexus-social:'+data.key)).slice(20,32),title:data.title,caption:data.caption,image:asset.url,kind:data.kind,at:new Date(data.at).toISOString(),productKey:asset.productKey,assetId:asset.id,net:{facebook:{status:'waiting'},instagram:{status:'waiting'}},status:'approved',approved:true,created:new Date().toISOString(),source:'nexus-social-v1',authorization:'owner-mission-20261113',idempotencyKey:data.key,fingerprint};
+ const stub=nsStub(env);const reserved=await stub.socialReserve(p,active);if(!reserved.ok)throw Error(reserved.error);const item=reserved.post;
+ // A durable journal survives an interrupted KV write. Retrying the same key repairs it.
+ const current=await ownK(env,item.id);if(!current){await env.PRIVATE_KV.put(NS+'backup:new:'+item.id,JSON.stringify({at:new Date().toISOString(),previous:null,post:item}));await ownWrite(env,item);}
+ await nsLog(env,{event:reserved.reused?'schedule_reused':'schedule_created',id:item.id,product:item.productKey,kind:item.kind,scheduledAt:item.at,platforms:['facebook','instagram']});return {ok:true,reused:reserved.reused,id:item.id,at:item.at,kind:item.kind,post:current||item,persisted:true};
+}
+async function nsAuth(env){const [fb,ig,raw]=await Promise.all(['page:token','instagram:token','instagram:identity'].map(k=>env.PRIVATE_KV.get(k)));if(!fb||!ig||!raw)throw Error('Meta authorization unavailable');const identity=JSON.parse(raw);if(identity.username!=='valenza.parfumsimportados'||identity.publishGranted!==true)throw Error('Meta identity mismatch');return {fb:await ownToken(fb,env),ig:await ownToken(ig,env),identity}}
+async function nsConnections(env){const a=await nsAuth(env),[fb,ig]=await Promise.all([ownApi(a.fb,PAGE_ID,'id,name,instagram_business_account{id,username}'),ownApi(a.ig,a.identity.id,'id,username')]);return {ok:fb.ok&&ig.ok&&String(fb.d?.instagram_business_account?.id)===String(a.identity.id)&&ig.d?.username==='valenza.parfumsimportados',facebook:{id:fb.d?.id,name:fb.d?.name,http:fb.http},instagram:{id:ig.d?.id,username:ig.d?.username,http:ig.http}}}
+async function nsVerify(env,id){const p=await ownK(env,id);if(!p)throw Error('Schedule not found');const a=await nsAuth(env),net={};for(const n of ['facebook','instagram']){const s=p.net[n];if(!s?.id){net[n]={status:s?.status||'not_selected',confirmed:false};continue}const r=await ownApi(n==='facebook'?a.fb:a.ig,s.id,n==='facebook'?'id':'id,media_type,permalink');net[n]={status:s.status,id:s.id,confirmed:r.ok&&String(r.d?.id)===String(s.id),http:r.http,url:r.d?.permalink||s.url||null,note:!r.ok&&p.kind==='STORY'?'Story may have expired; stored Meta ID retained':undefined}}return {ok:true,id:p.id,title:p.title,at:p.at,net}}
+async function nsClaimSideEffect(env,p,network){return await env.DIRECT_CLAIMS.getByName('social-publish:'+p.id+':'+network).claimOnceSocial()}
+async function nsFill(env){const policy=await env.PRIVATE_KV.get(NS+'policy','json');if(policy?.storyRecurrence!==true)return;const library=(await nsLibrary(env)).filter(x=>x.approved&&x.kind==='STORY'&&x.reusable===true);if(library.length<3)return;
+ const posts=await ownList(env);let filled=0;for(let day=0;day<7&&filled<6;day++){const date=nsDay(Date.now()+day*86400000);for(const time of ['09:00','14:00','20:30']){const at=date+'T'+time+':00-03:00';if(Date.parse(at)<Date.now()+300000)continue;const sameDay=posts.filter(p=>p.status!=='cancelled'&&nsDay(p.at)===date);if(sameDay.filter(p=>p.kind==='STORY').length>=3||sameDay.some(p=>Math.abs(Date.parse(p.at)-Date.parse(at))<20*60000))continue;
+ const available=library.filter(a=>!sameDay.some(p=>nsProduct(p)===a.productKey)&&!posts.some(p=>p.status!=='cancelled'&&p.kind==='STORY'&&nsProduct(p)===a.productKey&&Math.abs(Date.parse(p.at)-Date.parse(at))<72*3600000)).sort((a,b)=>{const last=x=>Math.max(0,...posts.filter(p=>p.status!=='cancelled'&&p.kind==='STORY'&&nsProduct(p)===x.productKey).map(p=>Date.parse(p.at)));return last(a)-last(b)});if(!available.length)continue;const a=available[0];try{const r=await nsCreate(env,{key:'story-repeat:'+date+':'+time,assetId:a.id,kind:'STORY',title:a.title+' — Story',caption:a.caption||'',at,approved:true});posts.push(r.post);filled++}catch(e){await nsLog(env,{event:'recurrence_pending',scheduledAt:at,reason:String(e?.message||'slot_or_asset_unavailable').slice(0,150)})}}
+ }return {filled}}
+async function nsRoute(req,env,path,method){
+ const asset=path.match(/^\/nexus-social-assets\/v1\/([a-f0-9]{64})\.jpg$/);if(asset){if(!['GET','HEAD'].includes(method))return new Response(null,{status:405});const library=await nsLibrary(env),a=library.find(x=>x.id===asset[1]&&x.approved===true);const bytes=a?await env.PRIVATE_KV.get(NS+'asset:'+asset[1],'arrayBuffer'):null;return bytes?new Response(method==='HEAD'?null:bytes,{headers:{'Content-Type':'image/jpeg','Content-Length':String(bytes.byteLength),'Cache-Control':'public,max-age=86400','X-Content-Type-Options':'nosniff'}}):new Response(null,{status:404})}
+ if(!path.startsWith('/nexus-social/v1'))return null;if(!await nsAuthorized(req,env))return json({ok:false,error:'Unauthorized'},401);
+ try{if(method==='GET'&&path==='/nexus-social/v1/status')return json({ok:true,version:'nexus-social-v1',independentOfWindows:true,enabled:await env.PRIVATE_KV.get(OWN+'enabled')==='yes',timezone:'America/Sao_Paulo',last:await env.PRIVATE_KV.get(OWN+'last','json'),policy:await env.PRIVATE_KV.get(NS+'policy','json')});
+ if(method==='GET'&&path==='/nexus-social/v1/posts')return json({ok:true,posts:await ownList(env)});
+ if(method==='GET'&&path==='/nexus-social/v1/library')return json({ok:true,assets:await nsLibrary(env)});
+ if(method==='GET'&&path==='/nexus-social/v1/connections')return json(await nsConnections(env));
+ if(method==='POST'&&path==='/nexus-social/v1/create'){if(Number(req.headers.get('content-length')||0)>12000)return json({ok:false,error:'Too large'},413);const data=await req.json();if(data.operation==='plan-approved-stories'&&data.approved===true)return json({ok:true,...await nsFill(env)});return json(await nsCreate(env,data))}
+ if(method==='GET'&&path.startsWith('/nexus-social/v1/verify/'))return json(await nsVerify(env,path.split('/').pop()));
+ if(method==='GET'&&path==='/nexus-social/v1/logs'){let cursor,keys=[];do{const page=await env.PRIVATE_KV.list({prefix:NS+'log:',limit:1000,...(cursor?{cursor}:{})});keys.push(...page.keys);cursor=page.list_complete?null:page.cursor}while(cursor);return json({ok:true,logs:await Promise.all(keys.slice(-100).map(k=>env.PRIVATE_KV.get(k.name,'json')))})}
+ return json({ok:false,error:'Unsupported social operation'},404);
+ }catch(e){return json({ok:false,error:String(e.message||e).slice(0,180)},409)}}
+
