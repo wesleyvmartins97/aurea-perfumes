@@ -1,3 +1,4 @@
+import {vdcPrepare,vdcCanonicalItems,vdcRuntime} from './direct-checkout.mjs';
 import {catalogPageHtml} from './catalog-page.mjs';
 import {merchantFulfillment} from './merchant-fulfillment.mjs';
 import {asaasPixEnabled,asaasReady} from './payments/asaas-prod.mjs';
@@ -29,6 +30,7 @@ async function productCatalogImage(request,path){
 
 
 export default{async fetch(request,env,ctx){
+ const direct=await vdcPrepare(request,env,{calcularFrete});if(direct.response)return direct.response;env=direct.env||env;
  const url=new URL(request.url);
  if(url.protocol!=="https:"){const target=new URL(request.url);target.protocol="https:";if(target.hostname==="valenzaparfums.com.br"&&(request.method==="GET"||request.method==="HEAD")&&!target.pathname.startsWith("/api/"))target.hostname="www.valenzaparfums.com.br";return Response.redirect(target.toString(),308)}
  if(url.hostname==="valenzaparfums.com.br"&&(request.method==="GET"||request.method==="HEAD")&&!url.pathname.startsWith("/api/")){const target=new URL(request.url);target.protocol="https:";target.hostname="www.valenzaparfums.com.br";return Response.redirect(target.toString(),308)}
@@ -2221,7 +2223,8 @@ async function officialCatalog(env){
  }catch(e){console.error("Catálogo dinâmico:",e)}
  return out
 }
-async function catalogRuntimePublic(env){
+async function catalogRuntimePublic(env){return vdcRuntime(env,catalogRuntimePublicOriginal)}
+async function catalogRuntimePublicOriginal(env){
  try{
   await ensureAuthSchema(env);await seedInventory(env);
   const [stock,settings,disabled,rows,base]=await Promise.all([
@@ -2301,7 +2304,8 @@ env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALU
  env.DB.prepare("INSERT INTO product_settings(product_id,unit_cost,updated_at) VALUES(?,?,?) ON CONFLICT(product_id) DO NOTHING").bind("raneen",158.05,now),
  env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-stock-v22-raneen-20261024','100',?)").bind(now)
 ])}const doneV3=completedInventoryMigrations.has('catalog-cleanup-v3');if(!doneV3){await env.DB.prepare("DELETE FROM inventory WHERE product_id IN ('body-cream-yara','musamam','fakhar-rose-banner')").run();await env.DB.prepare("INSERT OR REPLACE INTO inventory_meta(key,value,updated_at) VALUES('catalog-cleanup-v3','ok',?)").bind(now).run()}}
-async function canonicalItems(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p||p.offer===false)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-price)>0.009;return {id,qty:n,...p,price,regularPrice,promotionId:offer?.id||null,priceChanged,img:String(x.img||"")}})}
+async function canonicalItems(raw,env){return vdcCanonicalItems(raw,env,canonicalItemsOriginal)}
+async function canonicalItemsOriginal(raw,env){if(!Array.isArray(raw)||!raw.length)throw new Error("Carrinho vazio");const catalog=await officialCatalog(env),promoMap=await activeProductPromotionMap(env);return raw.map(x=>{const id=String(x.id||""),p=catalog[id],n=Number(x.qty);if(!p||p.offer===false)throw new Error("Produto inválido: "+id);if(!Number.isInteger(n)||n<1||n>10)throw new Error("Quantidade inválida para "+p.name);const regularPrice=Number(p.price),offer=promoMap.get(id),promo=Number(offer?.promo_price),price=offer&&Number.isFinite(promo)&&promo>0&&promo<regularPrice?Number(promo.toFixed(2)):regularPrice,clientPrice=Number(x.price),priceChanged=Number.isFinite(clientPrice)&&Math.abs(clientPrice-price)>0.009;return {id,qty:n,...p,price,regularPrice,promotionId:offer?.id||null,priceChanged,img:String(x.img||"")}})}
 function pixPrice(price){const cents=Math.round(Number(price)*100);return Math.floor((cents*95+50)/100)/100}
 function quoteKey(x){return String(x?.id??x?.service_id??x?.carrier??x?.company??"")}
 const LOCAL_COLATINA={id:"local-colatina",company:"VALENZA",name:"Frete grátis em Colatina",carrier:"Entrega local Valenza",price:0,delivery_time:0,dropoff_points:[]};
