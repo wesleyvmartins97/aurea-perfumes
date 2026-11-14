@@ -1729,7 +1729,7 @@ const VQA_BASE="https://api.comprasparaguai.com.br";
 const VQA_NO=/\b(?:kit|body\s*splash|ambientador|aromatizador|desodorante|deodorant|deo|mist|spray\s+de\s+ambiente|perfume\s+de\s+ambiente|decant|amostra|tester|refil|refill|oil|creme|hidratante|freshener|sabonete|shower|gel|hair|miniatura)\b/i;
 const VQA_VARIANTS=["very","blush","elixir","pistache","banoffi","intense","intenso","supreme","glam","glitter","bowtastic","jasmine","absolute","crystal","collector","exclusive","exclusif","legere","platinum","victory","aquatic","nectar","royal","oud","rose","aqua","gold","red","black","white","pink","blue","green"];
 const VQA_SHOPS=["star company","shopping china","cellshop","paris store","mega eletronicos","la petisquera","nissei","intershop importados","multipass","new zone","mega eletro","best shop paraguai","elegancia company","boxi importados"];
-function vqaClean(s){return vqNormal(String(s||"").replace(/&amp;/gi,"&").replace(/&nbsp;/gi," ").replace(/&#(?:0*39|8217);|&#x(?:0*27|2019);|&apos;|&rsquo;|[’‘']/gi,"").replace(/\beau\s+de\s+parfum\b/gi,"edp").replace(/\beau\s+de\s+toilette\b/gi,"edt")).replace(/\bcollector\b/g,"collectors").replace(/\s+/g," ").trim()}
+function vqaClean(s){return vqNormal(String(s||"").replace(/&amp;/gi,"&").replace(/&nbsp;/gi," ").replace(/&#(?:0*39|8217);|&#x(?:0*27|2019);|&apos;|&rsquo;|[’‘']/gi,"").replace(/\beau\s+de\s+parfum\b/gi,"edp").replace(/\beau\s+de\s+toilette\b/gi,"edt")).replace(/\bcollector\b/g,"collectors").replace(/\b(?:colecao|coll)\b/g,"collection").replace(/\s+/g," ").trim()}
 function vqaIdentityWords(name,volume){return vqaClean(name).replace(/\b\d{2,3}\s*ml\b/g,"").split(" ").filter(w=>w&&w!==String(volume||"")&&!['perfume','fragrancia','masculino','feminino','unissex','masc','fem','edp','edt','eau','de','parfum','toilette','spray','original','al','da','do','a','o','the','for','by','of','ml'].includes(w))}
 function vqaMatch(name,volume,title){
  const want=vqaClean(name),text=vqaClean(title),tokens=text.split(" "),required=vqaIdentityWords(want,volume);
@@ -1764,6 +1764,30 @@ async function vqaRead(env,url){
  const value=String(parsed?.result||raw).replace(/^\x60{3}(?:json)?\s*/i,"").replace(/\s*\x60{3}$/,"").trim();
  return vqaParse(value);
 }
+
+function vqaFreshTimestamp(value){const t=Date.parse(value||'');return Number.isFinite(t)&&Date.now()-t<=259200000&&t<=Date.now()+28800000?t:null}
+function vqaIndividualOffer(name,volume,row,details){
+ if(!details||details.disponivel!==true||details.ocultar_preco||!/^perfume$/i.test(String(details.categoria||''))||details.url!==row.link)return null;
+ if(!vqaMatch(name,volume,'Perfume '+String(details.nome||'')))return null;
+ const usd=Number(details.preco_dolar),stamp=vqaFreshTimestamp(details.data_ultima_listagem);if(!stamp||!Number.isFinite(usd)||usd<=0||usd>2000)return null;
+ const shop=details.loja,shopName=String(shop?.nome||'').trim();if(!shopName||!/^\/lojas\/[a-z0-9-]+\/$/.test(String(shop?.link||'')))return null;
+ if(row.link_loja&&row.link_loja!==shop.link)return null;if(row.nome_loja&&vqaClean(row.nome_loja)!==vqaClean(shopName))return null;
+ // A newly encountered supplier must have a substantial public CP reputation; not a name-specific exception.
+ const known=VQA_SHOPS.includes(vqaClean(shopName));if(!known&&!(Number(shop.nota)>=4&&Number(shop.nota)<=5&&Number(shop.avaliacoes)>=50))return null;
+ let external;try{external=new URL(details.link_externo);if(external.protocol!=='https:'||external.username||external.password||/(?:mercadolivre|shopee|aliexpress|amazon|marketplace)/i.test(external.hostname))return null}catch{return null}
+ const classify=text=>{const t=vqaClean(text);return /\b(?:extrait|exdp|extract)\b/.test(t)?'extrait':/\b(?:edt|eau de toilette)\b/.test(t)?'edt':/\b(?:edp|eau de parfum)\b/.test(t)?'edp':/\bparfum\b/.test(t)?'parfum':''};
+ const labelClass=classify(details.nome),fieldClass=classify((details.caracteristicas||[]).find(x=>/classifica/i.test(x.nome||''))?.valor||'');if(labelClass&&fieldClass&&labelClass!==fieldClass)return null;const concentration=labelClass||fieldClass||'unspecified';
+ const signature=[...new Set(vqaIdentityWords(details.nome,volume))].sort().join('|')+'|'+concentration;
+ return{usd,name:details.nome,volume,store:shopName,shopLink:shop.link,signature,productUrl:'https://www.comprasparaguai.com.br'+row.link,sourceLastUpdate:details.data_ultima_listagem,photoProductUrl:vciCPImage(details)?'https://www.comprasparaguai.com.br'+row.link:null,knownSupplier:known,storeRating:Number(shop.nota)||null,storeReviews:Number(shop.avaliacoes)||null};
+}
+async function vqaIndividualFind(env,name,volume,rows){
+ const candidates=[];for(const row of rows.slice(0,5)){try{const d=await vqaRead(env,VQA_BASE+row.link);const offer=vqaIndividualOffer(name,volume,row,d);if(offer)candidates.push(offer)}catch{}}
+ if(!candidates.length)throw Error('Nenhuma oferta individual recente e verificada');
+ if(new Set(candidates.map(x=>x.signature)).size>1){const e=Error('Versões individuais diferentes');e.code='AMBIGUOUS_VARIANTS';e.names=[...new Set(candidates.map(x=>x.name))].slice(0,3);throw e;}
+ const offer=candidates.sort((a,b)=>a.usd-b.usd)[0],price=vqPrice(offer.usd,40);const imageSource=candidates.find(x=>x.photoProductUrl);
+ return{name:offer.name,volume,usd:offer.usd,salePrice:price.price,pixPrice:price.pix,store:offer.store,productUrl:offer.productUrl,photoProductUrl:imageSource?.photoProductUrl||null,verifiedAt:new Date().toISOString(),sourceLastUpdate:offer.sourceLastUpdate,validUntil:Date.now()+3600000,preliminary:true,offerPolicy:'exact-offer-v2',sourceKind:'individual',supplierEvidence:{known:offer.knownSupplier,rating:offer.storeRating,reviews:offer.storeReviews},matchedIndividualOffers:candidates.length};
+}
+
 async function vqaFind(env,name,volume){
  const alias=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(name),"json");
  if(alias?.offerPolicy==="exact-offer-v2"&&alias?.validUntil>Date.now()&&Number(alias.volume)===Number(volume)&&vqaMatch(name,volume,alias.name))return alias;
@@ -1774,7 +1798,8 @@ async function vqaFind(env,name,volume){
  const list=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(searchName+" "+volume+"ml"));
  const rows=(Array.isArray(list?.resultados)?list.resultados:[]).filter(x=>x&&!x.ocultar_preco&&vqaMatch(name,volume,x.nome||"")&&Number(x.preco_dolar)>0&&Number(x.preco_dolar)<=2000&&/^\/[a-z0-9_-]+\/$/.test(String(x.link||"")));
  if(!rows.length)throw Error("Nenhum modelo exato encontrado");
- const scores=rows.map(x=>({item:x,score:vqaClean(x.nome).split(" ").length-vqaClean(name).split(" ").length})).sort((a,b)=>a.score-b.score||Number(a.item.preco_dolar)-Number(b.item.preco_dolar));
+ if(rows.every(r=>/__\d+\/$/.test(r.link))){const q=await vqaIndividualFind(env,name,volume,rows);await env.PRIVATE_KV.put(key,JSON.stringify(q),{expirationTtl:1800});await env.PRIVATE_KV.put(VQA_PREFIX+"verified-name:"+vqAliasName(name),JSON.stringify(q),{expirationTtl:1800});return q;}
+ const scores=rows.filter(x=>!/__\d+\/$/.test(x.link)).map(x=>({item:x,score:vqaClean(x.nome).split(" ").length-vqaClean(name).split(" ").length})).sort((a,b)=>a.score-b.score||Number(a.item.preco_dolar)-Number(b.item.preco_dolar));
  if(scores.length>1&&scores[0].score===scores[1].score&&scores[0].item.id!==scores[1].item.id)throw Error("Versões parecidas");
  const model=scores[0].item;
  const details=await vqaRead(env,VQA_BASE+model.link);
@@ -1968,10 +1993,10 @@ async function vcPrepareQuote(env,name,volume){
    const pixPrice=Number((salePrice*(1-VQ_PIX_DISCOUNT)).toFixed(2));
    const finalOffer={...q,salePrice,pixPrice,pricingPolicy:'br-average-v3',marketVerified:market?.marketVerified===true,market:market||null};
    await env.PRIVATE_KV.put(VQA_PREFIX+'verified-name:'+vqAliasName(name),JSON.stringify(finalOffer),{expirationTtl:3600});
-   return{status:"quote",photo:{name:q.name,volume:q.volume,productUrl:q.productUrl},text:"Consegui conferir o "+q.name+"! A estimativa fica em "+vqMoney(salePrice)+" (ou "+vqMoney(pixPrice)+" no Pix). 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Gostou dessa opção?"};
+   return{status:"quote",photo:{name:q.name,volume:q.volume,productUrl:q.productUrl,photoProductUrl:q.photoProductUrl||null},text:"Consegui conferir o "+q.name+"! A estimativa fica em "+vqMoney(salePrice)+" (ou "+vqMoney(pixPrice)+" no Pix). 💛 É sob encomenda, e confirmamos preço e disponibilidade antes do pagamento. Gostou dessa opção?"};
   }
   return{status:"unverified",text:"Procurei esse perfume, mas ainda não consegui confirmar uma oferta confiável. 💛 Posso encaminhar para nossa equipe conferir a versão e a disponibilidade com você."};
- }catch(e){return{status:"unverified",reason:String(e?.message||e).slice(0,120),text:"Fui conferir, mas não consegui validar o preço desse perfume agora. 💛 Posso passar para nossa equipe conferir direitinho pelo WhatsApp?"};}
+ }catch(e){if(e?.code==="AMBIGUOUS_VARIANTS")return{status:"variants",text:"Encontrei anúncios de versões diferentes: "+e.names.join(" ou ")+". Qual deles você procura? Assim confiro o preço da versão certa. 💛"};return{status:"unverified",reason:String(e?.message||e).slice(0,120),text:"Fui conferir, mas não consegui validar o preço desse perfume agora. 💛 Posso passar para nossa equipe conferir direitinho pelo WhatsApp?"};}
 }
 async function vcFollowupSend(env,token,recipient,text){
  if(!/^\d+$/.test(String(recipient)))throw Error("Destinatário inválido");
@@ -2093,7 +2118,7 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
   if(found.status==="in_catalog"&&found.draft)return{draft:found.draft,pending:null};
   if(found.status==="off_catalog"){
    const recent=await env.PRIVATE_KV.get(VQA_PREFIX+"verified-name:"+vqAliasName(product.name),"json");
-   if(recent?.offerPolicy==="exact-offer-v2"&&recent?.validUntil>Date.now()&&recent.pricingPolicy==="br-average-v3"&&(!product.volume||Number(product.volume)===Number(recent.volume))&&vqaMatch(product.name,recent.volume,recent.name))return{draft:{type:"draft",photo:{name:recent.name,volume:recent.volume,productUrl:recent.productUrl},text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
+   if(recent?.offerPolicy==="exact-offer-v2"&&recent?.validUntil>Date.now()&&recent.pricingPolicy==="br-average-v3"&&(!product.volume||Number(product.volume)===Number(recent.volume))&&vqaMatch(product.name,recent.volume,recent.name))return{draft:{type:"draft",photo:{name:recent.name,volume:recent.volume,productUrl:recent.productUrl,photoProductUrl:recent.photoProductUrl||null},text:"Conferi "+recent.name+": a estimativa fica em "+vqMoney(recent.salePrice)+" ou "+vqMoney(Number((recent.salePrice*0.95).toFixed(2)))+" no Pix. 💛 É sob encomenda; confirmamos preço e disponibilidade antes do pagamento."},pending:null};
    const waiting={at:new Date().toISOString(),stage:"queued",sourceMessage:String(messageId),chatId:String(chatId),recipient:String(recipient),name:product.name,volume:Number(product.volume)||0};
    return{draft:{type:"draft",text:"Só um minutinho, vou conferir o "+product.name+(product.volume?" de "+product.volume+" ml":"")+" e já volto com as opções certinhas pra você! 💛"},pending:waiting};
   }
@@ -2122,9 +2147,10 @@ async function vcSpeedAudit(env){
 
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","photo-garden","shortnames"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","photo-garden","shortnames","offer-discovery"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
+ if(requested==="offer-discovery"){const name="Lune Aurora Scents";const list=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(name));const result={at:new Date().toISOString(),query:name,rows:(list.resultados||[]).slice(0,4).map(r=>({nome:r.nome,link:r.link,nome_loja:r.nome_loja,link_loja:r.link_loja,preco_dolar:r.preco_dolar})),details:[]};for(const row of result.rows.slice(0,2)){try{const d=await vqaRead(env,VQA_BASE+row.link);result.details.push({name:d.nome,available:d.disponivel,lastListed:d.data_ultima_listagem,usd:d.preco_dolar,shop:d.loja?.nome,reviewCount:d.loja?.avaliacoes,rating:d.loja?.nota})}catch(e){result.details.push({error:String(e?.message||e).slice(0,100)})}}result.quote=await vcPrepareQuote(env,name,0);if(result.quote?.photo){try{const photo=await vciPreparePhoto(env,result.quote.photo);result.photo=photo?Object.fromEntries(Object.entries(photo).filter(([k])=>k!=="inline")):null}catch(e){result.photoError=String(e?.message||e).slice(0,120)}}await env.PRIVATE_KV.put(key+":offer_discovery",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="shortnames"){const r={at:new Date().toISOString(),cases:[]};for(const text of ["Gostaria de um perfume o Yara. Qual valor?","Yara","Queria o CDNIM qual valor?","Yaraa qual valor?","Yara Tous qual valor?"]){const t=Date.now();try{r.cases.push({input:text,...await vcIncoming(env,text,[],"audit","1234567","shortname-audit"),ms:Date.now()-t})}catch(e){r.cases.push({input:text,error:String(e?.message||e).slice(0,100)})}}await env.PRIVATE_KV.put(key+":shortnames",JSON.stringify(r),{expirationTtl:86400});return;}
  if(requested==="photo-test"||requested==="photo-garden"){const result={at:new Date().toISOString(),cases:[]};for(const product of (requested==="photo-garden"?[{name:"Perfume Al Wataniah Sabah Al Ward Garden Of Eden Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-garden-of-eden-eau-de-parfum-feminino-100ml_68371/"}]:[{name:"Perfume Al Wataniah Sabah Al Ward Sugar Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/"},{catalogId:"eclaire",name:"Eclaire",volume:100}])){const t=Date.now();try{let probe=null;if(requested==="photo-garden"){const d=await vqaRead(env,VQA_BASE+new URL(product.productUrl).pathname);probe={name:d.nome,identity:vqaMatch(product.name,product.volume,d.nome),principal:d.imagem_principal_url,images:d.imagens_url}}const source=await vciSource(env,product);const photo=await vciPreparePhoto(env,product);let attachmentReady=null;if(requested==="photo-garden"&&photo?.converted){const sealed=await env.PRIVATE_KV.get(VLI+"page_token");const token=await ownToken(sealed,env);const raw=await env.PRIVATE_KV.get(VCI_PREFIX+"bytes:"+photo.id,"arrayBuffer");const staged=vcClaimStub(env,"photo-stage:"+photo.id);await staged.stagePhoto(photo,raw);const proof=await staged.stagedPhoto();if(proof?.bytes?.byteLength!==photo.size)throw Error("Photo staging check failed");const check=await fetch(photo.publicPreview+".jpg",{signal:AbortSignal.timeout(10000)});if(!check.ok||!String(check.headers.get("content-type")).startsWith("image/jpeg"))throw Error("Public JPEG endpoint HTTP "+check.status);const upload=await fetch("https://graph.facebook.com/"+VERSION+"/"+encodeURIComponent(PAGE_ID)+"/message_attachments",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({message:{attachment:{type:"image",payload:{url:photo.publicPreview+".jpg",is_reusable:true}}}}),signal:AbortSignal.timeout(15000)});const uploaded=await upload.json();if(!upload.ok)throw Error("Public JPEG fetch rejected "+String(uploaded?.error?.message||upload.status).slice(0,120));attachmentReady=!!uploaded.attachment_id}const safePhoto=photo?Object.fromEntries(Object.entries(photo).filter(([k])=>k!=="inline")):null;result.cases.push({name:product.name,probe,source,photo:safePhoto,attachmentReady,ms:Date.now()-t})}catch(e){result.cases.push({name:product.name,error:String(e?.message||e).slice(0,120),ms:Date.now()-t})}}await env.PRIVATE_KV.put(key+":photo_test",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="photo-discovery"){const d=await vqaRead(env,VQA_BASE+"/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/");const site=await fetch(VLI_SITE+"/api/catalog/runtime").then(r=>r.json()).catch(()=>null);const result={at:new Date().toISOString(),keys:Object.keys(d),photoFields:Object.fromEntries(Object.entries(d).filter(([k])=>/foto|image|imagem|thumb|picture/i.test(k))),siteProduct:site?.products?.[0]};await env.PRIVATE_KV.put(key+":photo_discovery",JSON.stringify(result),{expirationTtl:86400});return;}
@@ -2317,10 +2343,10 @@ async function vbmCompetitivePrice(env,name,volume,base){
 // Original, verified product photos only. No generated artwork or third-party shop branding.
 const VCI_PREFIX='valenza:product-photo:v1:';
 const VCI_ORIGIN='https://valenza-social-admin.aureaperfumes.workers.dev';
-function vciAllowedSource(value){try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;if(u.hostname==='valenza-social-admin.aureaperfumes.workers.dev'&&/^\/product-photo\/[a-f0-9]{64}(?:\.jpg)?$/.test(u.pathname))return u.toString();const own=['valenzaparfums.com.br','www.valenzaparfums.com.br'].includes(u.hostname);const cp=u.hostname==='us-ord-10.linodeobjects.com'&&u.pathname.startsWith('/bucket-prod/site/media/fotos/modelos/');if(!own&&!cp)return null;if(!/\.(?:jpe?g|png|webp|avif)$/i.test(u.pathname)||/logo|banner|watermark|marca.d.?agua|anuncio/i.test(u.pathname))return null;return u.toString()}catch{return null}}
+function vciAllowedSource(value){try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;if(u.hostname==='valenza-social-admin.aureaperfumes.workers.dev'&&/^\/product-photo\/[a-f0-9]{64}(?:\.jpg)?$/.test(u.pathname))return u.toString();const own=['valenzaparfums.com.br','www.valenzaparfums.com.br'].includes(u.hostname);const cp=u.hostname==='us-ord-10.linodeobjects.com'&&u.pathname.startsWith('/bucket-prod/site/media/fotos/modelos/');const productPhoto=u.hostname==='bucket-prod.us-ord-10.linodeobjects.com'&&u.pathname.startsWith('/site/media/fotos/produtos/thumbs/');if(!own&&!cp&&!productPhoto)return null;if(!/\.(?:jpe?g|png|webp|avif)$/i.test(u.pathname)||/logo|banner|watermark|marca.d.?agua|anuncio/i.test(u.pathname))return null;return u.toString()}catch{return null}}
 async function vciHash(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function vciMetaImage(html){const tags=String(html||'').match(/<meta\b[^>]+>/gi)||[];for(const tag of tags){const a=Object.fromEntries([...tag.matchAll(/([a-z:_-]+)\s*=\s*["']([^"']*)["']/gi)].map(m=>[m[1].toLowerCase(),m[2]]));if(a.property==='og:image'||a.name==='og:image')return String(a.content||'').replace(/&amp;/g,'&')}return null}
-function vciCPImage(details){return vciAllowedSource(details?.imagens_url?.[0]?.large)||vciAllowedSource(details?.imagem_principal_url)||null}
+function vciCPImage(details){return vciAllowedSource(details?.imagens_url?.[0]?.large)||vciAllowedSource(details?.imagem_principal_url)||vciAllowedSource(details?.imagem_url?.large)||vciAllowedSource(typeof details?.imagem_url==='string'?details.imagem_url:null)||null}
 async function vciSource(env,product){
  if(product.catalogId){
   if(!/^[a-z0-9-]{2,90}$/.test(product.catalogId))return null;
@@ -2329,7 +2355,7 @@ async function vciSource(env,product){
   const outcome=product.volume?{status:'quote',offer:await vqaFind(env,product.name,product.volume)}:await vcQueryMissingVolume(env,product.name);
   if(outcome?.status!=='quote'||!outcome.offer?.productUrl)return null;return vciSource(env,outcome.offer);
  }
- const u=new URL(product.productUrl||'https://invalid.invalid/');if(u.protocol!=='https:'||u.hostname!=='www.comprasparaguai.com.br'||!/^\/[a-z0-9_-]+\/$/.test(u.pathname))return null;
+ const u=new URL(product.photoProductUrl||product.productUrl||'https://invalid.invalid/');if(u.protocol!=='https:'||u.hostname!=='www.comprasparaguai.com.br'||!/^\/[a-z0-9_-]+\/$/.test(u.pathname))return null;
  const d=await vqaRead(env,VQA_BASE+u.pathname);if(!vqaMatch(product.name,product.volume,d?.nome||''))return null;const url=vciCPImage(d);return url?{name:d.nome,url}:null;
 }
 async function vciReadImage(response){
@@ -2362,7 +2388,7 @@ async function vciVerifyImage(env,source,image){
  if(!response.ok)throw Error("Photo review HTTP "+response.status);const result=await response.json();const raw=(result.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');let parsed;try{parsed=JSON.parse(raw)}catch{throw Error("Photo review JSON invalid")}return parsed.clean===true&&parsed.productMatches===true;
 }
 async function vciPreparePhoto(env,product){
- if(!product?.name)return null;const reference=JSON.stringify([product.catalogId||product.productUrl,product.name,product.volume||0]);const id=await vciHash(reference),key=VCI_PREFIX+'approval:'+id;
+ if(!product?.name)return null;const reference=JSON.stringify([product.catalogId||product.photoProductUrl||product.productUrl,product.name,product.volume||0]);const id=await vciHash(reference),key=VCI_PREFIX+'approval:'+id;
  const cached=await env.PRIVATE_KV.get(key,'json');if(cached?.approved===true)return cached;if(cached?.approved===false)return null;
  let source=await vciSource(env,product);if(!source||!vciAllowedSource(source.url))return null;
  let image=await vciReadImage(await fetch(source.url,{signal:AbortSignal.timeout(5000),redirect:'manual'}));if(!image)return null;
