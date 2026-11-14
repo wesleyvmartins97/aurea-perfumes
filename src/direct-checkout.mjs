@@ -17,7 +17,7 @@ async function vdcCreate(request,env){
  if(existing)return vdcJson({ok:true,id:existing.id,url:'https://www.valenzaparfums.com.br/api/direct/open/'+existing.id});
  let img='';try{const u=new URL(b.img);if(u.protocol==='https:'&&!u.username&&!u.password)img=u.toString()}catch{}
  const id='direct-'+[...crypto.getRandomValues(new Uint8Array(24))].map(x=>x.toString(16).padStart(2,'0')).join(''),now=new Date().toISOString();
- const q={id,name,price:Number(price.toFixed(2)),volume,source:source.toString(),img,brand:String(b.brand||'').slice(0,80),maxQty:1,expiresAt:expiry};
+ const q={id,name,price:Number(price.toFixed(2)),volume,source:source.toString(),img,brand:String(b.brand||'').slice(0,80),maxQty:1,diagnostic:b.diagnostic===true,expiresAt:expiry};
  await env.DB.batch([env.DB.prepare('INSERT INTO direct_checkout_quotes(id,request_key,payload,expires_at,created_at) VALUES(?,?,?,?,?)').bind(id,key,JSON.stringify(q),expiry,now),env.DB.prepare('INSERT INTO inventory(product_id,stock,updated_at) VALUES(?,?,?)').bind(id,1,now)]);
  return vdcJson({ok:true,id,url:'https://www.valenzaparfums.com.br/api/direct/open/'+id});
 }
@@ -33,7 +33,7 @@ async function vdcOpen(request,env,id){
 async function vdcFreight(request,env,calculate){
  if(!env.DIRECT_COMMERCE_SECRET||request.headers.get('authorization')!=='Bearer '+env.DIRECT_COMMERCE_SECRET)return vdcJson({ok:false},401);
  const b=await request.json(),q=await vdcRead(env,b.id);if(!q)return vdcJson({ok:false,error:'Cotação expirada.'},410);
- return calculate(new Request('https://www.valenzaparfums.com.br/api/frete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cep:b.cep,produtos:[{id:q.id,qty:1,price:q.price}]})}),{...env,__DIRECT_QUOTE:q});
+ return calculate(new Request('https://www.valenzaparfums.com.br/api/frete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cep:b.cep,produtos:[{id:q.id,qty:1,price:q.price}]})}),{...env,__DIRECT_QUOTE:q,__DIRECT_DIAGNOSTIC:q.diagnostic===true});
 }
 async function vdcPrepare(request,env,deps){const p=new URL(request.url).pathname;
  if(p==='/api/direct/create'&&request.method==='POST')return {response:await vdcCreate(request,env)};

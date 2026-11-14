@@ -1,3 +1,4 @@
+import {vdcPrepare,vdcCanonicalItems,vdcRuntime,vdcShippingProduct} from '../src/direct-checkout.mjs';
 import fs from 'node:fs';
 import {catalogPageHtml} from '../src/catalog-page.mjs';
 import {merchantFulfillment} from '../src/merchant-fulfillment.mjs';
@@ -7,13 +8,13 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {webcrypto} from 'node:crypto';
-const source=fs.readFileSync('src/worker.js','utf8').replace("import {merchantFulfillment} from './merchant-fulfillment.mjs';",'').replace("import {catalogPageHtml} from './catalog-page.mjs';",'').replace("import {asaasPixEnabled,asaasReady} from './payments/asaas-prod.mjs';",'').replace("import {createValenzaAsaasBridge} from './payments/asaas-valenza.mjs';",'').replace('export default','globalThis.worker =');
+const source=fs.readFileSync('src/worker.js','utf8').replace("import {merchantFulfillment} from './merchant-fulfillment.mjs';",'').replace("import {catalogPageHtml} from './catalog-page.mjs';",'').replace("import {asaasPixEnabled,asaasReady} from './payments/asaas-prod.mjs';",'').replace("import {createValenzaAsaasBridge} from './payments/asaas-valenza.mjs';",'').replace(/^import \{vdcPrepare[^\n]+\n/,'').replace('export default','globalThis.worker =');
 const sql=new DatabaseSync(':memory:');
 const DB={prepare(query){let values=[];return {bind(...v){values=v;return this},async run(){const r=sql.prepare(query).run(...values);return {meta:{changes:Number(r.changes)}}},async all(){return {results:sql.prepare(query).all(...values)}},async first(){return sql.prepare(query).get(...values)||null}}},async batch(statements){sql.exec('BEGIN');try{const out=[];for(const s of statements)out.push(await s.run());sql.exec('COMMIT');return out}catch(e){sql.exec('ROLLBACK');throw e}}};
 let payStatus='pending',failure='',shippingFailure=false,trackingStatus='Em trânsito',calls=[],orderSeq=0;
 const customer={id:'offline-customer',email:'client@example.invalid',email_verified:1};
 const response=d=>new Response(JSON.stringify(d),{headers:{'content-type':'application/json'}});
-const context={catalogPageHtml,merchantFulfillment,asaasPixEnabled,asaasReady,createValenzaAsaasBridge,btoa,atob,URL,Request,Response,Headers,TextEncoder,TextDecoder,crypto:webcrypto,console,setTimeout,clearTimeout,fetch:async(url,options={})=>{
+const context={vdcPrepare,vdcCanonicalItems,vdcRuntime,vdcShippingProduct,catalogPageHtml,merchantFulfillment,asaasPixEnabled,asaasReady,createValenzaAsaasBridge,btoa,atob,URL,Request,Response,Headers,TextEncoder,TextDecoder,crypto:webcrypto,console,setTimeout,clearTimeout,fetch:async(url,options={})=>{
  calls.push({url,method:options.method||'GET',body:options.body?JSON.parse(options.body):null});
  if(url==='https://api.resend.com/emails')return response({id:'offline-mail-'+calls.length});
  if(url.startsWith('https://api.mercadopago.com/v1/orders?'))return response({data:globalThis.reconciliationResults||[]});
@@ -107,5 +108,19 @@ console.log('PASS registration, verification, one-use link, login cookie, wrong 
 await context.realNotify(env,cardId);await context.realNotify(env,cardId);assert.equal(sql.prepare('SELECT COUNT(*) n FROM admin_notifications WHERE order_id=?').get(cardId).n,1);
 const beforeEmail=calls.filter(c=>c.url==='https://api.resend.com/emails').length;await context.realMail(env,cardId,'payment_confirmed');await context.realMail(env,cardId,'payment_confirmed');assert.equal(calls.filter(c=>c.url==='https://api.resend.com/emails').length,beforeEmail+1);
 console.log('PASS actual admin sale alert and customer payment email are deduplicated (mock provider)');
+env.DIRECT_COMMERCE_SECRET='offline-direct-only';
+const quoteResponse=await vdcPrepare(new Request('https://www.valenzaparfums.com.br/api/direct/create',{method:'POST',headers:{authorization:'Bearer '+env.DIRECT_COMMERCE_SECRET},body:JSON.stringify({name:'Private perfume EDP 100ML',price:369.90,volume:100,requestKey:'a'.repeat(64),validUntil:Date.now()+3600000,source:'https://www.comprasparaguai.com.br/private-perfume_1/',supplierConfirmed:true})}),env,{calcularFrete:context.calcularFrete});
+assert.equal(quoteResponse.response.status,200);const privateQuote=await quoteResponse.response.json();
+env.__DIRECT_QUOTE={...JSON.parse(sql.prepare('SELECT payload FROM direct_checkout_quotes WHERE id=?').get(privateQuote.id).payload),id:privateQuote.id};
+payStatus='approved';failure='';shippingFailure=false;const beforePrivateShip=calls.filter(c=>c.url.includes('shipping/create')).length;
+const privateData={...outOfTown,items:[{id:privateQuote.id,qty:1,price:369.90}]};
+r=await call('criarPagamentoCartao',privateData);assert.equal(r.status,200,JSON.stringify(r));assert.equal(r.body.amount,'394.90');
+const privateLine=sql.prepare('SELECT * FROM order_items WHERE order_id=?').get(r.body.orderId);assert.equal(privateLine.product_id,privateQuote.id);assert.equal(privateLine.name,'Private perfume EDP 100ML');assert.equal(privateLine.unit_price,369.90);assert.equal(privateLine.quantity,1);
+assert.equal(sql.prepare('SELECT label_ready FROM order_shipping WHERE order_id=?').get(r.body.orderId).label_ready,1);
+const privateShipment=calls.filter(c=>c.url.includes('shipping/create')).at(-1).body.shipments[0];assert.equal(privateShipment.height,'12');assert.equal(privateShipment.length,'20');assert.equal(privateShipment.weight,'0.600');
+await context.webhookMercadoPago(new Request('https://test.invalid',{method:'POST',body:JSON.stringify({data:{id:r.body.orderId}})}),env);assert.equal(calls.filter(c=>c.url.includes('shipping/create')).length,beforePrivateShip+1);
+assert.equal((await context.syncInventorySmartAlerts(env)).some(x=>x.product_id===privateQuote.id),false);
+assert.equal(sql.prepare("SELECT COUNT(*) n FROM admin_notifications WHERE unique_key LIKE 'stock:direct-%'").get().n,0);
+console.log('PASS private Instagram quote -> checkout -> recorded items/total -> shipment/label once, correct package, no false stock alerts (mock providers)');
 sql.close();
 

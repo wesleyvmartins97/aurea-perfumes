@@ -710,6 +710,7 @@ async function retryPendingOperationalErrorAlerts(env){
 }
 async function recordOperationalEvent(env,{orderId=null,eventType="",category="system",status="info",severity="info",source="worker",message="",metadata={},uniqueKey=null}={}){
  try{
+  if(env.__DIRECT_DIAGNOSTIC)return {ok:true,skipped:true,diagnostic:true};
   if(!env?.DB||!eventType)return {ok:false,skipped:true};
   const id=crypto.randomUUID(),key=operationalEventText(uniqueKey||("event:"+id),180),now=new Date().toISOString();
   const payload=JSON.stringify(operationalEventMetadata(metadata)).slice(0,2500);
@@ -1115,7 +1116,7 @@ async function adminCatalogProducts(request,env){
   const [rows,settings,inventory,disabled,base]=await Promise.all([
    catalogProductRows(env),
    env.DB.prepare("SELECT ps.product_id,ps.price_override,ps.unit_cost,CASE WHEN EXISTS(SELECT 1 FROM product_cost_reference ref WHERE ref.product_id=ps.product_id AND ref.applied_to_unit_cost=1 AND ABS(ref.estimated_cost-ps.unit_cost)<0.011) THEN 1 ELSE 0 END AS cost_estimated FROM product_settings ps").all(),
-   env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory").all(),
+   env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory WHERE product_id NOT LIKE 'direct-%'").all(),
    disabledProductSet(env),
    catalogBase(env,{includeDrafts:true})
   ]);
@@ -1548,7 +1549,7 @@ async function syncInventorySmartAlerts(env){
  try{
   const catalog=await catalogBase(env,{includeDrafts:true});
   const [inventoryRows,disabledRows,stateRows]=await Promise.all([
-   env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory").all(),
+   env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory WHERE product_id NOT LIKE 'direct-%'").all(),
    env.DB.prepare("SELECT product_id FROM disabled_products").all(),
    env.DB.prepare("SELECT product_id,state,stock,updated_at FROM inventory_alert_state").all()
   ]);
@@ -1692,7 +1693,7 @@ async function buildDailyReport(env,reportDate){
   env.DB.prepare(realOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN r.status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN r.status='Pago' THEN r.total ELSE 0 END),0) revenue,SUM(CASE WHEN r.status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN r.status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))='pix' THEN 1 ELSE 0 END) pix_orders,COALESCE(SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))='pix' THEN r.total ELSE 0 END),0) pix_revenue,SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))<>'pix' THEN 1 ELSE 0 END) card_orders,COALESCE(SUM(CASE WHEN r.status='Pago' AND lower(COALESCE(p.method,''))<>'pix' THEN r.total ELSE 0 END),0) card_revenue FROM real_orders r LEFT JOIN order_payments p ON p.order_id=r.id WHERE date(r.created_at,'-3 hours')=?").bind(date).first(),
   env.DB.prepare(realOrdersCte+"SELECT SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_now,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_all FROM real_orders").first(),
   env.DB.prepare(realOrdersCte+"SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN real_orders r ON r.id=oi.order_id WHERE r.status='Pago' AND date(r.created_at,'-3 hours')=? GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").bind(date).all(),
-  env.DB.prepare("SELECT product_id,stock FROM inventory").all(),
+  env.DB.prepare("SELECT product_id,stock FROM inventory WHERE product_id NOT LIKE 'direct-%'").all(),
   env.DB.prepare("SELECT product_id FROM disabled_products").all(),
   env.DB.prepare("SELECT id,type,severity,title,message,created_at,read_at FROM admin_notifications WHERE date(created_at,'-3 hours')=? AND type<>'sale' ORDER BY created_at DESC LIMIT 20").bind(date).all(),
   env.DB.prepare(realOrdersCte+"SELECT SUM(CASE WHEN r.status='Pago' AND COALESCE(s.carrier,'')<>'Entrega local Valenza' AND COALESCE(s.shipping_id,'')='' AND COALESCE(s.barcode,'')='' AND COALESCE(l.state,'')='' THEN 1 ELSE 0 END) awaiting_shipping FROM real_orders r LEFT JOIN order_shipping s ON s.order_id=r.id LEFT JOIN shipment_locks l ON l.order_id=r.id").first()
@@ -1764,7 +1765,7 @@ async function adminDashboard(request,env){
    env.DB.prepare(allOrdersCte+"SELECT COUNT(*) total_orders,SUM(CASE WHEN status='Pago' THEN 1 ELSE 0 END) paid_orders,COALESCE(SUM(CASE WHEN status='Pago' THEN total ELSE 0 END),0) revenue,SUM(CASE WHEN status IN ('Aguardando pagamento','Processando') THEN 1 ELSE 0 END) pending_orders,SUM(CASE WHEN status='Pagamento recusado' THEN 1 ELSE 0 END) rejected_orders,SUM(CASE WHEN status IN ('Cancelado','Expirado','Reembolsado') THEN 1 ELSE 0 END) closed_orders FROM all_orders").first(),
    env.DB.prepare("WITH all_orders AS (SELECT o.id,o.customer_id,o.order_number,o.status,o.total,o.tracking_code,o.tracking_url,o.carrier,o.created_at,c.name customer_name,c.email email FROM orders o LEFT JOIN customers c ON c.id=o.customer_id UNION ALL SELECT g.id,NULL customer_id,g.order_number,g.status,g.total,g.tracking_code,g.tracking_url,g.carrier,g.created_at,g.customer_name,g.email FROM guest_orders g WHERE NOT EXISTS(SELECT 1 FROM orders o2 WHERE o2.id=g.id)) SELECT a.id,a.customer_id,a.order_number,a.status,a.total,a.tracking_code,a.tracking_url,a.carrier,a.created_at,a.customer_name,a.email,p.method,p.installments,p.total_paid,s.barcode,s.shipping_id,s.label_ready,l.state lock_state FROM all_orders a LEFT JOIN order_payments p ON p.order_id=a.id LEFT JOIN order_shipping s ON s.order_id=a.id LEFT JOIN shipment_locks l ON l.order_id=a.id ORDER BY a.created_at DESC LIMIT 50").all(),
    primaryDb(env).prepare("SELECT c.name,c.email,c.email_verified,c.created_at,COALESCE(NULLIF((SELECT cp.phone FROM customer_profiles cp WHERE cp.customer_id=c.id LIMIT 1),''),NULLIF((SELECT os.phone FROM orders o JOIN order_shipping os ON os.order_id=o.id WHERE o.customer_id=c.id AND TRIM(COALESCE(os.phone,''))<>'' ORDER BY o.created_at DESC LIMIT 1),''),NULLIF((SELECT co.phone FROM checkout_opportunities co WHERE co.customer_id=c.id LIMIT 1),'')) phone,CASE WHEN EXISTS(SELECT 1 FROM admin_credentials a WHERE a.customer_id=c.id) OR EXISTS(SELECT 1 FROM admin_members am WHERE am.customer_id=c.id AND am.active=1) THEN 1 ELSE 0 END is_admin FROM customers c WHERE c.email_verified=1 OR EXISTS(SELECT 1 FROM email_verifications ev WHERE ev.customer_id=c.id AND ev.expires_at>?) ORDER BY c.created_at DESC LIMIT 50").bind(new Date().toISOString()).all(),
-   env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory ORDER BY stock ASC,product_id ASC").all(),
+   env.DB.prepare("SELECT product_id,stock,updated_at FROM inventory WHERE product_id NOT LIKE 'direct-%' ORDER BY stock ASC,product_id ASC").all(),
    env.DB.prepare(realOrdersCte+"SELECT oi.product_id,MAX(oi.name) name,MAX(oi.brand) brand,SUM(oi.quantity) units,ROUND(SUM(oi.quantity*oi.unit_price),2) value FROM order_items oi JOIN real_orders r ON r.id=oi.order_id WHERE r.status='Pago' GROUP BY oi.product_id ORDER BY units DESC,value DESC LIMIT 10").all(),
    env.DB.prepare(realOrdersCte+"SELECT oi.product_id,SUM(oi.quantity) units FROM order_items oi JOIN real_orders r ON r.id=oi.order_id WHERE r.status='Pago' GROUP BY oi.product_id").all(),
    env.DB.prepare("SELECT COUNT(*) total FROM admin_deleted_test_orders WHERE admin_customer_id=?").bind(admin.id).first(),
@@ -1967,7 +1968,7 @@ async function dynamicSitemap(request,env){
 async function dynamicMerchantFeed(request,env){
  try{
   const response=await env.ASSETS.fetch(request);if(!response.ok)return response;
-  const [catalog,editedRows,inventoryRows]=await Promise.all([officialCatalog(env),catalogProductRows(env),env.DB.prepare("SELECT product_id,stock FROM inventory").all()]),editedMap=new Map(editedRows.map(row=>[String(row.product_id),row])),inventoryMap=new Map((inventoryRows.results||[]).map(row=>[String(row.product_id),Number(row.stock)])),xml=await response.text(),fulfillment=merchantFulfillment(),seen=new Set();
+  const [catalog,editedRows,inventoryRows]=await Promise.all([officialCatalog(env),catalogProductRows(env),env.DB.prepare("SELECT product_id,stock FROM inventory WHERE product_id NOT LIKE 'direct-%'").all()]),editedMap=new Map(editedRows.map(row=>[String(row.product_id),row])),inventoryMap=new Map((inventoryRows.results||[]).map(row=>[String(row.product_id),Number(row.stock)])),xml=await response.text(),fulfillment=merchantFulfillment(),seen=new Set();
   let updated=xml.replace(/<item>[\s\S]*?<\/item>/g,item=>{
    const m=item.match(/<g:id>([^<]+)<\/g:id>/);if(!m)return item;
    const id=String(m[1]||"");seen.add(id);const p=catalog[id];if(!p||p.offer===false)return "";
@@ -2070,7 +2071,7 @@ async function servirAssets(request,env){
  if(pathname==="/products.js"||pathname==="/google-commerce.js"||pathname==="/admin-account.js"||pathname.startsWith("/produtos/"))headers.set("Cache-Control","no-cache, max-age=0, must-revalidate");
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers})
 }
-async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
+async function consultarEstoque(env){try{await ensureAuthSchema(env);await seedInventory(env);const r=await env.DB.prepare("SELECT product_id,stock FROM inventory WHERE product_id NOT LIKE 'direct-%'").all();return resposta({ok:true,stock:Object.fromEntries((r.results||[]).map(x=>[x.product_id,Number(x.stock)]))})}catch(e){return resposta({ok:false,error:"Não foi possível consultar o estoque."},500)}}
 const AUREA_CATALOG={
 "raneen":{"name": "Raneen", "brand": "Asdaaf", "type": "EDP · 80ml", "price": 299.9, "weight": 0.6, "length": 20, "height": 12, "width": 16},
 "bahiya-garnet":{"name": "Bahiya Garnet", "brand": "Arabiyat Prestige", "type": "EDP · 100ml", "price": 499.9, "weight": 0.75, "length": 20, "height": 12, "width": 16},
@@ -2228,7 +2229,7 @@ async function catalogRuntimePublicOriginal(env){
  try{
   await ensureAuthSchema(env);await seedInventory(env);
   const [stock,settings,disabled,rows,base]=await Promise.all([
-   env.DB.prepare("SELECT product_id,stock FROM inventory").all(),
+   env.DB.prepare("SELECT product_id,stock FROM inventory WHERE product_id NOT LIKE 'direct-%'").all(),
    env.DB.prepare("SELECT product_id,price_override FROM product_settings WHERE price_override IS NOT NULL").all(),
    disabledProductSet(env),
    catalogProductRows(env),
