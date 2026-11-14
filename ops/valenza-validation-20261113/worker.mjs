@@ -1215,13 +1215,13 @@ async function vliCloudflareBackup(env,messages,preferQwen=false){
 
 
 function vliSafeForExternal(messages){
- const scrub=s=>String(s||"").slice(0,6500)
+ const scrub=s=>String(s||"").slice(0,6500).replaceAll(VLI_WA,"[VALENZA_OFFICIAL_CONTACT]")
   .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g,"[CPF omitido]")
   .replace(/\b(?:\d[ -]?){13,19}\b/g,"[identificador omitido]")
   .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,"[e-mail omitido]")
   .replace(/\b(?:\+?55)?\s?\(?\d{2}\)?[\s.-]?\d{4,5}[\s.-]?\d{4}\b/g,"[telefone omitido]")
   .replace(/\b\d{9,}\b/g,"[identificador omitido]")
-  .replace(/\b(?:cpf|rg|cart[aã]o|senha|cep)\s*[:=-]?\s*\S+/gi,"[dado pessoal omitido]");
+  .replace(/\b(?:cpf|rg|cart[aã]o|senha|cep)\s*[:=-]?\s*\S+/gi,"[dado pessoal omitido]").replaceAll("[VALENZA_OFFICIAL_CONTACT]",VLI_WA);
  return messages.slice(-12).filter(x=>["system","assistant","user"].includes(x?.role)).map(x=>({role:x.role,content:scrub(x.content)}));
 }
 function vliExternalValidate(raw){
@@ -1275,10 +1275,21 @@ async function vliOpenModels(env,messages,preferQwen=false){
  throw Error("IA temporariamente indisponível ("+failures.join(", ")+")");
 }
 
+
+function vcOfficialService(message){
+ const n=vcPlain(message);
+ const contact=/\b(?:whats(?:app)?|zap|wpp|whatsapp|whatssapp)\b|qual (?:o )?(?:contato|numero)|telefone|falar com (?:uma? )?(?:pessoa|humano|atendente)|atendimento humano/.test(n);
+ if(contact)return{type:'draft',text:'O WhatsApp oficial da Valenza é: '+VLI_WA+' 💛'};
+ const payment=/\b(?:como|onde)\b.*\b(?:pagar|pagamento|finalizar|fechar|comprar)\b|\b(?:formas|forma|opcoes|condicoes)\b.*\bpagamento\b|\b(?:aceitam|aceita|posso pagar|pode pagar)\b.*\b(?:pix|cartao|credito|debito)\b/.test(n)||/^(?:quero|vou|vamos|podemos) (?:pagar|fechar|finalizar)(?: o pedido| a compra)?$/.test(n);
+ if(payment)return{type:'draft',text:'Para finalizar esse pedido e confirmar a forma de pagamento, fale com a equipe pelo WhatsApp: '+VLI_WA+' 💛 Você também pode comprar os produtos do catálogo em '+VLI_SITE};
+ return null;
+}
+
 async function vliWrite(env,message,history=[],options={}){
  const msg=vliTxt(message);
  const cl=vliClassify(msg);
  if(cl!=="safe")return {type:cl,text:null};
+ const official=vcOfficialService(msg);if(official)return official;
  
  if(!options.skipQuote){const quotationResponse=await vqAnswer(env,msg,history);if(quotationResponse)return quotationResponse;}
 if(!env.GROQ_API_KEY&&!env.GEMINI_API_KEY&&!env.AI?.run)throw Error("Motor de IA não está disponível");
@@ -1323,6 +1334,7 @@ if(!env.GROQ_API_KEY&&!env.GEMINI_API_KEY&&!env.AI?.run)throw Error("Motor de IA
  // Remove untrusted model links without turning an otherwise valid conversation into an outage.
  t=t.replace(/https?:\/\/[^\s),]+/g,link=>{try{const cleaned=link.replace(/[.!?;:]+$/,'');const u=new URL(cleaned);return u.protocol==="https:"&&(u.hostname.replace(/^www\./,"")==="valenzaparfums.com.br"||(u.hostname==="wa.me"&&u.pathname.replace(/\/$/,"")==="/5527997962708"))?cleaned:""}catch{return""}}).replace(/\[([^\]]+)\]\(\s*\)/g,'$1').trim();
  if(!t)t="Me confirma o nome escrito no frasco ou na caixa? Assim consigo procurar a versão certa pra você. 💛";
+ if(/omitid[oa]|VALENZA_OFFICIAL_CONTACT/i.test(t))t="Fale com a equipe da Valenza pelo WhatsApp oficial: "+VLI_WA+" 💛";
  return {type:"draft",text:t};
 }
 async function vliPerm(env){
@@ -2098,7 +2110,8 @@ async function vcIncoming(env,message,history,chatId,recipient,messageId){
  const normalized=vcPlain(txt);
  const lastAssistant=history.filter(x=>x.role==="assistant").slice(-1)[0]?.content||"";
  const switching=/outro (?:perfume|produto|modelo)|(?:olhar|ver|conferir|pesquisar|consultar|quero|queria) (?:um )?outro\b/.test(normalized);
- if(/whatsapp|qual (?:o )?contato|qual (?:o )?numero|telefone|falar com (?:uma )?(?:pessoa|humano|atendente)|atendimento humano/.test(normalized)||(/whatsapp/i.test(lastAssistant)&&/^(?:sim|pode|quero|claro|ok|manda|envia)/.test(normalized)))return {draft:{type:"draft",text:"Claro! Pode falar com a nossa equipe pelo WhatsApp: "+VLI_WA+" 💛"},pending:null};
+ const official=vcOfficialService(txt);if(official)return{draft:official,pending:null};
+ if(/whatsapp/i.test(lastAssistant)&&/^(?:sim|pode(?: sim)?|quero|claro|ok|manda|envia)(?: por favor)?(?: o contato| o numero| o link)?$/.test(normalized))return{draft:{type:"draft",text:"Claro! Pode falar com a nossa equipe pelo WhatsApp: "+VLI_WA+" 💛"},pending:null};
  if(/^(?:(?:oi|ola|oie|opa|bom dia|boa tarde|boa noite|tudo bem|tudo bom|e voce|com voce)\s*)+$/.test(normalized)){const greeting=/bom dia/.test(normalized)?"Bom dia":/boa tarde/.test(normalized)?"Boa tarde":/boa noite/.test(normalized)?"Boa noite":"Oi";return{draft:{type:"draft",text:greeting+"! Tudo bem? 😊 Como posso te ajudar?"},pending:null};}
  const confirmed=/^(?:isso(?: ai)?(?: esse)?(?: mesmo)?|esse mesmo|essa mesma|sim(?: esse| essa)?(?: mesmo| mesma)?|exatamente|e esse(?: mesmo)?)(?: por favor)?$/.test(normalized)&&/\?|certo|confirma|esse|essa/i.test(lastAssistant)&&!/R\$|wa\.me|instabilidade/i.test(lastAssistant);
  const shortSocial=vcSocialOnly(txt);
@@ -2147,9 +2160,10 @@ async function vcSpeedAudit(env){
 
 async function vcOneTimeAudit(env){
  const key="valenza:concierge:v2:one_time_audit";
- const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","photo-garden","shortnames","offer-discovery"].includes(requested))return;
+ const requested=await env.PRIVATE_KV.get(key+":request");if(!["yes","providers","speed","research","research-sabah","research-afnan","photo-discovery","photo-test","photo-garden","shortnames","offer-discovery","official-contact"].includes(requested))return;
  await env.PRIVATE_KV.delete(key+":request");
  if(requested==="providers"){await vcProviderAudit(env,key);return;}
+ if(requested==="official-contact"){const result={at:new Date().toISOString(),cases:[]};for(const text of ["Como faço pra pagar","Qual o whats da equipe?","Me passa o zap","Qual o WhatsApp oficial?"]){const start=Date.now();const answer=await vcIncoming(env,text,[],"audit","1234567","contact-audit");result.cases.push({input:text,...answer,ms:Date.now()-start})}await env.PRIVATE_KV.put(key+":official_contact",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="offer-discovery"){const name="Lune Aurora Scents";const list=await vqaRead(env,VQA_BASE+"/busca/?q="+encodeURIComponent(name));const result={at:new Date().toISOString(),query:name,rows:(list.resultados||[]).slice(0,4).map(r=>({nome:r.nome,link:r.link,nome_loja:r.nome_loja,link_loja:r.link_loja,preco_dolar:r.preco_dolar})),details:[]};for(const row of result.rows.slice(0,2)){try{const d=await vqaRead(env,VQA_BASE+row.link);result.details.push({name:d.nome,available:d.disponivel,lastListed:d.data_ultima_listagem,usd:d.preco_dolar,shop:d.loja?.nome,reviewCount:d.loja?.avaliacoes,rating:d.loja?.nota})}catch(e){result.details.push({error:String(e?.message||e).slice(0,100)})}}result.quote=await vcPrepareQuote(env,name,0);if(result.quote?.photo){try{const photo=await vciPreparePhoto(env,result.quote.photo);result.photo=photo?Object.fromEntries(Object.entries(photo).filter(([k])=>k!=="inline")):null}catch(e){result.photoError=String(e?.message||e).slice(0,120)}}await env.PRIVATE_KV.put(key+":offer_discovery",JSON.stringify(result),{expirationTtl:86400});return;}
  if(requested==="shortnames"){const r={at:new Date().toISOString(),cases:[]};for(const text of ["Gostaria de um perfume o Yara. Qual valor?","Yara","Queria o CDNIM qual valor?","Yaraa qual valor?","Yara Tous qual valor?"]){const t=Date.now();try{r.cases.push({input:text,...await vcIncoming(env,text,[],"audit","1234567","shortname-audit"),ms:Date.now()-t})}catch(e){r.cases.push({input:text,error:String(e?.message||e).slice(0,100)})}}await env.PRIVATE_KV.put(key+":shortnames",JSON.stringify(r),{expirationTtl:86400});return;}
  if(requested==="photo-test"||requested==="photo-garden"){const result={at:new Date().toISOString(),cases:[]};for(const product of (requested==="photo-garden"?[{name:"Perfume Al Wataniah Sabah Al Ward Garden Of Eden Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-garden-of-eden-eau-de-parfum-feminino-100ml_68371/"}]:[{name:"Perfume Al Wataniah Sabah Al Ward Sugar Eau de Parfum Feminino 100ML",volume:100,productUrl:"https://www.comprasparaguai.com.br/perfume-al-wataniah-sabah-al-ward-sugar-eau-de-parfum-feminino-100ml_62536/"},{catalogId:"eclaire",name:"Eclaire",volume:100}])){const t=Date.now();try{let probe=null;if(requested==="photo-garden"){const d=await vqaRead(env,VQA_BASE+new URL(product.productUrl).pathname);probe={name:d.nome,identity:vqaMatch(product.name,product.volume,d.nome),principal:d.imagem_principal_url,images:d.imagens_url}}const source=await vciSource(env,product);const photo=await vciPreparePhoto(env,product);let attachmentReady=null;if(requested==="photo-garden"&&photo?.converted){const sealed=await env.PRIVATE_KV.get(VLI+"page_token");const token=await ownToken(sealed,env);const raw=await env.PRIVATE_KV.get(VCI_PREFIX+"bytes:"+photo.id,"arrayBuffer");const staged=vcClaimStub(env,"photo-stage:"+photo.id);await staged.stagePhoto(photo,raw);const proof=await staged.stagedPhoto();if(proof?.bytes?.byteLength!==photo.size)throw Error("Photo staging check failed");const check=await fetch(photo.publicPreview+".jpg",{signal:AbortSignal.timeout(10000)});if(!check.ok||!String(check.headers.get("content-type")).startsWith("image/jpeg"))throw Error("Public JPEG endpoint HTTP "+check.status);const upload=await fetch("https://graph.facebook.com/"+VERSION+"/"+encodeURIComponent(PAGE_ID)+"/message_attachments",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({message:{attachment:{type:"image",payload:{url:photo.publicPreview+".jpg",is_reusable:true}}}}),signal:AbortSignal.timeout(15000)});const uploaded=await upload.json();if(!upload.ok)throw Error("Public JPEG fetch rejected "+String(uploaded?.error?.message||upload.status).slice(0,120));attachmentReady=!!uploaded.attachment_id}const safePhoto=photo?Object.fromEntries(Object.entries(photo).filter(([k])=>k!=="inline")):null;result.cases.push({name:product.name,probe,source,photo:safePhoto,attachmentReady,ms:Date.now()-t})}catch(e){result.cases.push({name:product.name,error:String(e?.message||e).slice(0,120),ms:Date.now()-t})}}await env.PRIVATE_KV.put(key+":photo_test",JSON.stringify(result),{expirationTtl:86400});return;}
