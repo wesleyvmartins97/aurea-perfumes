@@ -1,0 +1,11 @@
+import assert from'node:assert/strict';import fs from'node:fs';import vm from'node:vm';import{mergeNativeCatalog,nativeCatalogRoute}from'../src/native-catalog.mjs';
+const source=JSON.parse(vm.runInNewContext(fs.readFileSync('public/products.js','utf8')+';JSON.stringify(CATALOG)'));
+assert.deepEqual(JSON.parse(fs.readFileSync('public/native-catalog.json')),source);
+const base=[{id:'current',name:'Atual',img:'/current.webp',price:100},{id:'new-from-site',name:'Novo perfume',img:'/new.webp',price:200},{id:'disabled',name:'Oculto',img:'/hidden.webp',price:100}];
+const runtime={ok:true,products:[{id:'current',price:120,stock:4,active:true},{id:'new-from-site',price:210,stock:2,active:true},{id:'disabled',price:100,active:false},{id:'custom',price:300,active:true}],catalog:[{id:'custom',name:'Novo do painel',img:'/custom.webp',price:300},{id:'current',img:'/updated-photo.webp'}]};
+const promo={ok:true,promotions:[{productId:'current',promoPrice:90}]};const merged=mergeNativeCatalog(base,runtime,promo);
+assert.equal(merged.length,3);assert.equal(merged[0].price,90);assert.equal(merged[0].regularPrice,120);assert.equal(merged[0].img,'/updated-photo.webp');assert.equal(merged[1].name,'Novo perfume');assert.equal(merged[1].price,210);assert.equal(merged[2].name,'Novo do painel');
+const store={async fetch(r){return Response.json(r.url.endsWith('/api/catalog/runtime')?runtime:promo);}};
+const env={ASSETS:{async fetch(){return Response.json(base);}}};const r=await nativeCatalogRoute(new Request('https://www.valenzaparfums.com.br/api/app/catalog'),env,{},store);assert.equal(r.status,200);assert.equal(r.headers.get('Cache-Control'),'no-store');assert.deepEqual((await r.json()).catalog,merged);
+assert.equal((await nativeCatalogRoute(new Request('https://www.valenzaparfums.com.br/api/app/catalog',{method:'POST'}),env,{},store)).status,405);
+console.log('Native catalogue: storefront parity, future additions, panel additions, photo updates, price/promotion and disabled products passed.');
