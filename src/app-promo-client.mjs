@@ -1,9 +1,9 @@
 // Scoped promotional UI; the approved catalogue styles and account flows stay intact.
 export const appClient=String.raw`(()=>{
-  if(window.__valenzaInstall||/ValenzaAndroid\//.test(navigator.userAgent))return;
+  if(window.__valenzaInstall||/Valenza(?:Android|Native)\//.test(navigator.userAgent))return;
   window.__valenzaInstall=true;
   const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  const key='valenza-app-invite-until-v1';
+  const key='valenza-app-invite-until-v2';
   let backdrop=null,lastFocus=null,previousOverflow='';
   function remember(){try{localStorage.setItem(key,String(Date.now()+7*86400000));}catch{}}
   function dismissed(){try{return Number(localStorage.getItem(key)||0)>Date.now();}catch{return false;}}
@@ -42,8 +42,8 @@ export const appClient=String.raw`(()=>{
       '<button id="vzAppClose" type="button" aria-label="Fechar convite do aplicativo">×</button>'+
       '<div id="vzAppHero"><img id="vzAppHeroPhoto" src="/banners/glossy-fast-file_000000000724820ebc0b08dbb2f06341.webp" alt="" decoding="async"><div id="vzAppHeroBrand"><img src="/brand/valenza-symbol.svg" alt="V com diamante"><strong>VALENZA</strong><small>PARFUMS · NO SEU CELULAR</small></div></div>'+
       '<div id="vzAppContent"><p id="vzAppEyebrow">UM TOQUE DE VALENZA, TODOS OS DIAS</p><h2 id="vzAppTitle">Sua próxima fragrância.<br>Sempre por perto.</h2><p id="vzAppCopy">Explore nossas fragrâncias e tenha sua conta e seus pedidos em um só lugar. Leve a experiência Valenza com você.</p><ul id="vzAppFeatures"><li>✦ Catálogo completo</li><li>◇ Sua conta</li><li>✓ Seus pedidos</li></ul>'+
-      (isIOS?'<button id="vzAppDownload" type="button" aria-expanded="false" aria-controls="vzAppIOS">Adicionar a Valenza ao iPhone</button><div id="vzAppIOS" hidden>Abra este site no <strong>Safari</strong>, toque em <strong>Compartilhar</strong> e escolha <strong>Adicionar à Tela de Início</strong>. O APK Android não funciona no iPhone.</div>':'<a id="vzAppDownload" href="/api/app/download" download="Valenza-Parfums-1.0.0-Teste.apk">Baixar app para Android ↓</a>')+
-      '<button id="vzAppContinue" type="button">Agora não, quero continuar no site</button><p id="vzAppNote">'+(isIOS?'Acesso pelo site, com ícone na sua tela inicial.':'Download gratuito · Android 8 ou superior · versão de teste.<br>O Android pode solicitar autorização para instalar.')+'</p></div></section>';
+      (isIOS?'<button id="vzAppDownload" type="button" aria-expanded="false" aria-controls="vzAppIOS">Adicionar a Valenza ao iPhone</button><div id="vzAppIOS" hidden>Abra este site no <strong>Safari</strong>, toque em <strong>Compartilhar</strong> e escolha <strong>Adicionar à Tela de Início</strong>. O APK Android não funciona no iPhone.</div>':'<a id="vzAppDownload" href="/api/app/download" download="Valenza-Parfums.apk">Baixar app para Android ↓</a>')+
+      '<button id="vzAppContinue" type="button">Agora não, quero continuar no site</button><p id="vzAppNote">'+(isIOS?'Acesso pelo site, com ícone na sua tela inicial.':'Download gratuito · Android 8 ou superior.<br>O Android pode solicitar autorização para instalar.')+'</p></div></section>';
     backdrop.addEventListener('click',e=>{if(e.target===backdrop)close();});
     backdrop.querySelector('#vzAppClose').addEventListener('click',close);
     backdrop.querySelector('#vzAppContinue').addEventListener('click',close);
@@ -52,7 +52,7 @@ export const appClient=String.raw`(()=>{
   }
   function insert(){
     const header=document.querySelector('header.header');
-    if(header&&!document.getElementById('vzAppTop')){const b=document.createElement('button');b.id='vzAppTop';b.type='button';b.innerHTML='✦ Leve a Valenza com você <span>'+(isIOS?'Instalar no iPhone':'Conheça nosso app')+' ↗</span>';b.addEventListener('click',open);header.before(b);}
+    if(header&&!document.getElementById('vzAppTop')){const b=document.createElement('button');b.id='vzAppTop';b.type='button';b.innerHTML='✦ Leve a Valenza com você <span>'+(isIOS?'Instalar no iPhone':'Baixar aplicativo')+' ↗</span>';b.addEventListener('click',open);header.before(b);}
     for(const parent of [document.querySelector('#accountBody'),document.querySelector('#clientCenter .ccSide')]){
       if(!parent||parent.querySelector('[data-valenza-install]'))continue;
       const a=document.createElement('button');a.type='button';a.dataset.valenzaInstall='1';a.textContent='✦ Conheça o app Valenza';a.addEventListener('click',open);

@@ -1,0 +1,23 @@
+name: Integridade do aplicativo Android
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', 'src/android-*.mjs', 'src/app-*.mjs', 'src/native-*.mjs', 'public/products.js', 'public/native-catalog.json', 'public/downloads/**', 'scripts/test-android-app.mjs', 'scripts/test-native-checkout.mjs']
+  pull_request:
+    paths: ['android/**', 'src/android-*.mjs', 'src/app-*.mjs', 'src/native-*.mjs', 'public/products.js', 'public/native-catalog.json', 'public/downloads/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-app-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/test-android-app.mjs
+      - run: node scripts/test-native-checkout.mjs
+      - run: node scripts/generate-native-catalog.mjs
+      - run: node scripts/test-native-catalog.mjs

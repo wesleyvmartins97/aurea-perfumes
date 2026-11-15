@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "aurea-perfumes",
   "main": "src/app-entry.mjs",
+  "build": {"command": "node scripts/generate-native-catalog.mjs"},
   "compatibility_date": "2026-08-28",
   // Preserva variáveis e secrets configurados no painel da Cloudflare em futuros deploys.
   "keep_vars": true,

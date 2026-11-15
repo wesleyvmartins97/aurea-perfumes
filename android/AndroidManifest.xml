@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="br.com.valenzaparfums.app" android:versionCode="1" android:versionName="1.0.0-teste">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="br.com.valenzaparfums.app" android:versionCode="3" android:versionName="2.1.0">
   <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <application android:label="Valenza Parfums" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:theme="@style/AppTheme" android:usesCleartextTraffic="false" android:allowBackup="false" android:supportsRtl="true">
