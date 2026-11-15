@@ -31,7 +31,7 @@ jobs:
           assert 'android:versionCode="3"' in s
           s=s.replace('package="br.com.valenzaparfums.app"','package="br.com.valenzaparfums.preview"')
           s=s.replace('android:versionCode="3"','android:versionCode="4"')
-          s=s.replace('android:versionName="2.1.0"','android:versionName="2.2.0-preview"')
+          s=s.replace('android:versionName="2.1.0"','android:versionName="2.2.1-preview"')
           s=s.replace('android:label="Valenza Parfums"','android:label="Valenza Teste"')
           mf.write_text(s)
           for p in (d/'src/br/com/valenzaparfums/app').glob('*.java'):
@@ -70,4 +70,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "android-preview-${{ github.run_id }}" android/build/Valenza-Parfums-Teste.apk --title "Valenza Android Teste 2.2 - UI e atualizacao" --notes "Versao isolada para testes, instala ao lado da Valenza oficial. Assinatura diferente; nao substitui o aplicativo atual." --prerelease --target "${{ github.sha }}"
+          gh release create "android-preview-${{ github.run_id }}" android/build/Valenza-Parfums-Teste.apk --title "Valenza Android 2.2.1 - Administracao e atualizacao" --notes "Previa separada com acesso administrativo protegido, alinhamento da navegacao e verificacao de atualizacoes. Instala ao lado da Valenza oficial; nao substitui o app atual." --prerelease --target "${{ github.sha }}"
