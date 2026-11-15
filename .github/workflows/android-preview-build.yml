@@ -1,0 +1,73 @@
+name: Valenza Android preview build (isolated)
+on:
+  push:
+    branches: [android-native-2.1-visual]
+    paths: ['.github/workflows/android-preview-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Setup Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      - name: Set isolated preview package and build number
+        shell: python
+        run: |
+          from pathlib import Path
+          d=Path('android')
+          mf=d/'AndroidManifest.xml'
+          s=mf.read_text()
+          assert 'package="br.com.valenzaparfums.app"' in s
+          assert 'android:versionCode="3"' in s
+          s=s.replace('package="br.com.valenzaparfums.app"','package="br.com.valenzaparfums.preview"')
+          s=s.replace('android:versionCode="3"','android:versionCode="4"')
+          s=s.replace('android:versionName="2.1.0"','android:versionName="2.2.0-preview"')
+          s=s.replace('android:label="Valenza Parfums"','android:label="Valenza Teste"')
+          mf.write_text(s)
+          for p in (d/'src/br/com/valenzaparfums/app').glob('*.java'):
+            src=p.read_text()
+            assert 'package br.com.valenzaparfums.app;' in src
+            p.write_text(src.replace('package br.com.valenzaparfums.app;', 'package br.com.valenzaparfums.preview;'))
+      - name: Compile and package Java Android app
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          SDK="$ANDROID_HOME/platforms/android-35/android.jar"
+          mkdir -p android/build/{generated,classes,dex}
+          "$TOOLS/aapt2" compile --dir android/res -o android/build/resources.zip
+          "$TOOLS/aapt2" link -o android/build/resources.apk --manifest android/AndroidManifest.xml -I "$SDK" --java android/build/generated -A android/assets android/build/resources.zip
+          javac --release 8 -nowarn -cp "$SDK" -d android/build/classes android/build/generated/br/com/valenzaparfums/preview/R.java android/src/br/com/valenzaparfums/app/*.java
+          mapfile -t CLASSES < <(find android/build/classes -name '*.class')
+          "$TOOLS/d8" --lib "$SDK" --min-api 26 --output android/build/dex "${CLASSES[@]}"
+          python3 - <<'PY'
+          import zipfile,shutil
+          shutil.copyfile('android/build/resources.apk','android/build/unsigned.apk')
+          with zipfile.ZipFile('android/build/unsigned.apk','a',zipfile.ZIP_DEFLATED) as z:
+            z.write('android/build/dex/classes.dex','classes.dex')
+          PY
+          "$TOOLS/zipalign" -f -p 4 android/build/unsigned.apk android/build/aligned.apk
+          keytool -genkeypair -noprompt -alias valenza-preview -keyalg RSA -keysize 3072 -validity 3650 -keystore android/build/preview.jks -storepass previewonly -keypass previewonly -dname "CN=Valenza Preview, O=Valenza Parfums, C=BR"
+          "$TOOLS/apksigner" sign --ks android/build/preview.jks --ks-key-alias valenza-preview --ks-pass pass:previewonly --key-pass pass:previewonly --out android/build/Valenza-Parfums-Teste.apk android/build/aligned.apk
+          "$TOOLS/apksigner" verify --verbose android/build/Valenza-Parfums-Teste.apk
+          sha256sum android/build/Valenza-Parfums-Teste.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Valenza-Parfums-Teste
+          path: android/build/Valenza-Parfums-Teste.apk
+          retention-days: 7
+      - name: Publish separate preview release (never overwrite official APK)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-preview-${{ github.run_id }}" android/build/Valenza-Parfums-Teste.apk --title "Valenza Android Teste 2.2 - UI e atualizacao" --notes "Versao isolada para testes, instala ao lado da Valenza oficial. Assinatura diferente; nao substitui o aplicativo atual." --prerelease --target "${{ github.sha }}"
