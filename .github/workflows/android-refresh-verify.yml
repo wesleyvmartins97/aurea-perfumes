@@ -26,6 +26,26 @@ jobs:
           grep -q 'android:versionName="2.4.0"' android/AndroidManifest.xml
           grep -q 'Atualizar' android/src/br/com/valenzaparfums/app/MainActivity.java
           ! grep -q 'WebView' android/src/br/com/valenzaparfums/app/NativeStore.java
+      - name: Bloquear regressão de alinhamento das abas
+        shell: python
+        run: |
+          from pathlib import Path
+          code=Path('android/src/br/com/valenzaparfums/app/MainActivity.java').read_text()
+          nav=code.split('void navigation(){',1)[1].split('LinearLayout begin(',1)[0]
+          required=[
+            'new FrameLayout(this)',
+            'new LinearLayout.LayoutParams(0,dp(70),1f)',
+            'Gravity.TOP|Gravity.CENTER_HORIZONTAL',
+            'Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL',
+            'label.setGravity(Gravity.CENTER)',
+            'label.setTextAlignment(View.TEXT_ALIGNMENT_CENTER)',
+            'String[] labels={"Explorar","Favoritos","Sacola","Conta"}',
+            'item.addView(label,labelLp)',
+          ]
+          for needle in required:
+            assert needle in nav, f'Barra inferior sem alinhamento estável: {needle}'
+          assert 'item.addView(label,new LinearLayout.LayoutParams(-1' not in nav
+          print('Quatro abas e seus rótulos com alinhamento central verificado.')
       - name: Compilar resources e classes sem assinar
         shell: bash
         run: |
