@@ -23,7 +23,61 @@ async function campaign(env){return env.DB.prepare("SELECT * FROM campaign WHERE
 async function audit(env,actor,action,detail){await env.DB.prepare("INSERT INTO audit(actor,action,detail) VALUES(?,?,?)").bind(actor,action,JSON.stringify(detail||{}).slice(0,1300)).run()}
 async function status(env){let c=await campaign(env);let r=await env.DB.prepare("SELECT COUNT(*) total, COUNT(DISTINCT c.username) people, SUM(CASE WHEN c.base_valid=1 THEN 1 ELSE 0 END) valid,SUM(CASE WHEN c.base_valid=1 AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified' THEN 1 ELSE 0 END) approved FROM comments c LEFT JOIN checks k ON c.username=k.username WHERE c.media_id=?").bind(c.post_id||"none").first();return {campaign:c,stats:{total:r.total||0,people:r.people||0,valid:r.valid||0,approved:r.approved||0},connected:!!(await env.STORE.get("meta-token")||env.META_ACCESS_TOKEN)}}
 async function list(env,filter,offset){const c=await campaign(env);const have=filter==="valid"?" HAVING SUM(c.base_valid)>0":filter==="approved"?" HAVING SUM(CASE WHEN c.base_valid=1 AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified' THEN 1 ELSE 0 END)>0":"";const sql="SELECT c.username,COUNT(*) total,SUM(c.base_valid) valid_entries,COALESCE(k.follow_valenza,'pending') follow_valenza,COALESCE(k.follow_jessica,'pending') follow_jessica,COALESCE(k.liked_post,'pending') liked_post,COALESCE(k.story,'pending') story,COALESCE(k.story_evidence,'') story_evidence,COALESCE(k.notes,'') notes FROM comments c LEFT JOIN checks k ON k.username=c.username WHERE c.media_id=? GROUP BY c.username"+have+" ORDER BY valid_entries DESC,c.username LIMIT 75 OFFSET ?";const r=await env.DB.prepare(sql).bind(c.post_id||"none",Math.max(0,Math.min(500000,offset|0))).all();return {items:r.results||[]}}
-async function scan(env,actor,limit=8){const c=await campaign(env),token=await accessToken(env);if(c.status!=="active"||!c.post_id||!token)throw Error("Post, campanha ativa e conexao Meta sao obrigatorios");if(c.sync_started_at&&Date.now()-Date.parse(c.sync_started_at)<90000)throw Error("Outra sincronizacao em andamento");await env.DB.prepare("UPDATE campaign SET sync_started_at=?,sync_error=NULL WHERE id=?").bind(new Date().toISOString(),ID).run();let cursor=c.sync_cursor||"",processed=0,inserted=0,done=false;try{for(let page=0;page<limit;page++){const d=await graph(token,c.post_id+"/comments",{fields:"id,text,username,timestamp",limit:100,after:cursor});for(const cm of d.data||[]){const cid=short(cm.id,80),who=user(cm.username);if(!cid||!who||who==="valenza.parfumsimportados")continue;const prior=await env.DB.prepare("SELECT id FROM comments WHERE id=?").bind(cid).first();const p=parse(cm.text,who),tagJson=JSON.stringify(p.tags);let ok=p.ok,reason=p.reason;if(ok){const dupe=await env.DB.prepare("SELECT id FROM comments WHERE username=? AND tags=? AND base_valid=1 AND id<>? LIMIT 1").bind(who,tagJson,cid).first();if(dupe){ok=false;reason="dupla_repetida"}}await env.DB.prepare("INSERT INTO comments(id,media_id,username,body,tags,base_valid,reason,created_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,tags=excluded.tags,base_valid=excluded.base_valid,reason=excluded.reason").bind(cid,c.post_id,who,short(cm.text,3000),tagJson,ok?1:0,reason,short(cm.timestamp,80)).run();processed++;if(!prior)inserted++}const next=d.paging?.cursors?.after;if(!d.paging?.next||!next||next===cursor){cursor="";done=true;break}cursor=next}await env.DB.prepare("UPDATE campaign SET sync_cursor=?,sync_started_at=NULL,sync_finished_at=?,sync_error=NULL,imported_total=imported_total+?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(cursor,new Date().toISOString(),inserted,ID).run();await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status) VALUES(?,?,?)").bind(processed,inserted,done?"complete":"more").run();if(actor!=="cron")await audit(env,actor,"sync",{processed,inserted,done});return {ok:true,processed,inserted,more:!!cursor}}catch(e){await env.DB.prepare("UPDATE campaign SET sync_started_at=NULL,sync_error=? WHERE id=?").bind(short(e.message,300),ID).run();await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status,error) VALUES(?,?,?,?)").bind(processed,inserted,"error",short(e.message,300)).run();throw e}}
+async function scan(env,actor,limit=8){
+const c=await campaign(env),token=await accessToken(env);
+if(c.status!=="active"||!c.post_id||!token)throw Error("Post, campanha ativa e conexao Meta sao obrigatorios");
+if(c.sync_started_at&&Date.now()-Date.parse(c.sync_started_at)<90000)throw Error("Outra sincronizacao em andamento");
+await env.DB.prepare("UPDATE campaign SET sync_started_at=?,sync_error=NULL WHERE id=?").bind(new Date().toISOString(),ID).run();
+let cursor=c.sync_cursor||"",processed=0,inserted=0,done=false;
+try{
+ const pairs=new Map(),seen=new Set();
+ for(let off=0;off<=150000;off+=5000){
+  const r=await env.DB.prepare("SELECT username,tags,first_id FROM participant_pairs WHERE media_id=? ORDER BY username,tags LIMIT 5000 OFFSET ?").bind(c.post_id,off).all();
+  for(const x of r.results||[])pairs.set(x.username+"|"+x.tags,x.first_id);
+  if((r.results||[]).length<5000)break;
+ }
+ for(let off=0;off<=150000;off+=5000){
+  const r=await env.DB.prepare("SELECT id FROM comments WHERE media_id=? LIMIT 5000 OFFSET ?").bind(c.post_id,off).all();
+  for(const x of r.results||[])seen.add(x.id);
+  if((r.results||[]).length<5000)break;
+ }
+ for(let page=0;page<limit;page++){
+  const d=await graph(token,c.post_id+"/comments",{fields:"id,text,username,timestamp",limit:100,after:cursor});
+  let statements=[];
+  for(const cm of d.data||[]){
+   const cid=short(cm.id,80),who=user(cm.username);
+   if(!cid||!who||who==="valenza.parfumsimportados")continue;
+   const p=parse(cm.text,who),tagJson=JSON.stringify(p.tags);
+   const pairKey=who+"|"+tagJson;
+   let ok=p.ok,reason=p.reason;
+   if(ok){
+    const owner=pairs.get(pairKey);
+    if(owner&&owner!==cid){ok=false;reason="dupla_repetida"}
+    else if(!owner){
+     pairs.set(pairKey,cid);
+     statements.push(env.DB.prepare("INSERT OR IGNORE INTO participant_pairs(media_id,username,tags,first_id) VALUES(?,?,?,?)").bind(c.post_id,who,tagJson,cid));
+    }
+   }
+   statements.push(env.DB.prepare("INSERT INTO comments(id,media_id,username,body,tags,base_valid,reason,created_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,tags=excluded.tags,base_valid=excluded.base_valid,reason=excluded.reason").bind(cid,c.post_id,who,short(cm.text,3000),tagJson,ok?1:0,reason,short(cm.timestamp,80)));
+   processed++;
+   if(!seen.has(cid)){inserted++;seen.add(cid)}
+   if(statements.length>=75){await env.DB.batch(statements);statements=[]}
+  }
+  if(statements.length)await env.DB.batch(statements);
+  const next=d.paging?.cursors?.after;
+  if(!d.paging?.next||!next||next===cursor){cursor="";done=true;break}
+  cursor=next;
+ }
+ await env.DB.prepare("UPDATE comments SET base_valid=0,reason='dupla_repetida' WHERE media_id=? AND base_valid=1 AND EXISTS (SELECT 1 FROM participant_pairs x WHERE x.media_id=comments.media_id AND x.username=comments.username AND x.tags=comments.tags AND x.first_id<>comments.id)").bind(c.post_id).run();
+ await env.DB.prepare("UPDATE campaign SET sync_cursor=?,sync_started_at=NULL,sync_finished_at=?,sync_error=NULL,imported_total=imported_total+?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(cursor,new Date().toISOString(),inserted,ID).run();
+ await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status) VALUES(?,?,?)").bind(processed,inserted,done?"complete":"more").run();
+ if(actor!=="cron")await audit(env,actor,"sync",{processed,inserted,done});
+ return {ok:true,processed,inserted,more:!!cursor};
+}catch(e){
+ await env.DB.prepare("UPDATE campaign SET sync_started_at=NULL,sync_error=? WHERE id=?").bind(short(e.message,300),ID).run();
+ await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status,error) VALUES(?,?,?,?)").bind(processed,inserted,"error",short(e.message,300)).run();
+ throw e;
+}};
 async function review(env,actor,b){const who=user(b.username),c=await campaign(env);const exists=await env.DB.prepare("SELECT 1 FROM comments WHERE username=? AND media_id=?").bind(who,c.post_id||"none").first();if(!exists)throw Error("Participante nao pertence a campanha");const fields=["follow_valenza","follow_jessica","liked_post","story"],vals=fields.map(k=>short(b[k],20));if(vals.some(x=>!["pending","verified","rejected"].includes(x)))throw Error("Status de conferencia invalido");const note=short(b.notes,700);if(vals.includes("verified")&&note.length<8)throw Error("Registre a evidencia da confirmacao");await env.DB.prepare("INSERT INTO checks(username,follow_valenza,follow_jessica,liked_post,story,story_evidence,notes) VALUES(?,?,?,?,?,?,?) ON CONFLICT(username) DO UPDATE SET follow_valenza=excluded.follow_valenza,follow_jessica=excluded.follow_jessica,liked_post=excluded.liked_post,story=excluded.story,story_evidence=excluded.story_evidence,notes=excluded.notes,updated_at=CURRENT_TIMESTAMP").bind(who,...vals,short(b.story_evidence,800),note).run();await audit(env,actor,"review",{who,vals,evidence:!!b.story_evidence});return {ok:true}}
 async function approvedRows(env,onlyApproved){const c=await campaign(env),extra=onlyApproved?" AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified'":"";const q="SELECT c.id,c.username,c.tags,c.created_at,COALESCE(k.follow_valenza,'pending') follow_valenza,COALESCE(k.follow_jessica,'pending') follow_jessica,COALESCE(k.liked_post,'pending') liked_post,COALESCE(k.story,'pending') story FROM comments c LEFT JOIN checks k ON k.username=c.username WHERE c.media_id=? AND c.base_valid=1"+extra+" ORDER BY c.created_at,c.id LIMIT 15001";const r=await env.DB.prepare(q).bind(c.post_id||"none").all();if(r.results?.length>15000)throw Error("Lista supera 15000 participacoes; exportar em lotes");return r.results||[]}
 function textCsv(s){const v=String(s??"");return '"'+(/^[=+\-@\t]/.test(v)?"'"+v:v).replace(/"/g,'""')+'"'}
@@ -32,5 +86,4 @@ function u16(v){const a=new Uint8Array(2);new DataView(a.buffer).setUint16(0,v,t
 function u32(v){const a=new Uint8Array(4);new DataView(a.buffer).setUint32(0,v>>>0,true);return a}
 function join(a){let b=new Uint8Array(a.reduce((n,x)=>n+x.length,0)),pos=0;for(const x of a){b.set(x,pos);pos+=x.length}return b}
 function crc(b){let c=0xffffffff;for(const x of b){c^=x;for(let j=0;j<8;j++)c=(c>>>1)^((c&1)?0xedb88320:0)}return (c^0xffffffff)>>>0}
-function zip(files){const te=new TextEncoder(),body=[],headers=[];let offset=0;for(const [path,val] of Object.entries(files)){const name=te.encode(path),data=te.encode(val),hash=crc(data);const loc=join([u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(hash),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data]);body.push(loc);headers.push(join([u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(hash),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]));offset+=loc.length}const b=join(body),h=join(headers);return join([b,h,u32(0x06054b50),u16(0),u16(0),u16(headers.length),u16(headers.length),u32(h.length),u32(b.length),u16(0)])}
-function xlsx(rows){const values=[["Numero","Perfil","Comentario","Amigo1","Amigo2","Data","Segue Valenza","Segue Jessica","Curtiu","Story"],...rows.map((r,i)=>[i+1,r.username,r.id,...JSON.parse(r.tags),r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story])];const sheet='<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+values.map((row,i)=>'<row r="'+(i+1)+'">'+row.map((v,j)=>'<c t="inlineStr"><is><t>'+xml(v)+'</t></is></c>').join("")+'</row>').join("")+'</sheetData></worksheet>';return z --- TRUNCATED --- 30,767 chars
+function zip(files){const te=new TextEncoder(),body=[],headers=[];let o --- TRUNCATED --- 32,026 chars
