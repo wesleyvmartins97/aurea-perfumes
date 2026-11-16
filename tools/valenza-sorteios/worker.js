@@ -96,6 +96,16 @@ if(p==="/api/status"&&request.method==="GET")return json(await status(env));
 if(p==="/api/list"&&request.method==="GET")return json(await list(env,u.searchParams.get("filter"),Number(u.searchParams.get("offset")||0)));
 if(p==="/api/config"&&request.method==="POST"){const b=await request.json(),c=await campaign(env),link=b.post_url?urlPost(b.post_url):null,state=short(b.status,10);if(b.post_url&&!link)throw Error("Link invalido: aceite apenas publicacao no Instagram");if(!["draft","active","paused","closed"].includes(state))throw Error("Status invalido");if(c.post_id&&c.status!=="draft"&&link!==c.post_url)throw Error("Nao pode trocar a publicacao de campanha ativa");let pid=c.post_id;if(link!==c.post_url){pid=null;const t=await accessToken(env);if(link&&t)pid=await findOwnMedia(t,link)}const a=short(b.prize_a,130),bb=short(b.prize_b,130);if(state==="active"&&(!pid||!a||!bb||!await accessToken(env)))throw Error("Escolha dois premios, vincule post oficial e conecte a Meta antes de ativar");if(state==="closed"&&c.status==="draft")throw Error("A campanha nao iniciou");await env.DB.prepare("UPDATE campaign SET post_url=?,post_id=?,prize_a=?,prize_b=?,status=?,ig_user_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(link,pid,a,bb,state,IGID,ID).run();await audit(env,actor,"config",{state,linked:!!pid});return json({ok:true,linked:!!pid})}
 if(p==="/api/token"&&request.method==="POST"){let b=await request.json(),t=short(b.token,2500);if(t.length<30)throw Error("Token API invalido");const m=await graph(t,IGID+"/media",{fields:"id,permalink",limit:1});if(!Array.isArray(m.data))throw Error("Sem permissao de leitura na conta oficial");await env.STORE.put("meta-token",await seal(env,t));const c=await campaign(env);if(c.post_url&&!c.post_id){try{const pid=await findOwnMedia(t,c.post_url);await env.DB.prepare("UPDATE campaign SET post_id=?,ig_user_id=? WHERE id=?").bind(pid,IGID,ID).run()}catch{}}await audit(env,actor,"connected_meta",{profile:IGID});return json({ok:true})}
+if(p==="/api/token-expiracao"&&request.method==="GET"){
+ const t=await accessToken(env);if(!t)return json({ok:false,reason:"Token nao armazenado"},404);
+ const url=new URL("https://graph.facebook.com/v26.0/debug_token");url.searchParams.set("input_token",t);
+ try{
+ const r=await fetch(url,{headers:{Authorization:"Bearer "+t},signal:AbortSignal.timeout(15000)});
+ const x=await r.json();const d=x.data||{};
+ const date=(v)=>typeof v==="number"&&v>0?new Date(v*1000).toISOString():v===0?"indefinido (timestamp 0)":null;
+ return json({ok:r.ok&&!!d.app_id,metaHttp:r.status,appId:d.app_id||null,appName:d.application||null,tokenType:d.type||null,isValid:typeof d.is_valid==="boolean"?d.is_valid:null,issuedAt:date(d.issued_at),expiresAt:date(d.expires_at),dataAccessExpiresAt:date(d.data_access_expires_at),remainingMinutes:d.expires_at>0?Math.round((d.expires_at*1000-Date.now())/60000):null,permissions:(d.scopes||[]).filter(v=>/^instagram_|^pages_/.test(v)),metaError:x.error?{code:x.error.code,message:String(x.error.message||"").slice(0,200)}:null,safe:"token-not-disclosed"});
+ }catch(e){return json({ok:false,error:String(e.message||e).slice(0,180)},502)}
+}
 if(p==="/api/testar-meta"&&request.method==="GET"){
   const t=await accessToken(env);
   if(!t)return json({ok:false,status:"sem_token"},409);
