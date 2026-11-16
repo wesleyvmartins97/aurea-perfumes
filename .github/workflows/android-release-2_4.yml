@@ -1,0 +1,112 @@
+name: Valenza Android 2.4 - versão assinada para nova instalação
+on:
+  push:
+    branches: [valenza-android-atualizar-loja-20261115]
+    paths: [.github/workflows/android-release-2_4.yml]
+permissions:
+  contents: write
+concurrency:
+  group: valenza-android-2-4-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TAG: valenza-android-2.4.0-20261115
+    steps:
+      - uses: actions/checkout@v4
+      - name: Impedir nova assinatura após publicação
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "A release já existe. Nunca gerar outra chave para a mesma versão." >&2
+            exit 1
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Instalar ferramentas Android
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      - name: Montar APK nativo completo e alinhado
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          SDK="$ANDROID_HOME/platforms/android-35/android.jar"
+          mkdir -p android/build/{generated,classes,dex}
+          "$TOOLS/aapt2" compile --dir android/res -o android/build/resources.zip
+          "$TOOLS/aapt2" link -o android/build/resources.apk --manifest android/AndroidManifest.xml -I "$SDK" --java android/build/generated -A android/assets android/build/resources.zip
+          javac --release 8 -nowarn -cp "$SDK" -d android/build/classes android/build/generated/br/com/valenzaparfums/app/R.java android/src/br/com/valenzaparfums/app/*.java
+          mapfile -t CLASSES < <(find android/build/classes -type f -name '*.class')
+          "$TOOLS/d8" --lib "$SDK" --min-api 26 --output android/build/dex "${CLASSES[@]}"
+          test -s android/build/dex/classes.dex
+          cp android/build/resources.apk android/build/unsigned.apk
+          (cd android/build/dex && zip -q -0 ../unsigned.apk classes.dex)
+          "$TOOLS/zipalign" -f -p 4 android/build/unsigned.apk android/build/aligned.apk
+          "$TOOLS/zipalign" -c -v 4 android/build/aligned.apk
+          "$TOOLS/aapt2" dump badging android/build/aligned.apk | grep -E "package: name='br.com.valenzaparfums.app' versionCode='4' versionName='2.4.0'"
+      - name: Gerar nova chave release (uso único autorizado pelo proprietário)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out android/build/release-private.pem 2>/dev/null
+          openssl req -new -x509 -sha256 -key android/build/release-private.pem -out android/build/release-cert.pem -days 36500 -subj "/CN=Valenza Parfums Android/O=Valenza Parfums/C=BR"
+          openssl pkcs8 -topk8 -nocrypt -in android/build/release-private.pem -outform DER -out android/build/release.pk8
+          openssl x509 -in android/build/release-cert.pem -outform DER -out android/build/release.crt
+          test -s android/build/release.pk8
+          test -s android/build/release.crt
+      - name: Assinar e validar Valenza-Parfums.apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          "$TOOLS/apksigner" sign --key android/build/release.pk8 --cert android/build/release.crt --out android/build/Valenza-Parfums.apk android/build/aligned.apk
+          "$TOOLS/apksigner" verify --verbose --print-certs android/build/Valenza-Parfums.apk
+          sha256sum android/build/Valenza-Parfums.apk | tee android/build/apk.sha256
+          test "$(stat -c%s android/build/Valenza-Parfums.apk)" -gt 5000000
+          echo "APK gerado e verificado com assinatura Android v2/v3."
+      - name: Criptografar backup da assinatura para recuperação privada
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C android/build -czf android/build/release-signing.tar.gz release.pk8 release.crt
+          node <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const pub=fs.readFileSync('android/signing-recovery-public.pem');
+          const data=fs.readFileSync('android/build/release-signing.tar.gz');
+          const key=crypto.randomBytes(32),iv=crypto.randomBytes(12);
+          const cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+          const encrypted=Buffer.concat([cipher.update(data),cipher.final()]);
+          const wrapped=crypto.publicEncrypt({key:pub,padding:crypto.constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key);
+          const record={format:'valenza-release-signing-backup-v1',algorithm:'AES-256-GCM + RSA-OAEP-SHA256',wrappedKey:wrapped.toString('base64'),iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),ciphertext:encrypted.toString('base64'),apkSha256:crypto.createHash('sha256').update(fs.readFileSync('android/build/Valenza-Parfums.apk')).digest('hex'),certSha256:crypto.createHash('sha256').update(fs.readFileSync('android/build/release.crt')).digest('hex')};
+          fs.writeFileSync('android/build/Valenza-Assinatura-Backup.enc.json',JSON.stringify(record));
+          console.log('Backup criptografado pronto; nenhuma chave privada publicada.');
+          NODE
+          test -s android/build/Valenza-Assinatura-Backup.enc.json
+          rm -f android/build/release-private.pem android/build/release-cert.pem android/build/release-signing.tar.gz
+      - name: Publicar versão assinada e backup criptografado
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            "android/build/Valenza-Parfums.apk#Valenza-Parfums.apk" \
+            "android/build/Valenza-Assinatura-Backup.enc.json#Valenza-Assinatura-Backup.enc.json" \
+            "android/build/release.crt#Valenza-Certificado.crt" \
+            --target "$GITHUB_SHA" \
+            --title "Valenza Parfums Android 2.4.0" \
+            --notes "Aplicativo nativo com barra inferior corrigida, painel administrativo e botão Atualizar. NOVA ASSINATURA: desinstale a versão anterior antes de instalar. Sua conta e pedidos permanecem no servidor; sacola e favoritos apenas locais podem ser perdidos. Chave de assinatura preservada exclusivamente em backup criptografado pelo par de recuperação do proprietário."
+          gh release view "$TAG" --json assets -q '.assets[].name'
+      - name: Arquivar somente APK público
+        uses: actions/upload-artifact@v4
+        with:
+          name: Valenza-Parfums-Android-2.4.0
+          path: android/build/Valenza-Parfums.apk
+          retention-days: 30
