@@ -118,9 +118,137 @@ function u32(v){const a=new Uint8Array(4);new DataView(a.buffer).setUint32(0,v>>
 function join(a){let b=new Uint8Array(a.reduce((n,x)=>n+x.length,0)),pos=0;for(const x of a){b.set(x,pos);pos+=x.length}return b}
 function crc(b){let c=0xffffffff;for(const x of b){c^=x;for(let j=0;j<8;j++)c=(c>>>1)^((c&1)?0xedb88320:0)}return (c^0xffffffff)>>>0}
 function zip(files){const te=new TextEncoder(),body=[],headers=[];let offset=0;for(const [path,val] of Object.entries(files)){const name=te.encode(path),data=te.encode(val),hash=crc(data);const loc=join([u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(hash),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data]);body.push(loc);headers.push(join([u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(hash),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]));offset+=loc.length}const b=join(body),h=join(headers);return join([b,h,u32(0x06054b50),u16(0),u16(0),u16(headers.length),u16(headers.length),u32(h.length),u32(b.length),u16(0)])}
-function xlsx(rows){const values=[["Numero","Perfil","Comentario","Amigo1","Amigo2","Data","Segue Valenza","Segue Jessica","Curtiu","Story"],...rows.map((r,i)=>[i+1,r.username,r.id,...JSON.parse(r.tags),r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story])];const sheet='<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+values.map((row,i)=>'<row r="'+(i+1)+'">'+row.map((v,j)=>'<c t="inlineStr"><is><t>'+xml(v)+'</t></is></c>').join("")+'</row>').join("")+'</sheetData></worksheet>';return zip({"[Content_Types].xml":'<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',"_rels/.rels":'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',"xl/workbook.xml":'<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Participantes" sheetId="1" r:id="rId1"/></sheets></workbook>',"xl/_rels/workbook.xml.rels":'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',"xl/worksheets/sheet1.xml":sheet})}
+function xlsx(rows,approved,campaign){
+ const title="VALENZA PARFUMS",category=approved?"PARTICIPAÇÕES COMPROVADAS":"MARCAÇÕES VÁLIDAS · A CONFERIR";
+ const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",dateStyle:"short",timeStyle:"short"});
+ const profiles=new Set(rows.map(r=>r.username)).size,verified=rows.filter(r=>["follow_valenza","follow_jessica","liked_post","story"].every(k=>r[k]==="verified")).length;
+ const E=xml,letters="ABCDEFGHIJ";
+ function ccell(col,row,val,style=0,number=false){const addr=letters[col]+row;return `<c r="${addr}" s="${style}" t="${number?"n":"inlineStr"}">${number?"<v>"+Number(val||0)+"</v>":"<is><t xml:space=\"preserve\">"+E(val)+"</t></is>"}</c>`}
+ function rrow(n,cells,height=24){return `<row r="${n}" ht="${height}" customHeight="1">${cells.join("")}</row>`}
+ const styleXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+ '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+ '<fonts count="7"><font><sz val="11"/><name val="Aptos"/><color rgb="FF382531"/></font><font><b/><sz val="21"/><name val="Aptos Display"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="11"/><name val="Aptos"/><color rgb="FFFFFFFF"/></font><font><b/><sz val="11"/><name val="Aptos"/><color rgb="FF632439"/></font><font><sz val="10"/><name val="Aptos"/><color rgb="FF6D5B63"/></font><font><b/><sz val="12"/><name val="Aptos"/><color rgb="FF623245"/></font><font><b/><sz val="10"/><name val="Aptos"/><color rgb="FF5C3615"/></font></fonts>'+
+ '<fills count="7"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF401425"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8F0F4"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF1D4A2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDF2E2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE9E8"/><bgColor indexed="64"/></patternFill></fill></fills>'+
+ '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="hair"><color rgb="FFE6DDE1"/></bottom><diagonal/></border></borders>'+
+ '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+ '<cellXfs count="12">'+
+ '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+                  // 0
+ '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0"><alignment vertical="center" indent="1"/></xf>'+ // 1 title
+ '<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"><alignment vertical="center" indent="2"/></xf>'+ // 2 subtitle
+ '<xf numFmtId="0" fontId="4" fillId="3" borderId="0" xfId="0"><alignment vertical="center" indent="1"/></xf>'+ // 3 label
+ '<xf numFmtId="0" fontId="5" fillId="3" borderId="0" xfId="0"><alignment vertical="center" indent="1"/></xf>'+ // 4 kpi
+ '<xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0"><alignment vertical="center" horizontal="center" wrapText="1"/></xf>'+ // 5 heading
+ '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0"><alignment vertical="center" indent="1"/></xf>'+ // 6 even
+ '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0"><alignment vertical="center" indent="1"/></xf>'+ // 7 odd
+ '<xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0"><alignment vertical="center" horizontal="center"/></xf>'+ // 8 valid
+ '<xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0"><alignment vertical="center" horizontal="center"/></xf>'+ // 9 pending
+ '<xf numFmtId="0" fontId="3" fillId="6" borderId="1" xfId="0"><alignment vertical="center" horizontal="center"/></xf>'+ // 10 rejected
+ '<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0"><alignment vertical="center" indent="1" wrapText="1"/></xf>'+ // 11 band
+ '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+ const overview=[];
+ overview.push(rrow(1,[ccell(0,1,title,1)],38));
+ overview.push(rrow(3,[ccell(0,3,category+"  |  Relatório de conferência",2)],28));
+ overview.push(rrow(5,[ccell(0,5,"CHANCES NESTA LISTA",3),ccell(3,5,"PERFIS DIFERENTES",3),ccell(6,5,"REGRAS COMPROVADAS",3)],24));
+ overview.push(rrow(6,[ccell(0,6,rows.length,4,true),ccell(3,6,profiles,4,true),ccell(6,6,verified,4,true)],38));
+ overview.push(rrow(8,[ccell(0,8,"DADOS DO SORTEIO",11)],28));
+ overview.push(rrow(9,[ccell(0,9,"Campanha: Sorteio de Natal 2026",6)],24));
+ overview.push(rrow(10,[ccell(0,10,"Gerado em: "+date+" (horário de Brasília)",7)],24));
+ overview.push(rrow(11,[ccell(0,11,"Publicação: "+(campaign?.post_url||"Post ainda não vinculado"),6)],24));
+ overview.push(rrow(13,[ccell(0,13,"PRÊMIOS · UM GANHADOR ESCOLHE UM DOS DOIS",11)],28));
+ overview.push(rrow(14,[ccell(0,14,"Opção 1: "+(campaign?.prize_a||"Não informada"),6)],24));
+ overview.push(rrow(15,[ccell(0,15,"Opção 2: "+(campaign?.prize_b||"Não informada"),7)],24));
+ overview.push(rrow(17,[ccell(0,17,"COMO INTERPRETAR AS LISTAS",11)],28));
+ overview.push(rrow(18,[ccell(0,18,"VERIFICADO = requisito comprovado  |  PENDENTE = falta conferir  |  REPROVADO = requisito não cumprido",6)],25));
+ overview.push(rrow(19,[ccell(0,19,"A aba Participações possui uma linha por comentário válido, com ID individual, perfis e todas as checagens.",7)],25));
+ overview.push(rrow(20,[ccell(0,20,"Uma chance pré-qualificada não significa, por si só, que todas as regras foram cumpridas.",6)],25));
+ overview.push(rrow(22,[ccell(0,22,"VALENZA PARFUMS · CONTROLE PRIVADO · RELATÓRIO GERADO AUTOMATICAMENTE",2)],26));
+ const overviewMerges=["A1:J2","A3:J3","A5:C5","D5:F5","G5:J5","A6:C6","D6:F6","G6:J6","A8:J8","A9:J9","A10:J10","A11:J11","A13:J13","A14:J14","A15:J15","A17:J17","A18:J18","A19:J19","A20:J20","A22:J22"];
+ const header=["Nº","Perfil Instagram","ID do comentário","Amigo 1","Amigo 2","Data do comentário","Segue Valenza","Segue Jéssica","Curtiu post","Repostou Story"];
+ const detail=[rrow(1,[ccell(0,1,title+"  |  LISTA DE PARTICIPAÇÕES",1)],39),rrow(3,[ccell(0,3,category+"   •   "+rows.length+" chances   •   "+profiles+" perfis",2)],27),rrow(4,[ccell(0,4,"Gerado: "+date+"  |  Veja a aba Resumo para informações da campanha",3)],24),rrow(6,[ccell(0,6,"Use os filtros da linha 7 para conferir cada perfil e cada requisito separadamente.",11)],25),rrow(7,header.map((h,j)=>ccell(j,7,h,5)),35)];
+ function status(v){return v==="verified"?"VERIFICADO":v==="rejected"?"REPROVADO":"PENDENTE"}
+ rows.forEach((r,i)=>{
+  let tags;try{tags=JSON.parse(r.tags)}catch{tags=[]}
+  const n=i+8,body=i%2?7:6,values=[i+1,"@"+r.username,r.id,"@"+(tags[0]||""),"@"+(tags[1]||""),r.created_at||"",status(r.follow_valenza),status(r.follow_jessica),status(r.liked_post),status(r.story)];
+  detail.push(rrow(n,values.map((v,j)=>ccell(j,n,v,j>=6?(v==="VERIFICADO"?8:v==="REPROVADO"?10:9):body,j===0)),27));
+ });
+ const margins='<pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup orientation="landscape" paperSize="9"/>';
+ const cols='<cols>'+[12,29,30,23,23,28,19,19,19,19].map((w,j)=>`<col min="${j+1}" max="${j+1}" width="${w}" customWidth="1"/>`).join("")+'</cols>';
+ const summaryXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>'+cols+'<sheetData>'+overview.join("")+'</sheetData><mergeCells count="'+overviewMerges.length+'">'+overviewMerges.map(ref=>'<mergeCell ref="'+ref+'"/>').join("")+'</mergeCells>'+margins+'</worksheet>';
+ const end=rows.length+7;
+ const detailXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A8" sqref="A8"/></sheetView></sheetViews>'+cols+'<sheetData>'+detail.join("")+'</sheetData><mergeCells count="3"><mergeCell ref="A1:J2"/><mergeCell ref="A3:J3"/><mergeCell ref="A6:J6"/></mergeCells><autoFilter ref="A7:J'+end+'"/>'+margins+'</worksheet>';
+ return zip({
+ "[Content_Types].xml":'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+ "_rels/.rels":'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+ "xl/workbook.xml":'<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets><sheet name="Resumo" sheetId="1" r:id="rId1"/><sheet name="Participações" sheetId="2" r:id="rId2"/></sheets></workbook>',
+ "xl/_rels/workbook.xml.rels":'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+ "xl/styles.xml":styleXml,
+ "xl/worksheets/sheet1.xml":summaryXml,
+ "xl/worksheets/sheet2.xml":detailXml
+ });
+}
 function pdfAscii(s){return String(s??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^\x20-\x7e]/g," ").replace(/[\\()]/g,"\\$&").slice(0,110)}
-function pdf(rows,approved){let lines=["VALENZA PARFUMS - RELATORIO DE PARTICIPACOES",approved?"PARTICIPANTES APROVADOS":"MARCACOES VALIDAS - PENDENTE DE CONFERENCIA","Gerado: "+new Date().toISOString(),"Total de participacoes: "+rows.length,""];rows.forEach((r,i)=>lines.push(String(i+1).padStart(4,"0")+" @"+r.username+" #"+r.id+" "+JSON.parse(r.tags).join("/")));let pages=[];while(lines.length)pages.push(lines.splice(0,48));let objs=[],pageIDs=pages.map((_,i)=>3+2*i),font=3+2*pages.length;objs[1]="<< /Type /Catalog /Pages 2 0 R >>";objs[2]="<< /Type /Pages /Kids ["+pageIDs.map(i=>i+" 0 R").join(" ")+"] /Count "+pages.length+" >>";pages.forEach((ls,i)=>{const p=pageIDs[i],stream="BT /F1 9 Tf 32 798 Td 13 TL "+ls.map((l,j)=>(j?"T* ":"")+"("+pdfAscii(l)+") Tj").join(" ")+" ET";objs[p]="<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 "+font+" 0 R >> >> /Contents "+(p+1)+" 0 R >>";objs[p+1]="<< /Length "+stream.length+" >>\nstream\n"+stream+"\nendstream"});objs[font]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";let out="%PDF-1.4\n",offsets=[0];for(let i=1;i<=font;i++){offsets[i]=out.length;out+=i+" 0 obj\n"+objs[i]+"\nendobj\n"}let xref=out.length;out+="xref\n0 "+(font+1)+"\n0000000000 65535 f \n";for(let i=1;i<=font;i++)out+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";out+="trailer\n<< /Root 1 0 R /Size "+(font+1)+" >>\nstartxref\n"+xref+"\n%%EOF";return new TextEncoder().encode(out)}
+function pdfHex(value){let out="";for(const cp of String(value??"")){let n=cp.codePointAt(0);if(n===0x2013||n===0x2014)n=45;else if(n===0x2018||n===0x2019)n=39;else if(n===0x201c||n===0x201d)n=34;else if(n===0x2022)n=183;else if(n===0x20ac)n=128;else if(n>255)n=63;out+=n.toString(16).padStart(2,"0")}return "<"+out+">"}
+function pdf(rows,approved,campaign){
+ if(rows.length>5000)throw Error("PDF detalhado limitado a 5.000 chances por arquivo, para manter boa leitura. Utilize Excel para listas maiores.");
+ const cat=approved?"PARTICIPAÇÕES COMPROVADAS":"MARCAÇÕES VÁLIDAS · CONFERÊNCIA PENDENTE";
+ const date=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",dateStyle:"short",timeStyle:"short"});
+ const profiles=new Set(rows.map(x=>x.username)).size,total=rows.length,chunk=13,numPages=Math.ceil(total/chunk);
+ const wine="0.23 0.07 0.14",gold="0.84 0.65 0.37",white="1 1 1",ink="0.20 0.13 0.18",muted="0.43 0.38 0.41",pale="0.97 0.94 0.95",light="0.99 0.98 0.98",green="0.17 0.43 0.28";
+ function shorten(v,max){const s=String(v??"");return [...s].slice(0,max).join("")+(s.length>max?"…":"")}
+ function stamp(txt,x,y,size=9,color=ink,bold=false){return `BT /${bold?"F2":"F1"} ${size} Tf ${color} rg 1 0 0 1 ${x} ${y} Tm ${pdfHex(txt)} Tj ET\n`}
+ function box(x,y,w,h,color){return `${color} rg ${x} ${y} ${w} ${h} re f\n`}
+ function rule(x1,y1,x2,y2,color,width=1){return `${color} RG ${width} w ${x1} ${y1} m ${x2} ${y2} l S\n`}
+ function fmtDate(s){const d=new Date(s);return Number.isFinite(d.valueOf())?d.toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):shorten(s,20)}
+ function shortCheck(v){return v==="verified"?"OK":v==="rejected"?"NÃO":"PEND"}
+ const pages=[];
+ for(let p=0;p<numPages;p++){
+  const subset=rows.slice(p*chunk,(p+1)*chunk);let out="";
+  out+=box(0,526,842,69,wine)+box(0,522,842,4,gold);
+  out+=stamp("VALENZA PARFUMS",30,568,20,white,true);
+  out+=stamp("RELATÓRIO DE PARTICIPAÇÕES  ·  NATAL 2026",31,543,10,gold,true);
+  out+=stamp(cat,30,502,12,wine,true);
+  out+=box(28,443,786,47,pale);
+  out+=stamp("CHANCES REGISTRADAS",40,474,8,muted,true)+stamp(String(total),40,454,15,wine,true);
+  out+=stamp("PERFIS DISTINTOS",215,474,8,muted,true)+stamp(String(profiles),215,454,15,wine,true);
+  out+=stamp("GERADO EM (BRASÍLIA)",393,474,8,muted,true)+stamp(date,393,455,9,ink,true);
+  out+=stamp("TIPO",625,474,8,muted,true)+stamp(approved?"COMPROVADAS":"A CONFERIR",625,455,9,ink,true);
+  out+=box(28,407,786,28,gold);
+  const headers=[[35,"Nº"],[62,"PERFIL"],[211,"COMENTÁRIO"],[335,"AMIGOS MARCADOS"],[574,"DATA"],[685,"VERIFICAÇÕES"]];
+  for(const [x,t] of headers)out+=stamp(t,x,417,8,wine,true);
+  subset.forEach((r,i)=>{
+   const n=p*chunk+i+1,rowTop=407-i*26,rowBottom=rowTop-26;
+   out+=box(28,rowBottom,786,26,i%2?pale:light);
+   out+=rule(28,rowBottom,814,rowBottom,"0.90 0.86 0.88",0.3);
+   let tags=[];try{tags=JSON.parse(r.tags)}catch{}
+   out+=stamp(String(n).padStart(3,"0"),35,rowBottom+8,8,ink,true);
+   out+=stamp(shorten("@"+r.username,24),62,rowBottom+8,8,ink,true);
+   out+=stamp(shorten(r.id,22),211,rowBottom+8,7,muted);
+   out+=stamp(shorten("@"+(tags[0]||"")+"  /  @"+(tags[1]||""),40),335,rowBottom+8,8,ink);
+   out+=stamp(fmtDate(r.created_at),574,rowBottom+8,7.5,muted);
+   out+=stamp("V:"+shortCheck(r.follow_valenza)+"  J:"+shortCheck(r.follow_jessica),685,rowBottom+14,7,ink);
+   out+=stamp("C:"+shortCheck(r.liked_post)+"  S:"+shortCheck(r.story),685,rowBottom+4,7,ink);
+  });
+  out+=rule(28,49,814,49,gold,1);
+  out+=stamp("V = Valenza   J = Jéssica   C = Curtida   S = Story     |     OK / PEND / NÃO",30,33,7.6,muted);
+  out+=stamp("PÁGINA "+(p+1)+" / "+numPages,733,33,8,wine,true);
+  pages.push(out);
+ }
+ const objs=[],pageIds=pages.map((_,i)=>3+i*2),font=3+pages.length*2,secondFont=font+1;
+ objs[1]="<< /Type /Catalog /Pages 2 0 R >>";
+ objs[2]="<< /Type /Pages /Count "+numPages+" /Kids ["+pageIds.map(x=>x+" 0 R").join(" ")+"] >>";
+ pages.forEach((stream,i)=>{const id=pageIds[i];
+  objs[id]="<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 "+font+" 0 R /F2 "+secondFont+" 0 R >> >> /Contents "+(id+1)+" 0 R >>";
+  objs[id+1]="<< /Length "+stream.length+" >>\nstream\n"+stream+"endstream";
+ });
+ objs[font]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+ objs[secondFont]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
+ let output="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n",offsets=[0];
+ for(let n=1;n<=secondFont;n++){offsets[n]=output.length;output+=n+" 0 obj\n"+objs[n]+"\nendobj\n"}
+ const pXref=output.length;output+="xref\n0 "+(secondFont+1)+"\n0000000000 65535 f \n";
+ for(let n=1;n<=secondFont;n++)output+=String(offsets[n]).padStart(10,"0")+" 00000 n \n";
+ output+="trailer\n<< /Size "+(secondFont+1)+" /Root 1 0 R >>\nstartxref\n"+pXref+"\n%%EOF";
+ return Uint8Array.from([...output].map(t=>t.charCodeAt(0)));
+}
 function download(b,type,name){return new Response(b,{headers:{...H,"Content-Type":type,"Content-Disposition":'attachment; filename="'+name+'"'}})}
 export default {async fetch(request,env){const u=new URL(request.url),p=u.pathname;if(p==="/health")return json({ok:true,app:"Valenza Sorteios",registrationsOpen:false});const sessionActor=await valenzaSessionUser(request,env);const actor=sessionActor||await auth(request,env);if(!actor)return deny();if(request.method==="POST"&&request.headers.get("Origin")&&request.headers.get("Origin")!==u.origin)return fail("Origem nao autorizada",403);try{if(p==="/"&&request.method==="GET"){const headers={...H,"Content-Type":"text/html;charset=utf-8","Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"};try{headers['Set-Cookie']=await valenzaRememberCookie(actor,env,sessionActor?valenzaSessionToken(request):null)}catch(e){console.log('valenza_session_cookie_error',String(e?.message||e).slice(0,120))}return new Response(UI,{headers})};
 if(p==="/api/status"&&request.method==="GET")return json(await status(env));
@@ -196,6 +324,6 @@ if(p==="/api/audit-csv"&&request.method==="GET"){
  const sha256=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,"0")).join("");
  return new Response(content,{headers:{...H,"Content-Type":"text/csv; charset=utf-8","Content-Disposition":'attachment; filename="valenza-auditoria-completa.csv"',"X-Valenza-SHA256":sha256,"X-Valenza-Registros":String(rows.length)}});
 }
-if(p==="/api/export"&&request.method==="GET"){const only=u.searchParams.get("set")!=="valid",f=u.searchParams.get("format")||"csv",rows=await approvedRows(env,only);if(!rows.length)throw Error("Sem participacoes nessa categoria. Nao exportar lista vazia como aprovada.");const stem="valenza-"+(only?"aprovados":"prequalificados")+"-"+new Date().toISOString().slice(0,10);if(f==="xlsx")return download(xlsx(rows),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",stem+".xlsx");if(f==="pdf")return download(pdf(rows,only),"application/pdf",stem+".pdf");if(f==="csv"){const h=["Numero","Perfil","Comentario","Amigo1","Amigo2","Data","Segue Valenza","Segue Jessica","Curtiu","Story"];const all=[h.join(";"),...rows.map((r,i)=>{let t=JSON.parse(r.tags);return [i+1,r.username,r.id,t[0],t[1],r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story].map(textCsv).join(";")})];return download("\uFEFF"+all.join("\r\n"),"text/csv; charset=utf-8",stem+".csv")}throw Error("Formato invalido")}
+if(p==="/api/export"&&request.method==="GET"){const only=u.searchParams.get("set")!=="valid",f=u.searchParams.get("format")||"csv",rows=await approvedRows(env,only);if(!rows.length)throw Error("Sem participacoes nessa categoria. Nao exportar lista vazia como aprovada.");const stem="valenza-"+(only?"aprovados":"prequalificados")+"-"+new Date().toISOString().slice(0,10);if(f==="xlsx")return download(xlsx(rows,only,await campaign(env)),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",stem+".xlsx");if(f==="pdf")return download(pdf(rows,only,await campaign(env)),"application/pdf",stem+".pdf");if(f==="csv"){const h=["Numero","Perfil","Comentario","Amigo1","Amigo2","Data","Segue Valenza","Segue Jessica","Curtiu","Story"];const all=[h.join(";"),...rows.map((r,i)=>{let t=JSON.parse(r.tags);return [i+1,r.username,r.id,t[0],t[1],r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story].map(textCsv).join(";")})];return download("\uFEFF"+all.join("\r\n"),"text/csv; charset=utf-8",stem+".csv")}throw Error("Formato invalido")}
 if(p==="/api/selftest")return json({ok:true,tests:[parse("@ana @bruno","cliente"),parse("@ana @ana @bruno","cliente"),parse("@cliente @bruno","cliente"),parse("@valenza.parfumsimportados @bruno","cliente"),parse("email nome@dominio.com @ana","cliente")]});
 return fail("Pagina nao encontrada",404)}catch(e){return fail(e?.message||e)}},async scheduled(event,env,ctx){ctx.waitUntil((async()=>{try{const c=await campaign(env);if(c.status==="active"&&c.post_id&&env.SOCIAL_BRIDGE)await scan(env,"cron",8)}catch(e){console.log("sorteios_sync_error",short(e.message,180))}})())}};
