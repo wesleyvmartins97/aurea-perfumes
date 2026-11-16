@@ -95,7 +95,21 @@ try{
  await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status,error) VALUES(?,?,?,?)").bind(processed,inserted,"error",short(e.message,300)).run();
  throw e;
 }};
-async function review(env,actor,b){const who=user(b.username),c=await campaign(env);const exists=await env.DB.prepare("SELECT 1 FROM comments WHERE username=? AND media_id=?").bind(who,c.post_id||"none").first();if(!exists)throw Error("Participante nao pertence a campanha");const fields=["follow_valenza","follow_jessica","liked_post","story"],vals=fields.map(k=>short(b[k],20));if(vals.some(x=>!["pending","verified","rejected"].includes(x)))throw Error("Status de conferencia invalido");const note=short(b.notes,700);if(vals.includes("verified")&&note.length<8)throw Error("Registre a evidencia da confirmacao");await env.DB.prepare("INSERT INTO checks(username,follow_valenza,follow_jessica,liked_post,story,story_evidence,notes) VALUES(?,?,?,?,?,?,?) ON CONFLICT(username) DO UPDATE SET follow_valenza=excluded.follow_valenza,follow_jessica=excluded.follow_jessica,liked_post=excluded.liked_post,story=excluded.story,story_evidence=excluded.story_evidence,notes=excluded.notes,updated_at=CURRENT_TIMESTAMP").bind(who,...vals,short(b.story_evidence,800),note).run();await audit(env,actor,"review",{who,vals,evidence:!!b.story_evidence});return {ok:true}}
+async function review(env,actor,b){
+ const who=user(b.username),c=await campaign(env);
+ const exists=await env.DB.prepare("SELECT 1 FROM comments WHERE username=? AND media_id=? AND base_valid=1").bind(who,c.post_id||"none").first();
+ if(!exists)throw Error("Participante sem comentario valido");
+ const fields=["follow_valenza","follow_jessica","liked_post","story"],vals=fields.map(k=>short(b[k],20));
+ if(vals.some(v=>!["pending","verified","rejected"].includes(v)))throw Error("Status invalido");
+ const note=short(b.notes,700),storyProof=short(b.story_evidence,800);
+ if(vals.includes("verified")&&note.length<20)throw Error("Descreva a evidencia e a conferencia (minimo 20 caracteres)");
+ if(b.story==="verified"&&storyProof.length<8)throw Error("Informe a referencia da prova do Story");
+ const before=await env.DB.prepare("SELECT follow_valenza,follow_jessica,liked_post,story,story_evidence,notes FROM checks WHERE username=?").bind(who).first();
+ const upsert=env.DB.prepare("INSERT INTO checks(username,follow_valenza,follow_jessica,liked_post,story,story_evidence,notes) VALUES(?,?,?,?,?,?,?) ON CONFLICT(username) DO UPDATE SET follow_valenza=excluded.follow_valenza,follow_jessica=excluded.follow_jessica,liked_post=excluded.liked_post,story=excluded.story,story_evidence=excluded.story_evidence,notes=excluded.notes,updated_at=CURRENT_TIMESTAMP").bind(who,...vals,storyProof,note);
+ const detail=JSON.stringify({who,before:before||null,after:Object.fromEntries(fields.map((k,i)=>[k,vals[i]])),storyProof,note}).slice(0,3400);
+ const log=env.DB.prepare("INSERT INTO audit(actor,action,detail) VALUES(?,?,?)").bind(actor,"review",detail);
+ await env.DB.batch([upsert,log]);return {ok:true}
+}
 async function approvedRows(env,onlyApproved){const c=await campaign(env),extra=onlyApproved?" AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified'":"";const q="SELECT c.id,c.username,c.tags,c.created_at,COALESCE(k.follow_valenza,'pending') follow_valenza,COALESCE(k.follow_jessica,'pending') follow_jessica,COALESCE(k.liked_post,'pending') liked_post,COALESCE(k.story,'pending') story FROM comments c LEFT JOIN checks k ON k.username=c.username WHERE c.media_id=? AND c.base_valid=1"+extra+" ORDER BY c.created_at,c.id LIMIT 15001";const r=await env.DB.prepare(q).bind(c.post_id||"none").all();if(r.results?.length>15000)throw Error("Lista supera 15000 participacoes; exportar em lotes");return r.results||[]}
 function textCsv(s){const v=String(s??"");return '"'+(/^[=+\-@\t]/.test(v)?"'"+v:v).replace(/"/g,'""')+'"'}
 function xml(s){return String(s??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[x]))}
@@ -129,6 +143,7 @@ if(p==="/api/config"&&request.method==="POST"){
  if(link!==c.post_url){pid=null;if(link){const found=await env.SOCIAL_BRIDGE.findOfficialPost(link);if(!found?.ok)throw Error("Post da Valenza nao identificado: "+short(found?.error||"erro",160));pid=found.mediaId}}
  if(state==="active"&&(!pid||!a||!bb||!env.SOCIAL_BRIDGE||!close))throw Error("Para ativar: informe post, dois premios, prazo final e conexao Meta");
  if(state==="active"&&Date.parse(close)<=Date.now())throw Error("O horario final ja passou");
+ if(state==="closed"&&c.status!=="closed"&&c.close_at&&Date.now()<Date.parse(c.close_at))throw Error("Nao encerre antes do prazo informado: use Pausada em emergencias");
  await env.DB.prepare("UPDATE campaign SET post_url=?,post_id=?,prize_a=?,prize_b=?,close_at=?,status=?,ig_user_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(link,pid,a,bb,close,state,IGID,ID).run();
  await audit(env,actor,"config",{state,linked:!!pid,close_at:close});
  return json({ok:true,linked:!!pid,close_at:close});
