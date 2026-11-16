@@ -33,8 +33,8 @@ async function status(env){let prod=null;try{prod=await env.SOCIAL_BRIDGE.connec
 async function list(env,filter,offset){const c=await campaign(env);const have=filter==="valid"?" HAVING SUM(c.base_valid)>0":filter==="approved"?" HAVING SUM(CASE WHEN c.base_valid=1 AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified' THEN 1 ELSE 0 END)>0":"";const sql="SELECT c.username,COUNT(*) total,SUM(c.base_valid) valid_entries,COALESCE(k.follow_valenza,'pending') follow_valenza,COALESCE(k.follow_jessica,'pending') follow_jessica,COALESCE(k.liked_post,'pending') liked_post,COALESCE(k.story,'pending') story,COALESCE(k.story_evidence,'') story_evidence,COALESCE(k.notes,'') notes FROM comments c LEFT JOIN checks k ON k.username=c.username WHERE c.media_id=? GROUP BY c.username"+have+" ORDER BY valid_entries DESC,c.username LIMIT 75 OFFSET ?";const r=await env.DB.prepare(sql).bind(c.post_id||"none",Math.max(0,Math.min(500000,offset|0))).all();return {items:r.results||[]}}
 async function scan(env,actor,limit=8){
 const c=await campaign(env);
-if(!["active","closed"].includes(c.status)||!c.post_id||!env.SOCIAL_BRIDGE||!c.close_at)throw Error("Post, campanha iniciada, prazo final e conexao Meta de producao sao obrigatorios");
-const runStarted=new Date().toISOString(),oldestLock=new Date(Date.now()-90000).toISOString();
+if(c.status!=="active"||!c.post_id||!env.SOCIAL_BRIDGE||!c.close_at)throw Error("Post, campanha iniciada, prazo final e conexao Meta de producao sao obrigatorios");
+const runStarted=new Date().toISOString(),oldestLock=new Date(Date.now()-300000).toISOString();
 const claim=await env.DB.prepare("UPDATE campaign SET sync_started_at=?,sync_error=NULL WHERE id=? AND (sync_started_at IS NULL OR sync_started_at<?)").bind(runStarted,ID,oldestLock).run();
 if(!claim.meta?.changes)throw Error("Outra sincronizacao em andamento");
 let cursor=c.sync_cursor||"",processed=0,inserted=0,done=false;
@@ -85,7 +85,7 @@ try{
  await env.DB.prepare("DELETE FROM participant_pairs WHERE media_id=? AND NOT EXISTS (SELECT 1 FROM comments c WHERE c.media_id=participant_pairs.media_id AND c.username=participant_pairs.username AND c.tags=participant_pairs.tags AND (c.base_valid=1 OR c.reason='dupla_repetida'))").bind(c.post_id).run();
  await env.DB.prepare("UPDATE participant_pairs SET first_id=(SELECT c.id FROM comments c WHERE c.media_id=participant_pairs.media_id AND c.username=participant_pairs.username AND c.tags=participant_pairs.tags AND (c.base_valid=1 OR c.reason='dupla_repetida') ORDER BY c.created_at,c.id LIMIT 1) WHERE media_id=?").bind(c.post_id).run();
  await env.DB.prepare("UPDATE comments SET base_valid=CASE WHEN id=(SELECT p.first_id FROM participant_pairs p WHERE p.media_id=comments.media_id AND p.username=comments.username AND p.tags=comments.tags) THEN 1 ELSE 0 END,reason=CASE WHEN id=(SELECT p.first_id FROM participant_pairs p WHERE p.media_id=comments.media_id AND p.username=comments.username AND p.tags=comments.tags) THEN NULL ELSE 'dupla_repetida' END WHERE media_id=? AND (base_valid=1 OR reason='dupla_repetida')").bind(c.post_id).run();
- const automaticClose=done&&Date.now()>=Date.parse(c.close_at);
+ const automaticClose=done&&Date.now()>=Date.parse(c.close_at)+10*60000;
  await env.DB.prepare("UPDATE campaign SET sync_cursor=?,sync_started_at=NULL,sync_finished_at=?,sync_error=NULL,imported_total=imported_total+?,status=CASE WHEN ?=1 AND status='active' THEN 'closed' ELSE status END,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(cursor,new Date().toISOString(),inserted,automaticClose?1:0,ID).run();
  await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status) VALUES(?,?,?)").bind(processed,inserted,done?"complete":"more").run();
  if(actor!=="cron")await audit(env,actor,"sync",{processed,inserted,done});
@@ -132,7 +132,7 @@ if(p==="/api/config"&&request.method==="POST"){
  const b=await request.json(),c=await campaign(env),link=b.post_url?urlPost(b.post_url):null,state=short(b.status,10);
  if(b.post_url&&!link)throw Error("Link invalido: aceite apenas publicacao no Instagram");
  if(!["draft","active","paused","closed"].includes(state))throw Error("Status invalido");
- const rawClose=short(b.close_at,35),close=rawClose?(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(rawClose)?rawClose+":00-03:00":null):null;
+ const rawClose=short(b.close_at,35),close=rawClose?(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawClose)?rawClose+":00-03:00":null):null;
  if(rawClose&&!close||close&&!Number.isFinite(Date.parse(close)))throw Error("Horario final invalido");
  const a=short(b.prize_a,130),bb=short(b.prize_b,130);
  if(c.status!=="draft"&&(link!==c.post_url||a!==c.prize_a||bb!==c.prize_b||close!==(c.close_at||null)))throw Error("Campanha ja iniciada: post, premios e prazo estao bloqueados contra alteracoes");
@@ -144,6 +144,7 @@ if(p==="/api/config"&&request.method==="POST"){
  if(state==="active"&&(!pid||!a||!bb||!env.SOCIAL_BRIDGE||!close))throw Error("Para ativar: informe post, dois premios, prazo final e conexao Meta");
  if(state==="active"&&Date.parse(close)<=Date.now())throw Error("O horario final ja passou");
  if(state==="closed"&&c.status!=="closed"&&c.close_at&&Date.now()<Date.parse(c.close_at))throw Error("Nao encerre antes do prazo informado: use Pausada em emergencias");
+ if(state==="closed"&&c.status!=="closed"&&(!c.sync_finished_at||Date.parse(c.sync_finished_at)<Date.parse(c.close_at)+10*60000||c.sync_cursor||c.sync_error||c.sync_started_at))throw Error("Encerramento bloqueado: aguarde sincronizacao completa pelo menos 10 minutos apos o prazo");
  await env.DB.prepare("UPDATE campaign SET post_url=?,post_id=?,prize_a=?,prize_b=?,close_at=?,status=?,ig_user_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(link,pid,a,bb,close,state,IGID,ID).run();
  await audit(env,actor,"config",{state,linked:!!pid,close_at:close});
  return json({ok:true,linked:!!pid,close_at:close});
