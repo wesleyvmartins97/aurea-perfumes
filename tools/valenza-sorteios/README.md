@@ -18,3 +18,15 @@ Painel privado: https://valenza-sorteios-admin.aureaperfumes.workers.dev/
 - Regra de implantação: preservar `valenza-social-admin`, o atendimento, as publicações agendadas e todo o site principal.
 
 Próximo passo: decidir os dois perfumes e aprovar banner + regulamento, publicar o post no Instagram oficial, vincular a URL, conectar autorização de leitura da Meta, testar a coleta e ativar somente após aprovação explícita. Não guardar tokens/senhas em texto.
+
+
+## CONEXÃO PERMANENTE INSTALADA — 15/11/2026 ~23:20 BRT
+- O token manual vindo do Meta Graph API Explorer (tipo PAGE, expiração 16/11/2026 00:00 Brasília) foi SUBSTITUÍDO por uma ligação privada com a credencial de produção do Valenza Social Admin. O KV 'meta-token' temporário do Sorteios foi EXCLUÍDO.
+- O Worker de produção valenza-social-admin ganhou APENAS a classe de RPC `ValenzaSorteioBridge`, sem mudar a rotina de publicação. Versão original de backup antes do primeiro update: `7e2a23c5-09eb-403f-816b-a26a30ae69ec`; versão em produção após resolver link: `1bf974a7-0733-488e-b355-b5b448dc846d`. Todos os 11 bindings originais foram preservados e social-status do Nexus permaneceu enabled.
+- Binding privado (Cloudflare Worker-to-Worker service): `SOCIAL_BRIDGE` do `valenza-sorteios-admin` → `valenza-social-admin` entrypoint `ValenzaSorteioBridge`; nenhuma credencial Meta é transmitida para a aplicação de sorteio, navegador ou GitHub.
+- RPC connectionStatus consultou a Meta: `SYSTEM_USER`, `expiresAt=no_expiration`, `canReadComments=true`, `ok=true`. Sem expiração agendada, mas pode ser revogado pela Meta ou perder permissão.
+- Teste REAL: `findOfficialPost('https://www.instagram.com/reel/DfgMMbktZv2/')` resolveu media_id `18348970714254036`; `listOfficialComments` consultou o endpoint com sucesso, sem erros, e retornou 0 comentários naquele post. Não alterou publicação nem comentários.
+- O Sorteios usa RPC permanente em config (vínculo por permalink), scanner D1 paginado (até 8 páginas × 100 por execução) e Cron a cada 5 minutos quando `status=active`. `/api/status` faz diagnóstico vivo e confirmou `connected=true, connectionType=SYSTEM_USER, tokenExpiration=no_expiration` após remoção do token temporário.
+- O painel não pede mais token manual. Código do Worker salvo no GitHub branch feature/valenza-sorteios-admin-20261115, commit 37717e120aab387cfda6010da995203f17272da6.
+- Campanha `natal-2026` permanece `draft`, sem link/post, sem perfumes escolhidos, com 0 comentários. Não abrir inscrições, não postar arte e não ativar até o usuário aprovar.
+- Falta testar ingestão D1 real com a publicação específica do sorteio depois de publicada; regras de seguir 2 contas, curtir e Stories privados continuam não sendo verificáveis universalmente pela API. Não prometer aprovação 100% automática.
