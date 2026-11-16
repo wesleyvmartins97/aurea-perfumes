@@ -1,0 +1,44 @@
+name: Valenza Android 2.4 - validar interface e compilação
+on:
+  push:
+    branches: [valenza-android-atualizar-loja-20261115]
+    paths: ['android/**', '.github/workflows/android-refresh-verify.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compile-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Preparar Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      - name: Verificar integridade do código nativo
+        run: |
+          grep -q 'android:versionCode="4"' android/AndroidManifest.xml
+          grep -q 'android:versionName="2.4.0"' android/AndroidManifest.xml
+          grep -q 'Atualizar' android/src/br/com/valenzaparfums/app/MainActivity.java
+          ! grep -q 'WebView' android/src/br/com/valenzaparfums/app/NativeStore.java
+      - name: Compilar resources e classes sem assinar
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          SDK="$ANDROID_HOME/platforms/android-35/android.jar"
+          mkdir -p android/build/{generated,classes,dex}
+          "$TOOLS/aapt2" compile --dir android/res -o android/build/resources.zip
+          "$TOOLS/aapt2" link -o android/build/resources.apk --manifest android/AndroidManifest.xml -I "$SDK" --java android/build/generated -A android/assets android/build/resources.zip
+          javac --release 8 -nowarn -cp "$SDK" -d android/build/classes android/build/generated/br/com/valenzaparfums/app/R.java android/src/br/com/valenzaparfums/app/*.java
+          mapfile -t CLASSES < <(find android/build/classes -name '*.class')
+          "$TOOLS/d8" --lib "$SDK" --min-api 26 --output android/build/dex "${CLASSES[@]}"
+          test -s android/build/dex/classes.dex
+          echo "Classes Android 2.4 compiladas sem erros."
+      - name: Não distribuir APK sem certificado oficial
+        run: echo "Build de validação; nenhum APK de produção é publicado ou assinado com chave temporária."
