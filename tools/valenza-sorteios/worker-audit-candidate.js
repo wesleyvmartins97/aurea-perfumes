@@ -1,0 +1,304 @@
+
+const ID="natal-2026",IGID="17841421710972478";
+const ORG=["valenza.parfumsimportados","jjessicatrindade"];
+const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","X-Frame-Options":"DENY"};
+const UI="<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Valenza Sorteios Admin</title><style>\n:root{font-family:system-ui,Arial;background:#f8f5f5;color:#321d28}*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(140deg,#290b1b,#772848);color:#f5e7c9;padding:32px max(18px,calc((100vw - 1140px)/2))}.eyebrow{color:#e2bd7d;font-size:12px;letter-spacing:2px;font-weight:800}.hero{font-size:32px;font-weight:750;margin:6px 0}.sub{color:#e8d2db;font-size:14px}main{max-width:1170px;margin:auto;padding:22px 18px 80px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.box{background:white;border:1px solid #e8dce1;border-radius:15px;padding:18px;box-shadow:0 4px 25px #3511220b}.stat b{display:block;font-size:29px;color:#642344}.stat small{color:#786871}h2{margin:0 0 15px;font-size:18px;color:#5e2241}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:15px 0}.full{margin-top:15px}label{font-size:13px;font-weight:680;display:block;margin:10px 0 5px}input,select,textarea{width:100%;padding:11px;border:1px solid #d7c7ce;border-radius:8px;font:inherit;font-size:14px;background:#fff}button{background:#6f2748;border:none;border-radius:9px;color:white;padding:11px 14px;font-weight:700;cursor:pointer}button:hover{background:#90335f}.alt{background:#e9dce1;color:#64334c}.gold{background:#b79057;color:#311b27}.bar{display:flex;flex-wrap:wrap;gap:9px;margin:15px 0}.callout{background:#fff5dd;border:1px solid #ecd09e;padding:12px;border-radius:10px;color:#725329;font-size:13px}.info{font-size:13px;color:#796571}.pill{border-radius:30px;padding:4px 8px;background:#f4e9ee;color:#743751;display:inline-block;font-size:11px;font-weight:700}.ok{background:#dcf4e1;color:#20623b}.bad{background:#fae2e2;color:#9d2b42}.scroll{overflow-x:auto}table{width:100%;min-width:790px;border-collapse:collapse;font-size:12px}td,th{padding:11px 7px;border-bottom:1px solid #efe5ea;text-align:left}th{background:#fbf7f9;color:#664053}td button{padding:7px 10px}#notice{min-height:20px;font-size:13px;padding:6px 0;color:#89375b}.save-feedback{padding:10px 12px;border-radius:9px;border:1px solid #e0d2d7;background:#f9f4f6;color:#704e60;font-size:13px;min-height:38px}.save-feedback.success{background:#e9f4ea;border-color:#bcdbbf;color:#265539;font-weight:650}.save-feedback.error{background:#fff0ef;border-color:#e7c2be;color:#a72d37;font-weight:650}.save-feedback.pending{background:#fff6e3;border-color:#ead59d;color:#6e5317}footer{font-size:12px;color:#806e78;margin:16px}@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}.twocol{grid-template-columns:1fr}}</style></head>\n<body><header><div class=\"eyebrow\">VALENZA PARFUMS · ADMIN PRIVADO</div><div class=\"hero\">Natal Premiado</div><div class=\"sub\">Controle de uma única publicação · verificações rastreáveis · listas finais em PDF e Excel</div></header>\n<main><div id=\"notice\"></div><div class=\"stats\"><div class=\"box stat\"><b id=\"sTotal\">0</b><small>Comentários processados</small></div><div class=\"box stat\"><b id=\"sPeople\">0</b><small>Participantes</small></div><div class=\"box stat\"><b id=\"sValid\">0</b><small>Marcações válidas</small></div><div class=\"box stat\"><b id=\"sApproved\">0</b><small>Participações comprovadas</small></div></div>\n<div class=\"twocol\"><section class=\"box\"><h2>1. Configurar campanha</h2><div class=\"callout\">Rascunho. Não publique banner nem abra inscrições antes de escolher os dois perfumes e aprovar a campanha.</div><label>Link oficial do post</label><input id=\"post\" placeholder=\"https://www.instagram.com/p/...\"><label>Perfume masculino/opção 1</label><input id=\"a\" placeholder=\"A escolher\"><label>Perfume feminino/opção 2</label><input id=\"b\" placeholder=\"A escolher\"><label>Prazo final das participações (horário de Brasília)</label><input id=\"close\" type=\"datetime-local\"><p class=\"info\">Defina o prazo antes de ativar. Comentários publicados depois dele não geram chances; o fechamento depende da sincronização final.</p><label>Campanha</label><select id=\"state\"><option value=\"draft\">Rascunho</option><option value=\"active\">Ativa</option><option value=\"paused\">Pausada</option><option value=\"closed\">Encerrada</option></select><div class=\"bar\"><button type=\"button\" id=\"saveBtn\" onclick=\"save()\">Salvar configuração</button></div><div id=\"saveFeedback\" role=\"status\" aria-live=\"polite\" class=\"save-feedback\">Aguardando alterações.</div><p class=\"info\">Após ativar, não é permitido vincular outra publicação sem encerrar o processo.</p><p class=\"info\">Seu acesso neste navegador fica lembrado por até 180 dias, renovados a cada visita. Use somente em seu computador pessoal.</p></section>\n<section class=\"box\"><h2>2. Sincronização do Instagram</h2><p class=\"info\">O monitor lê somente o post cadastrado e valida automaticamente duas marcações diferentes por comentário, sem aceitar a mesma dupla repetida.</p><p><span id=\"conn\" class=\"pill\">Conferindo conexão</span></p><label>Conexão automática da Valenza</label><p class=\"info\">O painel utiliza a credencial permanente do Social Admin. Não precisa gerar nem colar token.</p><div class=\"bar\"><button onclick=\"sync()\">Sincronizar comentários</button></div><p class=\"info\" id=\"synctext\">Sem sincronização.</p><div class=\"callout\">A API não confirma universalmente quem curtiu, segue as duas contas ou fez Stories privados. O painel mantém essas etapas pendentes até haver evidência; não inventa aprovações.</div></section></div>\n<section class=\"box full\"><h2>3. Participantes e conferência</h2><div class=\"bar\"><select id=\"filter\" onchange=\"load()\" style=\"max-width:250px\"><option value=\"all\">Todos</option><option value=\"valid\">Marcações válidas</option><option value=\"approved\">Totalmente aprovados</option></select><button class=\"alt\" onclick=\"load()\">Atualizar</button><button class=\"alt\" onclick=\"next()\">Próximos 75</button></div><div class=\"scroll\"><table><thead><tr><th>Participante</th><th>Comentários</th><th>Duplas válidas</th><th>Segue Valenza</th><th>Segue Jéssica</th><th>Curtiu</th><th>Story</th><th>Ação</th></tr></thead><tbody id=\"list\"><tr><td colspan=\"8\">Aguardando publicação.</td></tr></tbody></table></div><p class=\"info\">Para reduzir trabalho, confira os requisitos não acessíveis pela Meta apenas dos contemplados e suplentes. O histórico guarda quem validou e qual evidência foi utilizada.</p></section>\n<section class=\"box full\"><h2>4. Exportações</h2><div class=\"bar\"><button class=\"gold\" onclick=\"exportFile('approved','xlsx')\">Excel · somente aprovados</button><button class=\"gold\" onclick=\"exportFile('approved','pdf')\">PDF · somente aprovados</button><button class=\"alt\" onclick=\"exportFile('valid','xlsx')\">Excel · comentários válidos (a conferir)</button><button class=\"alt\" onclick=\"exportFile('valid','pdf')\">PDF · comentários válidos (a conferir)</button><button class=\"alt\" onclick=\"exportFile('approved','csv')\">CSV para site externo</button></div><p class=\"info\">Cada comentário com dupla diferente é uma participação. Somente a lista com quatro verificações confirmadas recebe o nome “aprovados”.</p></section><section class=\"box full\"><h2>5. Apuração auditável e proteção contra fraudes</h2><p class=\"info\">A chave aleatória é comprometida ao ativar a campanha. Depois do prazo e de uma sincronização completa, congele a lista e confira o SHA-256. A seleção usa a chave já comprometida, acontece apenas uma vez e gera candidatos e suplentes reproduzíveis. O primeiro candidato só é confirmado após comprovar as regras.</p><p id=\"drawState\" class=\"save-feedback\">Aguardando campanha.</p><div class=\"bar\"><button class=\"alt\" onclick=\"freezeNow()\">1. Congelar lista</button><button class=\"gold\" onclick=\"drawNow()\">2. Apurar candidato (uma vez)</button><button class=\"alt\" onclick=\"showCandidates()\">Ver suplentes</button><button class=\"alt\" onclick=\"downloadSnapshot()\">Baixar lista congelada</button><button class=\"alt\" onclick=\"excludeCandidate()\">Registrar desclassificação</button></div><pre id=\"drawProof\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;background:#f9f4f6;border:1px solid #e6d7dc;border-radius:8px;padding:10px;font-size:11px;color:#654359\"></pre></section><footer>Valenza Parfums · acessos privados Wesley e Jéssica · não altera a loja ou o robô comercial</footer></main>\n<script>\nlet rows=[],offset=0;\nasync function api(path,options){let r=await fetch(path,{cache:'no-store',...options});let d=await r.json();if(!r.ok)throw Error(d.error||'Falha '+r.status);return d}\nfunction msg(t,bad){let el=document.getElementById('notice');el.textContent=t;el.style.color=bad?'#bc1c42':'#79354f'}\nfunction safe(v){return String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]))}\nfunction paint(d){let s=d.stats,c=d.campaign;for(let [k,id] of [['total','sTotal'],['people','sPeople'],['valid','sValid'],['approved','sApproved']])document.getElementById(id).textContent=Number(s[k]||0).toLocaleString('pt-BR');document.getElementById('post').value=c.post_url||'';document.getElementById('a').value=c.prize_a||'';document.getElementById('b').value=c.prize_b||'';document.getElementById('state').value=c.status;document.getElementById('close').value=(c.close_at||'').slice(0,16);document.getElementById('conn').textContent=d.connected?'Instagram · conexão permanente':'Integração permanente indisponível';document.getElementById('synctext').textContent='Post ID: '+(c.post_id||'não definido')+' · Última sincronização: '+(c.sync_finished_at||'nenhuma')+(c.sync_error?' · Erro: '+c.sync_error:'')}\nasync function refresh(){try{const d=await api('/api/status');paint(d);renderDraw(d.draw);const c=d.campaign||{};if(c.updated_at){const date=new Date(c.updated_at.replace(' ','T')+'Z');const hora=Number.isNaN(date.valueOf())?'':date.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'});savedState('Último registro salvo: '+hora+(c.status==='draft'?' · Rascunho, não publicado':''),'success')}await load()}catch(e){msg(e.message,true);savedState('Erro ao consultar dados: '+e.message,'error')}}\nfunction savedState(text,kind){const el=document.getElementById('saveFeedback');if(!el)return;el.textContent=text;el.className='save-feedback'+(kind?' '+kind:'')}\nlet saveBusy=false;\nasync function save(){\n if(saveBusy)return;\n const btn=document.getElementById('saveBtn');saveBusy=true;btn.disabled=true;btn.textContent='Salvando...';savedState('Gravando as informações da campanha...','pending');\n try{\n  const b={post_url:document.getElementById('post').value,prize_a:document.getElementById('a').value,prize_b:document.getElementById('b').value,status:document.getElementById('state').value,close_at:document.getElementById('close').value};\n  await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});\n  const d=await api('/api/status');paint(d);\n  const c=d.campaign||{};\n  if(c.prize_a!==b.prize_a.trim()||c.prize_b!==b.prize_b.trim()||c.status!==b.status||(c.close_at||'').slice(0,16)!==(b.close_at||''))throw Error('O banco não confirmou todos os valores. Atualize e confira antes de continuar.');\n  const hora=new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'});\n  savedState('✓ Salvo com sucesso às '+hora+'. '+(c.status==='draft'?'Campanha em RASCUNHO. Nada foi publicado.':'Status: '+c.status+'.'),'success');\n  msg('Configuração salva no banco da Valenza.');\n }catch(e){savedState('Não foi possível salvar: '+e.message,'error');msg(e.message,true)}\n finally{saveBusy=false;btn.disabled=false;btn.textContent='Salvar configuração'}\n}\nfor(const id of ['post','a','b','close'])document.getElementById(id)?.addEventListener('input',()=>savedState('Existem alterações que ainda não foram salvas.','pending'));\ndocument.getElementById('state')?.addEventListener('change',()=>savedState('Estado da campanha alterado. Clique em Salvar configuração.','pending'));\nasync function connect(){let t=document.getElementById('token').value;if(!t)return;try{await api('/api/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})});document.getElementById('token').value='';msg('API validada e credencial armazenada criptografada.');await refresh()}catch(e){msg(e.message,true)}}\nasync function sync(){try{msg('Sincronizando comentários...');let d=await api('/api/sync',{method:'POST'});msg(d.processed+' comentários verificados, '+d.inserted+' novos; '+(d.more?'continua na próxima execução.':'ciclo completo.'));await refresh()}catch(e){msg(e.message,true)}}\nfunction badge(x){return '<span class=\"pill '+(x==='verified'?'ok':x==='rejected'?'bad':'')+'\">'+(x==='verified'?'Confirmado':x==='rejected'?'Reprovado':'Pendente')+'</span>'}\nasync function load(){try{const d=await api('/api/list?filter='+document.getElementById('filter').value+'&offset='+offset);rows=d.items;document.getElementById('list').innerHTML=rows.length?rows.map((r,i)=>'<tr><td><b>@'+safe(r.username)+'</b></td><td>'+r.total+'</td><td>'+r.valid_entries+'</td><td>'+badge(r.follow_valenza)+'</td><td>'+badge(r.follow_jessica)+'</td><td>'+badge(r.liked_post)+'</td><td>'+badge(r.story)+'</td><td><button onclick=\"review('+i+')\">Conferir</button></td></tr>').join(''):'<tr><td colspan=\"8\">Nenhum participante nesse filtro.</td></tr>'}catch(e){msg(e.message,true)}}\nasync function next(){offset+=75;await load()}\nasync function review(i){const r=rows[i],v={username:r.username};for(const [field,name] of [['follow_valenza','Seguiu Valenza'],['follow_jessica','Seguiu Jéssica'],['liked_post','Curtiu a publicação'],['story','Repost no Story']]){const old=r[field]==='verified'?'V':r[field]==='rejected'?'R':'P';let a=prompt(name+': V=verificado, P=pendente, R=reprovado',old);if(a===null)return;v[field]=({V:'verified',P:'pending',R:'rejected'})[a.trim().toUpperCase()];if(!v[field])return msg('Status inválido',true)}let note=prompt('Evidência da conferência (obrigatória ao confirmar):',r.notes||'');if(note===null)return;v.notes=note;let story=prompt('Evidência do Story (opcional):',r.story_evidence||'');if(story===null)return;v.story_evidence=story;try{await api('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});msg('Conferência registrada para @'+r.username);await refresh()}catch(e){msg(e.message,true)}}\nasync function exportFile(kind,format){try{let r=await fetch('/api/export?set='+kind+'&format='+format);if(!r.ok){let d=await r.json();throw Error(d.error)}let u=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=u;a.download='Valenza-'+kind+'.'+format;a.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}catch(e){msg(e.message,true)}}\nfunction renderDraw(d){const state=document.getElementById('drawState'),proof=document.getElementById('drawProof');if(!d){state.textContent='Campanha em rascunho: compromisso de apuracao ainda nao criado.';proof.textContent='A apuracao permanece bloqueada ate o encerramento completo.';return}state.textContent=({committed:'Chave comprometida na ativacao; aguardando encerramento',preparing:'Preparando lista; aguarde',frozen:'Lista congelada. Pronta para apuracao unica',drawn:'Apuracao registrada e imutavel'})[d.status]||d.status;proof.textContent='Compromisso SHA-256: '+d.seed_commit+'\\\\n'+(d.list_hash?'Lista SHA-256: '+d.list_hash+'\\\\nParticipacoes: '+d.eligible_count+'\\\\n':'')+(d.seed_revealed?'Chave revelada: '+d.seed_revealed+'\\\\nCandidato inicial: @'+d.selected_username+' #'+d.selected_comment_id+'\\\\n':'')+'Os requisitos do candidato ainda precisam de conferencia documental.'}\nasync function freezeNow(){if(!confirm('Congelar definitivamente a lista de comentarios prequalificados apos o encerramento?'))return;try{const r=await api('/api/freeze',{method:'POST'});msg('Lista congelada: '+r.eligible_count+' participacoes. SHA: '+r.list_hash);await refresh()}catch(e){msg(e.message,true)}}\nasync function drawNow(){if(!confirm('ATENCAO: esta apuracao so pode ocorrer UMA vez. A lista e os premios devem estar conferidos. Confirmar?'))return;try{const r=await api('/api/draw',{method:'POST'});msg('Candidato inicial: @'+r.candidate.username+'. Conferir regras antes de anunciar.');await refresh();await showCandidates()}catch(e){msg(e.message,true)}}\nasync function showCandidates(){try{const x=await api('/api/draw-candidates');document.getElementById('drawProof').textContent='Lista SHA-256: '+x.list_hash+'\\\\nChave revelada: '+x.seed_revealed+'\\\\nDigest da selecao: '+x.result_sha256+'\\\\n'+x.candidates.map(p=>p.rank+'. @'+p.username+' / comentario '+p.comment_id+' / '+(p.excluded?'DESCLASSIFICADO: '+p.reason:p.fully_verified?'COMPROVADO':'AGUARDANDO CONFERENCIA')).join('\\\\n')}catch(e){msg(e.message,true)}}\nasync function downloadSnapshot(){try{const r=await fetch('/api/snapshot-csv');if(!r.ok){const d=await r.json();throw Error(d.error)}const u=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=u;a.download='valenza-lista-congelada.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),3000);msg('Lista congelada exportada. Hash SHA-256: '+(r.headers.get('X-Valenza-Snapshot-SHA256')||'indisponivel'))}catch(e){msg(e.message,true)}}\nasync function excludeCandidate(){const id=prompt('ID exato do comentario a desclassificar:');if(!id)return;const reason=prompt('Justificativa detalhada (minimo 25 caracteres):');if(!reason)return;if(!confirm('Registrar esta desclassificacao no historico sem permitir apagar?'))return;try{await api('/api/disqualify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({comment_id:id,reason})});msg('Desclassificacao registrada para '+id);await showCandidates()}catch(e){msg(e.message,true)}}\nrefresh();\n</script></body></html>";
+function json(x,s=200){return new Response(JSON.stringify(x),{status:s,headers:{...H,"Content-Type":"application/json;charset=utf-8"}})}
+function fail(m,s=400){return json({ok:false,error:String(m).slice(0,400)},s)}
+function short(x,n=500){return String(x==null?"":x).trim().slice(0,n)}
+function user(x){return short(x,50).replace(/^@/,"").toLowerCase()}
+function urlPost(x){try{const u=new URL(x);if(u.protocol!=="https:"||!["instagram.com","www.instagram.com"].includes(u.hostname)||!/^\/(p|reel|tv)\/[A-Za-z0-9_-]+\/?$/.test(u.pathname))return null;return "https://www.instagram.com"+u.pathname.replace(/\/?$/,"/")}catch{return null}}
+function mentions(x){const s=String(x||"");return [...s.matchAll(/(?:^|[^A-Za-z0-9_.@])@([A-Za-z0-9_.]{1,30})(?![A-Za-z0-9_.])/g)].map(v=>v[1].replace(/\\.+$/,"").toLowerCase()).filter(Boolean)}
+function parse(x,owner){const a=mentions(x),distinct=[...new Set(a)];if(a.length!==2||distinct.length!==2)return {ok:false,tags:distinct,reason:"marcar_2_amigos_diferentes"};if(distinct.some(t=>ORG.includes(t)||t===owner))return {ok:false,tags:distinct,reason:"organizadores_ou_proprio_perfil"};return {ok:true,tags:distinct.sort(),reason:null}}
+function b64(arr){return btoa(Array.from(arr,b=>String.fromCharCode(b)).join(""))}
+function deb64(s){return Uint8Array.from(atob(s),x=>x.charCodeAt(0))}
+async function cryptKey(env){let d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode((await env.STORE.get("auth:token:key"))));return crypto.subtle.importKey("raw",d,{name:"AES-GCM"},false,["encrypt","decrypt"])}
+async function seal(env,t){const iv=crypto.getRandomValues(new Uint8Array(12));let data=await crypto.subtle.encrypt({name:"AES-GCM",iv},await cryptKey(env),new TextEncoder().encode(t));return JSON.stringify({iv:b64(iv),data:b64(new Uint8Array(data))})}
+async function accessToken(env){if(env.META_ACCESS_TOKEN)return env.META_ACCESS_TOKEN;const s=await env.STORE.get("meta-token");if(!s)return null;const a=JSON.parse(s);const buf=await crypto.subtle.decrypt({name:"AES-GCM",iv:deb64(a.iv)},await cryptKey(env),deb64(a.data));return new TextDecoder().decode(buf)}
+async function graph(token,path,params){const u=new URL("https://graph.facebook.com/v26.0/"+path);for(const [k,v] of Object.entries(params||{}))if(v)u.searchParams.set(k,String(v));const r=await fetch(u,{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(17000)});const d=await r.json();if(!r.ok)throw Error("Meta HTTP "+r.status+" - "+short(d.error?.message||"permissao nao concedida",170));return d}
+async function findOwnMedia(token,link){let cursor="",seen=new Set();for(let i=0;i<30;i++){let d=await graph(token,IGID+"/media",{fields:"id,permalink",limit:100,after:cursor});for(let p of d.data||[])if(urlPost(p.permalink)===link)return String(p.id);const next=d.paging?.cursors?.after;if(!d.paging?.next||!next||seen.has(next))break;seen.add(next);cursor=next}throw Error("Post nao encontrado na conta oficial da Valenza")}
+async function auth(request,env){const a=request.headers.get("authorization")||"";if(!a.startsWith("Basic "))return null;try{const s=atob(a.slice(6)),i=s.indexOf(":"),name=s.slice(0,i),pw=s.slice(i+1);if(!["wesley","jessica"].includes(name)||pw.length<20)return null;const stored=await env.STORE.get("auth:"+name+":hash");if(!stored)return null;const hash=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(pw)))).map(x=>x.toString(16).padStart(2,"0")).join("");return hash===stored?name:null}catch{return null}}
+function deny(){return new Response("Valenza Sorteios - acesso restrito.",{status:401,headers:{...H,"WWW-Authenticate":'Basic realm="Valenza Sorteios", charset="UTF-8"'}})}
+// Sessao segura persistente por dispositivo: token aleatorio, hash no KV e cookie HttpOnly.
+// Uma visita autenticada renova a validade por 180 dias, sem revelar a senha no navegador.
+const VALENZA_REMEMBER_SECONDS=180*24*60*60;
+function valenzaSessionToken(req){const m=(req.headers.get("cookie")||"").match(/(?:^|;\s*)valenza_session=([a-f0-9]{64})(?=;|$)/);return m?m[1]:null}
+async function valenzaSessionHash(token){const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(token));return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+async function valenzaSessionUser(request,env){try{const token=valenzaSessionToken(request);if(!token)return null;const name=await env.STORE.get("session:"+await valenzaSessionHash(token));return name==="wesley"||name==="jessica"?name:null}catch{return null}}
+async function valenzaRememberCookie(actor,env,existingToken){const token=existingToken||[...crypto.getRandomValues(new Uint8Array(32))].map(x=>x.toString(16).padStart(2,"0")).join("");await env.STORE.put("session:"+await valenzaSessionHash(token),actor,{expirationTtl:VALENZA_REMEMBER_SECONDS});return "valenza_session="+token+"; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age="+VALENZA_REMEMBER_SECONDS}
+
+async function campaign(env){return env.DB.prepare("SELECT * FROM campaign WHERE id=?").bind(ID).first()}
+async function audit(env,actor,action,detail){await env.DB.prepare("INSERT INTO audit(actor,action,detail) VALUES(?,?,?)").bind(actor,action,JSON.stringify(detail||{}).slice(0,1300)).run()}
+async function status(env){let prod=null;try{prod=await env.SOCIAL_BRIDGE.connectionStatus()}catch(e){prod={ok:false,error:String(e.message||e).slice(0,100)}}let c=await campaign(env);let r=await env.DB.prepare("SELECT COUNT(*) total, COUNT(DISTINCT c.username) people, SUM(CASE WHEN c.base_valid=1 THEN 1 ELSE 0 END) valid,SUM(CASE WHEN c.base_valid=1 AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified' THEN 1 ELSE 0 END) approved FROM comments c LEFT JOIN checks k ON c.username=k.username WHERE c.media_id=?").bind(c.post_id||"none").first();return {campaign:c,stats:{total:r.total||0,people:r.people||0,valid:r.valid||0,approved:r.approved||0},connected:!!(prod?.ok&&prod.canReadComments),connectionType:prod?.tokenType||"unknown",tokenExpiration:prod?.expiresAt||null,draw:await visibleDrawRun(env)}}
+async function list(env,filter,offset){const c=await campaign(env);const have=filter==="valid"?" HAVING SUM(c.base_valid)>0":filter==="approved"?" HAVING SUM(CASE WHEN c.base_valid=1 AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified' THEN 1 ELSE 0 END)>0":"";const sql="SELECT c.username,COUNT(*) total,SUM(c.base_valid) valid_entries,COALESCE(k.follow_valenza,'pending') follow_valenza,COALESCE(k.follow_jessica,'pending') follow_jessica,COALESCE(k.liked_post,'pending') liked_post,COALESCE(k.story,'pending') story,COALESCE(k.story_evidence,'') story_evidence,COALESCE(k.notes,'') notes FROM comments c LEFT JOIN checks k ON k.username=c.username WHERE c.media_id=? GROUP BY c.username"+have+" ORDER BY valid_entries DESC,c.username LIMIT 75 OFFSET ?";const r=await env.DB.prepare(sql).bind(c.post_id||"none",Math.max(0,Math.min(500000,offset|0))).all();return {items:r.results||[]}}
+async function scan(env,actor,limit=8){
+const c=await campaign(env);
+if(c.status!=="active"||!c.post_id||!env.SOCIAL_BRIDGE||!c.close_at)throw Error("Post, campanha iniciada, prazo final e conexao Meta de producao sao obrigatorios");
+const runStarted=new Date().toISOString(),oldestLock=new Date(Date.now()-300000).toISOString();
+const claim=await env.DB.prepare("UPDATE campaign SET sync_started_at=?,sync_error=NULL WHERE id=? AND (sync_started_at IS NULL OR sync_started_at<?)").bind(runStarted,ID,oldestLock).run();
+if(!claim.meta?.changes)throw Error("Outra sincronizacao em andamento");
+let cursor=c.sync_cursor||"",processed=0,inserted=0,done=false;
+try{
+ const pairs=new Map(),seen=new Set();
+ for(let off=0;off<=150000;off+=5000){
+  const r=await env.DB.prepare("SELECT username,tags,first_id FROM participant_pairs WHERE media_id=? ORDER BY username,tags LIMIT 5000 OFFSET ?").bind(c.post_id,off).all();
+  for(const x of r.results||[])pairs.set(x.username+"|"+x.tags,x.first_id);
+  if((r.results||[]).length<5000)break;
+ }
+ for(let off=0;off<=150000;off+=5000){
+  const r=await env.DB.prepare("SELECT id FROM comments WHERE media_id=? LIMIT 5000 OFFSET ?").bind(c.post_id,off).all();
+  for(const x of r.results||[])seen.add(x.id);
+  if((r.results||[]).length<5000)break;
+ }
+ for(let page=0;page<limit;page++){
+  const v=await env.SOCIAL_BRIDGE.listOfficialComments(c.post_id,cursor);if(!v?.ok)throw Error("Leitura Meta permanente indisponivel: "+short(v?.error||"erro",180));const d={data:v.data||[],paging:{cursors:{after:v.paging?.after||null},next:v.paging?.next||false}};
+  let statements=[];
+  for(const cm of d.data||[]){
+   const cid=short(cm.id,80),who=user(cm.username);
+   if(!cid||!who||who==="valenza.parfumsimportados")continue;
+   const p=parse(cm.text,who),tagJson=JSON.stringify(p.tags);
+   const pairKey=who+"|"+tagJson;
+   let ok=p.ok,reason=p.reason;
+   const time=Date.parse(cm.timestamp||"");
+   if(!Number.isFinite(time)){ok=false;reason="data_do_comentario_invalida"}
+   else if(time>Date.parse(c.close_at)){ok=false;reason="fora_do_prazo"}
+   if(ok){
+    const owner=pairs.get(pairKey);
+    if(owner&&owner!==cid){ok=false;reason="dupla_repetida"}
+    else if(!owner){
+     pairs.set(pairKey,cid);
+     statements.push(env.DB.prepare("INSERT OR IGNORE INTO participant_pairs(media_id,username,tags,first_id) VALUES(?,?,?,?)").bind(c.post_id,who,tagJson,cid));
+    }
+   }
+   statements.push(env.DB.prepare("INSERT INTO comments(id,media_id,username,body,tags,base_valid,reason,created_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,tags=excluded.tags,base_valid=excluded.base_valid,reason=excluded.reason").bind(cid,c.post_id,who,short(cm.text,3000),tagJson,ok?1:0,reason,short(cm.timestamp,80)));
+   processed++;
+   if(!seen.has(cid)){inserted++;seen.add(cid)}
+   if(statements.length>=75){await env.DB.batch(statements);statements=[]}
+  }
+  if(statements.length)await env.DB.batch(statements);
+  const next=d.paging?.cursors?.after;
+  if(!d.paging?.next||!next||next===cursor){cursor="";done=true;break}
+  cursor=next;
+ }
+ // A Meta pode retornar comentarios fora da ordem cronologica. A primeira dupla
+ // e determinada pela data de publicacao, nao pela pagina recebida primeiro.
+ await env.DB.prepare("DELETE FROM participant_pairs WHERE media_id=? AND NOT EXISTS (SELECT 1 FROM comments c WHERE c.media_id=participant_pairs.media_id AND c.username=participant_pairs.username AND c.tags=participant_pairs.tags AND (c.base_valid=1 OR c.reason='dupla_repetida'))").bind(c.post_id).run();
+ await env.DB.prepare("UPDATE participant_pairs SET first_id=(SELECT c.id FROM comments c WHERE c.media_id=participant_pairs.media_id AND c.username=participant_pairs.username AND c.tags=participant_pairs.tags AND (c.base_valid=1 OR c.reason='dupla_repetida') ORDER BY c.created_at,c.id LIMIT 1) WHERE media_id=?").bind(c.post_id).run();
+ await env.DB.prepare("UPDATE comments SET base_valid=CASE WHEN id=(SELECT p.first_id FROM participant_pairs p WHERE p.media_id=comments.media_id AND p.username=comments.username AND p.tags=comments.tags) THEN 1 ELSE 0 END,reason=CASE WHEN id=(SELECT p.first_id FROM participant_pairs p WHERE p.media_id=comments.media_id AND p.username=comments.username AND p.tags=comments.tags) THEN NULL ELSE 'dupla_repetida' END WHERE media_id=? AND (base_valid=1 OR reason='dupla_repetida')").bind(c.post_id).run();
+ const automaticClose=done&&Date.now()>=Date.parse(c.close_at)+10*60000;
+ await env.DB.prepare("UPDATE campaign SET sync_cursor=?,sync_started_at=NULL,sync_finished_at=?,sync_error=NULL,imported_total=imported_total+?,status=CASE WHEN ?=1 AND status='active' THEN 'closed' ELSE status END,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(cursor,new Date().toISOString(),inserted,automaticClose?1:0,ID).run();
+ await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status) VALUES(?,?,?)").bind(processed,inserted,done?"complete":"more").run();
+ if(actor!=="cron")await audit(env,actor,"sync",{processed,inserted,done});
+ return {ok:true,processed,inserted,more:!!cursor};
+}catch(e){
+ await env.DB.prepare("UPDATE campaign SET sync_started_at=NULL,sync_error=? WHERE id=?").bind(short(e.message,300),ID).run();
+ await env.DB.prepare("INSERT INTO sync_runs(processed,new_comments,status,error) VALUES(?,?,?,?)").bind(processed,inserted,"error",short(e.message,300)).run();
+ throw e;
+}};
+async function review(env,actor,b){
+ const who=user(b.username),c=await campaign(env);
+ const exists=await env.DB.prepare("SELECT 1 FROM comments WHERE username=? AND media_id=? AND base_valid=1").bind(who,c.post_id||"none").first();
+ if(!exists)throw Error("Participante sem comentario valido");
+ const fields=["follow_valenza","follow_jessica","liked_post","story"],vals=fields.map(k=>short(b[k],20));
+ if(vals.some(v=>!["pending","verified","rejected"].includes(v)))throw Error("Status invalido");
+ const note=short(b.notes,700),storyProof=short(b.story_evidence,800);
+ if(vals.includes("verified")&&note.length<20)throw Error("Descreva a evidencia e a conferencia (minimo 20 caracteres)");
+ if(b.story==="verified"&&storyProof.length<8)throw Error("Informe a referencia da prova do Story");
+ const before=await env.DB.prepare("SELECT follow_valenza,follow_jessica,liked_post,story,story_evidence,notes FROM checks WHERE username=?").bind(who).first();
+ const upsert=env.DB.prepare("INSERT INTO checks(username,follow_valenza,follow_jessica,liked_post,story,story_evidence,notes) VALUES(?,?,?,?,?,?,?) ON CONFLICT(username) DO UPDATE SET follow_valenza=excluded.follow_valenza,follow_jessica=excluded.follow_jessica,liked_post=excluded.liked_post,story=excluded.story,story_evidence=excluded.story_evidence,notes=excluded.notes,updated_at=CURRENT_TIMESTAMP").bind(who,...vals,storyProof,note);
+ const detail=JSON.stringify({who,before:before||null,after:Object.fromEntries(fields.map((k,i)=>[k,vals[i]])),storyProof,note}).slice(0,3400);
+ const log=env.DB.prepare("INSERT INTO audit(actor,action,detail) VALUES(?,?,?)").bind(actor,"review",detail);
+ await env.DB.batch([upsert,log]);return {ok:true}
+}
+async function approvedRows(env,onlyApproved){const c=await campaign(env),extra=onlyApproved?" AND k.follow_valenza='verified' AND k.follow_jessica='verified' AND k.liked_post='verified' AND k.story='verified'":"";const q="SELECT c.id,c.username,c.tags,c.created_at,COALESCE(k.follow_valenza,'pending') follow_valenza,COALESCE(k.follow_jessica,'pending') follow_jessica,COALESCE(k.liked_post,'pending') liked_post,COALESCE(k.story,'pending') story FROM comments c LEFT JOIN checks k ON k.username=c.username WHERE c.media_id=? AND c.base_valid=1"+extra+" ORDER BY c.created_at,c.id LIMIT 15001";const r=await env.DB.prepare(q).bind(c.post_id||"none").all();if(r.results?.length>15000)throw Error("Lista supera 15000 participacoes; exportar em lotes");return r.results||[]}
+
+const DRAW_KEY="draw:seed:"+ID;
+function bytesHex(v){return Array.from(v,x=>x.toString(16).padStart(2,"0")).join("")}
+async function sha256Text(v){return bytesHex(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(v)))))}
+function snapshotText(rows){return rows.map((r,i)=>JSON.stringify([i+1,String(r.id||r.comment_id),r.username,JSON.parse(r.tags),r.created_at])).join("\n")}
+async function getDrawRun(env){return env.DB.prepare("SELECT * FROM draw_runs WHERE campaign_id=?").bind(ID).first()}
+async function visibleDrawRun(env){const r=await getDrawRun(env);if(!r)return null;const {campaign_id,status,seed_commit,seed_revealed,eligible_count,list_hash,selected_index,selected_comment_id,selected_username,prepared_at,drawn_at,created_at}=r;return {campaign_id,status,seed_commit,seed_revealed,eligible_count,list_hash,selected_index,selected_comment_id,selected_username,prepared_at,drawn_at,created_at}}
+async function commitDrawSeed(env,actor){
+ let seed=await env.STORE.get(DRAW_KEY);
+ if(!seed){seed=bytesHex(crypto.getRandomValues(new Uint8Array(32)));await env.STORE.put(DRAW_KEY,seed)}
+ if(!/^[a-f0-9]{64}$/.test(seed))throw Error("Chave inicial do sorteio invalida");
+ const fingerprint=await sha256Text("valenza-sorteio-v1|"+seed);
+ await env.DB.prepare("INSERT OR IGNORE INTO draw_runs(campaign_id,seed_commit) VALUES(?,?)").bind(ID,fingerprint).run();
+ const run=await getDrawRun(env);
+ if(!run||run.seed_commit!==fingerprint)throw Error("Integridade do compromisso inicial falhou");
+ if(run.status==="committed")await audit(env,actor,"draw_commit_checked",{sha256:fingerprint});
+ return run
+}
+async function freezeDraw(env,actor){
+ const campaignData=await campaign(env),run=await getDrawRun(env);
+ if(!run||run.status!=="committed")throw Error("O compromisso inicial ainda nao existe ou a lista ja foi congelada");
+ if(campaignData.status!=="closed"||!campaignData.post_id||!campaignData.close_at)throw Error("Aguarde o encerramento completo da campanha");
+ if(campaignData.sync_cursor||campaignData.sync_started_at||campaignData.sync_error||!campaignData.sync_finished_at||Date.parse(campaignData.sync_finished_at)<Date.parse(campaignData.close_at)+600000)throw Error("Sincronizacao final incompleta: a apuracao esta bloqueada");
+ const rows=await approvedRows(env,false);
+ if(rows.length<1)throw Error("Nao ha participacoes prequalificadas");
+ const snapshotHash=await sha256Text(snapshotText(rows));
+ const claimed=await env.DB.prepare("UPDATE draw_runs SET status='preparing' WHERE campaign_id=? AND status='committed'").bind(ID).run();
+ if(!claimed.meta?.changes)throw Error("Outra apuracao em andamento ou lista ja selada");
+ try{
+  await env.DB.prepare("DELETE FROM draw_entries WHERE campaign_id=?").bind(ID).run();
+  for(let off=0;off<rows.length;off+=65){
+   const inserts=rows.slice(off,off+65).map((r,j)=>env.DB.prepare("INSERT INTO draw_entries(campaign_id,ordinal,comment_id,username,tags,created_at) VALUES(?,?,?,?,?,?)").bind(ID,off+j+1,r.id,r.username,r.tags,r.created_at));
+   await env.DB.batch(inserts)
+  }
+  const verify=await env.DB.prepare("SELECT comment_id AS id,username,tags,created_at FROM draw_entries WHERE campaign_id=? ORDER BY ordinal").bind(ID).all();
+  const check=verify.results||[];
+  if(check.length!==rows.length||await sha256Text(snapshotText(check))!==snapshotHash)throw Error("Falha na conferencia do hash da lista congelada");
+  const saved=await env.DB.prepare("UPDATE draw_runs SET status='frozen',eligible_count=?,list_hash=?,prepared_at=CURRENT_TIMESTAMP WHERE campaign_id=? AND status='preparing'").bind(rows.length,snapshotHash,ID).run();
+  if(!saved.meta?.changes)throw Error("Falha ao concluir o congelamento");
+  await audit(env,actor,"draw_frozen",{count:rows.length,list_sha256:snapshotHash});
+  return {ok:true,eligible_count:rows.length,list_hash:snapshotHash,status:"frozen"};
+ }catch(err){
+  await env.DB.prepare("DELETE FROM draw_entries WHERE campaign_id=? AND EXISTS(SELECT 1 FROM draw_runs WHERE campaign_id=? AND status='preparing')").bind(ID,ID).run().catch(()=>{});
+  await env.DB.prepare("UPDATE draw_runs SET status='committed' WHERE campaign_id=? AND status='preparing'").bind(ID).run().catch(()=>{});
+  throw err
+ }
+}
+function gcd(a,b){while(b){const n=a%b;a=b;b=n}return a}
+async function drawPermutation(seed,listHash,count){
+ const result=await sha256Text("valenza-result-v1|"+seed+"|"+listHash);
+ const stepHash=await sha256Text("valenza-reserves-v1|"+seed+"|"+listHash);
+ const start=Number(BigInt("0x"+result)%BigInt(count));
+ let step=count===1?1:1+Number(BigInt("0x"+stepHash)%BigInt(count-1));
+ if(count>1){while(gcd(step,count)!==1)step=step%count+1}
+ return {start,step,digest:result,step_digest:stepHash}
+}
+async function performDraw(env,actor){
+ const c=await campaign(env),run=await getDrawRun(env);
+ if(c.status!=="closed"||!run||run.status!=="frozen")throw Error("A campanha precisa estar encerrada e a lista precisa estar congelada");
+ const rows=(await env.DB.prepare("SELECT comment_id AS id,username,tags,created_at FROM draw_entries WHERE campaign_id=? ORDER BY ordinal").bind(ID).all()).results||[];
+ if(rows.length!==run.eligible_count||!rows.length||await sha256Text(snapshotText(rows))!==run.list_hash)throw Error("Hash de participantes nao confere; apuracao bloqueada");
+ const seed=await env.STORE.get(DRAW_KEY);
+ if(!seed||await sha256Text("valenza-sorteio-v1|"+seed)!==run.seed_commit)throw Error("A chave inicial nao confere com o compromisso");
+ const pick=await drawPermutation(seed,run.list_hash,rows.length),selected=rows[pick.start];
+ const changed=await env.DB.prepare("UPDATE draw_runs SET status='drawn',seed_revealed=?,selected_index=?,selected_comment_id=?,selected_username=?,drawn_at=CURRENT_TIMESTAMP WHERE campaign_id=? AND status='frozen'").bind(seed,pick.start+1,selected.id,selected.username,ID).run();
+ if(!changed.meta?.changes)throw Error("Ja existe apuracao registrada; o resultado nao pode ser substituido");
+ await audit(env,actor,"draw_once",{selected_id:selected.id,selected_user:selected.username,selection_index:pick.start+1,proof_hash:pick.digest,list_hash:run.list_hash});
+ return {ok:true,status:"drawn",candidate:{"username":selected.username,"comment_id":selected.id,"position":pick.start+1},list_hash:run.list_hash,seed_revealed:seed,seed_commit:run.seed_commit}
+}
+async function drawCandidates(env){
+ const run=await getDrawRun(env);
+ if(!run||run.status!=="drawn")throw Error("Nenhuma apuracao registrada");
+ const rows=(await env.DB.prepare("SELECT comment_id AS id,username,tags,created_at FROM draw_entries WHERE campaign_id=? ORDER BY ordinal").bind(ID).all()).results||[];
+ if(!rows.length||rows.length!==run.eligible_count||await sha256Text(snapshotText(rows))!==run.list_hash)throw Error("Lista congelada nao confere");
+ const pick=await drawPermutation(run.seed_revealed,run.list_hash,rows.length);
+ const rejects=(await env.DB.prepare("SELECT comment_id,reason,actor,created_at FROM draw_exclusions WHERE campaign_id=?").bind(ID).all()).results||[];
+ const excluded=new Map(rejects.map(x=>[x.comment_id,x]));
+ const candidates=[];
+ for(let i=0;i<Math.min(rows.length,rows.length>100?100:rows.length);i++){
+  const item=rows[(pick.start+i*pick.step)%rows.length];
+  const check=await env.DB.prepare("SELECT follow_valenza,follow_jessica,liked_post,story FROM checks WHERE username=?").bind(item.username).first();
+  const ruledOut=excluded.get(item.id)||null;
+  const failed=check&&["follow_valenza","follow_jessica","liked_post","story"].some(k=>check[k]==="rejected");
+  candidates.push({rank:i+1,comment_id:item.id,username:item.username,excluded:!!ruledOut||!!failed,reason:ruledOut?.reason|| (failed?"Regra reprovada na conferencia":null),fully_verified:!!check&&["follow_valenza","follow_jessica","liked_post","story"].every(k=>check[k]==="verified")});
+  if(candidates.length>=20)break
+ }
+ return {ok:true,status:run.status,eligible_count:rows.length,list_hash:run.list_hash,seed_commit:run.seed_commit,seed_revealed:run.seed_revealed,result_sha256:pick.digest,selection_formula:"sha256(valenza-result-v1|seed|list_hash) modulo total",candidates}
+}
+async function disqualifyDrawCandidate(env,actor,b){
+ const run=await getDrawRun(env),id=short(b.comment_id,80),reason=short(b.reason,600);
+ if(run?.status!=="drawn")throw Error("Nenhuma apuracao concluida");
+ if(reason.length<25)throw Error("Descreva o motivo da exclusao (minimo 25 caracteres)");
+ const member=await env.DB.prepare("SELECT 1 FROM draw_entries WHERE campaign_id=? AND comment_id=?").bind(ID,id).first();
+ if(!member)throw Error("Comentario nao pertence a lista congelada");
+ const d=await env.DB.prepare("INSERT OR IGNORE INTO draw_exclusions(campaign_id,comment_id,actor,reason) VALUES(?,?,?,?)").bind(ID,id,actor,reason).run();
+ if(!d.meta?.changes)throw Error("Candidato ja excluido; o registro anterior foi preservado");
+ await audit(env,actor,"draw_disqualified",{id,reason});
+ return {ok:true}
+}
+async function snapshotCsv(env){
+ const run=await getDrawRun(env);if(!run||!["frozen","drawn"].includes(run.status))throw Error("A lista ainda nao foi congelada");
+ const rows=(await env.DB.prepare("SELECT ordinal,comment_id,username,tags,created_at FROM draw_entries WHERE campaign_id=? ORDER BY ordinal").bind(ID).all()).results||[];
+ const normalized=rows.map(v=>({id:v.comment_id,username:v.username,tags:v.tags,created_at:v.created_at}));
+ if(rows.length!==run.eligible_count||await sha256Text(snapshotText(normalized))!==run.list_hash)throw Error("Hash da lista congelada nao confere");
+ const header=["Ordem","Comentario_ID","Perfil","Amigo_1","Amigo_2","Data"];
+ const lines=[header.map(textCsv).join(";"),...rows.map(r=>{const tags=JSON.parse(r.tags);return [r.ordinal,r.comment_id,r.username,tags[0],tags[1],r.created_at].map(textCsv).join(";")})];
+ return new Response("\uFEFF"+lines.join("\r\n"),{headers:{...H,"Content-Type":"text/csv;charset=utf-8","Content-Disposition":'attachment; filename="valenza-lista-congelada.csv"',"X-Valenza-Snapshot-SHA256":run.list_hash,"X-Valenza-Registros":String(rows.length)}})
+}
+
+function textCsv(s){const v=String(s??"");return '"'+(/^[=+\-@\t]/.test(v)?"'"+v:v).replace(/"/g,'""')+'"'}
+function xml(s){return String(s??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[x]))}
+function u16(v){const a=new Uint8Array(2);new DataView(a.buffer).setUint16(0,v,true);return a}
+function u32(v){const a=new Uint8Array(4);new DataView(a.buffer).setUint32(0,v>>>0,true);return a}
+function join(a){let b=new Uint8Array(a.reduce((n,x)=>n+x.length,0)),pos=0;for(const x of a){b.set(x,pos);pos+=x.length}return b}
+function crc(b){let c=0xffffffff;for(const x of b){c^=x;for(let j=0;j<8;j++)c=(c>>>1)^((c&1)?0xedb88320:0)}return (c^0xffffffff)>>>0}
+function zip(files){const te=new TextEncoder(),body=[],headers=[];let offset=0;for(const [path,val] of Object.entries(files)){const name=te.encode(path),data=te.encode(val),hash=crc(data);const loc=join([u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(hash),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data]);body.push(loc);headers.push(join([u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(hash),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]));offset+=loc.length}const b=join(body),h=join(headers);return join([b,h,u32(0x06054b50),u16(0),u16(0),u16(headers.length),u16(headers.length),u32(h.length),u32(b.length),u16(0)])}
+function xlsx(rows){const values=[["Numero","Perfil","Comentario","Amigo1","Amigo2","Data","Segue Valenza","Segue Jessica","Curtiu","Story"],...rows.map((r,i)=>[i+1,r.username,r.id,...JSON.parse(r.tags),r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story])];const sheet='<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+values.map((row,i)=>'<row r="'+(i+1)+'">'+row.map((v,j)=>'<c t="inlineStr"><is><t>'+xml(v)+'</t></is></c>').join("")+'</row>').join("")+'</sheetData></worksheet>';return zip({"[Content_Types].xml":'<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',"_rels/.rels":'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',"xl/workbook.xml":'<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Participantes" sheetId="1" r:id="rId1"/></sheets></workbook>',"xl/_rels/workbook.xml.rels":'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',"xl/worksheets/sheet1.xml":sheet})}
+function pdfAscii(s){return String(s??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^\x20-\x7e]/g," ").replace(/[\\()]/g,"\\$&").slice(0,110)}
+function pdf(rows,approved){let lines=["VALENZA PARFUMS - RELATORIO DE PARTICIPACOES",approved?"PARTICIPANTES APROVADOS":"MARCACOES VALIDAS - PENDENTE DE CONFERENCIA","Gerado: "+new Date().toISOString(),"Total de participacoes: "+rows.length,""];rows.forEach((r,i)=>lines.push(String(i+1).padStart(4,"0")+" @"+r.username+" #"+r.id+" "+JSON.parse(r.tags).join("/")));let pages=[];while(lines.length)pages.push(lines.splice(0,48));let objs=[],pageIDs=pages.map((_,i)=>3+2*i),font=3+2*pages.length;objs[1]="<< /Type /Catalog /Pages 2 0 R >>";objs[2]="<< /Type /Pages /Kids ["+pageIDs.map(i=>i+" 0 R").join(" ")+"] /Count "+pages.length+" >>";pages.forEach((ls,i)=>{const p=pageIDs[i],stream="BT /F1 9 Tf 32 798 Td 13 TL "+ls.map((l,j)=>(j?"T* ":"")+"("+pdfAscii(l)+") Tj").join(" ")+" ET";objs[p]="<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 "+font+" 0 R >> >> /Contents "+(p+1)+" 0 R >>";objs[p+1]="<< /Length "+stream.length+" >>\nstream\n"+stream+"\nendstream"});objs[font]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";let out="%PDF-1.4\n",offsets=[0];for(let i=1;i<=font;i++){offsets[i]=out.length;out+=i+" 0 obj\n"+objs[i]+"\nendobj\n"}let xref=out.length;out+="xref\n0 "+(font+1)+"\n0000000000 65535 f \n";for(let i=1;i<=font;i++)out+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";out+="trailer\n<< /Root 1 0 R /Size "+(font+1)+" >>\nstartxref\n"+xref+"\n%%EOF";return new TextEncoder().encode(out)}
+function download(b,type,name){return new Response(b,{headers:{...H,"Content-Type":type,"Content-Disposition":'attachment; filename="'+name+'"'}})}
+export default {async fetch(request,env){const u=new URL(request.url),p=u.pathname;if(p==="/health")return json({ok:true,app:"Valenza Sorteios",registrationsOpen:false});const sessionActor=await valenzaSessionUser(request,env);const actor=sessionActor||await auth(request,env);if(!actor)return deny();if(request.method==="POST"&&request.headers.get("Origin")&&request.headers.get("Origin")!==u.origin)return fail("Origem nao autorizada",403);try{if(p==="/"&&request.method==="GET"){const headers={...H,"Content-Type":"text/html;charset=utf-8","Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"};try{headers['Set-Cookie']=await valenzaRememberCookie(actor,env,sessionActor?valenzaSessionToken(request):null)}catch(e){console.log('valenza_session_cookie_error',String(e?.message||e).slice(0,120))}return new Response(UI,{headers})};
+if(p==="/api/status"&&request.method==="GET")return json(await status(env));
+if(p==="/api/prod-find-test"&&request.method==="GET"){const d=await env.SOCIAL_BRIDGE.findOfficialPost("https://www.instagram.com/reel/DfgMMbktZv2/");return json({ok:d.ok,mediaId:d.mediaId||null,error:d.error||null})}
+if(p==="/api/prod-scan-test"&&request.method==="GET"){const d=await env.SOCIAL_BRIDGE.listOfficialComments("18348970714254036","");return json({ok:d.ok,mediaId:d.mediaId||null,comments:d.data?.length||0,hasMore:!!d.paging?.next,error:d.error||null,source:d.source||null})}
+if(p==="/api/prod-status"&&request.method==="GET")return json(await env.SOCIAL_BRIDGE.connectionStatus());
+if(p==="/api/list"&&request.method==="GET")return json(await list(env,u.searchParams.get("filter"),Number(u.searchParams.get("offset")||0)));
+if(p==="/api/config"&&request.method==="POST"){
+ const b=await request.json(),c=await campaign(env),link=b.post_url?urlPost(b.post_url):null,state=short(b.status,10);
+ if(b.post_url&&!link)throw Error("Link invalido: aceite apenas publicacao no Instagram");
+ if(!["draft","active","paused","closed"].includes(state))throw Error("Status invalido");
+ const rawClose=short(b.close_at,35),close=rawClose?(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawClose)?rawClose+":00-03:00":null):null;
+ if(rawClose&&!close||close&&!Number.isFinite(Date.parse(close)))throw Error("Horario final invalido");
+ const a=short(b.prize_a,130),bb=short(b.prize_b,130);
+ if(c.status!=="draft"&&(link!==c.post_url||a!==c.prize_a||bb!==c.prize_b||close!==(c.close_at||null)))throw Error("Campanha ja iniciada: post, premios e prazo estao bloqueados contra alteracoes");
+ if(c.status==="closed"&&state!=="closed")throw Error("Campanha encerrada e imutavel; nao pode reabrir");
+ if(c.status==="draft"&&!["draft","active"].includes(state))throw Error("Ative a campanha antes de pausar ou encerrar");
+ if(c.status==="active"&&state==="draft"||c.status==="paused"&&state==="draft")throw Error("Nao e permitido voltar ao rascunho apos iniciar");
+ let pid=c.post_id;
+ if(link!==c.post_url){pid=null;if(link){const found=await env.SOCIAL_BRIDGE.findOfficialPost(link);if(!found?.ok)throw Error("Post da Valenza nao identificado: "+short(found?.error||"erro",160));pid=found.mediaId}}
+ if(state==="active"&&(!pid||!a||!bb||!env.SOCIAL_BRIDGE||!close))throw Error("Para ativar: informe post, dois premios, prazo final e conexao Meta");
+ if(state==="active"&&Date.parse(close)<=Date.now())throw Error("O horario final ja passou");
+ if(c.status==='draft'&&state==='active')await commitDrawSeed(env,actor);
+ if(state==="closed"&&c.status!=="closed"&&c.close_at&&Date.now()<Date.parse(c.close_at))throw Error("Nao encerre antes do prazo informado: use Pausada em emergencias");
+ if(state==="closed"&&c.status!=="closed"&&(!c.sync_finished_at||Date.parse(c.sync_finished_at)<Date.parse(c.close_at)+10*60000||c.sync_cursor||c.sync_error||c.sync_started_at))throw Error("Encerramento bloqueado: aguarde sincronizacao completa pelo menos 10 minutos apos o prazo");
+ await env.DB.prepare("UPDATE campaign SET post_url=?,post_id=?,prize_a=?,prize_b=?,close_at=?,status=?,ig_user_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(link,pid,a,bb,close,state,IGID,ID).run();
+ await audit(env,actor,"config",{state,linked:!!pid,close_at:close});
+ return json({ok:true,linked:!!pid,close_at:close});
+}
+if(p==="/api/token"&&request.method==="POST"){let b=await request.json(),t=short(b.token,2500);if(t.length<30)throw Error("Token API invalido");const m=await graph(t,IGID+"/media",{fields:"id,permalink",limit:1});if(!Array.isArray(m.data))throw Error("Sem permissao de leitura na conta oficial");await env.STORE.put("meta-token",await seal(env,t));const c=await campaign(env);if(c.post_url&&!c.post_id){try{const pid=await findOwnMedia(t,c.post_url);await env.DB.prepare("UPDATE campaign SET post_id=?,ig_user_id=? WHERE id=?").bind(pid,IGID,ID).run()}catch{}}await audit(env,actor,"connected_meta",{profile:IGID});return json({ok:true})}
+if(p==="/api/token-expiracao"&&request.method==="GET"){
+ const t=await accessToken(env);if(!t)return json({ok:false,reason:"Token nao armazenado"},404);
+ const url=new URL("https://graph.facebook.com/v26.0/debug_token");url.searchParams.set("input_token",t);
+ try{
+ const r=await fetch(url,{headers:{Authorization:"Bearer "+t},signal:AbortSignal.timeout(15000)});
+ const x=await r.json();const d=x.data||{};
+ const date=(v)=>typeof v==="number"&&v>0?new Date(v*1000).toISOString():v===0?"indefinido (timestamp 0)":null;
+ return json({ok:r.ok&&!!d.app_id,metaHttp:r.status,appId:d.app_id||null,appName:d.application||null,tokenType:d.type||null,isValid:typeof d.is_valid==="boolean"?d.is_valid:null,issuedAt:date(d.issued_at),expiresAt:date(d.expires_at),dataAccessExpiresAt:date(d.data_access_expires_at),remainingMinutes:d.expires_at>0?Math.round((d.expires_at*1000-Date.now())/60000):null,permissions:(d.scopes||[]).filter(v=>/^instagram_|^pages_/.test(v)),metaError:x.error?{code:x.error.code,message:String(x.error.message||"").slice(0,200)}:null,safe:"token-not-disclosed"});
+ }catch(e){return json({ok:false,error:String(e.message||e).slice(0,180)},502)}
+}
+if(p==="/api/testar-meta"&&request.method==="GET"){
+  const t=await accessToken(env);
+  if(!t)return json({ok:false,status:"sem_token"},409);
+  const report={ok:false,expectedInstagram:"valenza.parfumsimportados",instagramIdentityVerified:false,mediaReading:false,commentReading:false,postsChecked:0,commentsReturned:0,errors:[],campaignUntouched:true};
+  try{
+    const own=await graph(t,IGID,{fields:"id,username"});
+    report.instagramIdentityVerified=String(own.id)===IGID&&own.username==="valenza.parfumsimportados";
+    if(!report.instagramIdentityVerified){report.errors.push("Token nao confirma a conta oficial da Valenza");return json(report,409)}
+    const media=await graph(t,IGID+"/media",{fields:"id,permalink,timestamp",limit:5});
+    report.mediaReading=Array.isArray(media.data);
+    for(const m of (media.data||[]).slice(0,3)){
+      if(!m.id)continue;
+      report.postsChecked++;
+      try{const cm=await graph(t,String(m.id)+"/comments",{fields:"id,text,username,timestamp",limit:5});report.commentReading=Array.isArray(cm.data);report.commentsReturned+=Array.isArray(cm.data)?cm.data.length:0;if(report.commentReading)break}
+      catch(e){report.errors.push("Leitura dos comentarios: "+short(e.message,200))}
+    }
+    if(report.postsChecked===0)report.errors.push("Nenhuma publicacao recente disponivel para testar comentarios");
+    report.ok=report.instagramIdentityVerified&&report.mediaReading&&report.commentReading;
+    report.status=report.ok?"conta_e_comentarios_autorizados":"permissao_de_comentarios_nao_confirmada";
+  }catch(e){report.errors.push(short(e.message,240));report.status="falha_na_consulta_meta"}
+  return json(report);
+}
+if(p==="/api/sync"&&request.method==="POST")return json(await scan(env,actor));
+if(p==="/api/review"&&request.method==="POST")return json(await review(env,actor,await request.json()));
+if(p==="/api/freeze"&&request.method==="POST")return json(await freezeDraw(env,actor));
+if(p==="/api/draw"&&request.method==="POST")return json(await performDraw(env,actor));
+if(p==="/api/draw-candidates"&&request.method==="GET")return json(await drawCandidates(env));
+if(p==="/api/disqualify"&&request.method==="POST")return json(await disqualifyDrawCandidate(env,actor,await request.json()));
+if(p==="/api/snapshot-csv"&&request.method==="GET")return snapshotCsv(env);
+if(p==="/api/export"&&request.method==="GET"){const only=u.searchParams.get("set")!=="valid",f=u.searchParams.get("format")||"csv",rows=await approvedRows(env,only);if(!rows.length)throw Error("Sem participacoes nessa categoria. Nao exportar lista vazia como aprovada.");const stem="valenza-"+(only?"aprovados":"prequalificados")+"-"+new Date().toISOString().slice(0,10);if(f==="xlsx")return download(xlsx(rows),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",stem+".xlsx");if(f==="pdf")return download(pdf(rows,only),"application/pdf",stem+".pdf");if(f==="csv"){const h=["Numero","Perfil","Comentario","Amigo1","Amigo2","Data","Segue Valenza","Segue Jessica","Curtiu","Story"];const all=[h.join(";"),...rows.map((r,i)=>{let t=JSON.parse(r.tags);return [i+1,r.username,r.id,t[0],t[1],r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story].map(textCsv).join(";")})];return download("\uFEFF"+all.join("\r\n"),"text/csv; charset=utf-8",stem+".csv")}throw Error("Formato invalido")}
+if(p==="/api/selftest")return json({ok:true,tests:[parse("@ana @bruno","cliente"),parse("@ana @ana @bruno","cliente"),parse("@cliente @bruno","cliente"),parse("@valenza.parfumsimportados @bruno","cliente"),parse("email nome@dominio.com @ana","cliente")]});
+return fail("Pagina nao encontrada",404)}catch(e){return fail(e?.message||e)}},async scheduled(event,env,ctx){ctx.waitUntil((async()=>{try{const c=await campaign(env);if(c.status==="active"&&c.post_id&&env.SOCIAL_BRIDGE)await scan(env,"cron",8)}catch(e){console.log("sorteios_sync_error",short(e.message,180))}})())}};
