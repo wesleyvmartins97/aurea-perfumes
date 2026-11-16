@@ -39,7 +39,69 @@ public class MainActivity extends Activity {
  void welcome(){screen="welcome";epoch++;root.removeAllViews();ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);LinearLayout l=column();l.setGravity(Gravity.CENTER);l.setPadding(dp(24),dp(32),dp(24),dp(32));l.setBackgroundColor(WINE);ImageView logo=new ImageView(this);welcomeLogo=logo;logo.setImageResource(R.drawable.brand_logo);logo.setContentDescription("Valenza V com diamante");l.addView(logo,new LinearLayout.LayoutParams(dp(170),dp(170)));TextView brand=text("V A L E N Z A",30,GOLD);brand.setTypeface(Typeface.create("serif",0));l.addView(brand);l.addView(text("P A R F U M S",17,GOLD));gap(l,24);TextView h=text("Sua próxima fragrância começa aqui.",23,PAPER);h.setGravity(Gravity.CENTER);l.addView(h);TextView desc=text("Explore, salve seus favoritos e acompanhe seus pedidos no seu aplicativo Valenza.",15,0xffdbcbd3);desc.setGravity(Gravity.CENTER);l.addView(desc);gap(l,18);Button login=button("Entrar ou criar minha conta",()->{buildShell();restoreSession(true);});login.setTextColor(WINE);login.setBackground(shape(GOLD,14));l.addView(login);Button browse=secondary("Explorar o catálogo",()->{buildShell();showCatalog(false);refreshCatalog();restoreSession(false);});l.addView(browse);l.addView(secondary(getPreferences(0).getBoolean("sound",true)?"Som da abertura: ligado":"Som da abertura: desligado",()->{boolean sound=!getPreferences(0).getBoolean("sound",true);getPreferences(0).edit().putBoolean("sound",sound).apply();welcome();}));scroll.addView(l);root.addView(scroll,new FrameLayout.LayoutParams(-1,-1));}
  void buildShell(){root.removeAllViews();shell=column();shell.setBackgroundColor(PAPER);root.addView(shell,new FrameLayout.LayoutParams(-1,-1));LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(20),dp(7),dp(12),dp(7));top.setBackgroundColor(WINE);ImageView mark=new ImageView(this);mark.setImageResource(R.drawable.brand_logo);mark.setScaleType(ImageView.ScaleType.FIT_CENTER);mark.setContentDescription("Valenza Parfums");top.addView(mark,new LinearLayout.LayoutParams(dp(39),dp(42)));LinearLayout wordmark=column();wordmark.setPadding(dp(10),0,0,0);TextView brand=text("VALENZA",18,GOLD);brand.setTypeface(Typeface.create("serif",0));brand.setLetterSpacing(.12f);wordmark.addView(brand);TextView parfum=text("P A R F U M S",8,0xffd7bf9a);wordmark.addView(parfum);top.addView(wordmark,new LinearLayout.LayoutParams(0,-2,1));Button refresh=new Button(this);refresh.setAllCaps(false);refresh.setText("↻ Atualizar");refresh.setTextSize(12);refresh.setTextColor(GOLD);refresh.setTypeface(Typeface.create("sans-serif-medium",0));refresh.setContentDescription("Atualizar loja: sincronizar preços, catálogo, benefícios e conferir nova versão do aplicativo");refresh.setPadding(dp(7),0,dp(7),0);refresh.setBackground(surface(0xff4e1934,13,0));refresh.setOnClickListener(v->checkAppUpdate());top.addView(refresh,new LinearLayout.LayoutParams(dp(104),dp(42)));shell.addView(top);
  promoStrip=text(getPreferences(0).getString("promoTicker","✧ 5% OFF NO PIX    ✧ ATÉ 3X SEM JUROS    ✧ FRETE PELO CEP    ✧ PERFUMES ÁRABES E IMPORTADOS"),12,GOLD);promoStrip.setSingleLine(true);promoStrip.setEllipsize(TextUtils.TruncateAt.MARQUEE);promoStrip.setHorizontallyScrolling(true);promoStrip.setMarqueeRepeatLimit(-1);promoStrip.setSelected(true);promoStrip.setPadding(dp(12),dp(7),dp(12),dp(7));promoStrip.setBackgroundColor(0xff421329);promoStrip.setContentDescription("Benefícios Valenza atualizados pelo site");shell.addView(promoStrip,new LinearLayout.LayoutParams(-1,dp(34)));progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setIndeterminate(true);progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(GOLD));progress.setVisibility(flight>0?View.VISIBLE:View.GONE);shell.addView(progress,new LinearLayout.LayoutParams(-1,dp(2)));FrameLayout host=new FrameLayout(this);host.setId(45671);shell.addView(host,new LinearLayout.LayoutParams(-1,0,1));View border=new View(this);border.setBackgroundColor(0xffeae4df);shell.addView(border,new LinearLayout.LayoutParams(-1,dp(1)));nav=new LinearLayout(this);nav.setPadding(dp(10),dp(5),dp(10),dp(5));nav.setBackgroundColor(Color.WHITE);shell.addView(nav);navigation();}
- void navigation(){if(nav==null)return;nav.removeAllViews();String[] labels={"Explorar","Favoritos","Sacola"+(cart.length()>0?" · "+cart.length():""),"Conta"},symbols={"search","heart","bag","person"};for(int i=0;i<labels.length;i++){final int tab=i;boolean active=(i==0&&(screen.equals("home")||screen.equals("detail")))||(i==1&&screen.equals("favorites"))||(i==2&&(screen.equals("cart")||screen.equals("checkout")))||(i==3&&(screen.equals("account")||screen.equals("login")));LinearLayout item=column();item.setGravity(Gravity.CENTER);item.setPadding(0,dp(6),0,dp(4));item.setBackground(surface(active?0xfff5edf0:Color.WHITE,18,0));ImageView glyph=icon(symbols[i],active?WINE:0xff8c8086);item.addView(glyph,new LinearLayout.LayoutParams(dp(23),dp(23)));TextView label=text(labels[i],10,active?WINE:MUTED);label.setPadding(0,dp(4),0,0);label.setGravity(Gravity.CENTER);label.setIncludeFontPadding(false);label.setSingleLine(true);label.setTypeface(Typeface.create(active?"sans-serif-medium":"sans-serif",0));item.addView(label,new LinearLayout.LayoutParams(-1,dp(20)));item.setContentDescription(labels[i]);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(64),1);lp.setMargins(dp(3),0,dp(3),0);nav.addView(item,lp);item.setOnClickListener(v->{if(paymentBusy){toast("Aguarde a resposta do pagamento.");return;}if(tab==0)showCatalog(false);if(tab==1){if(requireLogin())showCatalog(true);}if(tab==2){if(requireLogin())showCart();}if(tab==3)showAccount();});}}
+ void navigation(){
+  if(nav==null)return;
+  nav.removeAllViews();
+  nav.setOrientation(LinearLayout.HORIZONTAL);
+  nav.setGravity(Gravity.CENTER_VERTICAL);
+  nav.setClipChildren(false);
+  nav.setClipToPadding(false);
+  final String[] labels={"Explorar","Favoritos","Sacola","Conta"};
+  final String[] symbols={"search","heart","bag","person"};
+  final int count=cart.length();
+  for(int i=0;i<labels.length;i++){
+   final int tab=i;
+   final boolean active=(i==0&&(screen.equals("home")||screen.equals("detail")))||
+       (i==1&&screen.equals("favorites"))||
+       (i==2&&(screen.equals("cart")||screen.equals("checkout")))||
+       (i==3&&(screen.equals("account")||screen.equals("login")));
+   // A FrameLayout ocupa exatamente 1/4 da largura. O icone e o nome
+   // sao centralizados individualmente, nao dependem da medida inicial
+   // de um TextView MATCH_PARENT dentro de um LinearLayout com peso.
+   FrameLayout item=new FrameLayout(this);
+   item.setBackground(surface(active?0xfff5edf0:Color.WHITE,18,0));
+   item.setClickable(true);
+   item.setFocusable(true);
+   item.setContentDescription(labels[i]+(i==2&&count>0?" ("+count+" itens)":""));
+   ImageView glyph=icon(symbols[i],active?WINE:0xff8c8086);
+   glyph.setScaleType(ImageView.ScaleType.FIT_CENTER);
+   FrameLayout.LayoutParams glyphLp=new FrameLayout.LayoutParams(dp(26),dp(26),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+   glyphLp.topMargin=dp(9);
+   item.addView(glyph,glyphLp);
+   TextView label=text(labels[i],11,active?WINE:MUTED);
+   label.setTypeface(Typeface.create(active?"sans-serif-medium":"sans-serif",0));
+   label.setSingleLine(true);
+   label.setEllipsize(TextUtils.TruncateAt.END);
+   label.setIncludeFontPadding(false);
+   label.setGravity(Gravity.CENTER);
+   label.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+   label.setPadding(dp(3),0,dp(3),0);
+   FrameLayout.LayoutParams labelLp=new FrameLayout.LayoutParams(-1,dp(22),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+   labelLp.bottomMargin=dp(5);
+   item.addView(label,labelLp);
+   if(i==2&&count>0){
+    TextView badge=text(count>99?"99+":String.valueOf(count),9,Color.WHITE);
+    badge.setGravity(Gravity.CENTER);
+    badge.setSingleLine(true);
+    badge.setIncludeFontPadding(false);
+    badge.setBackground(surface(WINE,14,0));
+    FrameLayout.LayoutParams badgeLp=new FrameLayout.LayoutParams(dp(count>99?27:22),dp(19),Gravity.TOP|Gravity.CENTER_HORIZONTAL);
+    badgeLp.leftMargin=dp(27);
+    badgeLp.topMargin=dp(4);
+    item.addView(badge,badgeLp);
+   }
+   LinearLayout.LayoutParams itemLp=new LinearLayout.LayoutParams(0,dp(70),1f);
+   itemLp.setMargins(dp(2),0,dp(2),0);
+   nav.addView(item,itemLp);
+   item.setOnClickListener(v->{
+    if(paymentBusy){toast("Aguarde a resposta do pagamento.");return;}
+    if(tab==0)showCatalog(false);
+    if(tab==1){if(requireLogin())showCatalog(true);}
+    if(tab==2){if(requireLogin())showCart();}
+    if(tab==3)showAccount();
+   });
+  }
+ }
 
  LinearLayout begin(String name,String heading){screen=name;epoch++;if(pixPoll!=null)main.removeCallbacks(pixPoll);FrameLayout host=shell.findViewById(45671);host.removeAllViews();ScrollView scroll=new ScrollView(this);page=column();page.setPadding(dp(20),dp(18),dp(20),dp(28));scroll.addView(page);host.addView(scroll);if(!heading.isEmpty())page.addView(title(heading));navigation();return page;}
  void backButton(Runnable r){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);ImageView back=iconButton("back","Voltar",r);row.addView(back,new LinearLayout.LayoutParams(dp(44),dp(44)));TextView label=text("Voltar",13,MUTED);label.setPadding(dp(10),0,0,0);label.setOnClickListener(v->r.run());row.addView(label);page.addView(row);gap(page,14);}
