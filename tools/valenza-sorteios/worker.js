@@ -184,6 +184,18 @@ if(p==="/api/testar-meta"&&request.method==="GET"){
 }
 if(p==="/api/sync"&&request.method==="POST")return json(await scan(env,actor));
 if(p==="/api/review"&&request.method==="POST")return json(await review(env,actor,await request.json()));
+if(p==="/api/audit-csv"&&request.method==="GET"){
+ const c=await campaign(env);if(!c.post_id)throw Error("Post oficial ainda nao vinculado");
+ const sql="SELECT c.id,c.media_id,c.username,c.body,c.tags,c.base_valid,c.reason,c.created_at,COALESCE(k.follow_valenza,'pending') follow_valenza,COALESCE(k.follow_jessica,'pending') follow_jessica,COALESCE(k.liked_post,'pending') liked_post,COALESCE(k.story,'pending') story FROM comments c LEFT JOIN checks k ON k.username=c.username WHERE c.media_id=? ORDER BY c.created_at,c.id LIMIT 15001";
+ const result=await env.DB.prepare(sql).bind(c.post_id).all(),rows=result.results||[];
+ if(rows.length>15000)throw Error("Mais de 15000 comentarios: exportar auditoria em lotes");
+ const names=["ID","PostID","Perfil","Comentario","Marcacoes","Valido","Motivo","Data","SegueValenza","SegueJessica","Curtiu","Story"];
+ const lines=[names.map(textCsv).join(";"),...rows.map(r=>[r.id,r.media_id,r.username,r.body,r.tags,r.base_valid,r.reason,r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story].map(textCsv).join(";"))];
+ const content=String.fromCharCode(65279)+lines.join(String.fromCharCode(13,10));
+ const bytes=new TextEncoder().encode(content),digest=await crypto.subtle.digest("SHA-256",bytes);
+ const sha256=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,"0")).join("");
+ return new Response(content,{headers:{...H,"Content-Type":"text/csv; charset=utf-8","Content-Disposition":'attachment; filename="valenza-auditoria-completa.csv"',"X-Valenza-SHA256":sha256,"X-Valenza-Registros":String(rows.length)}});
+}
 if(p==="/api/export"&&request.method==="GET"){const only=u.searchParams.get("set")!=="valid",f=u.searchParams.get("format")||"csv",rows=await approvedRows(env,only);if(!rows.length)throw Error("Sem participacoes nessa categoria. Nao exportar lista vazia como aprovada.");const stem="valenza-"+(only?"aprovados":"prequalificados")+"-"+new Date().toISOString().slice(0,10);if(f==="xlsx")return download(xlsx(rows),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",stem+".xlsx");if(f==="pdf")return download(pdf(rows,only),"application/pdf",stem+".pdf");if(f==="csv"){const h=["Numero","Perfil","Comentario","Amigo1","Amigo2","Data","Segue Valenza","Segue Jessica","Curtiu","Story"];const all=[h.join(";"),...rows.map((r,i)=>{let t=JSON.parse(r.tags);return [i+1,r.username,r.id,t[0],t[1],r.created_at,r.follow_valenza,r.follow_jessica,r.liked_post,r.story].map(textCsv).join(";")})];return download("\uFEFF"+all.join("\r\n"),"text/csv; charset=utf-8",stem+".csv")}throw Error("Formato invalido")}
 if(p==="/api/selftest")return json({ok:true,tests:[parse("@ana @bruno","cliente"),parse("@ana @ana @bruno","cliente"),parse("@cliente @bruno","cliente"),parse("@valenza.parfumsimportados @bruno","cliente"),parse("email nome@dominio.com @ana","cliente")]});
 return fail("Pagina nao encontrada",404)}catch(e){return fail(e?.message||e)}},async scheduled(event,env,ctx){ctx.waitUntil((async()=>{try{const c=await campaign(env);if(c.status==="active"&&c.post_id&&env.SOCIAL_BRIDGE)await scan(env,"cron",8)}catch(e){console.log("sorteios_sync_error",short(e.message,180))}})())}};
