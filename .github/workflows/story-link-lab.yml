@@ -1,0 +1,29 @@
+name: Teste isolado Story com link (sem publicar)
+on:
+  push:
+    branches:
+      - lab-story-links-isolado-20261118
+    paths:
+      - "scripts/story-link-lab/**"
+      - ".github/workflows/story-link-lab.yml"
+  pull_request:
+    paths:
+      - "scripts/story-link-lab/**"
+      - ".github/workflows/story-link-lab.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dry-run-sem-conta-instagram:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Checar sintaxe
+        run: python -m py_compile scripts/story-link-lab/story_link_lab.py scripts/story-link-lab/test_story_link_lab.py
+      - name: Testar dados, autorização e proteção de duplicidade
+        run: python -m unittest discover -s scripts/story-link-lab -p "test_*.py" -v
+      - name: Simulação SEM login, SEM Instagram, SEM publicação
+        run: python scripts/story-link-lab/story_link_lab.py
