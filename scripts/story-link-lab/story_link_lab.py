@@ -2,7 +2,7 @@
 """Prova isolada para Story COM link, sem mudar a fila da Valenza.
 
 Sem argumentos, faz exclusivamente simulação (nenhum login, rede ou publicação).
-A publicação de teste exige conta SECUNDÁRIA, ação explícita e é apagada após
+A publicação de teste exige conta PESSOAL @wesleyvmartins, ação explícita e é apagada após
 verificação. NUNCA publicar na conta principal valenza.parfumsimportados.
 """
 from __future__ import annotations
@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 OFFICIAL_USER = "valenza.parfumsimportados"
+PERSONAL_TEST_USER = "wesleyvmartins"
 ALLOWED_DESTINATIONS = {"valenzaparfums.com.br", "www.valenzaparfums.com.br"}
 ALLOWED_IMAGES = {"valenza-social-admin.aureaperfumes.workers.dev"}
 
@@ -64,12 +65,12 @@ def approved_image_to_temp(url: str, directory: Path) -> Path:
 
 def publish_only_secondary(manifest: dict, url: str, test_username: str) -> dict:
     test_username = test_username.strip().lstrip("@").lower()
-    if not test_username or test_username == OFFICIAL_USER:
-        raise ValueError("Nunca execute o teste na conta principal da Valenza.")
+    if test_username != PERSONAL_TEST_USER:
+        raise ValueError("Este teste só permite a conta pessoal @wesleyvmartins. A Valenza permanece protegida.")
     password = os.environ.get("IG_TEST_PASSWORD")
     if not password:
         raise RuntimeError(
-            "IG_TEST_PASSWORD deve ser configurado LOCALMENTE para a conta secundária. "
+            "IG_TEST_PASSWORD deve ser configurado LOCALMENTE para a conta pessoal do Wesley. "
             "Não envie senha nem sessão ao ChatGPT/GitHub."
         )
     try:
@@ -79,11 +80,11 @@ def publish_only_secondary(manifest: dict, url: str, test_username: str) -> dict
         raise RuntimeError("Instale instagrapi >=3.2 com correção de StoryLink.") from e
 
     cl = Client()
-    # Autenticação apenas na conta de testes, sem usar tokens do Meta/Direct.
+    # Autenticação apenas na conta pessoal do Wesley, sem usar tokens do Meta/Direct.
     cl.login(test_username, password)
     actual = str(cl.account_info().username).lower()
-    if actual != test_username or actual == OFFICIAL_USER:
-        raise RuntimeError("Login não corresponde à conta secundária autorizada.")
+    if actual != PERSONAL_TEST_USER or actual == OFFICIAL_USER:
+        raise RuntimeError("Login não corresponde à conta pessoal autorizada do Wesley.")
 
     with tempfile.TemporaryDirectory(prefix="valenza-story-lab-") as folder:
         image = approved_image_to_temp(manifest["image"], Path(folder))
@@ -99,7 +100,7 @@ def publish_only_secondary(manifest: dict, url: str, test_username: str) -> dict
             ]
             ok = url in linked
             result = {
-                "uploaded_to_secondary": True,
+                "uploaded_to_personal": True,
                 "verified_link": ok,
                 "story_pk": str(story.pk),
                 "finding": "LINK_OK" if ok else "LINK_NOT_FOUND_IN_READBACK",
@@ -109,7 +110,7 @@ def publish_only_secondary(manifest: dict, url: str, test_username: str) -> dict
             if story is not None:
                 deleted = cl.story_delete(int(story.pk))
                 if not deleted:
-                    raise RuntimeError("O Story de teste não pôde ser excluído da conta secundária.")
+                    raise RuntimeError("O Story de teste não pôde ser excluído da conta pessoal.")
     result["story_deleted_after_test"] = True
     return result
 
@@ -117,8 +118,8 @@ def publish_only_secondary(manifest: dict, url: str, test_username: str) -> dict
 def main() -> int:
     ap = argparse.ArgumentParser(description="Laboratório isolado; padrão = simulação")
     ap.add_argument("--manifest", type=Path, default=Path(__file__).with_name("sabah-pearl-story-lab.json"))
-    ap.add_argument("--publish-test", action="store_true", help="Usa apenas conta secundária autorizada")
-    ap.add_argument("--test-account", default="", help="Username de conta secundária, nunca Valenza")
+    ap.add_argument("--publish-test", action="store_true", help="Usa apenas conta pessoal autorizada")
+    ap.add_argument("--test-account", default="", help="Username de conta pessoal, nunca Valenza")
     args = ap.parse_args()
     manifest = load_manifest(args.manifest)
     link = test_link(manifest)
@@ -133,8 +134,8 @@ def main() -> int:
             "official_account_used": False,
         }, ensure_ascii=False, indent=2))
         return 0
-    if args.test_account.strip().lstrip("@").lower() == OFFICIAL_USER:
-        raise ValueError("A conta principal da Valenza é bloqueada neste laboratório.")
+    if args.test_account.strip().lstrip("@").lower() != PERSONAL_TEST_USER:
+        raise ValueError("Somente @wesleyvmartins pode publicar o teste. A conta Valenza está bloqueada.")
     print(json.dumps(publish_only_secondary(manifest, link, args.test_account), ensure_ascii=False, indent=2))
     return 0
 
