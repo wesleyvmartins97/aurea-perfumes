@@ -14,7 +14,7 @@ const n=x=>String(x||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowe
 const hard=(t,h)=>{
  const s=n(t);
  if(h?.alreadyReplied||h?.commentProcessed||h?.privateReplySent)return ["ignore","duplicate"];
- if(/meu pedido|pedido atrasado|nao chegou|nao recebi|reembolso|estorno|alergia|reclamacao|produto quebrado|chegou quebrado|veio errado|vazando|insatisfeit|paguei e nao|cobrado duas vezes|pedido cancelado/.test(s))return ["human","customer_issue"];
+ if(/meu pedido|pedido atrasado|nao chegou|nao recebi|reembolso|estorno|alergia|reclamacao|produto quebrado|chegou quebrado|veio errado|vazando|insatisfeit|paguei e nao|cobrado duas vezes|cobraram duas vezes|cobranca duplicada|cobrou duas vezes|pedido cancelado/.test(s))return ["human","customer_issue"];
  if(/nao quero|nao preciso|pare de|nao me chame|sem interesse/.test(s))return ["ignore","optout"];
  if(/ignore.*instrucoes|token secreto|api key|system prompt|instrucoes anteriores|revele sua|mostre seu token|senha do sistema|desative.*filtro|finja que/.test(s))return ["ignore","injection"];
  return null;
