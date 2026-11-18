@@ -1,3 +1,18 @@
+# VALENZA — INSTRUÇÕES VIGENTES (18/11/2026)
+ 
+Estas regras prevalecem sobre referências históricas de câmbio, custos e comparação de preços presentes adiante neste arquivo e em documentos antigos. São instruções para futuras alterações; **não autorizam mudanças de preços existentes sem verificar dados atuais e receber pedido específico**.
+
+- Antes de qualquer precificação, consultar `fx_rate_state.current` na D1 de produção e os custos efetivos do item. Última taxa operacional confirmada: R$ 5,80/US$ em 15/11/2026; não presumir que continue válida em outras datas.
+- Perfumes: custo base = USD da apresentação exata × câmbio operacional D1 + R$ 40 travessia + R$ 35 transporte unitário; considerar demais custos reais quando aplicáveis.
+- Body splash: regra separada, R$ 12 travessia por unidade + rateio do frete real da remessa (referência de até R$ 40 para até 15 unidades); nunca aplicar automaticamente as despesas de perfume.
+- Usar margem bruta de venda mínima de 40% sobre o custo, com a fórmula correta e análise do impacto do desconto Pix. Comparar a apresentação exata com preços normais de três perfumarias brasileiras especializadas e, quando possível, vender abaixo da menor sem violar a margem; não usar Shopee, Mercado Livre nem marketplaces como referência.
+- Preferir ComprasParaguai como pesquisa de custo USD quando acessível e verificável. Sem preço verificável, não inventar cotação nem alterar catálogo. Respeitar a versão, ml e frasco+caixa original.
+- Não reconfigurar o chatbot/Direct, a fila social, o sorteio, os meios de pagamento, as contas administrativas, as tabelas de pedidos, os segredos nem a vitrine durante trabalhos de analytics. Protegê-los com testes e rollback.
+- Separar **pedido criado**, **pagamento confirmado**, **receita recebida**, **custo registrado**, **lucro bruto estimado** e **lucro líquido**. Eventos de navegação, carrinho e checkout não equivalem a vendas.
+- Em análise de campanha, usar origem, mídia e campanha UTM onde disponíveis; visitas administrativas e de teste devem ser sinalizadas, nunca tratadas automaticamente como clientes reais. Não atribuir venda a um Reel sem vínculo comprovado com pagamento.
+ 
+---
+
 # VALENZA — padrão aprovado de computador e celular
 
 O usuário aprovou o visual atual e pediu que fosse preservado nas próximas atualizações.
