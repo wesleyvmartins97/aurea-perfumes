@@ -129,6 +129,8 @@ jobs:
         run: node scripts/test-analytics-event-safety.mjs
       - name: Conferir campanhas rastreadas no painel existente
         run: node scripts/test-analytics-campaign-admin.mjs
+      - name: Garantir que sessões de administradores não poluam GA4 e Pixel
+        run: node scripts/test-analytics-internal-browser.mjs
       - name: Validar sintaxe do painel administrativo
         run: node --check public/admin-account.js
       - name: Validar painel administrativo
