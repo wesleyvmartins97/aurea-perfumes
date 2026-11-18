@@ -922,12 +922,14 @@ function renderAdminBody(){
    }
    const medium={reel:'organic_social',story:'story',bio:'bio',direct:'direct_message',ads:'paid_social'}[channel];
    const source=channel==='ads'?'meta':'instagram';
-   const day=new Date().toISOString().slice(0,10).replace(/-/g,'');
-   const unique=utmSlug(utmContent.value)||'link';
+   const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/-/g,'');
+   const unique=utmSlug(utmContent.value);
+   // The server already stores campaign, not utm_content: put each publication ID there.
+   const campaign=('valenza_'+day+'_'+channel+'_'+label+(unique?'_'+unique:'')).slice(0,120);
    url.searchParams.set('utm_source',source);
    url.searchParams.set('utm_medium',medium);
-   url.searchParams.set('utm_campaign','valenza_'+day+'_'+label);
-   url.searchParams.set('utm_content',channel+'_'+unique);
+   url.searchParams.set('utm_campaign',campaign);
+   url.searchParams.set('utm_content',channel+'_'+(unique||label));
    utmResult.value=url.toString();utmCopy.disabled=false;
    utmFeedback.textContent='Link gerado sem alterar o site, o Direct ou a agenda. Copie e utilize somente na nova publicação.'
   };
