@@ -20,3 +20,7 @@ test("bloqueia URL externa nas respostas",async()=>{const x=await interpretHuman
 test("bloqueia preço inventado",async()=>{const x=await interpretHuman(SCENARIOS.preco,m("duvida","publico","Só R$ 59,90!"));assert.doesNotMatch(x.reply,/59,90/)});
 test("cenários disponíveis",()=>assert.ok(Object.keys(SCENARIOS).length>=9));
 test("respostas humanizadas curtas",async()=>{const x=await interpretHuman(SCENARIOS.presente,m("presente","publico","Que carinho! Ela gosta mais de fragrâncias suaves ou marcantes? 💛"));assert.ok(x.reply.length<180)});
+
+test("presente não pode virar reclamação por erro do modelo",async()=>{const x=await interpretHuman(SCENARIOS.presente,m("presente","humano","Sinto muito pelo transtorno"));assert.equal(x.action,"public");assert.match(x.reply,/presente|fragrância/i);assert.doesNotMatch(x.reply,/transtorno|sinto muito/i)});
+test("comparação não pode inventar notas",async()=>{const x=await interpretHuman(SCENARIOS.comparacao,m("comparacao","publico","Esse é comprovadamente mais doce e mais suave que o Good Girl"));assert.doesNotMatch(x.reply,/comprovadamente/i)});
+test("resposta sem contexto real não pode escalar por conta própria",async()=>{const x=await interpretHuman(SCENARIOS.frasco,m("reclamacao","humano","Abri chamado para Jéssica"));assert.equal(x.action,"public");assert.doesNotMatch(x.reply,/chamado|transtorno/i)});
