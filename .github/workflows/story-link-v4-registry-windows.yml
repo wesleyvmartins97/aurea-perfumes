@@ -1,0 +1,59 @@
+name: Valenza LAB V4 - Windows PowerShell registry regression
+on:
+  push:
+    branches:
+      - lab-story-links-isolado-20261118
+    paths:
+      - ".github/workflows/story-link-v4-registry-windows.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/story-link-v4-registry-windows.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  python-registry-discovery:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: "Reproduzir caminho do registro com Windows PowerShell 5.1"
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonExe = (Get-Command python.exe).Source
+          $pythonDir = Split-Path -Parent $pythonExe
+          $regPath = 'HKCU:\Software\Python\PythonCore\ValenzaV4Regression\InstallPath'
+          New-Item -Path $regPath -Force | Out-Null
+          Set-Item -Path $regPath -Value $pythonDir
+          try {
+            $found = $null
+            foreach ($regRoot in @('HKCU:\Software\Python\PythonCore','HKLM:\Software\Python\PythonCore','HKLM:\Software\WOW6432Node\Python\PythonCore')) {
+              if (-not (Test-Path $regRoot)) { continue }
+              foreach ($ver in (Get-ChildItem $regRoot -ErrorAction SilentlyContinue)) {
+                $regInstall = Join-Path $ver.PSPath 'InstallPath'
+                if (Test-Path $regInstall) {
+                  $key = Get-Item $regInstall
+                  $pythonHomeDir = [string]$key.GetValue('')
+                  $exe = [string]$key.GetValue('ExecutablePath')
+                  if ($exe -and (Test-Path -LiteralPath $exe -PathType Leaf)) { $found = $exe }
+                  if ($pythonHomeDir -and (Test-Path -LiteralPath (Join-Path $pythonHomeDir 'python.exe') -PathType Leaf)) { $found = Join-Path $pythonHomeDir 'python.exe' }
+                }
+              }
+            }
+            if (-not $found) { throw 'Windows Python Registry discovery V4 failed' }
+            $venv = Join-Path $env:RUNNER_TEMP 'valenza-lab-v4-regression'
+            & $found -m venv $venv
+            if ($LASTEXITCODE -ne 0) { throw 'Python -m venv failed' }
+            $labPy = Join-Path $venv 'Scripts\python.exe'
+            if (-not (Test-Path -LiteralPath $labPy -PathType Leaf)) { throw 'Python venv executable was not created' }
+            $testVersion = & $labPy -c 'import sys;print("PYOK" if sys.version_info >= (3,11) else "PYNO")'
+            if ($LASTEXITCODE -ne 0 -or $testVersion -ne 'PYOK') { throw 'Python version check failed' }
+            Write-Host 'WINDOWS POWERSHELL V4 REGISTRY DISCOVERY + ISOLATED VENV: PASS'
+          }
+          finally {
+            Remove-Item -Path 'HKCU:\Software\Python\PythonCore\ValenzaV4Regression' -Recurse -Force -ErrorAction SilentlyContinue
+          }
