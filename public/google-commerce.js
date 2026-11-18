@@ -55,6 +55,11 @@ function uid(){
 function consentGranted(){
  try{return localStorage.getItem(CONSENT_KEY)==='granted'}catch{return false}
 }
+// Admin browsers are tagged for four hours after successful admin authentication.
+// This is a measurement-only flag: no checkout, client data or orders are modified.
+function internalAnalyticsBrowser(){
+ try{return Date.now()<Number(localStorage.getItem('valenza_analytics_internal_until')||0)}catch{return false}
+}
 function visitorId(){
  try{let id=localStorage.getItem(VISITOR_KEY)||'';if(!/^[A-Za-z0-9_-]{8,80}$/.test(id)){id=uid();localStorage.setItem(VISITOR_KEY,id)}return id}catch{return uid()}
 }
@@ -88,7 +93,7 @@ function internalTrack(name,params={}){
   eventId:uid(),visitorId:visitorId(),sessionId:sessionId(),eventName:String(name||''),
   pagePath:location.pathname,
   productId:String(first?.item_id||''),productName:String(first?.item_name||''),
-  value:Number(params.value||0),transactionId:String(params.transaction_id||''),
+  value:Number(params.value||0),transactionId:String(params.transaction_id||''),internalTest:internalAnalyticsBrowser(),
   source:String(a.source||''),medium:String(a.medium||''),campaign:String(a.campaign||''),referrerHost:String(a.referrerHost||'')
  };
  fetch('/api/analytics/event',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',keepalive:true,body:JSON.stringify(payload)}).catch(()=>{});
@@ -149,7 +154,7 @@ async function loadMetaConfig(){
   if(r.ok&&d.ok&&d.enabled&&/^\d{5,30}$/.test(String(d.pixelId||'')))metaPixelId=String(d.pixelId);
  }catch{}
  metaConfigLoaded=true;
- if(consentGranted())startMeta();
+ if(consentGranted()&&!internalAnalyticsBrowser())startMeta();
 }
 
 // Route Analytics events explicitly; only a confirmed purchase reaches Ads conversion.
@@ -167,6 +172,8 @@ function sendGoogleEvent(name,params={}){
 function emit(name,params={}){
  if(!consentGranted())return false;
  const internal=internalTrack(name,params);
+ // Do not send known internal/admin testing events to GA4 or Meta Pixel/CAPI.
+ if(internalAnalyticsBrowser())return internal;
  // Preserve events while configuration and the Google library load.
  if(ready&&typeof window.gtag==='function')sendGoogleEvent(name,params);
  else{
@@ -178,7 +185,7 @@ function emit(name,params={}){
  return internal||ready||meta;
 }
 function loadGoogleTag(){
- if(!consentGranted()||ready||loading||!/^G-[A-Z0-9]+$/i.test(measurementId))return;
+ if(!consentGranted()||internalAnalyticsBrowser()||ready||loading||!/^G-[A-Z0-9]+$/i.test(measurementId))return;
  loading=true;
  window.dataLayer=window.dataLayer||[];
  window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};
@@ -248,7 +255,7 @@ async function init(){
  }catch{}
  let consent='';try{consent=localStorage.getItem(CONSENT_KEY)||''}catch{}
  loadMetaConfig().catch(()=>{});
- if(consent==='granted'){trackInternalPageView();loadGoogleTag();refreshGrantedDeviceLocation()}
+ if(consent==='granted'){trackInternalPageView();if(!internalAnalyticsBrowser())loadGoogleTag();refreshGrantedDeviceLocation()}
  else if(consent!=='denied')consentBanner();
 }
 

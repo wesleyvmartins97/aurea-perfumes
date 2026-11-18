@@ -173,12 +173,13 @@ async function loginAdmin(){
   adminStatusState={...(adminStatusState||{}),authenticated:true,configured:true};await loadDashboard();
  }catch(e){box.textContent=adminErrorMessage(e,'Não foi possível entrar no painel agora. Tente novamente.');box.style.display='block'}
 }
-async function logoutAdmin(){stopAdminSaleWatcher();await fetch('/api/admin/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{});adminData=null;if(adminStatusState)adminStatusState.authenticated=false;lockView('login')}
+async function logoutAdmin(){try{localStorage.removeItem('valenza_analytics_internal_until')}catch{}stopAdminSaleWatcher();await fetch('/api/admin/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{});adminData=null;if(adminStatusState)adminStatusState.authenticated=false;lockView('login')}
 async function loadDashboard(){
  const m=main();m.innerHTML='<div class="ccEmpty">Carregando painel administrativo...</div>';
  try{
   const r=await fetch('/api/admin/dashboard?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),d=await r.json().catch(()=>({}));
-  if(!r.ok||!d.ok){if(r.status===401){if(adminStatusState)adminStatusState.authenticated=false;lockView('login');return}throw Error(d.error||'Não foi possível carregar o painel.')}
+  if(!r.ok||!d.ok){if(r.status===401){try{localStorage.removeItem('valenza_analytics_internal_until')}catch{};if(adminStatusState)adminStatusState.authenticated=false;lockView('login');return}throw Error(d.error||'Não foi possível carregar o painel.')}
+  try{localStorage.setItem('valenza_analytics_internal_until',String(Date.now()+4*60*60*1000))}catch{}
   try{
    const cr=await fetch('/api/admin/products/catalog?t='+Date.now(),{cache:'no-store',credentials:'same-origin'}),cd=await cr.json().catch(()=>({}));
    if(cr.ok&&cd.ok&&Array.isArray(cd.products)&&typeof CATALOG!=='undefined'&&Array.isArray(CATALOG)){
@@ -885,6 +886,58 @@ function renderAdminBody(){
   const prodHtml=products.length?products.map(x=>'<div class="vaAnalyticsRow"><div><b>'+esc(x.product_name||x.product_id||'Produto')+'</b><small>'+Number(x.carts||0)+' adição(ões) ao carrinho</small></div><div class="vaAnalyticsValue">'+Number(x.views||0)+' visualização(ões)</div></div>').join(''):'<div class="vaEmpty">Ainda sem visualizações de produtos registradas.</div>';
   const dailyHtml=daily.length?daily.map(x=>{const label=(()=>{try{return new Date(String(x.day)+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}catch{return esc(x.day)}})();return '<div class="vaAnalyticsRow"><div><b>'+label+'</b><small>'+Number(x.product_views||0)+' produto(s) visto(s) · '+Number(x.checkouts||0)+' checkout(s)</small></div><div class="vaAnalyticsValue">'+Number(x.sessions||0)+' visita(s) · '+Number(x.purchases||0)+' compra(s)</div></div>'}).join(''):'<div class="vaEmpty">A série diária começa a aparecer após as primeiras visitas medidas.</div>';
   body.innerHTML='<div class="vaAnalyticsIntro"><b>Analytics da VALENZA</b><span>O GA4 continua ativo em paralelo. Esta tela usa a medição própria da VALENZA, com consentimento, para mostrar o funil e localização aproximada por cidade/estado. Não armazena IP, endereço, latitude, longitude ou CEP da visita. Os números desta tela começam a contar a partir da ativação desta integração.</span></div><div class="vaMetrics">'+cards.map(x=>'<div class="vaMetric"><span>'+esc(x[0])+'</span><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></div>').join('')+'</div><div class="vaPanel" style="margin-bottom:12px"><h3>Funil · últimos 30 dias</h3><div class="vaFunnel"><div><span>VISUALIZOU PRODUTO</span><b>'+Number(a.productViews30d||0)+'</b></div><div><span>ADICIONOU AO CARRINHO</span><b>'+Number(a.addToCart30d||0)+'</b></div><div><span>INICIOU CHECKOUT</span><b>'+Number(a.beginCheckout30d||0)+'</b></div><div><span>COMPRA RASTREADA</span><b>'+Number(a.purchases30d||0)+'</b></div></div></div><div class="vaAnalyticsGrid"><div class="vaPanel"><h3>Localização das visitas</h3><div class="vaAnalyticsList">'+locHtml+'</div></div><div class="vaPanel"><h3>Origem do tráfego</h3><div class="vaAnalyticsList">'+srcHtml+'</div><h3 style="margin-top:16px">Campanhas rastreadas</h3><div class="vaAnalyticsList">'+campaignHtml+'</div></div><div class="vaPanel"><h3>Produtos mais vistos</h3><div class="vaAnalyticsList">'+prodHtml+'</div></div><div class="vaPanel"><h3>Últimos 7 dias</h3><div class="vaAnalyticsList">'+dailyHtml+'</div></div></div>';
+  // Controls are part of the EXISTING Analytics tab; no new panel or extra server.
+  const intelligenceBox=document.createElement('div');
+  intelligenceBox.className='vaPanel';
+  intelligenceBox.style.marginBottom='12px';
+  intelligenceBox.innerHTML='<h3>Valenza Intelligence · campanhas e tráfego confiável</h3>'+
+   '<p style="font-size:10px;line-height:1.7;color:#777">As sessões de administradores identificados e as marcadas como teste ficam separadas do funil, sem apagar dados. A classificação começou nesta atualização: acessos anteriores podem conter testes. Não considere qualquer visita do ChatGPT automaticamente interna.</p>'+
+   '<div class="vaMetrics"><div class="vaMetric"><span>SESSÕES MARCADAS COMO TESTE</span><b>'+Number(a.testSessions30d||0)+'</b><small>Últimos 30 dias · fora do funil</small></div><div class="vaMetric"><span>ORIGEM CHATGPT NÃO CLASSIFICADA</span><b>'+Number(a.unclassifiedChatgpt30d||0)+'</b><small>Pode incluir clientes ou testes antigos</small></div></div>'+
+   '<p style="font-size:10px;line-height:1.7;margin:12px 0">📈 <a href="https://valenza-social-admin.aureaperfumes.workers.dev/social/growth" target="_blank" rel="noopener noreferrer">Ver Reels, seguidores e desempenho no painel social existente</a> · requer acesso de administrador do Social Admin. Dados de alcance não são vendas.</p>'+
+   '<details id="vaUtmDetails" style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;font-weight:700;padding:8px 0">Criar link rastreável para Reel, Story, bio ou Direct</summary>'+
+    '<div style="display:grid;gap:8px;padding:10px 0">'+
+     '<label style="font-size:10px">Link oficial de destino<input id="vaUtmDestination" type="url" value="https://www.valenzaparfums.com.br/" placeholder="https://www.valenzaparfums.com.br/perfume/..." style="display:block;width:100%;margin-top:4px"></label>'+
+     '<label style="font-size:10px">Identificação do perfume ou campanha<input id="vaUtmLabel" type="text" placeholder="ex.: sabah-al-ward" maxlength="60" style="display:block;width:100%;margin-top:4px"></label>'+
+     '<label style="font-size:10px">Canal<select id="vaUtmType" style="display:block;width:100%;margin-top:4px"><option value="reel">Reel</option><option value="story">Story</option><option value="bio">Bio</option><option value="direct">Direct</option><option value="ads">Anúncio Meta</option></select></label>'+
+     '<label style="font-size:10px">Código ou ID da publicação (opcional)<input id="vaUtmContent" type="text" maxlength="60" placeholder="ex.: Df0bvQWRJ6w" style="display:block;width:100%;margin-top:4px"></label>'+
+     '<div style="display:flex;flex-wrap:wrap;gap:8px"><button id="vaUtmBuild" class="ccBtn" type="button">GERAR LINK</button><button id="vaUtmCopy" class="ccBtn" type="button" disabled>COPIAR LINK</button></div>'+
+     '<textarea id="vaUtmResult" readonly rows="3" style="width:100%;resize:vertical;font-size:10px;box-sizing:border-box" placeholder="O link rastreável aparece aqui"></textarea><div id="vaUtmFeedback" role="status" style="font-size:10px;color:#777">Use este link no sticker do Story, na bio ou no Direct. Links de legendas de feed não são clicáveis.</div>'+
+    '</div></details>';
+  body.prepend(intelligenceBox);
+  const utmDest=intelligenceBox.querySelector('#vaUtmDestination');
+  const utmLabel=intelligenceBox.querySelector('#vaUtmLabel');
+  const utmType=intelligenceBox.querySelector('#vaUtmType');
+  const utmContent=intelligenceBox.querySelector('#vaUtmContent');
+  const utmResult=intelligenceBox.querySelector('#vaUtmResult');
+  const utmCopy=intelligenceBox.querySelector('#vaUtmCopy');
+  const utmFeedback=intelligenceBox.querySelector('#vaUtmFeedback');
+  const utmSlug=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60);
+  intelligenceBox.querySelector('#vaUtmBuild').onclick=()=>{
+   utmCopy.disabled=true;utmResult.value='';
+   const label=utmSlug(utmLabel.value),channel=utmType.value;
+   if(!label){utmFeedback.textContent='Informe o perfume ou nome da campanha antes de gerar.';return}
+   let url;try{url=new URL(utmDest.value.trim())}catch{utmFeedback.textContent='Informe um link HTTPS válido.';return}
+   if(url.protocol!=='https:'||!['www.valenzaparfums.com.br','valenzaparfums.com.br'].includes(url.hostname)){
+    utmFeedback.textContent='Segurança: utilize somente um link oficial da Valenza.';return
+   }
+   const medium={reel:'organic_social',story:'story',bio:'bio',direct:'direct_message',ads:'paid_social'}[channel];
+   const source=channel==='ads'?'meta':'instagram';
+   const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/-/g,'');
+   const unique=utmSlug(utmContent.value);
+   // The server already stores campaign, not utm_content: put each publication ID there.
+   const campaign=('valenza_'+day+'_'+channel+'_'+label+(unique?'_'+unique:'')).slice(0,120);
+   url.searchParams.set('utm_source',source);
+   url.searchParams.set('utm_medium',medium);
+   url.searchParams.set('utm_campaign',campaign);
+   url.searchParams.set('utm_content',channel+'_'+(unique||label));
+   utmResult.value=url.toString();utmCopy.disabled=false;
+   utmFeedback.textContent='Link gerado sem alterar o site, o Direct ou a agenda. Copie e utilize somente na nova publicação.'
+  };
+  intelligenceBox.querySelector('#vaUtmCopy').onclick=async()=>{
+   if(!utmResult.value)return;
+   try{await navigator.clipboard.writeText(utmResult.value);utmFeedback.textContent='Link copiado. Cole no sticker do Story, na bio ou no atendimento.'}
+   catch{utmResult.focus();utmResult.select();utmFeedback.textContent='Selecione e copie o link exibido.'}
+  };
   return
  }
  body.innerHTML='<div class="vaPanel"><h3>Analytics</h3><p style="font-size:11px;color:#777">Aba indisponível.</p></div>';
