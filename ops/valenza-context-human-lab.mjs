@@ -14,8 +14,8 @@ const n=x=>String(x||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowe
 const hard=(t,h)=>{
  const s=n(t);
  if(h?.alreadyReplied||h?.commentProcessed||h?.privateReplySent)return ["ignore","duplicate"];
- if(/nao quero|nao preciso|pare de|nao me chame|sem interesse/.test(s))return ["ignore","optout"];
  if(/meu pedido|pedido atrasado|nao chegou|nao recebi|reembolso|estorno|alergia|reclamacao|produto quebrado|chegou quebrado|veio errado|vazando|insatisfeit|paguei e nao|cobrado duas vezes|pedido cancelado/.test(s))return ["human","customer_issue"];
+ if(/nao quero|nao preciso|pare de|nao me chame|sem interesse/.test(s))return ["ignore","optout"];
  if(/ignore.*instrucoes|token secreto|api key|system prompt|instrucoes anteriores|revele sua|mostre seu token|senha do sistema|desative.*filtro|finja que/.test(s))return ["ignore","injection"];
  return null;
 };
@@ -34,7 +34,7 @@ function sanitize(text){
  const v=text.replace(/\s+/g," ").trim();
  if(v.length<5||v.length>175)return null;
  const s=n(v);
- if(/te mandei|ja enviei|lembro de voce|ja te chamei|mandei na dm|mandei no direct|mandei por dm|enviei no privado|sua dm|link na dm|ja conversamos|sua compra (?:esta|foi)|pedido (?:confirmado|enviado)|agendamos|pode confiar|garantimos|r\$\s*\d+|\b\d+[.,]\d{2}\b|\b\d+\s*(?:reais|horas|dias|semanas)\b|dura o dia todo|fixa muito|resiste ao calor|garantimos a fixacao|frete gratis|promocao imperdivel|compre agora|ultimas unidades|100%|https?:\/\/|@\w+|#\w+/.test(s))return null;
+ if(/te mandei|ja enviei|lembro de voce|ja te chamei|mandei na dm|mandei no direct|mandei por dm|enviei no privado|sua dm|link na dm|ja conversamos|enviei|mandei|conversamos|me lembro|sua compra (?:esta|foi)|pedido (?:confirmado|enviado)|agendamos|pode confiar|garantimos|esta confirmado|vai chegar amanha|mais barato do brasil|fixacao excelente|projecao garantida|r\$\s*\d+|\b\d+[.,]\d{2}\b|\b\d+\s*(?:reais|horas|dias|semanas)\b|dura o dia todo|fixa muito|resiste ao calor|garantimos a fixacao|frete gratis|promocao imperdivel|compre agora|ultimas unidades|100%|https?:\/\/|@\w+|#\w+/.test(s))return null;
  return v;
 }
 function decode(s){
@@ -51,6 +51,7 @@ const prompt=[
  "Retorne APENAS JSON: {\"classe\":\"elogio|duvida|compra|presente|comparacao|reclamacao|irrelevante\",\"acao\":\"publico|privado|humano|ignorar\",\"confianca\":0.9,\"texto\":\"mensagem natural até 150 caracteres\"}."
 ].join(" ");
 export async function interpretHuman(text,AI=null,history={}){
+ history=(history&&typeof history==="object"&&!Array.isArray(history))?history:{};
  const fixed=hard(text,history);
  if(fixed)return {action:fixed[0],reason:fixed[1],reply:fixed[0]==="human"?fallback(text,"human"):null,model:false,sent:false};
  if(typeof text!=="string"||text.length<2||text.length>450)return {action:"ignore",reason:"invalid",reply:null,sent:false};
