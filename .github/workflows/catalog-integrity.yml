@@ -125,6 +125,8 @@ jobs:
         run: node scripts/test-meta-tracking.mjs
       - name: Testar validação de compras na API de Conversões
         run: node scripts/test-meta-capi.mjs
+      - name: Proteger eventos de carrinho e compras pagas
+        run: node scripts/test-analytics-event-safety.mjs
       - name: Validar sintaxe do painel administrativo
         run: node --check public/admin-account.js
       - name: Validar painel administrativo
