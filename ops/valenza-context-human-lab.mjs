@@ -67,12 +67,15 @@ export async function interpretHuman(text,AI=null,history={}){
  if(!j||typeof j!=="object")return {action:"ignore",reason:"invalid_ai_json",reply:null,sent:false};
  let action=({publico:"public",privado:"private_candidate",humano:"human",ignorar:"ignore"})[j.acao]||"ignore";
  const confidence=Number(j.confianca)||0;
- if(j.classe==="reclamacao")action="human";
+ // A model may confuse a gift question with a complaint. Only the pre-model hard gate may escalate.
+ const hallucinatedHuman=action==="human"||j.classe==="reclamacao";
+ if(hallucinatedHuman)action="public";
  if(j.classe==="irrelevante")action="ignore";
  if(j.classe==="elogio"&&action==="private_candidate")action="public";
  if(history.priorDM&&action==="private_candidate")action="public";
  if(action==="private_candidate"&&confidence<0.83)action=confidence>=0.6?"public":"ignore";
  if(action==="public"&&confidence<0.55)action="ignore";
- const reply=action==="ignore"?null:action==="human"?fallback(text,"human"):(sanitize(j.texto)||fallback(text,action));
+ const contextualCaution=/calor|fixa|dura|projecao|presente|esposa|aniversario|compar|suave|good girl|preco|quanto|parcela/.test(n(text));
+ const reply=action==="ignore"?null:hallucinatedHuman||contextualCaution?fallback(text,action):(sanitize(j.texto)||fallback(text,action));
  return {action,class:j.classe,confidence,reply,model:true,sent:false,reason:history.priorDM?"avoid_repeat_dm":"contextual"};
 }
