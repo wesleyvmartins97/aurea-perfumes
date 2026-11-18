@@ -1,4 +1,4 @@
-name: Valenza IA Ultra - teste humano isolado
+name: Valenza IA Ultra - testes de humanização e robustez
 on:
   push:
     branches: [lab-valenza-manychat-open-20261118]
@@ -6,28 +6,36 @@ on:
       - 'ops/valenza-ia-ultra-lab.mjs'
       - 'ops/valenza-context-human-lab.mjs'
       - 'ops/valenza-context-human-lab.test.mjs'
+      - 'ops/valenza-context-stress.test.mjs'
       - '.github/workflows/valenza-humanized-lab.yml'
   pull_request:
     paths:
       - 'ops/valenza-ia-ultra-lab.mjs'
       - 'ops/valenza-context-human-lab.mjs'
       - 'ops/valenza-context-human-lab.test.mjs'
+      - 'ops/valenza-context-stress.test.mjs'
       - '.github/workflows/valenza-humanized-lab.yml'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  humanized-safe-lab:
-    runs-on: ubuntu-latest
-    timeout-minutes: 7
+  qa:
+    name: Testes em ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Check all lab module syntaxes
+      - name: Verificar sintaxe dos modulos
         run: |
           node --check ops/valenza-context-human-lab.mjs
           node --check ops/valenza-ia-ultra-lab.mjs
-      - name: 18 regression tests — no DMs sent
-        run: node --test ops/valenza-context-human-lab.test.mjs
+          node --check ops/valenza-context-stress.test.mjs
+      - name: Rodar regressao e testes de seguranca (sem enviar mensagem)
+        run: node --test ops/valenza-context-human-lab.test.mjs ops/valenza-context-stress.test.mjs
