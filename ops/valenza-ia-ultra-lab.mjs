@@ -3,7 +3,7 @@ import {SCENARIOS,interpretHuman} from './valenza-context-human-lab.mjs';
  * Valenza IA Ultra laboratory - read-only event planning, no Meta outbound calls.
  * ESM; Cloudflare Worker compatible. All identifiers in this file are synthetic.
  */
-export const LAB_VERSION = '2026-11-18.2';
+export const LAB_VERSION = '2026-11-18.3';
 export const DEMO_ACCOUNT = '17841400000000123';
 export const DEMO_MEDIA = '17900000000000001';
 export const DEMO_PROFILE = '17841400000000200';
@@ -46,44 +46,39 @@ function urlInOfficialStore(product) {
 }
 
 /** Only identifies opportunities. Never sends DMs, reposts, or modifies the existing AI. */
-export function planInstagramEvents(webhook, config) {
-  const nowMs = config?.nowMs ?? Date.now();
-  const mediaMap = config?.mediaMap || {};
-  const accountId = config?.accountId;
-  if (!numericId(accountId)) throw new Error('Account id missing');
-  if (webhook?.object !== 'instagram' || !Array.isArray(webhook.entry)) return [];
-  const plans = [];
-  for (const entry of webhook.entry.slice(0, MAX_EVENTS)) {
-    if (String(entry?.id) !== accountId || !isRecent(entry?.time, nowMs)) continue;
-    for (const change of (Array.isArray(entry?.changes) ? entry.changes : []).slice(0, MAX_EVENTS)) {
-      if (!FIELDS.has(change?.field)) continue;
-      const c = change?.value || {};
-      const commentId = String(c.id ?? '');
-      const mediaId = String(c.media?.id ?? '');
-      const senderId = String(c.from?.id ?? '');
-      const product = mediaMap[mediaId];
-      if (!numericId(commentId) || !numericId(mediaId) || !numericId(senderId) || senderId === accountId) continue;
-      if (!product || !urlInOfficialStore(product) || !isReel(c.media?.media_product_type)) continue;
-      if (c.parent_id) continue;  // avoid reacting to threads and bot replies
-      const intent = keywordIntent(c.text);
-      if (!intent) continue;
-      plans.push({
-        kind: 'comment_private_reply_candidate',
-        status: 'SIMULATED_ONLY',
-        idempotency_key: accountId + ':' + mediaId + ':' + commentId,
-        account_id: accountId,
-        media_id: mediaId,
-        comment_id: commentId,
-        sender_id: senderId,
-        keyword: intent,
-        product: product.name,
-        product_url: product.url,
-        preview: 'Oi! 💖 Vi seu interesse no ' + product.name + '. Aqui está o link oficial: ' + product.url,
-        handoff: 'EXISTING_VALENZA_DIRECT_AI_ONLY_AFTER_USER_REPLIES'
-      });
+/**
+ * Synthetic or permitted event planner. Uses the SAME contextual interpreter as
+ * /humanized; no parallel keyword responder and absolutely no messaging API.
+ * Sending/authorization/metadata persistence are NOT implemented in this lab.
+ */
+export async function planInstagramEvents(webhook, config={}) {
+  const results=[],seen=new Set();
+  if(webhook?.object!=='instagram'||!Array.isArray(webhook.entry)||!numericId(config.accountId))return results;
+  const nowMs=Number.isFinite(config.nowMs)?config.nowMs:Date.now();
+  let processed=0;
+  for(const entry of webhook.entry.slice(0,8)){
+    if(String(entry?.id)!==config.accountId||!isRecent(entry?.time,nowMs))continue;
+    for(const change of (Array.isArray(entry.changes)?entry.changes:[]).slice(0,30)){
+      if(processed>=30)break;
+      if(change?.field!=='comments')continue;
+      const c=change?.value||{},commentId=String(c.id||''),mediaId=String(c.media?.id||''),senderId=String(c.from?.id||'');
+      const product=config.mediaMap?.[mediaId];
+      if(!numericId(commentId)||!numericId(mediaId)||!numericId(senderId)||senderId===config.accountId||c.parent_id)continue;
+      if(!product||!urlInOfficialStore(product)||!isReel(c.media?.media_product_type))continue;
+      const key=config.accountId+':'+mediaId+':'+commentId;
+      if(seen.has(key))continue;
+      seen.add(key);
+      processed++;
+      const decision=await interpretHuman(c.text,config.ai||null,config.history?.[commentId]||{});
+      if(decision.action==='ignore')continue;
+      results.push({kind:'reviewable_comment_opportunity',status:'SIMULATED_ONLY',idempotency_key:key,
+        account_id:config.accountId,media_id:mediaId,comment_id:commentId,
+        sender_id:senderId,product:product.name,product_url:product.url,
+        decision,real_dm_sent:false,real_public_reply_sent:false,
+        handoff:'EXISTING_VALENZA_DIRECT_AI_AFTER_USER_REPLY_ONLY'});
     }
   }
-  return plans;
+  return results;
 }
 
 export function demoWebhook(commentId = '18000000000000123', text = 'QUERO') {
@@ -119,10 +114,14 @@ export default {
       next: 'Confirm Meta comment webhook entitlement and connect to existing AI only after safety review'
     });
     if (request.method === 'GET' && path === '/demo') {
-      const one = planInstagramEvents(demoWebhook(), sampleConfig());
-      const neg = planInstagramEvents(demoWebhook('18000000000000999', 'não quero'), sampleConfig());
-      return json({dry_run: true, example: 'Reel comment QUERO', candidates: one, ignore_negative: neg.length === 0,
-        sample_only: 'No customer message sent and no real Instagram account accessed'});
+      // Deterministic synthetic model tests event routing, not actual Meta sending.
+      const mocked={run:async()=>({response:JSON.stringify({classe:'duvida',acao:'publico',confianca:.94,texto:'Quer me contar o que procura no perfume? 💛'})})};
+      const one = await planInstagramEvents(demoWebhook('18000000000000123','Quanto custa esse perfume?'),{...sampleConfig(),ai:mocked});
+      const neg = await planInstagramEvents(demoWebhook('18000000000000999','não quero'),{...sampleConfig(),ai:mocked});
+      const praise = await planInstagramEvents(demoWebhook('18000000000000222','Excelente'),{...sampleConfig(),ai:mocked});
+      return json({dry_run:true,source:'SYNTHETIC_WEBHOOK_AND_MOCK_MODEL',example:'Reel comment question',
+        candidates:one,ignore_negative:neg.length===0,public_praise_only:praise.every(x=>x.decision.action==='public'),
+        sample_only:'No customer message sent and no real Instagram account accessed'});
     }
     if (request.method === 'POST' && path === '/webhooks/valenza-direct') {
       return json({error: 'LAB_WEBHOOK_DISABLED', why: 'Only existing production webhook receives real Meta events'}, 403);
