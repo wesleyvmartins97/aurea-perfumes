@@ -1,0 +1,33 @@
+name: Valenza IA Ultra - teste humano isolado
+on:
+  push:
+    branches: [lab-valenza-manychat-open-20261118]
+    paths:
+      - 'ops/valenza-ia-ultra-lab.mjs'
+      - 'ops/valenza-context-human-lab.mjs'
+      - 'ops/valenza-context-human-lab.test.mjs'
+      - '.github/workflows/valenza-humanized-lab.yml'
+  pull_request:
+    paths:
+      - 'ops/valenza-ia-ultra-lab.mjs'
+      - 'ops/valenza-context-human-lab.mjs'
+      - 'ops/valenza-context-human-lab.test.mjs'
+      - '.github/workflows/valenza-humanized-lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  humanized-safe-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check all lab module syntaxes
+        run: |
+          node --check ops/valenza-context-human-lab.mjs
+          node --check ops/valenza-ia-ultra-lab.mjs
+      - name: 18 regression tests — no DMs sent
+        run: node --test ops/valenza-context-human-lab.test.mjs
