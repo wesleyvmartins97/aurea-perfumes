@@ -383,20 +383,30 @@ async function analyticsEvent(request,env,ctx){
   if(!/^[A-Za-z0-9:_-]{8,160}$/.test(eventKey))return resposta({ok:false,error:"Identificador analítico inválido."},400);
   // Conversion is counted only for an authenticated buyer with a confirmed payment.
   // Checkout, gateway callbacks and the Meta Direct assistant are not modified here.
-  let confirmedPurchase=null;
+  let confirmedPurchase=null,buyer=null;
   if(eventName==="purchase"){
    if(!transactionId)return resposta({ok:false,error:"Identificador da compra ausente."},400);
-   const buyer=await currentCustomer(request,env);
+   buyer=await currentCustomer(request,env);
    if(!buyer)return resposta({ok:false,error:"Autenticação necessária para registrar compra."},401);
    confirmedPurchase=await primaryDb(env).prepare("SELECT id,status,total FROM orders WHERE id=? AND customer_id=? UNION ALL SELECT id,status,total FROM guest_orders WHERE id=? AND lower(email)=lower(?) LIMIT 1").bind(transactionId,buyer.id,transactionId,buyer.email).first();
    if(!confirmedPurchase)return resposta({ok:false,error:"Pedido não encontrado."},404);
    if(confirmedPurchase.status!=="Pago")return resposta({ok:false,error:"Compra ainda não confirmada."},409);
   }
+  // Internal sessions are retained for audit, but excluded from customer-facing aggregates.
+  // A customer visiting through ChatGPT is not automatically classified as an internal tester.
+  const hasStoreLogin=/(?:^|;\\s*)(?:__Host-valenza_session|aurea_session)=/.test(request.headers.get("Cookie")||"");
+  const analyticsUser=eventName==="purchase"?buyer:(hasStoreLogin?await currentCustomer(request,env):null);
+  const adminByEmail=!!analyticsUser&&allowedAdminEmail(env,analyticsUser.email);
+  const adminByMembership=!!analyticsUser&&!adminByEmail&&!!await primaryDb(env).prepare("SELECT 1 ok FROM admin_members WHERE customer_id=? AND active=1 LIMIT 1").bind(analyticsUser.id).first();
+  const internalTest=d.internalTest===true||adminByEmail||adminByMembership;
+  const recordedSource=internalTest?"valenza_interno":analyticsText(d.source,80);
+  const recordedMedium=internalTest?"internal_test":analyticsText(d.medium,80);
+  const recordedCampaign=internalTest?"":analyticsText(d.campaign,120);
   const cf=request.cf||{},pagePath=analyticsText(d.pagePath,300),value=Math.max(0,Math.min(1000000,eventName==="purchase"?Number(confirmedPurchase.total):Number(d.value)||0)),now=new Date().toISOString();
   const eventInsert=await env.DB.prepare("INSERT OR IGNORE INTO analytics_events(id,event_key,visitor_id,session_id,event_name,page_path,product_id,product_name,value,transaction_id,source,medium,campaign,referrer_host,country,region,region_code,city,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-   .bind(crypto.randomUUID(),eventKey,visitorId,sessionId,eventName,pagePath.startsWith("/")?pagePath:"/",analyticsText(d.productId),analyticsText(d.productName),value,transactionId,analyticsText(d.source,80),analyticsText(d.medium,80),analyticsText(d.campaign,120),analyticsText(d.referrerHost,160),analyticsText(cf.country,8),analyticsText(cf.region,100),analyticsText(cf.regionCode,20),analyticsText(cf.city,120),now).run();
+   .bind(crypto.randomUUID(),eventKey,visitorId,sessionId,eventName,pagePath.startsWith("/")?pagePath:"/",analyticsText(d.productId),analyticsText(d.productName),value,transactionId,recordedSource,recordedMedium,recordedCampaign,analyticsText(d.referrerHost,160),analyticsText(cf.country,8),analyticsText(cf.region,100),analyticsText(cf.regionCode,20),analyticsText(cf.city,120),now).run();
   // One interest notification per analytics session, never per item clicked.
-  if(eventName==="add_to_cart"&&Number(eventInsert.meta?.changes||0)>0)queueValenzaNtfy(env,ctx,"cart",sessionId);
+  if(eventName==="add_to_cart"&&Number(eventInsert.meta?.changes||0)>0&&!internalTest)queueValenzaNtfy(env,ctx,"cart",sessionId);
   return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
  }catch(e){console.error("Analytics event:",e);return resposta({ok:false},500)}
 }
@@ -417,16 +427,17 @@ async function analyticsLocation(request,env){
 }
 async function analyticsDashboard(env){
  const now=Date.now(),since24=new Date(now-24*3600e3).toISOString(),since7=new Date(now-7*86400e3).toISOString(),since30=new Date(now-30*86400e3).toISOString();
- const [metrics,locations,sources,products,daily,campaigns]=await Promise.all([
-  env.DB.prepare("SELECT COUNT(DISTINCT CASE WHEN created_at>=? THEN session_id END) sessions24h,COUNT(DISTINCT CASE WHEN created_at>=? THEN session_id END) sessions7d,COUNT(DISTINCT session_id) sessions30d,COUNT(DISTINCT visitor_id) visitors30d,SUM(CASE WHEN event_name='page_view' THEN 1 ELSE 0 END) page_views30d,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) product_views30d,SUM(CASE WHEN event_name='add_to_cart' THEN 1 ELSE 0 END) add_to_cart30d,SUM(CASE WHEN event_name='begin_checkout' THEN 1 ELSE 0 END) begin_checkout30d,COUNT(DISTINCT CASE WHEN event_name='purchase' THEN COALESCE(NULLIF(transaction_id,''),event_key) END) purchases30d,MIN(created_at) first_event_at FROM analytics_events WHERE created_at>=?").bind(since24,since7,since30).first(),
-  env.DB.prepare("SELECT country,region,region_code,city,COUNT(DISTINCT session_id) sessions FROM analytics_events WHERE created_at>=? AND event_name='page_view' GROUP BY country,region,region_code,city ORDER BY sessions DESC LIMIT 15").bind(since30).all(),
-  env.DB.prepare("SELECT COALESCE(NULLIF(source,''),'direct') source,COALESCE(NULLIF(medium,''),'none') medium,COUNT(DISTINCT session_id) sessions FROM analytics_events WHERE created_at>=? AND event_name='page_view' GROUP BY source,medium ORDER BY sessions DESC LIMIT 12").bind(since30).all(),
-  env.DB.prepare("SELECT product_id,MAX(product_name) product_name,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) views,SUM(CASE WHEN event_name='add_to_cart' THEN 1 ELSE 0 END) carts FROM analytics_events WHERE created_at>=? AND product_id IS NOT NULL AND product_id<>'' AND event_name IN ('view_item','add_to_cart') GROUP BY product_id ORDER BY views DESC,carts DESC LIMIT 12").bind(since30).all(),
-  env.DB.prepare("SELECT date(created_at,'-3 hours') day,COUNT(DISTINCT session_id) sessions,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) product_views,SUM(CASE WHEN event_name='begin_checkout' THEN 1 ELSE 0 END) checkouts,COUNT(DISTINCT CASE WHEN event_name='purchase' THEN COALESCE(NULLIF(transaction_id,''),event_key) END) purchases FROM analytics_events WHERE created_at>=? GROUP BY date(created_at,'-3 hours') ORDER BY day DESC LIMIT 7").bind(since7).all(),
-  env.DB.prepare("SELECT campaign,source,medium,COUNT(DISTINCT CASE WHEN event_name='page_view' THEN session_id END) sessions,COUNT(DISTINCT CASE WHEN event_name='view_item' THEN session_id END) product_sessions,COUNT(DISTINCT CASE WHEN event_name='begin_checkout' THEN session_id END) checkouts FROM analytics_events WHERE created_at>=? AND campaign IS NOT NULL AND TRIM(campaign)<>'' GROUP BY campaign,source,medium ORDER BY sessions DESC LIMIT 15").bind(since30).all()
+ const [metrics,locations,sources,products,daily,campaigns,trafficQuality]=await Promise.all([
+  env.DB.prepare("SELECT COUNT(DISTINCT CASE WHEN created_at>=? THEN session_id END) sessions24h,COUNT(DISTINCT CASE WHEN created_at>=? THEN session_id END) sessions7d,COUNT(DISTINCT session_id) sessions30d,COUNT(DISTINCT visitor_id) visitors30d,SUM(CASE WHEN event_name='page_view' THEN 1 ELSE 0 END) page_views30d,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) product_views30d,SUM(CASE WHEN event_name='add_to_cart' THEN 1 ELSE 0 END) add_to_cart30d,SUM(CASE WHEN event_name='begin_checkout' THEN 1 ELSE 0 END) begin_checkout30d,COUNT(DISTINCT CASE WHEN event_name='purchase' THEN COALESCE(NULLIF(transaction_id,''),event_key) END) purchases30d,MIN(created_at) first_event_at FROM analytics_events WHERE created_at>=? AND COALESCE(medium,'')<>'internal_test'").bind(since24,since7,since30).first(),
+  env.DB.prepare("SELECT country,region,region_code,city,COUNT(DISTINCT session_id) sessions FROM analytics_events WHERE created_at>=? AND COALESCE(medium,'')<>'internal_test' AND event_name='page_view' GROUP BY country,region,region_code,city ORDER BY sessions DESC LIMIT 15").bind(since30).all(),
+  env.DB.prepare("SELECT COALESCE(NULLIF(source,''),'direct') source,COALESCE(NULLIF(medium,''),'none') medium,COUNT(DISTINCT session_id) sessions FROM analytics_events WHERE created_at>=? AND COALESCE(medium,'')<>'internal_test' AND event_name='page_view' GROUP BY source,medium ORDER BY sessions DESC LIMIT 12").bind(since30).all(),
+  env.DB.prepare("SELECT product_id,MAX(product_name) product_name,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) views,SUM(CASE WHEN event_name='add_to_cart' THEN 1 ELSE 0 END) carts FROM analytics_events WHERE created_at>=? AND COALESCE(medium,'')<>'internal_test' AND product_id IS NOT NULL AND product_id<>'' AND event_name IN ('view_item','add_to_cart') GROUP BY product_id ORDER BY views DESC,carts DESC LIMIT 12").bind(since30).all(),
+  env.DB.prepare("SELECT date(created_at,'-3 hours') day,COUNT(DISTINCT session_id) sessions,SUM(CASE WHEN event_name='view_item' THEN 1 ELSE 0 END) product_views,SUM(CASE WHEN event_name='begin_checkout' THEN 1 ELSE 0 END) checkouts,COUNT(DISTINCT CASE WHEN event_name='purchase' THEN COALESCE(NULLIF(transaction_id,''),event_key) END) purchases FROM analytics_events WHERE created_at>=? AND COALESCE(medium,'')<>'internal_test' GROUP BY date(created_at,'-3 hours') ORDER BY day DESC LIMIT 7").bind(since7).all(),
+  env.DB.prepare("SELECT campaign,source,medium,COUNT(DISTINCT CASE WHEN event_name='page_view' THEN session_id END) sessions,COUNT(DISTINCT CASE WHEN event_name='view_item' THEN session_id END) product_sessions,COUNT(DISTINCT CASE WHEN event_name='begin_checkout' THEN session_id END) checkouts FROM analytics_events WHERE created_at>=? AND COALESCE(medium,'')<>'internal_test' AND campaign IS NOT NULL AND TRIM(campaign)<>'' GROUP BY campaign,source,medium ORDER BY sessions DESC LIMIT 15").bind(since30).all(),
+  env.DB.prepare("SELECT COUNT(DISTINCT session_id) total_sessions,COUNT(DISTINCT CASE WHEN medium='internal_test' THEN session_id END) internal_sessions,COUNT(DISTINCT CASE WHEN source='chatgpt.com' AND COALESCE(medium,'')<>'internal_test' THEN session_id END) unclassified_chatgpt FROM analytics_events WHERE created_at>=?").bind(since30).first()
  ]);
  const m=metrics||{},sessions30=Number(m.sessions30d||0),purchases30=Number(m.purchases30d||0);
- return {periodDays:30,sessions24h:Number(m.sessions24h||0),sessions7d:Number(m.sessions7d||0),sessions30d:sessions30,visitors30d:Number(m.visitors30d||0),pageViews30d:Number(m.page_views30d||0),productViews30d:Number(m.product_views30d||0),addToCart30d:Number(m.add_to_cart30d||0),beginCheckout30d:Number(m.begin_checkout30d||0),purchases30d:purchases30,conversion30d:sessions30?Number((purchases30*100/sessions30).toFixed(2)):0,firstEventAt:m.first_event_at||null,locations:locations.results||[],sources:sources.results||[],products:products.results||[],daily:daily.results||[],campaigns:campaigns.results||[]};
+ return {periodDays:30,sessions24h:Number(m.sessions24h||0),sessions7d:Number(m.sessions7d||0),sessions30d:sessions30,visitors30d:Number(m.visitors30d||0),pageViews30d:Number(m.page_views30d||0),productViews30d:Number(m.product_views30d||0),addToCart30d:Number(m.add_to_cart30d||0),beginCheckout30d:Number(m.begin_checkout30d||0),purchases30d:purchases30,conversion30d:sessions30?Number((purchases30*100/sessions30).toFixed(2)):0,firstEventAt:m.first_event_at||null,locations:locations.results||[],sources:sources.results||[],products:products.results||[],daily:daily.results||[],campaigns:campaigns.results||[],testSessions30d:Number(trafficQuality?.internal_sessions||0),unclassifiedChatgpt30d:Number(trafficQuality?.unclassified_chatgpt||0)};
 }
 function adminUsername(env){return String(env.ADMIN_USERNAME||"wesleymartins").trim().toLowerCase()}
 function adminSuggestedUsername(user,env){
