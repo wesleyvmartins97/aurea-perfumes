@@ -37,3 +37,16 @@
 - Validar `PRAGMA quick_check`, nenhuma dupla valida duplicada, totais preservados, coleta cron e respostas das exportacoes autenticadas.
 - Em incidentes, usar o historico de versoes/deployments do Cloudflare para rollback; nao desligar a coleta ou apagar participacoes.
 
+
+## Atualizacao v99 — 17/11/2026 (Cloudflare)
+
+- Worker versao 99 (`64027bdc-fb78-4a6f-8523-9fed64d4fe01`) publicado com 100% do trafego.
+- Exporte `/api/export?set=valid&format=csv` para obter apenas **Chance;Perfil;ID_Comentario**, sem verificacoes pendentes.
+- Exporte `/api/export?set=valid&format=txt` para obter 1 entrada unica por chance, formato `@perfil | Chance 001`, preservando multiplas chances legitimas do mesmo perfil.
+- `format=csv-auditoria` preserva dados completos das marcacoes e as verificacoes apenas para consulta, sem poluir o arquivo principal.
+- `approvedRows` exige `c.base_valid=1`, `c.is_deleted=0` e que o comentario seja o `first_id` da sua dupla canonica em `participant_pairs`. Exclui uma marcacao, mesma dupla ou ordem invertida.
+- Visual principal prioriza CSV/TXT; XLSX/PDF detalhados ficam sob `Outros formatos`.
+- Auditada query real no D1: 98 comentarios elegiveis, 2 sem chance e nenhuma duplicata valida. Coletas ID 307 e 308 completaram sem erro; integridade do D1 ok. Cron continua 15 minutos.
+- Backup local: `C:\DCNOVO\Backups\valenza-sorteios-worker-v99-20261117.mjs`, SHA-256 `411f8ebc5202740934e354abdd7f2efb65d33ec65d41f5862b4208bb315c0451`.
+- QA isolado Windows: `node --check`, CSV, TXT, CSV auditoria, defaults, export vazio e layout Chrome headless 320/390/768/1280 passaram. Download administrativo real permanece protegido por autenticacao e nao foi testado em navegador com login.
+- Versao v98 e auditoria antigas preservadas, para rollback e rastreabilidade.
