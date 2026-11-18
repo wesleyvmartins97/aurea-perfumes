@@ -50,8 +50,10 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Python -m venv failed' }
             $labPy = Join-Path $venv 'Scripts\python.exe'
             if (-not (Test-Path -LiteralPath $labPy -PathType Leaf)) { throw 'Python venv executable was not created' }
-            $testVersion = & $labPy -c 'import sys;print("PYOK" if sys.version_info >= (3,11) else "PYNO")'
-            if ($LASTEXITCODE -ne 0 -or $testVersion -ne 'PYOK') { throw 'Python version check failed' }
+            & $labPy -c 'import sys;sys.exit(0 if sys.version_info >= (3,11) else 3)'
+            if ($LASTEXITCODE -ne 0) { throw 'Python version check failed' }
+            $packageVersion = & $labPy -c 'import importlib.metadata as md,sys;print(md.version(sys.argv[1]))' pip
+            if ($LASTEXITCODE -ne 0 -or -not $packageVersion) { throw 'PowerShell Python -c argument check failed' }
             Write-Host 'WINDOWS POWERSHELL V4 REGISTRY DISCOVERY + ISOLATED VENV: PASS'
           }
           finally {
