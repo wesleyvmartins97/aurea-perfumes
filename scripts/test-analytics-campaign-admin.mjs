@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const worker=readFileSync('src/worker.js','utf8');
+const admin=readFileSync('public/admin-account.js','utf8');
+const start=worker.indexOf('async function analyticsDashboard(env)');
+const end=worker.indexOf('function adminUsername(',start);
+assert(start>=0&&end>start,'Analytics dashboard exists');
+const fn=worker.slice(start,end);
+assert(fn.includes('products,daily,campaigns]=await Promise.all(['),'New campaign query must be awaited alongside old summaries');
+assert(fn.includes("AND campaign IS NOT NULL AND TRIM(campaign)<>''"),'No fabricated campaign from untagged visits');
+assert(fn.includes('COUNT(DISTINCT CASE WHEN event_name=\'page_view\' THEN session_id END) sessions'),'Campaigns count sessions, not page views');
+assert(fn.includes('campaigns:campaigns.results||[]'),'Existing API exposes campaigns');
+assert(admin.includes("const campaignHtml=campaigns.length?campaigns.map"),'Analytics tab renders campaigns');
+assert(admin.includes("Sem dados para atribuir vendas."),'Unattributed sales are not invented');
+assert(admin.includes("'+esc(x.campaign||'Campanha')+'"),'Campaign title escaped for HTML safety');
+assert(!admin.includes('fetch(\'/api/instagram/'), 'No new Direct or Meta API operations');
+console.log('PASS: tagged campaign aggregation, existing admin view, honest empty-state, escaped output, no Direct changes');
