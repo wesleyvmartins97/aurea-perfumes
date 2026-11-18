@@ -381,7 +381,18 @@ async function analyticsEvent(request,env,ctx){
   if(!/^[A-Za-z0-9_-]{8,80}$/.test(visitorId)||!/^[A-Za-z0-9_-]{8,80}$/.test(sessionId))return resposta({ok:false,error:"Sessão analítica inválida."},400);
   const transactionId=analyticsText(d.transactionId,120),rawKey=analyticsText(d.eventId,120),eventKey=eventName==="purchase"&&transactionId?"purchase:"+transactionId:rawKey;
   if(!/^[A-Za-z0-9:_-]{8,160}$/.test(eventKey))return resposta({ok:false,error:"Identificador analítico inválido."},400);
-  const cf=request.cf||{},pagePath=analyticsText(d.pagePath,300),value=Math.max(0,Math.min(1000000,Number(d.value)||0)),now=new Date().toISOString();
+  // Conversion is counted only for an authenticated buyer with a confirmed payment.
+  // Checkout, gateway callbacks and the Meta Direct assistant are not modified here.
+  let confirmedPurchase=null;
+  if(eventName==="purchase"){
+   if(!transactionId)return resposta({ok:false,error:"Identificador da compra ausente."},400);
+   const buyer=await currentCustomer(request,env);
+   if(!buyer)return resposta({ok:false,error:"Autenticação necessária para registrar compra."},401);
+   confirmedPurchase=await primaryDb(env).prepare("SELECT id,status,total FROM orders WHERE id=? AND customer_id=? UNION ALL SELECT id,status,total FROM guest_orders WHERE id=? AND lower(email)=lower(?) LIMIT 1").bind(transactionId,buyer.id,transactionId,buyer.email).first();
+   if(!confirmedPurchase)return resposta({ok:false,error:"Pedido não encontrado."},404);
+   if(confirmedPurchase.status!=="Pago")return resposta({ok:false,error:"Compra ainda não confirmada."},409);
+  }
+  const cf=request.cf||{},pagePath=analyticsText(d.pagePath,300),value=Math.max(0,Math.min(1000000,eventName==="purchase"?Number(confirmedPurchase.total):Number(d.value)||0)),now=new Date().toISOString();
   const eventInsert=await env.DB.prepare("INSERT OR IGNORE INTO analytics_events(id,event_key,visitor_id,session_id,event_name,page_path,product_id,product_name,value,transaction_id,source,medium,campaign,referrer_host,country,region,region_code,city,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
    .bind(crypto.randomUUID(),eventKey,visitorId,sessionId,eventName,pagePath.startsWith("/")?pagePath:"/",analyticsText(d.productId),analyticsText(d.productName),value,transactionId,analyticsText(d.source,80),analyticsText(d.medium,80),analyticsText(d.campaign,120),analyticsText(d.referrerHost,160),analyticsText(cf.country,8),analyticsText(cf.region,100),analyticsText(cf.regionCode,20),analyticsText(cf.city,120),now).run();
   // One interest notification per analytics session, never per item clicked.
