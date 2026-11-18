@@ -7,6 +7,7 @@ on:
       - 'ops/valenza-context-human-lab.mjs'
       - 'ops/valenza-context-human-lab.test.mjs'
       - 'ops/valenza-context-stress.test.mjs'
+      - 'ops/valenza-context-events.test.mjs'
       - '.github/workflows/valenza-humanized-lab.yml'
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - 'ops/valenza-context-human-lab.mjs'
       - 'ops/valenza-context-human-lab.test.mjs'
       - 'ops/valenza-context-stress.test.mjs'
+      - 'ops/valenza-context-events.test.mjs'
       - '.github/workflows/valenza-humanized-lab.yml'
   workflow_dispatch:
 permissions:
@@ -37,5 +39,6 @@ jobs:
           node --check ops/valenza-context-human-lab.mjs
           node --check ops/valenza-ia-ultra-lab.mjs
           node --check ops/valenza-context-stress.test.mjs
+          node --check ops/valenza-context-events.test.mjs
       - name: Rodar regressao e testes de seguranca (sem enviar mensagem)
-        run: node --test ops/valenza-context-human-lab.test.mjs ops/valenza-context-stress.test.mjs
+        run: node --test ops/valenza-context-human-lab.test.mjs ops/valenza-context-stress.test.mjs ops/valenza-context-events.test.mjs
