@@ -3,7 +3,8 @@ import {SCENARIOS,interpretHuman} from './valenza-context-human-lab.mjs';
  * Valenza IA Ultra laboratory - read-only event planning, no Meta outbound calls.
  * ESM; Cloudflare Worker compatible. All identifiers in this file are synthetic.
  */
-export const LAB_VERSION = '2026-11-18.3';
+export const LAB_VERSION = '2026-11-18.4';
+export const AUTHORIZED_TESTER = 'wesleyvmartins';
 export const DEMO_ACCOUNT = '17841400000000123';
 export const DEMO_MEDIA = '17900000000000001';
 export const DEMO_PROFILE = '17841400000000200';
@@ -53,6 +54,9 @@ function urlInOfficialStore(product) {
  */
 export async function planInstagramEvents(webhook, config={}) {
   const results=[],seen=new Set();
+  // The first live trial is strictly restricted to the owner's personal account.
+  // Never plan replies for an unverified or different Instagram username.
+  if (config.testerUsername !== AUTHORIZED_TESTER) return results;
   if(webhook?.object!=='instagram'||!Array.isArray(webhook.entry)||!numericId(config.accountId))return results;
   const nowMs=Number.isFinite(config.nowMs)?config.nowMs:Date.now();
   let processed=0;
@@ -64,6 +68,7 @@ export async function planInstagramEvents(webhook, config={}) {
       const c=change?.value||{},commentId=String(c.id||''),mediaId=String(c.media?.id||''),senderId=String(c.from?.id||'');
       const product=config.mediaMap?.[mediaId];
       if(!numericId(commentId)||!numericId(mediaId)||!numericId(senderId)||senderId===config.accountId||c.parent_id)continue;
+      if(String(c.from?.username||'').toLowerCase() !== AUTHORIZED_TESTER)continue;
       if(!product||!urlInOfficialStore(product)||!isReel(c.media?.media_product_type))continue;
       const key=config.accountId+':'+mediaId+':'+commentId;
       if(seen.has(key))continue;
@@ -87,7 +92,7 @@ export function demoWebhook(commentId = '18000000000000123', text = 'QUERO') {
     entry: [{id: DEMO_ACCOUNT, time: Math.floor(Date.now() / 1000), changes: [{
       field: 'comments', value: {
         id: commentId, text,
-        from: {id: DEMO_PROFILE, username: 'cliente_ficticio'},
+        from: {id: DEMO_PROFILE, username: AUTHORIZED_TESTER}, // mock fixture, not a real user event
         media: {id: DEMO_MEDIA, media_product_type: 'REELS'}
       }
     }]}]
@@ -96,7 +101,7 @@ export function demoWebhook(commentId = '18000000000000123', text = 'QUERO') {
 
 const headers = {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'access-control-allow-origin': 'none'};
 function json(body, status = 200) { return new Response(JSON.stringify(body, null, 2), {status, headers}); }
-const sampleConfig = () => ({accountId: DEMO_ACCOUNT, mediaMap: {[DEMO_MEDIA]: DEMO_PRODUCT}});
+const sampleConfig = () => ({accountId: DEMO_ACCOUNT, testerUsername: AUTHORIZED_TESTER, mediaMap: {[DEMO_MEDIA]: DEMO_PRODUCT}});
 
 export default {
   async fetch(request, env) {
@@ -109,7 +114,7 @@ export default {
       return json({contextual:true,dry_run:true,scenario:type,comment:SCENARIOS[type],decision,live_instagram_connected:false,real_dm_sending:false,production_modified:false});
     }
     if (request.method === 'GET' && path === '/health') return json({
-      system: 'Valenza IA Ultra LAB', version: LAB_VERSION, status: 'ready', environment: 'isolated', contextual_ai_available: !!env.AI,
+      system: 'Valenza IA Ultra LAB', version: LAB_VERSION, status: 'ready', environment: 'isolated', authorized_test_handle: '@wesleyvmartins', contextual_ai_available: !!env.AI,
       live_instagram_connected: false, real_dm_sending: false, production_modified: false,
       next: 'Confirm Meta comment webhook entitlement and connect to existing AI only after safety review'
     });
