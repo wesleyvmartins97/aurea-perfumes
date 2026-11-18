@@ -1,8 +1,9 @@
+import {SCENARIOS,interpretHuman} from './valenza-context-human-lab.mjs';
 /**
  * Valenza IA Ultra laboratory - read-only event planning, no Meta outbound calls.
  * ESM; Cloudflare Worker compatible. All identifiers in this file are synthetic.
  */
-export const LAB_VERSION = '2026-11-18.1';
+export const LAB_VERSION = '2026-11-18.2';
 export const DEMO_ACCOUNT = '17841400000000123';
 export const DEMO_MEDIA = '17900000000000001';
 export const DEMO_PROFILE = '17841400000000200';
@@ -105,8 +106,15 @@ const sampleConfig = () => ({accountId: DEMO_ACCOUNT, mediaMap: {[DEMO_MEDIA]: D
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
+    if (request.method === 'GET' && path === '/humanized/cases') return json({scenarios:Object.entries(SCENARIOS).map(([id,comment])=>({id,comment})),dry_run:true,real_dm_sending:false});
+    if (request.method === 'GET' && path === '/humanized') {
+      const type=new URL(request.url).searchParams.get('case')||'calor';
+      if (!Object.hasOwn(SCENARIOS,type)) return json({error:'UNKNOWN_SCENARIO',allowed:Object.keys(SCENARIOS)},400);
+      const decision=await interpretHuman(SCENARIOS[type],env.AI,type==='memoria'?{priorDM:true}:{});
+      return json({contextual:true,dry_run:true,scenario:type,comment:SCENARIOS[type],decision,live_instagram_connected:false,real_dm_sending:false,production_modified:false});
+    }
     if (request.method === 'GET' && path === '/health') return json({
-      system: 'Valenza IA Ultra LAB', version: LAB_VERSION, status: 'ready', environment: 'isolated',
+      system: 'Valenza IA Ultra LAB', version: LAB_VERSION, status: 'ready', environment: 'isolated', contextual_ai_available: !!env.AI,
       live_instagram_connected: false, real_dm_sending: false, production_modified: false,
       next: 'Confirm Meta comment webhook entitlement and connect to existing AI only after safety review'
     });
