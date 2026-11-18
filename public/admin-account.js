@@ -878,7 +878,7 @@ function renderAdminBody(){
   return
  }
  if(adminView==='analytics'){
-  const a=d.analytics||{},locations=a.locations||[],sources=a.sources||[],products=a.products||[],daily=a.daily||[],campaigns=a.campaigns||[];
+  const a=d.analytics||{},locations=a.locations||[],sources=a.sources||[],products=a.products||[],daily=a.daily||[],campaigns=a.campaigns||[],social=a.socialChannels30d||[],ig=social.find(x=>x.channel==='instagram')||{},fb=social.find(x=>x.channel==='facebook')||{};
   const cards=[['Visitas 24h',a.sessions24h||0,'Sessões'],['Visitas 7 dias',a.sessions7d||0,'Sessões'],['Visitantes 30 dias',a.visitors30d||0,'Anônimos'],['Conversão 30 dias',(Number(a.conversion30d||0)).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%','Compra / sessão'],['Produtos vistos',a.productViews30d||0,'30 dias'],['Carrinhos',a.addToCart30d||0,'30 dias'],['Checkouts',a.beginCheckout30d||0,'30 dias'],['Compras',a.purchases30d||0,'30 dias']];
   const locHtml=locations.length?locations.map(x=>{const city=esc(x.city||'Cidade não identificada'),region=esc(x.region_code||x.region||x.country||'—');return '<div class="vaAnalyticsRow"><div><b>'+city+'</b><small>'+region+(x.country?' · '+esc(x.country):'')+'</small></div><div class="vaAnalyticsValue">'+Number(x.sessions||0)+' visita(s)</div></div>'}).join(''):'<div class="vaEmpty">Ainda sem localização registrada.</div>';
   const srcHtml=sources.length?sources.map(x=>'<div class="vaAnalyticsRow"><div><b>'+esc(x.source||'direct')+'</b><small>'+esc(x.medium||'none')+'</small></div><div class="vaAnalyticsValue">'+Number(x.sessions||0)+' visita(s)</div></div>').join(''):'<div class="vaEmpty">Ainda sem origem registrada.</div>';
@@ -890,11 +890,13 @@ function renderAdminBody(){
   const intelligenceBox=document.createElement('div');
   intelligenceBox.className='vaPanel';
   intelligenceBox.style.marginBottom='12px';
-  intelligenceBox.innerHTML='<h3>Valenza Intelligence · campanhas e tráfego confiável</h3>'+
+  intelligenceBox.innerHTML='<h3>Valenza Intelligence · campanhas e tráfego confiável</h3>'+ 
+   '<p style="font-size:10px;line-height:1.7;color:#777">Rastreamento das redes: automático. Você não precisa gerar links para ver visitas vindas do Instagram e Facebook. Esses números não identificam um Reel individual nem representam vendas.</p>'+ 
+   '<div class="vaMetrics"><div class="vaMetric"><span>INSTAGRAM · VISITAS</span><b>'+Number(ig.sessions||0)+'</b><small>30 dias · origem detectada</small></div><div class="vaMetric"><span>INSTAGRAM · INTERESSE</span><b>'+Number(ig.product_sessions||0)+'</b><small>Sessões com produto visto · '+Number(ig.checkouts||0)+' checkout(s)</small></div><div class="vaMetric"><span>FACEBOOK · VISITAS</span><b>'+Number(fb.sessions||0)+'</b><small>30 dias · origem detectada</small></div></div>'+ 
    '<p style="font-size:10px;line-height:1.7;color:#777">As sessões de administradores identificados e as marcadas como teste ficam separadas do funil, sem apagar dados. A classificação começou nesta atualização: acessos anteriores podem conter testes. Não considere qualquer visita do ChatGPT automaticamente interna.</p>'+
    '<div class="vaMetrics"><div class="vaMetric"><span>SESSÕES MARCADAS COMO TESTE</span><b>'+Number(a.testSessions30d||0)+'</b><small>Últimos 30 dias · fora do funil</small></div><div class="vaMetric"><span>ORIGEM CHATGPT NÃO CLASSIFICADA</span><b>'+Number(a.unclassifiedChatgpt30d||0)+'</b><small>Pode incluir clientes ou testes antigos</small></div></div>'+
    '<p style="font-size:10px;line-height:1.7;margin:12px 0">📈 <a href="https://valenza-social-admin.aureaperfumes.workers.dev/social/growth" target="_blank" rel="noopener noreferrer">Ver Reels, seguidores e desempenho no painel social existente</a> · requer acesso de administrador do Social Admin. Dados de alcance não são vendas.</p>'+
-   '<details id="vaUtmDetails" style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;font-weight:700;padding:8px 0">Criar link rastreável para Reel, Story, bio ou Direct</summary>'+
+   '<details id="vaUtmDetails" style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;font-weight:700;padding:8px 0">Opcional: identificar um Reel ou Story específico</summary>'+
     '<div style="display:grid;gap:8px;padding:10px 0">'+
      '<label style="font-size:10px">Link oficial de destino<input id="vaUtmDestination" type="url" value="https://www.valenzaparfums.com.br/" placeholder="https://www.valenzaparfums.com.br/perfume/..." style="display:block;width:100%;margin-top:4px"></label>'+
      '<label style="font-size:10px">Identificação do perfume ou campanha<input id="vaUtmLabel" type="text" placeholder="ex.: sabah-al-ward" maxlength="60" style="display:block;width:100%;margin-top:4px"></label>'+
