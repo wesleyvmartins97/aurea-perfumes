@@ -55,6 +55,11 @@ jobs:
             $packageVersion = & $labPy -c 'import importlib.metadata as md,sys;print(md.version(sys.argv[1]))' pip
             if ($LASTEXITCODE -ne 0 -or -not $packageVersion) { throw 'PowerShell Python -c argument check failed' }
             Write-Host 'WINDOWS POWERSHELL V4 REGISTRY DISCOVERY + ISOLATED VENV: PASS'
+            & $labPy -m pip --disable-pip-version-check install --prefer-binary 'instagrapi==3.2.15'
+            if ($LASTEXITCODE -ne 0) { throw 'Instagram test library install failed on actual Windows' }
+            & $labPy -c 'from instagrapi import Client;from instagrapi.types import StoryLink;import inspect,sys;assert sys.argv[1] in inspect.signature(Client.photo_upload_to_story).parameters;assert StoryLink(webUri=sys.argv[2])' links https://www.valenzaparfums.com.br/perfume/sabah-al-ward-pearl/
+            if ($LASTEXITCODE -ne 0) { throw 'instagrapi StoryLink or photo_upload_to_story incompatible' }
+            Write-Host 'WINDOWS INSTAGRAPI 3.2.15 INSTALL + STORY LINK SIGNATURE: PASS (NO LOGIN)'
           }
           finally {
             Remove-Item -Path 'HKCU:\Software\Python\PythonCore\ValenzaV4Regression' -Recurse -Force -ErrorAction SilentlyContinue
