@@ -13,10 +13,8 @@ import os
 import sys
 import tempfile
 import urllib.request
-from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
-from zoneinfo import ZoneInfo
 
 OFFICIAL_USER = "valenza.parfumsimportados"
 ALLOWED_DESTINATIONS = {"valenzaparfums.com.br", "www.valenzaparfums.com.br"}
@@ -100,11 +98,10 @@ def publish_only_secondary(manifest: dict, url: str, test_username: str) -> dict
                 for entry in getattr(readback, "links", [])
             ]
             ok = url in linked
-            return {
+            result = {
                 "uploaded_to_secondary": True,
                 "verified_link": ok,
                 "story_pk": str(story.pk),
-                "story_deleted_after_test": True,
                 "finding": "LINK_OK" if ok else "LINK_NOT_FOUND_IN_READBACK",
             }
         finally:
@@ -112,7 +109,9 @@ def publish_only_secondary(manifest: dict, url: str, test_username: str) -> dict
             if story is not None:
                 deleted = cl.story_delete(int(story.pk))
                 if not deleted:
-                    print("ATENÇÃO: não foi possível excluir o Story da conta secundária!", file=sys.stderr)
+                    raise RuntimeError("O Story de teste não pôde ser excluído da conta secundária.")
+    result["story_deleted_after_test"] = True
+    return result
 
 
 def main() -> int:
